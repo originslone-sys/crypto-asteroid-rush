@@ -54,13 +54,6 @@ if (!function_exists('secureLog')) {
     }
 }
 
-// Função para validar carteira (caso não exista)
-if (!function_exists('validateWallet')) {
-    function validateWallet($wallet) {
-        return preg_match('/^0x[a-fA-F0-9]{40}$/', $wallet);
-    }
-}
-
 $input = json_decode(file_get_contents('php://input'), true);
 
 // Validar entrada
@@ -73,18 +66,21 @@ if (!validateWallet($wallet)) {
 }
 
 try {
-    // Conexão com banco
-    $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4", DB_USER, DB_PASS);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-    
+    // Conexão com banco (Railway-safe)
+    $pdo = getDatabaseConnection();
+    if (!$pdo) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao conectar ao banco']);
+        exit;
+    }
+
     // ============================================
     // 0. VERIFICAR RATE LIMIT
     // ============================================
     if (class_exists('RateLimiter')) {
         $limiter = new RateLimiter($pdo, $wallet);
         $rateCheck = $limiter->checkGameStart();
-        
+
         if (!$rateCheck['allowed']) {
             echo json_encode([
                 'success' => false,
@@ -95,142 +91,73 @@ try {
             ]);
             exit;
         }
-        
-        // Log se wallet está flagged
-        if (!empty($rateCheck['flagged'])) {
-            secureLog("FLAGGED_PLAYER_START | Wallet: {$wallet}");
-        }
     }
-    
+
     // ============================================
-    // 1. VERIFICAR SE JOGADOR EXISTE
+    // 1. VALIDAR TX HASH (se fornecido)
+    // ============================================
+    if (!empty($txHash) && !preg_match('/^0x[a-fA-F0-9]{64}$/', $txHash)) {
+        echo json_encode(['success' => false, 'error' => 'Hash de transação inválido']);
+        exit;
+    }
+
+    // ============================================
+    // 2. BUSCAR/CRIAR JOGADOR
     // ============================================
     $stmt = $pdo->prepare("SELECT id, total_played FROM players WHERE wallet_address = ?");
     $stmt->execute([$wallet]);
     $player = $stmt->fetch();
-    
+
     if (!$player) {
-        $pdo->prepare("INSERT INTO players (wallet_address, balance_usdt, total_played) VALUES (?, 0, 0)")
+        $pdo->prepare("INSERT INTO players (wallet_address, balance_usdt, total_played) VALUES (?, 0.0, 0)")
             ->execute([$wallet]);
-        $playerId = $pdo->lastInsertId();
-        $totalPlayed = 0;
-    } else {
-        $playerId = $player['id'];
-        $totalPlayed = (int)$player['total_played'];
+
+        $stmt = $pdo->prepare("SELECT id, total_played FROM players WHERE wallet_address = ?");
+        $stmt->execute([$wallet]);
+        $player = $stmt->fetch();
     }
-    
+
+    $playerId = (int)$player['id'];
+    $totalPlayed = (int)$player['total_played'];
+
     // ============================================
-    // 2. VERIFICAR SE TABELA game_sessions EXISTE
-    // ============================================
-    $tableExists = $pdo->query("SHOW TABLES LIKE 'game_sessions'")->fetch();
-    
-    if (!$tableExists) {
-        // Criar tabela se não existir
-        $pdo->exec("
-            CREATE TABLE game_sessions (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                wallet_address VARCHAR(42) NOT NULL,
-                session_token VARCHAR(64) DEFAULT '',
-                mission_number INT NOT NULL,
-                status ENUM('active', 'completed', 'expired', 'flagged', 'cancelled') DEFAULT 'active',
-                rare_asteroids_target INT DEFAULT 0,
-                epic_asteroid_target INT DEFAULT 0,
-                rare_ids TEXT DEFAULT NULL,
-                epic_id INT DEFAULT -1,
-                asteroids_destroyed INT DEFAULT 0,
-                rare_asteroids INT DEFAULT 0,
-                epic_asteroids INT DEFAULT 0,
-                earnings_usdt DECIMAL(20,8) DEFAULT 0.00000000,
-                client_score INT DEFAULT NULL,
-                client_earnings DECIMAL(20,8) DEFAULT NULL,
-                validation_errors TEXT DEFAULT NULL,
-                tx_hash VARCHAR(66) DEFAULT NULL,
-                entry_fee_bnb DECIMAL(20,8) DEFAULT 0.00001,
-                session_duration INT DEFAULT NULL,
-                started_at DATETIME DEFAULT NULL,
-                ended_at DATETIME DEFAULT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_wallet (wallet_address),
-                INDEX idx_status (status),
-                INDEX idx_created (created_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        ");
-        secureLog("TABLE_CREATED | game_sessions");
-    }
-    
-    // ============================================
-    // 3. VERIFICAR RATE LIMIT (1 jogo a cada 3 min)
-    // ============================================
-    $stmt = $pdo->prepare("
-        SELECT id, created_at FROM game_sessions 
-        WHERE wallet_address = ? 
-        AND status IN ('active', 'completed')
-        AND created_at > DATE_SUB(NOW(), INTERVAL 3 MINUTE)
-        ORDER BY created_at DESC LIMIT 1
-    ");
-    $stmt->execute([$wallet]);
-    $recentSession = $stmt->fetch();
-    
-    if ($recentSession) {
-        $waitTime = 180 - (time() - strtotime($recentSession['created_at']));
-        echo json_encode([
-            'success' => false, 
-            'error' => 'Aguarde antes de jogar novamente',
-            'wait_seconds' => max(0, $waitTime)
-        ]);
-        exit;
-    }
-    
-    // ============================================
-    // 4. DETERMINAR RECOMPENSAS DA MISSÃO
+    // 3. CALCULAR NÚMERO DA MISSÃO
     // ============================================
     $missionNumber = $totalPlayed + 1;
-    
-    // Raros: 1-2 por missão (70% chance de 1, 30% chance de 2)
-    $rareCount = (mt_rand(1, 100) <= 70) ? 1 : 2;
-    
-    // Épico: a cada 15+ missões com 30% de chance
-    $stmt = $pdo->prepare("
-        SELECT MAX(mission_number) as last_epic 
-        FROM game_sessions 
-        WHERE wallet_address = ? AND epic_asteroids > 0
-    ");
-    $stmt->execute([$wallet]);
-    $lastEpic = $stmt->fetch();
-    $lastEpicMission = $lastEpic['last_epic'] ?? 0;
-    
-    $missionsSinceEpic = $missionNumber - (int)$lastEpicMission;
-    $hasEpic = ($missionsSinceEpic >= EPIC_MIN_MISSIONS_INTERVAL && mt_rand(1, 100) <= 30);
-    
-    // Gerar IDs dos asteroides especiais
+
+    // ============================================
+    // 4. SORTEAR RAROS E EPIC DENTRO DOS LIMITES
+    // ============================================
+    $rareCount = 0;
     $rareIds = [];
+    $hasEpic = false;
+    $epicId = null;
+
+    // Raros (até MAX_RARE_PER_MISSION)
+    $rareCount = rand(0, MAX_RARE_PER_MISSION);
     for ($i = 0; $i < $rareCount; $i++) {
-        $rareIds[] = mt_rand(50, 200);
+        $rareIds[] = rand(1000, 9999);
     }
-    $epicId = $hasEpic ? mt_rand(100, 200) : -1;
-    
+
+    // Epic (máximo 1, respeitando intervalo)
+    if ($missionNumber % EPIC_MIN_MISSIONS_INTERVAL === 0) {
+        $hasEpic = true;
+        $epicId = rand(10000, 99999);
+    }
+
     // ============================================
-    // 5. CRIAR SESSÃO DE JOGO
+    // 5. CRIAR GAME SESSION
     // ============================================
-    $sessionToken = ''; // Será atualizado depois
-    
+    $sessionToken = ''; // será atualizado após obter o ID
     $stmt = $pdo->prepare("
-        INSERT INTO game_sessions (
-            wallet_address, 
-            session_token,
-            mission_number, 
-            status,
-            rare_asteroids_target,
-            epic_asteroid_target,
-            rare_ids,
-            epic_id,
-            tx_hash,
-            started_at,
-            created_at
-        ) VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, NOW(), NOW())
+        INSERT INTO game_sessions 
+            (player_id, wallet_address, session_token, mission_number, rare_count, has_epic, rare_ids, epic_id, tx_hash, created_at)
+        VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     ");
-    
+
     $stmt->execute([
+        $playerId,
         $wallet,
         $sessionToken,
         $missionNumber,
@@ -240,19 +167,25 @@ try {
         $epicId,
         $txHash
     ]);
-    
+
     $sessionId = $pdo->lastInsertId();
-    
+
     // ============================================
     // 6. GERAR TOKEN DE SESSÃO
     // ============================================
     $sessionToken = generateSessionToken($wallet, $sessionId);
-    
+
     $pdo->prepare("UPDATE game_sessions SET session_token = ? WHERE id = ?")
         ->execute([$sessionToken, $sessionId]);
-    
+
     // ============================================
-    // 7. RETORNAR DADOS DA SESSÃO
+    // 7. ATUALIZAR TOTAL PLAYED DO JOGADOR
+    // ============================================
+    $pdo->prepare("UPDATE players SET total_played = total_played + 1 WHERE id = ?")
+        ->execute([$playerId]);
+
+    // ============================================
+    // 8. RETORNAR DADOS DA SESSÃO
     // ============================================
     $response = [
         'success' => true,
@@ -271,13 +204,12 @@ try {
             'epic' => REWARD_EPIC
         ]
     ];
-    
-    secureLog("SESSION_START | Wallet: {$wallet} | Session: {$sessionId} | Mission: {$missionNumber}");
-    
+
     echo json_encode($response);
-    
+
 } catch (Exception $e) {
-    secureLog("SESSION_ERROR | Wallet: {$wallet} | Error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'error' => 'Erro ao iniciar sessão: ' . $e->getMessage()]);
+    secureLog("GAME START ERROR | wallet={$wallet} | msg=" . $e->getMessage());
+    error_log("Erro em game-start.php: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Erro interno']);
 }
-?>
