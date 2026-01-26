@@ -1,7 +1,7 @@
-FROM php:7.4-apache
+FROM php:7.4-cli
 
-COPY . /var/www/html/
+WORKDIR /app
 
-RUN a2enmod rewrite
+COPY . /app
 
-EXPOSE 80
+CMD ["php", "-S", "0.0.0.0:80", "-t", "/app"]
