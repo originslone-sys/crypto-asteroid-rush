@@ -16,10 +16,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // ---------- Helpers ----------
 function tableExists(PDO $pdo, string $table): bool {
-    $stmt = $pdo->prepare("SHOW TABLES LIKE ?");
-    $stmt->execute([$table]);
+    // SHOW não aceita placeholder com prepares nativos do MySQL
+    $quoted = $pdo->quote($table);
+    $stmt = $pdo->query("SHOW TABLES LIKE {$quoted}");
     return (bool)$stmt->fetchColumn();
 }
+
 
 function getColumns(PDO $pdo, string $table): array {
     $stmt = $pdo->query("SHOW COLUMNS FROM `{$table}`");
@@ -467,6 +469,7 @@ if (tableExists($pdo, 'game_sessions')) {
     }
     echo json_encode($resp);
 }
+
 
 
 
