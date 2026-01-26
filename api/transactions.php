@@ -38,17 +38,42 @@ $raw = file_get_contents('php://input');
 $input = json_decode($raw, true);
 if (!is_array($input)) $input = [];
 
-$wallet = $input['wallet'] ?? ($_POST['wallet'] ?? ($_GET['wallet'] ?? ''));
-$limit  = $input['limit']  ?? ($_POST['limit']  ?? ($_GET['limit']  ?? 20));
+function pick_first($arr, $keys) {
+    foreach ($keys as $k) {
+        if (isset($arr[$k]) && $arr[$k] !== '') return $arr[$k];
+    }
+    return null;
+}
 
-$wallet = trim((string)$wallet);
-$limit  = (int)$limit;
-$limit  = max(1, min($limit, 50));
+$wallet = pick_first($input, ['wallet','wallet_address','walletAddress','address'])
+      ?? pick_first($_POST, ['wallet','wallet_address','walletAddress','address'])
+      ?? pick_first($_GET,  ['wallet','wallet_address','walletAddress','address'])
+      ?? '';
+
+$wallet = trim(strtolower($wallet));
+
+$limit = $input['limit'] ?? ($_POST['limit'] ?? ($_GET['limit'] ?? 20));
+$limit = (int)$limit;
+$limit = max(1, min($limit, 50));
+
+$debug = (isset($_GET['debug']) && $_GET['debug'] == '1');
 
 if (!preg_match('/^0x[a-f0-9]{40}$/i', $wallet)) {
-    echo json_encode(['success' => false, 'transactions' => [], 'error' => 'Invalid wallet']);
+    $resp = ['success' => false, 'transactions' => [], 'error' => 'Invalid wallet'];
+    if ($debug) {
+        $resp['debug'] = [
+            'received_wallet' => $wallet,
+            'content_type' => ($_SERVER['CONTENT_TYPE'] ?? ''),
+            'raw_len' => strlen($raw),
+            'input_keys' => array_keys($input),
+            'get_keys' => array_keys($_GET),
+            'post_keys' => array_keys($_POST),
+        ];
+    }
+    echo json_encode($resp);
     exit;
 }
+
 
 try {
     // Railway-safe DB connection
@@ -456,3 +481,4 @@ try {
         'error' => 'Database error'
     ]);
 }
+
