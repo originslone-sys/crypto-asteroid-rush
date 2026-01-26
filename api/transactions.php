@@ -455,11 +455,19 @@ if (tableExists($pdo, 'game_sessions')) {
 
 } catch (Exception $e) {
     error_log("Erro em transactions.php: " . $e->getMessage());
-    echo json_encode([
+    $debug = (isset($_GET['debug']) && $_GET['debug'] == '1');
+
+    $resp = [
         'success' => false,
         'transactions' => [],
         'error' => 'Database error'
-    ]);
+    ];
+    if ($debug) {
+        $resp['debug_error'] = $e->getMessage();
+    }
+    echo json_encode($resp);
 }
+
+
 
 
