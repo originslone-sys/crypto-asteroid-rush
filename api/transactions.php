@@ -98,88 +98,68 @@ try {
     $transactions = [];
 
     // ============================================
-    // 1. BUSCAR MISSOES (APENAS de game_sessions)
-    // ============================================
-    if (tableExists($pdo, 'game_sessions')) {
-        // Verificar quais colunas existem
-        $columns = getColumns($pdo, 'game_sessions');
+// 1. BUSCAR MISSOES (APENAS de game_sessions)
+// ============================================
+if (tableExists($pdo, 'game_sessions')) {
+    $columns = getColumns($pdo, 'game_sessions');
 
-        $hasCommon = in_array('common_asteroids', $columns, true);
-        $hasLegendary = in_array('legendary_asteroids', $columns, true);
+    // Detectar colunas (tudo que pode variar)
+    $hasMissionNumber     = in_array('mission_number', $columns, true);
+    $hasAsteroidsDestroyed= in_array('asteroids_destroyed', $columns, true);
+    $hasCommon            = in_array('common_asteroids', $columns, true);
+    $hasRare              = in_array('rare_asteroids', $columns, true);
+    $hasEpic              = in_array('epic_asteroids', $columns, true);
+    $hasLegendary         = in_array('legendary_asteroids', $columns, true);
+    $hasEarnings          = in_array('earnings_usdt', $columns, true);
+    $hasStatus            = in_array('status', $columns, true);
 
-        $selectFields = "
-            id,
-            mission_number,
-            asteroids_destroyed,
-            rare_asteroids,
-            epic_asteroids,
-            earnings_usdt,
-            status,
-            created_at
-        ";
+    // Data pode variar
+    $createdCol = pickFirstExisting($columns, ['created_at', 'date', 'started_at']);
+    if (!$createdCol) $createdCol = 'created_at'; // fallback (não deve ocorrer se existir tabela)
 
-        if ($hasCommon) {
-            $selectFields = str_replace('rare_asteroids,', 'common_asteroids, rare_asteroids,', $selectFields);
-        }
-        if ($hasLegendary) {
-            $selectFields = str_replace('epic_asteroids,', 'epic_asteroids, legendary_asteroids,', $selectFields);
-        }
+    // Monta select “à prova de schema”
+    $selectFields = "
+        id,
+        " . ($hasMissionNumber ? "mission_number" : "0 AS mission_number") . ",
+        " . ($hasAsteroidsDestroyed ? "asteroids_destroyed" : "0 AS asteroids_destroyed") . ",
+        " . ($hasCommon ? "common_asteroids" : "0 AS common_asteroids") . ",
+        " . ($hasRare ? "rare_asteroids" : "0 AS rare_asteroids") . ",
+        " . ($hasEpic ? "epic_asteroids" : "0 AS epic_asteroids") . ",
+        " . ($hasLegendary ? "legendary_asteroids" : "0 AS legendary_asteroids") . ",
+        " . ($hasEarnings ? "earnings_usdt" : "0 AS earnings_usdt") . ",
+        " . ($hasStatus ? "status" : "'completed' AS status") . ",
+        {$createdCol} AS created_at
+    ";
 
-        $stmt = $pdo->prepare("
-            SELECT {$selectFields}
-            FROM game_sessions
-            WHERE wallet_address = ? AND status = 'completed'
-            ORDER BY created_at DESC
-            LIMIT " . (int)$limit
-        );
-        $stmt->execute([$walletLower]);
-        $missions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt = $pdo->prepare("
+        SELECT {$selectFields}
+        FROM game_sessions
+        WHERE LOWER(wallet_address) = ? AND status = 'completed'
+        ORDER BY {$createdCol} DESC
+        LIMIT " . (int)$limit
+    );
+    $stmt->execute([$walletLower]);
+    $sessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        foreach ($missions as $mission) {
-            $missionNum = isset($mission['mission_number']) ? (int)$mission['mission_number'] : 0;
-            $asteroidsDestroyed = isset($mission['asteroids_destroyed']) ? (int)$mission['asteroids_destroyed'] : 0;
-            $commonAsteroids = isset($mission['common_asteroids']) ? (int)$mission['common_asteroids'] : 0;
-            $rareAsteroids = isset($mission['rare_asteroids']) ? (int)$mission['rare_asteroids'] : 0;
-            $epicAsteroids = isset($mission['epic_asteroids']) ? (int)$mission['epic_asteroids'] : 0;
-            $legendaryAsteroids = isset($mission['legendary_asteroids']) ? (int)$mission['legendary_asteroids'] : 0;
-            $earnings = isset($mission['earnings_usdt']) ? (float)$mission['earnings_usdt'] : 0.0;
-
-            // Construir descrição com stats detalhados
-            $desc = "Mission #" . $missionNum;
-            $detailParts = [];
-
-            if ($asteroidsDestroyed > 0) {
-                $detailParts[] = $asteroidsDestroyed . " asteroids";
-            }
-
-            // Mostrar breakdown por tipo
-            $typeParts = [];
-            if ($legendaryAsteroids > 0) $typeParts[] = $legendaryAsteroids . " legendary";
-            if ($epicAsteroids > 0)      $typeParts[] = $epicAsteroids . " epic";
-            if ($rareAsteroids > 0)      $typeParts[] = $rareAsteroids . " rare";
-            if ($commonAsteroids > 0)    $typeParts[] = $commonAsteroids . " common";
-
-            if (!empty($detailParts)) $desc .= " | " . implode(", ", $detailParts);
-            if (!empty($typeParts))   $desc .= " (" . implode(", ", $typeParts) . ")";
-
-            $transactions[] = [
-                'id' => 'mission_' . $mission['id'],
-                'type' => 'mission',
-                'amount' => $earnings,
-                'description' => $desc,
-                'details' => [
-                    'mission_number' => $missionNum,
-                    'asteroids_destroyed' => $asteroidsDestroyed,
-                    'common_asteroids' => $commonAsteroids,
-                    'rare_asteroids' => $rareAsteroids,
-                    'epic_asteroids' => $epicAsteroids,
-                    'legendary_asteroids' => $legendaryAsteroids
-                ],
-                'status' => 'completed',
-                'created_at' => $mission['created_at']
-            ];
-        }
+    foreach ($sessions as $s) {
+        $transactions[] = [
+            'id' => 'mission_' . ($s['id'] ?? ''),
+            'type' => 'mission',
+            'amount' => (float)($s['earnings_usdt'] ?? 0),
+            'description' => 'Mission #' . (int)($s['mission_number'] ?? 0),
+            'status' => $s['status'] ?? 'completed',
+            'tx_hash' => null,
+            'created_at' => $s['created_at'] ?? null,
+            'asteroids' => [
+                'common' => (int)($s['common_asteroids'] ?? 0),
+                'rare' => (int)($s['rare_asteroids'] ?? 0),
+                'epic' => (int)($s['epic_asteroids'] ?? 0),
+                'legendary' => (int)($s['legendary_asteroids'] ?? 0),
+                'total' => (int)($s['asteroids_destroyed'] ?? 0)
+            ]
+        ];
     }
+}
 
     // ============================================
     // 2. BUSCAR DA TABELA TRANSACTIONS
@@ -481,4 +461,5 @@ try {
         'error' => 'Database error'
     ]);
 }
+
 
