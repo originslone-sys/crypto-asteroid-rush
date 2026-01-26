@@ -1,18 +1,23 @@
 FROM php:7.4-apache
 
-# 1. Primeiro, desabilite TODOS os MPMs usando os comandos oficiais do Apache
-RUN a2dismod mpm_event mpm_worker
+# Remove qualquer configuração de MPM existente
+RUN rm -rf /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf
 
-# 2. Garanta que apenas o mpm_prefork está habilitado
+# Habilita explicitamente apenas o prefork
 RUN a2enmod mpm_prefork
 
-# 3. Opcional: Verifique quais MPMs estão ativos
-RUN ls -la /etc/apache2/mods-enabled/ | grep mpm
+# Verifica e define o MPM explicitamente
+RUN echo "LoadModule mpm_prefork_module /usr/lib/apache2/modules/mod_mpm_prefork.so" > /etc/apache2/mods-available/mpm_prefork.load
+RUN echo "<IfModule mpm_prefork_module>\n    StartServers            5\n    MinSpareServers         5\n    MaxSpareServers        10\n    MaxRequestWorkers      150\n    MaxConnectionsPerChild   0\n</IfModule>" > /etc/apache2/mods-available/mpm_prefork.conf
 
-# 4. Instala extensões PHP
+# Cria os links simbólicos
+RUN ln -sf /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load
+RUN ln -sf /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf
+
+# Instala extensões PHP
 RUN docker-php-ext-install mysqli pdo pdo_mysql
 
-# 5. Copia seu projeto
+# Copia seu projeto
 COPY . /var/www/html/
 
 RUN chown -R www-data:www-data /var/www/html
