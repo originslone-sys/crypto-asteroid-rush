@@ -5,8 +5,6 @@
 // ============================================
 
 // Tentar incluir config de diferentes locais
-error_log("MARKER_GAME_START_V1 file=" . __FILE__);
-error_log("MARKER_GAME_START_V1 sha1=" . sha1_file(__FILE__));
 if (file_exists(__DIR__ . "/config.php")) {
     require_once __DIR__ . "/config.php";
 } elseif (file_exists(__DIR__ . "/../config.php")) {
@@ -30,6 +28,29 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
+
+// ===== DEBUG / DIAGNÓSTICO (remover depois) =====
+$__REQ_ID = null;
+try { $__REQ_ID = bin2hex(random_bytes(4)); } catch (Exception $e) { $__REQ_ID = (string)mt_rand(1000,9999); }
+function gs_log($msg) {
+    global $__REQ_ID;
+    error_log("[GS][$__REQ_ID] " . $msg);
+}
+function gs_exec(PDOStatement $stmt, array $params, string $label) {
+    $t0 = microtime(true);
+    gs_log("EXEC {$label} | sql=" . $stmt->queryString . " | params=" . json_encode($params));
+    try {
+        $ok = $stmt->execute($params);
+        gs_log("DONE {$label} | ms=" . round((microtime(true)-$t0)*1000));
+        return $ok;
+    } catch (PDOException $e) {
+        gs_log("FAIL {$label} | ms=" . round((microtime(true)-$t0)*1000) . " | msg=" . $e->getMessage() . " | info=" . json_encode($e->errorInfo) . " | sql=" . $stmt->queryString);
+        throw $e;
+    }
+}
+// ===============================================
+gs_log('MARKER_GAME_START_V2 file=' . __FILE__);
+gs_log('MARKER_GAME_START_V2 sha1=' . sha1_file(__FILE__));
 
 // Constantes de segurança (caso não existam no config.php antigo)
 if (!defined('GAME_SECRET_KEY')) define('GAME_SECRET_KEY', 'CAR_2026_S3CR3T_K3Y_X9Z2M4');
@@ -68,12 +89,31 @@ if (!validateWallet($wallet)) {
 }
 
 try {
-    // Conexão com banco (Railway-safe)
-    $pdo = getDatabaseConnection();
-    if (!$pdo) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Erro ao conectar ao banco']);
-        exit;
+    // Conexão com banco (Railway/Docker-safe) + logs
+    if (function_exists('getDatabaseConnection')) {
+        $pdo = getDatabaseConnection();
+        if (!$pdo) {
+            throw new Exception('DB connection failed (getDatabaseConnection returned null)');
+        }
+    } else {
+        $host = (defined('DB_HOST') && DB_HOST === 'localhost') ? '127.0.0.1' : (defined('DB_HOST') ? DB_HOST : '127.0.0.1');
+        $port = defined('DB_PORT') ? DB_PORT : 3306;
+        $dsn  = 'mysql:host=' . $host . ';port=' . $port . ';dbname=' . DB_NAME . ';charset=utf8mb4';
+        $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_TIMEOUT => 5,
+        ]);
+    }
+
+    try {
+        $dbNameRuntime = $pdo->query('SELECT DATABASE()')->fetchColumn();
+        gs_log('DB runtime database=' . $dbNameRuntime);
+        $cols = $pdo->query('SHOW COLUMNS FROM game_sessions')->fetchAll(PDO::FETCH_COLUMN);
+        gs_log('game_sessions columns=' . json_encode($cols));
+    } catch (Exception $e) {
+        gs_log('DB introspection failed: ' . $e->getMessage());
     }
 
     // ============================================
@@ -96,71 +136,101 @@ try {
     }
 
     // ============================================
-    // 1. VALIDAR TX HASH (se fornecido)
+    // 1. VERIFICAR SE JOGADOR EXISTE
     // ============================================
-    if (!empty($txHash) && !preg_match('/^0x[a-fA-F0-9]{64}$/', $txHash)) {
-        echo json_encode(['success' => false, 'error' => 'Hash de transação inválido']);
-        exit;
-    }
-
-    // ============================================
-    // 2. BUSCAR/CRIAR JOGADOR
-    // ============================================
-    error_log("MARKER_GAME_START_V1 about to INSERT game_sessions (no player_id expected)");
     $stmt = $pdo->prepare("SELECT id, total_played FROM players WHERE wallet_address = ?");
-    $stmt->execute([$wallet]);
+    gs_exec($stmt, [$wallet], 'select_player');
     $player = $stmt->fetch();
 
     if (!$player) {
-        $pdo->prepare("INSERT INTO players (wallet_address, balance_usdt, total_played) VALUES (?, 0.0, 0)")
-            ->execute([$wallet]);
-
-        $stmt = $pdo->prepare("SELECT id, total_played FROM players WHERE wallet_address = ?");
-        $stmt->execute([$wallet]);
-        $player = $stmt->fetch();
+        $stmtIns = $pdo->prepare("INSERT INTO players (wallet_address, balance_usdt, total_played) VALUES (?, 0, 0)");
+        gs_exec($stmtIns, [$wallet], 'insert_player');
+        $playerId = $pdo->lastInsertId();
+        $totalPlayed = 0;
+    } else {
+        $playerId = $player['id'];
+        $totalPlayed = $player['total_played'];
     }
 
-    $playerId = (int)$player['id'];
-    $totalPlayed = (int)$player['total_played'];
-
     // ============================================
-    // 3. CALCULAR NÚMERO DA MISSÃO
+    // 2. CALCULAR NÚMERO DA MISSÃO
     // ============================================
     $missionNumber = $totalPlayed + 1;
 
     // ============================================
-    // 4. SORTEAR RAROS E EPIC DENTRO DOS LIMITES
+    // 3. VERIFICAR RATE LIMIT (1 jogo a cada 3 min)
     // ============================================
-    $rareCount = 0;
-    $rareIds = [];
-    $hasEpic = false;
-    $epicId = null;
-
-    // Raros (até MAX_RARE_PER_MISSION)
-    $rareCount = rand(0, MAX_RARE_PER_MISSION);
-    for ($i = 0; $i < $rareCount; $i++) {
-        $rareIds[] = rand(1000, 9999);
-    }
-
-    // Epic (máximo 1, respeitando intervalo)
-    if ($missionNumber % EPIC_MIN_MISSIONS_INTERVAL === 0) {
-        $hasEpic = true;
-        $epicId = rand(10000, 99999);
-    }
-
-    // ============================================
-    // 5. CRIAR GAME SESSION
-    // ============================================
-    $sessionToken = ''; // será atualizado após obter o ID
     $stmt = $pdo->prepare("
-        INSERT INTO game_sessions 
-            (player_id, wallet_address, session_token, mission_number, rare_count, has_epic, rare_ids, epic_id, tx_hash, created_at)
-        VALUES
-            (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        SELECT id, created_at FROM game_sessions 
+        WHERE wallet_address = ? 
+        AND status IN ('active', 'completed')
+        AND created_at > DATE_SUB(NOW(), INTERVAL 3 MINUTE)
+        ORDER BY created_at DESC LIMIT 1
+    ");
+    gs_exec($stmt, [$wallet], 'recent_session_check');
+    $recentSession = $stmt->fetch();
+
+    if ($recentSession) {
+        $waitTime = 180 - (time() - strtotime($recentSession['created_at']));
+        echo json_encode([
+            'success' => false,
+            'error' => 'Aguarde antes de jogar novamente',
+            'wait_seconds' => max(0, $waitTime)
+        ]);
+        exit;
+    }
+
+    // ============================================
+    // 4. DEFINIR ASTEROIDES ESPECIAIS
+    // ============================================
+    // Raros: 1-2 por missão (70% chance de 1, 30% chance de 2)
+    $rareCount = (mt_rand(1, 100) <= 70) ? 1 : 2;
+
+    // Épico: a cada 15+ missões com 30% de chance
+    $stmt = $pdo->prepare("
+        SELECT MAX(mission_number) as last_epic 
+        FROM game_sessions 
+        WHERE wallet_address = ? AND epic_asteroids > 0
+    ");
+    gs_exec($stmt, [$wallet], 'last_epic_check');
+    $lastEpic = $stmt->fetch();
+    $lastEpicMission = $lastEpic['last_epic'] ?? 0;
+
+    $missionsSinceEpic = $missionNumber - (int)$lastEpicMission;
+    $hasEpic = ($missionsSinceEpic >= EPIC_MIN_MISSIONS_INTERVAL && mt_rand(1, 100) <= 30);
+
+    // Gerar IDs dos asteroides especiais
+    $rareIds = [];
+    for ($i = 0; $i < $rareCount; $i++) {
+        $rareIds[] = mt_rand(50, 200);
+    }
+
+    $epicId = $hasEpic ? mt_rand(201, 250) : 0;
+
+    // ============================================
+    // 5. CRIAR SESSÃO DE JOGO
+    // ============================================
+    $sessionToken = ''; // será atualizado após o insert
+
+    $stmt = $pdo->prepare("
+        INSERT INTO game_sessions (
+            wallet_address,
+            session_token,
+            mission_number,
+            status,
+            rare_asteroids_target,
+            epic_asteroid_target,
+            rare_ids,
+            epic_id,
+            tx_hash,
+            started_at,
+            created_at
+        ) VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, NOW(), NOW())
     ");
 
-    $stmt->execute([
-        $playerId,
+    gs_log('about_to_insert_game_sessions');
+
+    gs_exec($stmt, [
         $wallet,
         $sessionToken,
         $missionNumber,
@@ -169,7 +239,7 @@ try {
         json_encode($rareIds),
         $epicId,
         $txHash
-    ]);
+    ], 'insert_game_session');
 
     $sessionId = $pdo->lastInsertId();
 
@@ -178,19 +248,13 @@ try {
     // ============================================
     $sessionToken = generateSessionToken($wallet, $sessionId);
 
-    $pdo->prepare("UPDATE game_sessions SET session_token = ? WHERE id = ?")
-        ->execute([$sessionToken, $sessionId]);
+    $stmtUpd = $pdo->prepare("UPDATE game_sessions SET session_token = ? WHERE id = ?");
+    gs_exec($stmtUpd, [$sessionToken, $sessionId], 'update_session_token');
 
     // ============================================
-    // 7. ATUALIZAR TOTAL PLAYED DO JOGADOR
+    // 7. RETORNAR DADOS DA SESSÃO
     // ============================================
-    $pdo->prepare("UPDATE players SET total_played = total_played + 1 WHERE id = ?")
-        ->execute([$playerId]);
-
-    // ============================================
-    // 8. RETORNAR DADOS DA SESSÃO
-    // ============================================
-    $response = [
+    echo json_encode([
         'success' => true,
         'session_id' => (int)$sessionId,
         'session_token' => $sessionToken,
@@ -206,9 +270,7 @@ try {
             'rare' => REWARD_RARE,
             'epic' => REWARD_EPIC
         ]
-    ];
-
-    echo json_encode($response);
+    ]);
 
 } catch (Exception $e) {
     secureLog("GAME START ERROR | wallet={$wallet} | msg=" . $e->getMessage());
