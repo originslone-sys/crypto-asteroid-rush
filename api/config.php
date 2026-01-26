@@ -49,17 +49,14 @@ define('EPIC_MIN_MISSIONS_INTERVAL', 15);
 function getDatabaseConnection() {
     try {
         $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
-        $pdo = new PDO($dsn, DB_USER, DB_PASS, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_PERSISTENT => false
+        return new PDO($dsn, DB_USER, DB_PASS, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
         ]);
-        return $pdo;
     } catch(PDOException $e) {
-        error_log("Database connection failed: " . $e->getMessage());
-        return null;
+        die("Erro PDO: " . $e->getMessage());
     }
 }
+
 
 // ===============================
 // FUNÇÕES AUXILIARES
