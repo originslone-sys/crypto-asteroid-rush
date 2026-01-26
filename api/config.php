@@ -1,83 +1,44 @@
 <?php
 // ============================================
 // CRYPTO ASTEROID RUSH - Configuração
-// Arquivo: api/config.php
 // ============================================
 
-// ===============================
-// CONFIGURAÇÕES DO BANCO (Railway)
-// ===============================
-define('DB_HOST', getenv('MYSQLHOST'));
-define('DB_NAME', getenv('MYSQLDATABASE'));
-define('DB_USER', getenv('MYSQLUSER'));
-define('DB_PASS', getenv('MYSQLPASSWORD'));
-define('DB_PORT', getenv('MYSQLPORT'));
+// Banco de dados (Railway / Docker-safe)
+define('DB_HOST', getenv('MYSQLHOST') ?: getenv('DB_HOST'));
+define('DB_PORT', getenv('MYSQLPORT') ?: getenv('DB_PORT') ?: 3306;
+define('DB_NAME', getenv('MYSQLDATABASE') ?: getenv('DB_NAME'));
+define('DB_USER', getenv('MYSQLUSER') ?: getenv('DB_USER'));
+define('DB_PASS', getenv('MYSQLPASSWORD') ?: getenv('DB_PASS'));
 
-// ===============================
-// CONFIGURAÇÕES DO SISTEMA
-// ===============================
-define('STAKE_APY', 0.12);
-define('MIN_STAKE_AMOUNT', 0.0001);
-
-// ===============================
-// SEGURANÇA DO JOGO
-// ===============================
-define('GAME_SECRET_KEY', getenv('GAME_SECRET_KEY')); // Defina no Railway Variables
-define('GAME_DURATION', 180); 
-define('GAME_TOLERANCE', 15); 
-define('MAX_ASTEROIDS_PER_SECOND', 3); 
-define('ENTRY_FEE_BNB', 0.00001); 
-
-// ===============================
-// RECOMPENSAS
-// ===============================
-define('REWARD_NONE', 0);
-define('REWARD_COMMON', 0.0001);
-define('REWARD_RARE', 0.01);
-define('REWARD_EPIC', 0.10);
-
-// ===============================
-// LIMITES POR MISSÃO
-// ===============================
-define('MAX_RARE_PER_MISSION', 2);
-define('MAX_EPIC_PER_MISSION', 1);
-define('EPIC_MIN_MISSIONS_INTERVAL', 15);
-
-// ===============================
-// FUNÇÃO DE CONEXÃO COM O BANCO
-// ===============================
-function getDatabaseConnection() {
-    try {
-        $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
-        return new PDO($dsn, DB_USER, DB_PASS, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-        ]);
-    } catch(PDOException $e) {
-        die("Erro PDO: " . $e->getMessage());
-    }
+// Segurança mínima
+if (!DB_HOST || !DB_NAME || !DB_USER) {
+    error_log("❌ Variáveis de banco ausentes no ambiente");
+    http_response_code(500);
+    exit('Erro de configuração do servidor');
 }
 
-
-// ===============================
-// FUNÇÕES AUXILIARES
-// ===============================
-function validateWallet($wallet) {
-    return preg_match('/^0x[a-fA-F0-9]{40}$/', $wallet);
+// Força TCP (NUNCA socket)
+if (DB_HOST === 'localhost') {
+    define('DB_HOST_FIXED', '127.0.0.1');
+} else {
+    define('DB_HOST_FIXED', DB_HOST);
 }
 
-function generateSessionToken($wallet, $sessionId) {
-    $data = $wallet . '|' . $sessionId . '|' . time() . '|' . GAME_SECRET_KEY;
-    return hash('sha256', $data);
+// Conexão PDO global
+try {
+    $pdo = new PDO(
+        "mysql:host=" . DB_HOST_FIXED . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+        DB_USER,
+        DB_PASS,
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_TIMEOUT => 5
+        ]
+    );
+} catch (PDOException $e) {
+    error_log("❌ Erro DB: " . $e->getMessage());
+    http_response_code(500);
+    exit('Erro ao conectar ao banco');
 }
-
-function validateSessionToken($token, $wallet, $sessionId, $createdAt) {
-    $data = $wallet . '|' . $sessionId . '|' . strtotime($createdAt) . '|' . GAME_SECRET_KEY;
-    $expectedToken = hash('sha256', $data);
-    return hash_equals($expectedToken, $token);
-}
-
-function secureLog($message, $file = 'game_security.log') {
-    $logEntry = date('Y-m-d H:i:s') . ' | ' . $message . PHP_EOL;
-    file_put_contents(__DIR__ . '/' . $file, $logEntry, FILE_APPEND);
-}
-?>
