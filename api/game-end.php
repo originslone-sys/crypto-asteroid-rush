@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . "/config.php";
+// ✅ Afiliados: helper
+require_once __DIR__ . "/referral-helper.php";
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
@@ -28,6 +30,16 @@ if (!preg_match('/^0x[a-f0-9]{40}$/', $wallet) || !$sessionId || !$sessionToken)
     exit;
 }
 
+// Helper para detectar colunas (usado só no fallback de INSERT do player)
+function tableColumns(PDO $pdo, string $table): array {
+    $cols = [];
+    $stmt = $pdo->query("SHOW COLUMNS FROM `$table`");
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $cols[$row['Field']] = true;
+    }
+    return $cols;
+}
+
 try {
     $pdo = getDatabaseConnection();
     if (!$pdo) throw new Exception('Erro ao conectar ao banco');
@@ -35,7 +47,7 @@ try {
     $pdo->beginTransaction();
 
     // ===============================
-    // Buscar sessão válida
+    // Buscar sessão válida (LOCK)
     // ===============================
     $stmt = $pdo->prepare("
         SELECT id, earnings_usdt, status
@@ -55,7 +67,7 @@ try {
     }
 
     // ===============================
-    // Calcular ganho (já salvo pelo game-event)
+    // Ganho (já salvo pelo game-event)
     // ===============================
     $earnings = (float)$session['earnings_usdt'];
     if ($earnings < 0) $earnings = 0;
@@ -72,6 +84,42 @@ try {
     $stmt->execute([$sessionId]);
 
     // ===============================
+    // ✅ Incrementar total_played (OBRIGATÓRIO p/ afiliados)
+    // ===============================
+    $stmt = $pdo->prepare("
+        UPDATE players
+        SET total_played = total_played + 1
+        WHERE wallet_address = ?
+    ");
+    $stmt->execute([$wallet]);
+
+    // Se player não existir (defensivo), criar com colunas existentes
+    if ($stmt->rowCount() === 0) {
+        $cols = tableColumns($pdo, 'players');
+
+        $fields = ['wallet_address', 'balance_usdt', 'total_played'];
+        $values = ['?', '?', '1'];
+        $params = [$wallet, ($earnings > 0 ? $earnings : 0)];
+
+        if (isset($cols['created_at'])) { $fields[] = 'created_at'; $values[] = 'NOW()'; }
+        if (isset($cols['updated_at'])) { $fields[] = 'updated_at'; $values[] = 'NOW()'; }
+        if (isset($cols['total_withdrawn'])) { $fields[] = 'total_withdrawn'; $values[] = '0'; }
+        if (isset($cols['total_earned'])) { $fields[] = 'total_earned'; $values[] = '0'; }
+        if (isset($cols['is_banned'])) { $fields[] = 'is_banned'; $values[] = '0'; }
+        if (isset($cols['ban_reason'])) { $fields[] = 'ban_reason'; $values[] = 'NULL'; }
+
+        $sql = "INSERT INTO players (" . implode(',', $fields) . ") VALUES (" . implode(',', $values) . ")";
+        $ins = $pdo->prepare($sql);
+        $ins->execute($params);
+    }
+
+    // ===============================
+    // ✅ Atualizar progresso do referral (depois do total_played)
+    // ===============================
+    // (Opção A: não muda response, só garante side-effect)
+    updateReferralProgress($pdo, $wallet);
+
+    // ===============================
     // Atualizar saldo do player
     // ===============================
     if ($earnings > 0) {
@@ -84,7 +132,7 @@ try {
     }
 
     // ===============================
-    // Inserir transação (compatível com schema)
+    // Inserir transação (mantido como está no seu arquivo)
     // ===============================
     if ($earnings > 0 && $pdo->query("SHOW TABLES LIKE 'transactions'")->fetch()) {
         $cols = $pdo->query("SHOW COLUMNS FROM transactions")->fetchAll(PDO::FETCH_COLUMN, 0);
