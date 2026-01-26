@@ -1,0 +1,1200 @@
+/* ============================================
+   CRYPTO ASTEROID RUSH - Game Styles v4.0
+   Otimizado: Sem scroll nos modais
+   ============================================ */
+
+/* ============================================
+   CSS VARIABLES
+   ============================================ */
+:root {
+    --primary: #00f0ff;
+    --primary-dark: #00a8b3;
+    --primary-glow: rgba(0, 240, 255, 0.5);
+    --secondary: #7b2ff7;
+    --secondary-dark: #5a1fb8;
+    --secondary-glow: rgba(123, 47, 247, 0.5);
+    --accent: #ff00aa;
+    --accent-glow: rgba(255, 0, 170, 0.5);
+    --success: #00ff88;
+    --warning: #ffaa00;
+    --danger: #ff3366;
+    --danger-glow: rgba(255, 51, 102, 0.5);
+    --bg-dark: #0a0a12;
+    --bg-medium: #12121f;
+    --bg-light: #1a1a2e;
+    --bg-card: rgba(20, 20, 35, 0.95);
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0b0;
+    --text-muted: #606070;
+    --border-color: rgba(0, 240, 255, 0.2);
+    --border-glow: rgba(0, 240, 255, 0.4);
+    --font-display: 'Audiowide', 'Orbitron', sans-serif;
+    --font-primary: 'Orbitron', sans-serif;
+    --font-secondary: 'Rajdhani', sans-serif;
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: var(--font-secondary);
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================
+   LOADING SCREEN
+   ============================================ */
+#loadingScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a12 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    transition: opacity 0.5s ease;
+}
+
+.loading-content { text-align: center; }
+
+.loading-logo {
+    font-size: 3.5rem;
+    color: var(--primary);
+    margin-bottom: 1rem;
+    animation: pulse 2s ease-in-out infinite;
+    text-shadow: 0 0 30px var(--primary-glow);
+}
+
+.loading-title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    letter-spacing: 3px;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    margin: 0 auto 1rem;
+    animation: spin 1s linear infinite;
+}
+
+.loading-text {
+    font-family: var(--font-primary);
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    color: var(--text-secondary);
+}
+
+/* ============================================
+   PRE-GAME SCREEN
+   ============================================ */
+#preGameScreen { display: none; }
+#preGameScreen.active { display: flex; }
+
+.pregame-container {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    width: 90%;
+    max-width: 450px;
+    text-align: center;
+    backdrop-filter: blur(10px);
+}
+
+.pregame-header {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--primary);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+}
+
+.ad-container {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.ad-placeholder {
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.ad-placeholder i { font-size: 1.5rem; }
+
+.pregame-loading { margin-bottom: var(--spacing-md); }
+
+.loading-bar-container {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 20px;
+    height: 6px;
+    overflow: hidden;
+    margin-bottom: var(--spacing-xs);
+}
+
+.loading-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    border-radius: 20px;
+    transition: width 0.3s ease;
+}
+
+.loading-percent {
+    font-family: var(--font-primary);
+    font-size: 1.2rem;
+    color: var(--primary);
+}
+
+.loading-status {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.pregame-tips {
+    background: rgba(0, 240, 255, 0.1);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.pregame-tips i { color: var(--warning); }
+
+/* ============================================
+   GAME CONTAINER & CANVAS
+   ============================================ */
+#gameContainer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+}
+
+/* ============================================
+   GAME HEADER
+   ============================================ */
+#gameHeader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: var(--spacing-xs) var(--spacing-md);
+    background: linear-gradient(180deg, rgba(10, 10, 18, 0.95) 0%, transparent 100%);
+    z-index: 100;
+    pointer-events: none;
+}
+
+.header-content { text-align: center; }
+
+.game-title {
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    letter-spacing: 2px;
+    color: var(--primary);
+}
+
+.game-subtitle {
+    font-family: var(--font-secondary);
+    font-size: 0.6rem;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+}
+
+/* ============================================
+   GAME STATS
+   ============================================ */
+#gameStats {
+    position: fixed;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    pointer-events: none;
+}
+
+.stats-container {
+    display: inline-flex;
+    gap: 2px;
+    background: rgba(10, 10, 18, 0.9);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 4px 8px;
+    backdrop-filter: blur(10px);
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+}
+
+.stat-icon {
+    color: var(--primary);
+    font-size: 0.75rem;
+}
+
+.lives-stat .stat-icon { color: var(--danger); }
+.earnings-stat .stat-icon { color: var(--success); }
+
+.stat-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.stat-label {
+    font-family: var(--font-primary);
+    font-size: 0.45rem;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    display: none;
+}
+
+.stat-value {
+    font-family: var(--font-primary);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.lives-display {
+    display: flex;
+    gap: 3px;
+}
+
+.life {
+    width: 10px;
+    height: 10px;
+    background: var(--danger);
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.life.lost {
+    background: rgba(255, 51, 102, 0.2);
+    transform: scale(0.8);
+}
+
+/* ============================================
+   MOBILE CONTROLS
+   ============================================ */
+#mobileControls {
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 150;
+    pointer-events: none;
+}
+
+.control-left, .control-right {
+    display: flex;
+    gap: 15px;
+    pointer-events: auto;
+}
+
+.control-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(0, 240, 255, 0.15);
+    border: 2px solid var(--primary);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all 0.1s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.control-btn:active, .control-btn.active {
+    background: rgba(0, 240, 255, 0.4);
+    transform: scale(0.95);
+}
+
+.fire-btn {
+    width: 80px;
+    height: 80px;
+    background: rgba(255, 51, 102, 0.2);
+    border-color: var(--danger);
+    color: var(--danger);
+    flex-direction: column;
+    gap: 2px;
+}
+
+.fire-btn span {
+    font-family: var(--font-primary);
+    font-size: 0.6rem;
+    letter-spacing: 1px;
+}
+
+.fire-btn:active, .fire-btn.active {
+    background: rgba(255, 51, 102, 0.5);
+}
+
+@media (min-width: 769px) {
+    #mobileControls { display: none; }
+}
+
+/* ============================================
+   AUDIO TOGGLE
+   ============================================ */
+#audioToggle {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 200;
+    color: var(--primary);
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+#audioToggle:hover {
+    background: rgba(0, 240, 255, 0.2);
+}
+
+#audioToggle.muted { color: var(--text-muted); }
+
+/* ============================================
+   MODAL OVERLAY - OTIMIZADO SEM SCROLL
+   ============================================ */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(5, 5, 10, 0.92);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 10px;
+    overflow: hidden;
+}
+
+.modal-overlay.active { display: flex; }
+
+/* ============================================
+   MODAL CONTAINER - COMPACTO
+   ============================================ */
+.modal-container {
+    position: relative;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-md);
+    width: 100%;
+    max-width: 420px;
+    max-height: 95vh;
+    overflow: hidden;
+    animation: modalAppear 0.3s ease;
+}
+
+@keyframes modalAppear {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.modal-glow {
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+    border-radius: calc(var(--radius-xl) + 2px);
+    z-index: -1;
+    opacity: 0.3;
+    filter: blur(10px);
+}
+
+.modal-glow.danger {
+    background: linear-gradient(135deg, var(--danger), #ff0066);
+}
+
+/* ============================================
+   MODAL HEADER - COMPACTO
+   ============================================ */
+.modal-header {
+    text-align: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.modal-icon {
+    width: 55px;
+    height: 55px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--spacing-sm);
+    font-size: 1.5rem;
+    color: #fff;
+    box-shadow: 0 0 20px var(--primary-glow);
+}
+
+.modal-icon.success {
+    background: linear-gradient(135deg, var(--success), #00cc66);
+}
+
+.modal-icon.danger {
+    background: linear-gradient(135deg, var(--danger), #cc0033);
+    box-shadow: 0 0 20px var(--danger-glow);
+}
+
+.modal-title {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.modal-title.danger { color: var(--danger); }
+
+.modal-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.modal-footer {
+    text-align: center;
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-color);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+}
+
+/* ============================================
+   WALLET INFO - COMPACTO
+   ============================================ */
+.wallet-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    background: rgba(0, 240, 255, 0.1);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.wallet-address {
+    font-family: var(--font-primary);
+    color: var(--primary);
+    font-size: 0.75rem;
+}
+
+/* ============================================
+   SHIP SELECTOR - COMPACTO
+   ============================================ */
+#shipSelectorContainer {
+    margin-bottom: var(--spacing-md);
+}
+
+.section-title {
+    font-family: var(--font-primary);
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    text-align: center;
+    margin-bottom: var(--spacing-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+}
+
+/* GRID DE NAVES - 4 COLUNAS, COMPACTO */
+.ship-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.ship-btn {
+    position: relative;
+    aspect-ratio: 1;
+    min-height: 55px;
+    max-height: 65px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+}
+
+.ship-btn:hover {
+    border-color: var(--primary);
+    transform: scale(1.02);
+}
+
+.ship-btn.selected {
+    border-color: var(--primary);
+    box-shadow: 0 0 12px var(--primary-glow), inset 0 0 15px rgba(0, 240, 255, 0.15);
+}
+
+.ship-btn.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 14px;
+    height: 14px;
+    background: var(--primary);
+    border-radius: 50%;
+    font-size: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--bg-dark);
+    font-weight: bold;
+}
+
+.ship-preview {
+    width: 28px;
+    height: 28px;
+}
+
+.ship-number {
+    font-family: var(--font-primary);
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.selected-ship-info {
+    text-align: center;
+    padding: var(--spacing-xs);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
+}
+
+.ship-name {
+    font-family: var(--font-primary);
+    font-size: 0.75rem;
+    color: var(--primary);
+    letter-spacing: 1px;
+}
+
+/* ============================================
+   MISSION INFO - COMPACTO
+   ============================================ */
+.mission-info {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.info-item i {
+    color: var(--primary);
+    font-size: 0.7rem;
+}
+
+/* ============================================
+   BUTTONS - COMPACTOS
+   ============================================ */
+.btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.btn {
+    font-family: var(--font-primary);
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    text-transform: uppercase;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: var(--bg-dark);
+    font-weight: 600;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--primary-glow);
+}
+
+.btn-secondary {
+    background: transparent;
+    border: 2px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.btn-glow {
+    box-shadow: 0 4px 15px var(--primary-glow);
+}
+
+.btn-large {
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: 0.9rem;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.btn-large small {
+    font-size: 0.65rem;
+    opacity: 0.7;
+    font-weight: 400;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   RESULT STATS (End Game) - COMPACTO
+   ============================================ */
+.result-stats {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.result-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+}
+
+.result-item.highlight {
+    background: rgba(0, 255, 136, 0.1);
+    border-color: var(--success);
+}
+
+.result-icon {
+    width: 35px;
+    height: 35px;
+    background: rgba(0, 240, 255, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    font-size: 0.9rem;
+}
+
+.result-item.highlight .result-icon {
+    background: rgba(0, 255, 136, 0.2);
+    color: var(--success);
+}
+
+.result-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-bottom: 1px;
+}
+
+.result-value {
+    font-family: var(--font-primary);
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.result-item.highlight .result-value {
+    color: var(--success);
+}
+
+/* ============================================
+   ASTEROIDS BREAKDOWN - COMPACTO
+   ============================================ */
+.asteroids-breakdown {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.breakdown-title {
+    font-family: var(--font-primary);
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-xs);
+    text-align: center;
+}
+
+.breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+}
+
+.breakdown-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius-sm);
+}
+
+.breakdown-type {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+}
+
+.breakdown-type .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.breakdown-type.common .dot { background: #6B4423; }
+.breakdown-type.rare .dot { background: #1E90FF; box-shadow: 0 0 6px rgba(30, 144, 255, 0.5); }
+.breakdown-type.epic .dot { background: #9932CC; box-shadow: 0 0 6px rgba(153, 50, 204, 0.5); }
+.breakdown-type.legendary .dot { background: #FFD700; box-shadow: 0 0 6px rgba(255, 215, 0, 0.5); }
+
+.breakdown-count {
+    font-family: var(--font-primary);
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+/* ============================================
+   GAME OVER STATS - COMPACTO
+   ============================================ */
+.gameover-stats {
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.stat-lost {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    background: rgba(255, 51, 102, 0.1);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--danger);
+    font-size: 0.85rem;
+}
+
+.stat-lost strong {
+    font-family: var(--font-primary);
+}
+
+/* ============================================
+   TRANSACTION POPUP
+   ============================================ */
+.transaction-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(5, 5, 10, 0.95);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: var(--spacing-md);
+}
+
+.transaction-popup.active { display: flex; }
+
+.transaction-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    text-align: center;
+    max-width: 360px;
+    width: 100%;
+}
+
+.transaction-icon {
+    font-size: 2.5rem;
+    color: var(--primary);
+    margin-bottom: var(--spacing-md);
+}
+
+.transaction-content h3 {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    letter-spacing: 2px;
+    margin-bottom: var(--spacing-xs);
+}
+
+.transaction-content > p {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.85rem;
+}
+
+.transaction-details {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.transaction-detail {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.8rem;
+}
+
+.transaction-detail:last-child { border-bottom: none; }
+.transaction-detail .label { color: var(--text-muted); }
+.transaction-detail .value { color: var(--text-primary); font-family: var(--font-primary); }
+
+.transaction-warning {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    color: var(--warning);
+    font-size: 0.75rem;
+}
+
+/* ============================================
+   IN-GAME NOTIFICATION
+   ============================================ */
+.notification {
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: var(--bg-card);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xs) var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    z-index: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.notification.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.notification-icon {
+    color: var(--primary);
+    font-size: 1rem;
+}
+
+.notification-title {
+    font-family: var(--font-primary);
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    color: var(--primary);
+}
+
+.notification-message {
+    font-size: 0.8rem;
+    color: var(--success);
+}
+
+/* ============================================
+   CUSTOM ALERT / CONFIRM
+   ============================================ */
+.custom-alert, .custom-confirm { display: none; }
+.custom-alert.active, .custom-confirm.active { display: flex; }
+
+.alert-container, .confirm-container {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    text-align: center;
+    max-width: 360px;
+    width: 90%;
+    animation: modalAppear 0.2s ease;
+}
+
+.alert-icon, .confirm-icon {
+    font-size: 2.5rem;
+    margin-bottom: var(--spacing-sm);
+    color: var(--primary);
+}
+
+.alert-icon.warning, .confirm-icon.warning { color: var(--warning); }
+.alert-icon.error { color: var(--danger); }
+.alert-icon.success { color: var(--success); }
+
+.alert-title, .confirm-title {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    margin-bottom: var(--spacing-xs);
+}
+
+.alert-message, .confirm-message {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-lg);
+    line-height: 1.5;
+    font-size: 0.85rem;
+}
+
+.confirm-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.confirm-buttons .btn { flex: 1; }
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ============================================
+   RESPONSIVE - TELAS PEQUENAS
+   ============================================ */
+@media (max-height: 700px) {
+    .modal-container {
+        padding: var(--spacing-sm);
+    }
+    
+    .modal-header {
+        margin-bottom: var(--spacing-sm);
+    }
+    
+    .modal-icon {
+        width: 45px;
+        height: 45px;
+        font-size: 1.2rem;
+        margin-bottom: var(--spacing-xs);
+    }
+    
+    .modal-title {
+        font-size: 1rem;
+    }
+    
+    .modal-subtitle {
+        font-size: 0.75rem;
+    }
+    
+    .wallet-info {
+        padding: 4px 8px;
+        margin-bottom: var(--spacing-sm);
+    }
+    
+    #shipSelectorContainer {
+        margin-bottom: var(--spacing-sm);
+    }
+    
+    .ship-btn {
+        min-height: 45px;
+        max-height: 55px;
+    }
+    
+    .ship-preview {
+        width: 22px;
+        height: 22px;
+    }
+    
+    .mission-info {
+        padding: var(--spacing-xs);
+        margin-bottom: var(--spacing-sm);
+        gap: var(--spacing-sm);
+    }
+    
+    .info-item {
+        font-size: 0.65rem;
+    }
+    
+    .btn-large {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    
+    .result-stats {
+        margin-bottom: var(--spacing-sm);
+    }
+    
+    .asteroids-breakdown {
+        padding: var(--spacing-xs);
+        margin-bottom: var(--spacing-sm);
+    }
+}
+
+@media (max-width: 768px) {
+    .ship-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    
+    .breakdown-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 380px) {
+    .modal-container {
+        padding: 10px;
+    }
+    
+    .ship-grid {
+        gap: 4px;
+    }
+    
+    .ship-btn {
+        min-height: 40px;
+        max-height: 50px;
+    }
+    
+    .ship-preview {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .ship-number {
+        font-size: 0.5rem;
+    }
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 2px; }

@@ -1,0 +1,261 @@
+2026-01-06 03:06:57 | INPUT: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.016199999999999957}
+2026-01-06 03:56:22 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.03830000000000013}
+2026-01-06 03:56:22 | SUCESSO: {"success":true,"reward":"0.03830000","new_balance":"0.03830000"}
+2026-01-06 13:51:12 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.024799999999999912}
+2026-01-06 13:51:12 | SUCESSO: {"success":true,"reward":"0.02480000","new_balance":"0.06310000"}
+2026-01-06 15:29:05 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.032499999999999966}
+2026-01-06 15:29:05 | SUCESSO: {"success":true,"reward":"0.03250000","new_balance":"0.09560000"}
+2026-01-06 16:50:32 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.04970000000000046}
+2026-01-06 16:50:32 | SUCESSO: {"success":true,"reward":"0.04970000","new_balance":"0.04970000"}
+2026-01-06 18:26:06 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.15419999999999687}
+2026-01-06 18:26:06 | SUCESSO: {"success":true,"reward":"0.15420000","new_balance":"0.20390000"}
+2026-01-06 18:36:40 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.27100000000000013}
+2026-01-06 18:36:40 | SUCESSO: {"success":true,"reward":"0.27100000","new_balance":"0.47490000"}
+2026-01-06 18:50:47 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.03600000000000001}
+2026-01-06 18:50:47 | SUCESSO: {"success":true,"reward":"0.03600000","new_balance":"0.51090000"}
+2026-01-06 19:37:22 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.04130000000000016}
+2026-01-06 19:37:22 | SUCESSO: {"success":true,"reward":"0.04130000","new_balance":"0.55220000"}
+2026-01-07 00:57:44 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.02389999999999992}
+2026-01-07 00:57:44 | SUCESSO: {"success":true,"reward":"0.02390000","new_balance":"0.11950000"}
+2026-01-07 01:40:37 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.03489999999999997}
+2026-01-07 01:40:37 | SUCESSO: {"success":true,"reward":"0.03490000","new_balance":"0.58710000"}
+2026-01-07 13:21:02 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.03380000000000001}
+2026-01-07 13:21:02 | SUCESSO: {"success":true,"reward":"0.03380000","new_balance":"0.15330000"}
+2026-01-07 19:23:52 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.016399999999999956}
+2026-01-07 19:23:52 | SUCESSO: {"success":true,"reward":"0.01640000","new_balance":"0.16970000"}
+2026-01-07 19:28:01 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.049200000000000445}
+2026-01-07 19:28:01 | SUCESSO: {"success":true,"reward":"0.04920000","new_balance":"0.63630000"}
+2026-01-08 16:05:20 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.13789999999999897}
+2026-01-08 16:05:20 | SUCESSO: {"success":true,"reward":"0.13790000","new_balance":"0.77420000"}
+2026-01-08 17:31:52 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.03460000000000004}
+2026-01-08 17:31:52 | SUCESSO: {"success":true,"reward":"0.03460000","new_balance":"0.20430000"}
+2026-01-09 02:48:44 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.2880999999999994}
+2026-01-09 02:48:44 | SUCESSO: {"success":true,"reward":"0.28810000","new_balance":"0.49240000"}
+2026-01-09 03:10:27 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.03289999999999998}
+2026-01-09 03:10:27 | SUCESSO: {"success":true,"reward":"0.03290000","new_balance":"0.52530000"}
+2026-01-09 03:55:46 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.03720000000000005}
+2026-01-09 03:55:46 | SUCESSO: {"success":true,"reward":"0.03720000","new_balance":"0.81140000"}
+2026-01-09 12:41:29 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.013299999999999975}
+2026-01-09 12:41:29 | SUCESSO: {"success":true,"reward":"0.01330000","new_balance":"0.53860000"}
+2026-01-09 13:19:13 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.025299999999999913}
+2026-01-09 13:19:13 | SUCESSO: {"success":true,"reward":"0.02530000","new_balance":"0.56390000"}
+2026-01-09 13:24:10 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.15529999999999675}
+2026-01-09 13:24:10 | SUCESSO: {"success":true,"reward":"0.15530000","new_balance":"0.96670000"}
+2026-01-09 13:51:17 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.02379999999999998}
+2026-01-09 13:51:17 | SUCESSO: {"success":true,"reward":"0.02380000","new_balance":"0.58770000"}
+2026-01-09 13:55:02 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.037800000000000125}
+2026-01-09 13:55:02 | SUCESSO: {"success":true,"reward":"0.03780000","new_balance":"0.62550000"}
+2026-01-09 14:05:16 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.05890000000000074}
+2026-01-09 14:05:16 | SUCESSO: {"success":true,"reward":"0.05890000","new_balance":"1.02560000"}
+2026-01-09 14:33:32 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.016299999999999957}
+2026-01-09 14:33:32 | SUCESSO: {"success":true,"reward":"0.01630000","new_balance":"0.64180000"}
+2026-01-09 14:58:13 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.019699999999999936}
+2026-01-09 14:58:13 | SUCESSO: {"success":true,"reward":"0.01970000","new_balance":"0.66150000"}
+2026-01-09 15:36:18 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.01899999999999994}
+2026-01-09 15:36:18 | SUCESSO: {"success":true,"reward":"0.01900000","new_balance":"0.68050000"}
+2026-01-09 15:45:14 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.0306}
+2026-01-09 15:45:14 | SUCESSO: {"success":true,"reward":"0.03060000","new_balance":"0.71110000"}
+2026-01-09 15:59:15 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.13679999999999884}
+2026-01-09 15:59:15 | SUCESSO: {"success":true,"reward":"0.13680000","new_balance":"0.84790000"}
+2026-01-09 16:03:25 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.04000000000000013}
+2026-01-09 16:03:25 | SUCESSO: {"success":true,"reward":"0.04000000","new_balance":"1.06560000"}
+2026-01-09 16:54:49 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.018599999999999943}
+2026-01-09 16:54:49 | SUCESSO: {"success":true,"reward":"0.01860000","new_balance":"0.86650000"}
+2026-01-09 17:17:00 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.22439999999999974}
+2026-01-09 17:17:00 | SUCESSO: {"success":true,"reward":"0.22440000","new_balance":"1.09090000"}
+2026-01-09 18:12:07 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.22529999999999895}
+2026-01-09 18:12:07 | SUCESSO: {"success":true,"reward":"0.22530000","new_balance":"1.31620000"}
+2026-01-09 18:28:35 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.2256999999999997}
+2026-01-09 18:28:35 | SUCESSO: {"success":true,"reward":"0.22570000","new_balance":"1.54190000"}
+2026-01-09 19:25:48 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.2268999999999996}
+2026-01-09 19:25:48 | SUCESSO: {"success":true,"reward":"0.22690000","new_balance":"1.76880000"}
+2026-01-09 20:20:29 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.33519999999999794}
+2026-01-09 20:20:29 | SUCESSO: {"success":true,"reward":"0.33520000","new_balance":"1.40080000"}
+2026-01-09 20:41:34 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.2686999999999984}
+2026-01-09 20:41:34 | SUCESSO: {"success":true,"reward":"0.26870000","new_balance":"1.66950000"}
+2026-01-09 21:07:40 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.051900000000000196,"missionNumber":1,"rareAsteroids":2,"epicAsteroids":0,"totalAsteroids":321}
+2026-01-09 21:07:40 | SUCESSO: {"success":true,"reward":"0.05190000","new_balance":"1.72140000"}
+2026-01-09 21:12:02 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.041800000000000226,"missionNumber":2,"rareAsteroids":1,"epicAsteroids":0,"totalAsteroids":319}
+2026-01-09 21:12:02 | SUCESSO: {"success":true,"reward":"0.04180000","new_balance":"1.76320000"}
+2026-01-09 21:16:33 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.08550000000000027,"missionNumber":1,"rareAsteroids":7,"epicAsteroids":0,"totalAsteroids":162}
+2026-01-09 21:16:33 | SUCESSO: {"success":true,"reward":"0.08550000","new_balance":"1.85430000"}
+2026-01-09 23:00:19 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.0671000000000002,"missionNumber":2,"rareAsteroids":5,"epicAsteroids":0,"totalAsteroids":176}
+2026-01-09 23:00:19 | SUCESSO: {"success":true,"reward":"0.06710000","new_balance":"1.92140000"}
+2026-01-10 00:03:33 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.04880000000000049,"missionNumber":3,"rareAsteroids":2,"epicAsteroids":0,"totalAsteroids":290}
+2026-01-10 00:03:33 | SUCESSO: {"success":true,"reward":"0.04880000","new_balance":"1.81200000"}
+2026-01-10 15:05:29 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.02929999999999994,"missionNumber":3,"rareAsteroids":1,"epicAsteroids":0,"totalAsteroids":194}
+2026-01-10 15:05:29 | SUCESSO: {"success":true,"reward":"0.02930000","new_balance":"1.95070000"}
+2026-01-11 03:26:28 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.07010000000000051,"missionNumber":4,"rareAsteroids":4,"epicAsteroids":0,"totalAsteroids":305}
+2026-01-11 03:26:28 | SUCESSO: {"success":true,"reward":"0.07010000","new_balance":"1.88210000"}
+2026-01-12 12:43:15 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.037100000000000036,"missionNumber":4,"rareAsteroids":2,"epicAsteroids":0,"totalAsteroids":173}
+2026-01-12 12:43:15 | SUCESSO: {"success":true,"reward":"0.03710000","new_balance":"1.98780000"}
+2026-01-12 14:33:56 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.03930000000000005,"missionNumber":1,"rareAsteroids":2,"epicAsteroids":0,"totalAsteroids":195}
+2026-01-12 14:33:56 | SUCESSO: {"success":true,"reward":"0.03930000","new_balance":"2.02710000"}
+2026-01-12 19:16:27 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.11770000000000057,"missionNumber":1,"rareAsteroids":9,"epicAsteroids":0,"totalAsteroids":286}
+2026-01-12 19:16:27 | SUCESSO: {"success":true,"reward":"0.11770000","new_balance":"1.99980000"}
+2026-01-12 22:37:09 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.07910000000000038,"missionNumber":2,"rareAsteroids":6,"epicAsteroids":0,"totalAsteroids":197}
+2026-01-12 22:37:09 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #2 | Asteroides: 197
+2026-01-12 22:37:09 | SESSÃO REGISTRADA: Missão #2 | ID: 1
+2026-01-12 22:37:09 | SUCESSO COMPLETO: {"success":true,"reward":"0.07910000","new_balance":"8.80739104","fee_registered":1.0e-5,"mission":2,"session_id":"1"}
+2026-01-12 23:05:26 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.12070000000000071,"missionNumber":2,"rareAsteroids":9,"epicAsteroids":0,"totalAsteroids":316}
+2026-01-12 23:05:26 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #2 | Asteroides: 316
+2026-01-12 23:05:26 | SESSÃO REGISTRADA: Missão #2 | ID: 2
+2026-01-12 23:05:26 | SUCESSO COMPLETO: {"success":true,"reward":"0.12070000","new_balance":"8.92809104","fee_registered":1.0e-5,"mission":2,"session_id":"2"}
+2026-01-12 23:13:18 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.07320000000000065,"missionNumber":3,"rareAsteroids":4,"epicAsteroids":0,"totalAsteroids":336}
+2026-01-12 23:13:18 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #3 | Asteroides: 336
+2026-01-12 23:13:18 | SESSÃO REGISTRADA: Missão #3 | ID: 3
+2026-01-12 23:13:18 | SUCESSO COMPLETO: {"success":true,"reward":"0.07320000","new_balance":"9.00129104","fee_registered":1.0e-5,"mission":3,"session_id":"3"}
+2026-01-12 23:19:00 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.08180000000000053,"missionNumber":4,"rareAsteroids":5,"epicAsteroids":0,"totalAsteroids":323}
+2026-01-12 23:19:00 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #4 | Asteroides: 323
+2026-01-12 23:19:00 | SESSÃO REGISTRADA: Missão #4 | ID: 4
+2026-01-12 23:19:00 | SUCESSO COMPLETO: {"success":true,"reward":"0.08180000","new_balance":"9.08309104","fee_registered":1.0e-5,"mission":4,"session_id":"4"}
+2026-01-12 23:30:22 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.05230000000000017,"missionNumber":5,"rareAsteroids":2,"epicAsteroids":0,"totalAsteroids":325}
+2026-01-12 23:30:22 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #5 | Asteroides: 325
+2026-01-12 23:30:22 | SESSÃO REGISTRADA: Missão #5 | ID: 5
+2026-01-12 23:30:22 | SUCESSO COMPLETO: {"success":true,"reward":"0.05230000","new_balance":"4.13539104","fee_registered":1.0e-5,"mission":5,"session_id":"5"}
+2026-01-13 03:30:11 | RECEBIDO: {"wallet":"0x182d5f8467fe0f7bd60c02f95dee7cac35794405","totalEarnings":0.033899999999999986,"missionNumber":1,"rareAsteroids":1,"epicAsteroids":0,"totalAsteroids":240}
+2026-01-13 03:30:11 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #1 | Asteroides: 240
+2026-01-13 03:30:11 | SESSÃO REGISTRADA: Missão #1 | ID: 6
+2026-01-13 03:30:11 | SUCESSO COMPLETO: {"success":true,"reward":"0.03390000","new_balance":"0.03390000","fee_registered":1.0e-5,"mission":1,"session_id":"6"}
+2026-01-13 13:38:28 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.02779999999999995,"missionNumber":3,"rareAsteroids":1,"epicAsteroids":0,"totalAsteroids":179}
+2026-01-13 13:38:28 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #3 | Asteroides: 179
+2026-01-13 13:38:28 | SESSÃO REGISTRADA: Missão #3 | ID: 7
+2026-01-13 13:38:28 | SUCESSO COMPLETO: {"success":true,"reward":"0.02780000","new_balance":"0.16319104","fee_registered":1.0e-5,"mission":3,"session_id":"7"}
+2026-01-13 13:41:50 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.031399999999999935,"missionNumber":4,"rareAsteroids":1,"epicAsteroids":0,"totalAsteroids":215}
+2026-01-13 13:41:50 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #4 | Asteroides: 215
+2026-01-13 13:41:50 | SESSÃO REGISTRADA: Missão #4 | ID: 8
+2026-01-13 13:41:50 | SUCESSO COMPLETO: {"success":true,"reward":"0.03140000","new_balance":"0.19459104","fee_registered":1.0e-5,"mission":4,"session_id":"8"}
+2026-01-13 13:45:37 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.04059999999999995,"missionNumber":5,"rareAsteroids":2,"epicAsteroids":0,"totalAsteroids":208}
+2026-01-13 13:45:37 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #5 | Asteroides: 208
+2026-01-13 13:45:37 | SESSÃO REGISTRADA: Missão #5 | ID: 9
+2026-01-13 13:45:37 | SUCESSO COMPLETO: {"success":true,"reward":"0.04060000","new_balance":"0.23519104","fee_registered":1.0e-5,"mission":5,"session_id":"9"}
+2026-01-13 13:49:14 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.02749999999999995,"missionNumber":1,"rareAsteroids":1,"epicAsteroids":0,"totalAsteroids":176}
+2026-01-13 13:49:14 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #1 | Asteroides: 176
+2026-01-13 13:49:14 | SESSÃO REGISTRADA: Missão #1 | ID: 10
+2026-01-13 13:49:14 | SUCESSO COMPLETO: {"success":true,"reward":"0.02750000","new_balance":"0.33844653","fee_registered":1.0e-5,"mission":1,"session_id":"10"}
+2026-01-13 14:10:37 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.0281999999999999,"missionNumber":2,"rareAsteroids":1,"epicAsteroids":0,"totalAsteroids":183}
+2026-01-13 14:10:37 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #2 | Asteroides: 183
+2026-01-13 14:10:37 | SESSÃO REGISTRADA: Missão #2 | ID: 11
+2026-01-13 14:10:37 | SUCESSO COMPLETO: {"success":true,"reward":"0.02820000","new_balance":"0.36664653","fee_registered":1.0e-5,"mission":2,"session_id":"11"}
+2026-01-13 14:19:30 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.062100000000000224,"missionNumber":6,"rareAsteroids":3,"epicAsteroids":0,"totalAsteroids":324}
+2026-01-13 14:19:30 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #6 | Asteroides: 324
+2026-01-13 14:19:30 | SESSÃO REGISTRADA: Missão #6 | ID: 12
+2026-01-13 14:19:30 | SUCESSO COMPLETO: {"success":true,"reward":"0.06210000","new_balance":"0.29729104","fee_registered":1.0e-5,"mission":6,"session_id":"12"}
+2026-01-13 17:00:41 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.05730000000000019,"missionNumber":6,"rareAsteroids":4,"epicAsteroids":0,"totalAsteroids":177}
+2026-01-13 17:00:41 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #6 | Asteroides: 177
+2026-01-13 17:00:41 | SESSÃO REGISTRADA: Missão #6 | ID: 13
+2026-01-13 17:00:41 | SUCESSO COMPLETO: {"success":true,"reward":"0.05730000","new_balance":"0.35459104","fee_registered":1.0e-5,"mission":6,"session_id":"13"}
+2026-01-13 20:39:36 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.05940000000000044,"missionNumber":7,"rareAsteroids":3,"epicAsteroids":0,"totalAsteroids":297}
+2026-01-13 20:39:36 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #7 | Asteroides: 297
+2026-01-13 20:39:36 | SESSÃO REGISTRADA: Missão #7 | ID: 14
+2026-01-13 20:39:36 | SUCESSO COMPLETO: {"success":true,"reward":"0.05940000","new_balance":"4.41537253","fee_registered":1.0e-5,"mission":7,"session_id":"14"}
+2026-01-13 20:44:37 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.029999999999999933,"missionNumber":3,"rareAsteroids":1,"epicAsteroids":0,"totalAsteroids":201}
+2026-01-13 20:44:37 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #3 | Asteroides: 201
+2026-01-13 20:44:37 | SESSÃO REGISTRADA: Missão #3 | ID: 15
+2026-01-13 20:44:37 | SUCESSO COMPLETO: {"success":true,"reward":"0.03000000","new_balance":"0.39664653","fee_registered":1.0e-5,"mission":3,"session_id":"15"}
+2026-01-14 20:16:40 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.04050000000000003,"missionNumber":4,"rareAsteroids":2,"epicAsteroids":0,"totalAsteroids":207}
+2026-01-14 20:16:40 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #4 | Asteroides: 207
+2026-01-14 20:16:40 | SESSÃO REGISTRADA: Missão #4 | ID: 16
+2026-01-14 20:16:40 | SUCESSO COMPLETO: {"success":true,"reward":"0.04050000","new_balance":"0.04050000","fee_registered":1.0e-5,"mission":4,"session_id":"16"}
+2026-01-15 13:47:10 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.02779999999999995,"missionNumber":1,"rareAsteroids":1,"epicAsteroids":0,"totalAsteroids":179}
+2026-01-15 13:47:10 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #1 | Asteroides: 179
+2026-01-15 13:47:10 | SESSÃO REGISTRADA: Missão #1 | ID: 17
+2026-01-15 13:47:10 | SUCESSO COMPLETO: {"success":true,"reward":"0.02780000","new_balance":"0.06830000","fee_registered":1.0e-5,"mission":1,"session_id":"17"}
+2026-01-15 14:55:56 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.05120000000000015,"missionNumber":2,"rareAsteroids":4,"epicAsteroids":0,"totalAsteroids":116}
+2026-01-15 14:55:56 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #2 | Asteroides: 116
+2026-01-15 14:55:56 | SESSÃO REGISTRADA: Missão #2 | ID: 18
+2026-01-15 14:55:56 | SUCESSO COMPLETO: {"success":true,"reward":"0.05120000","new_balance":"0.11950000","fee_registered":1.0e-5,"mission":2,"session_id":"18"}
+2026-01-16 03:46:00 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.03780000000000017,"missionNumber":1,"rareAsteroids":2,"epicAsteroids":0,"totalAsteroids":180}
+2026-01-16 03:46:00 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #1 | Asteroides: 180
+2026-01-16 03:46:00 | SESSÃO REGISTRADA: Missão #1 | ID: 19
+2026-01-16 03:46:00 | SUCESSO COMPLETO: {"success":true,"reward":"0.03780000","new_balance":"0.03780000","fee_registered":1.0e-5,"mission":1,"session_id":"19"}
+2026-01-16 03:54:29 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.09320000000000057,"missionNumber":8,"rareAsteroids":6,"epicAsteroids":0,"totalAsteroids":338}
+2026-01-16 03:54:29 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #8 | Asteroides: 338
+2026-01-16 03:54:29 | SESSÃO REGISTRADA: Missão #8 | ID: 20
+2026-01-16 03:54:29 | SUCESSO COMPLETO: {"success":true,"reward":"0.09320000","new_balance":"0.13100000","fee_registered":1.0e-5,"mission":8,"session_id":"20"}
+2026-01-16 13:26:46 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.026499999999999975,"missionNumber":1,"rareAsteroids":2,"epicAsteroids":0,"totalAsteroids":170}
+2026-01-16 13:26:46 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #1 | Asteroides: 170
+2026-01-16 13:26:46 | SESSÃO REGISTRADA: Missão #1 | ID: 21
+2026-01-16 13:26:46 | SUCESSO COMPLETO: {"success":true,"reward":"0.02650000","new_balance":"0.14600000","fee_registered":1.0e-5,"mission":1,"session_id":"21"}
+2026-01-17 19:00:37 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.11650000000000008,"missionNumber":35,"commonAsteroids":255,"rareAsteroids":89,"epicAsteroids":37,"legendaryAsteroids":7,"totalAsteroids":388}
+2026-01-17 19:00:37 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #35 | Asteroides: 388
+2026-01-17 19:00:37 | SESSÃO REGISTRADA: Missão #35 | ID: 7
+2026-01-17 19:00:37 | SUCESSO COMPLETO: {"success":true,"reward":"0.11650000","new_balance":"0.31030000","fee_registered":1.0e-5,"mission":35,"session_id":"7"}
+2026-01-17 19:22:41 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.0084,"missionNumber":36,"commonAsteroids":232,"rareAsteroids":12,"epicAsteroids":6,"legendaryAsteroids":0,"totalAsteroids":250}
+2026-01-17 19:22:41 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #36 | Asteroides: 250
+2026-01-17 19:22:41 | SESSÃO REGISTRADA: Missão #36 | ID: 8
+2026-01-17 19:22:41 | SUCESSO COMPLETO: {"success":true,"reward":"0.00840000","new_balance":"0.31870000","fee_registered":1.0e-5,"mission":36,"session_id":"8"}
+2026-01-17 19:37:39 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.019049999999999928,"missionNumber":37,"commonAsteroids":245,"rareAsteroids":30,"epicAsteroids":7,"legendaryAsteroids":1,"totalAsteroids":283}
+2026-01-17 19:37:39 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #37 | Asteroides: 283
+2026-01-17 19:37:39 | SESSÃO REGISTRADA: Missão #37 | ID: 9
+2026-01-17 19:37:39 | SUCESSO COMPLETO: {"success":true,"reward":"0.01905000","new_balance":"0.33775000","fee_registered":1.0e-5,"mission":37,"session_id":"9"}
+2026-01-17 21:06:33 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.019379999999999932,"missionNumber":38,"commonAsteroids":238,"rareAsteroids":26,"epicAsteroids":9,"legendaryAsteroids":1,"totalAsteroids":274}
+2026-01-17 21:06:33 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #38 | Asteroides: 274
+2026-01-17 21:06:33 | SESSÃO REGISTRADA: Missão #38 | ID: 10
+2026-01-17 21:06:33 | SUCESSO COMPLETO: {"success":true,"reward":"0.01938000","new_balance":"0.35713000","fee_registered":1.0e-5,"mission":38,"session_id":"10"}
+2026-01-18 21:03:38 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.01243999999999996,"missionNumber":1,"commonAsteroids":114,"rareAsteroids":11,"epicAsteroids":5,"legendaryAsteroids":2,"totalAsteroids":132}
+2026-01-18 21:03:38 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #1 | Asteroides: 132
+2026-01-18 21:03:38 | SESSÃO REGISTRADA: Missão #1 | ID: 12
+2026-01-18 21:03:38 | SUCESSO COMPLETO: {"success":true,"reward":"0.01244000","new_balance":"0.01957000","fee_registered":1.0e-5,"mission":1,"session_id":"12"}
+2026-01-19 22:43:34 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.005379999999999999,"missionNumber":39,"commonAsteroids":18,"rareAsteroids":8,"epicAsteroids":1,"legendaryAsteroids":1,"totalAsteroids":28}
+2026-01-19 22:43:34 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #39 | Asteroides: 28
+2026-01-19 22:43:34 | SESSÃO REGISTRADA: Missão #39 | ID: 13
+2026-01-19 22:43:34 | SUCESSO COMPLETO: {"success":true,"reward":"0.00538000","new_balance":"0.00538000","fee_registered":1.0e-5,"mission":39,"session_id":"13"}
+2026-01-20 13:06:03 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.011629999999999988,"missionNumber":2,"commonAsteroids":33,"rareAsteroids":19,"epicAsteroids":2,"legendaryAsteroids":2,"totalAsteroids":56}
+2026-01-20 13:06:03 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #2 | Asteroides: 56
+2026-01-20 13:06:03 | SESSÃO REGISTRADA: Missão #2 | ID: 14
+2026-01-20 13:06:03 | SUCESSO COMPLETO: {"success":true,"reward":"0.01163000","new_balance":"0.03120000","fee_registered":1.0e-5,"mission":2,"session_id":"14"}
+2026-01-20 14:32:40 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.017039999999999934,"missionNumber":39,"commonAsteroids":224,"rareAsteroids":20,"epicAsteroids":11,"legendaryAsteroids":0,"totalAsteroids":255}
+2026-01-20 14:32:40 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #39 | Asteroides: 255
+2026-01-20 14:32:40 | SESSÃO REGISTRADA: Missão #39 | ID: 15
+2026-01-20 14:32:40 | SUCESSO COMPLETO: {"success":true,"reward":"0.01704000","new_balance":"0.04824000","fee_registered":1.0e-5,"mission":39,"session_id":"15"}
+2026-01-21 19:49:41 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.01713999999999998,"missionNumber":41,"commonAsteroids":104,"rareAsteroids":23,"epicAsteroids":4,"legendaryAsteroids":3,"totalAsteroids":134,"livesRemaining":2,"hardMode":false}
+2026-01-21 19:49:41 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #41 | Asteroides: 134
+2026-01-21 19:49:41 | SESSÃO REGISTRADA: Missão #41 | ID: 16
+2026-01-21 19:49:41 | SUCESSO COMPLETO: {"success":true,"reward":"0.01714000","new_balance":"0.02252000","fee_registered":1.0e-5,"mission":41,"session_id":"16"}
+2026-01-21 19:55:37 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.02740999999999992,"missionNumber":40,"commonAsteroids":261,"rareAsteroids":32,"epicAsteroids":9,"legendaryAsteroids":4,"totalAsteroids":306,"livesRemaining":3,"hardMode":false}
+2026-01-21 19:55:37 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #40 | Asteroides: 306
+2026-01-21 19:55:37 | SESSÃO REGISTRADA: Missão #40 | ID: 17
+2026-01-21 19:55:37 | SUCESSO COMPLETO: {"success":true,"reward":"0.02741000","new_balance":"0.07565000","fee_registered":1.0e-5,"mission":40,"session_id":"17"}
+2026-01-21 20:03:33 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.027109999999999933,"missionNumber":41,"commonAsteroids":271,"rareAsteroids":28,"epicAsteroids":10,"legendaryAsteroids":4,"totalAsteroids":313,"livesRemaining":2,"hardMode":false}
+2026-01-21 20:03:33 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #41 | Asteroides: 313
+2026-01-21 20:03:33 | SESSÃO REGISTRADA: Missão #41 | ID: 18
+2026-01-21 20:03:33 | SUCESSO COMPLETO: {"success":true,"reward":"0.02711000","new_balance":"0.10276000","fee_registered":1.0e-5,"mission":41,"session_id":"18"}
+2026-01-21 20:51:58 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0,"missionNumber":42,"gameOver":true,"lostEarnings":0.006579999999999996}
+2026-01-21 20:51:58 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #42 | Asteroides: 0
+2026-01-21 20:51:58 | SESSÃO REGISTRADA: Missão #42 | ID: 19
+2026-01-21 20:51:58 | SUCESSO COMPLETO: {"success":true,"reward":"0.00000000","new_balance":"0.02252000","fee_registered":1.0e-5,"mission":42,"session_id":"19"}
+2026-01-21 21:07:47 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.01787999999999999,"missionNumber":43,"commonAsteroids":108,"rareAsteroids":24,"epicAsteroids":7,"legendaryAsteroids":2,"totalAsteroids":141,"livesRemaining":1,"hardMode":false}
+2026-01-21 21:07:47 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #43 | Asteroides: 141
+2026-01-21 21:07:47 | SESSÃO REGISTRADA: Missão #43 | ID: 20
+2026-01-21 21:07:47 | SUCESSO COMPLETO: {"success":true,"reward":"0.01788000","new_balance":"0.04040000","fee_registered":1.0e-5,"mission":43,"session_id":"20"}
+2026-01-22 01:40:13 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.01543,"missionNumber":44,"commonAsteroids":23,"rareAsteroids":16,"epicAsteroids":13,"legendaryAsteroids":0,"totalAsteroids":52,"livesRemaining":3,"hardMode":false}
+2026-01-22 01:40:13 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #44 | Asteroides: 52
+2026-01-22 01:40:13 | SESSÃO REGISTRADA: Missão #44 | ID: 21
+2026-01-22 01:40:13 | SUCESSO COMPLETO: {"success":true,"reward":"0.01543000","new_balance":"0.05583000","fee_registered":1.0e-5,"mission":44,"session_id":"21"}
+2026-01-22 01:47:13 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.028819999999999915,"missionNumber":42,"commonAsteroids":282,"rareAsteroids":36,"epicAsteroids":14,"legendaryAsteroids":2,"totalAsteroids":334,"livesRemaining":5,"hardMode":false}
+2026-01-22 01:47:13 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #42 | Asteroides: 334
+2026-01-22 01:47:13 | SESSÃO REGISTRADA: Missão #42 | ID: 22
+2026-01-22 01:47:13 | SUCESSO COMPLETO: {"success":true,"reward":"0.02882000","new_balance":"0.13158000","fee_registered":1.0e-5,"mission":42,"session_id":"22"}
+2026-01-22 02:09:50 | RECEBIDO: {"wallet":"0x182d5f8467fe0f7bd60c02f95dee7cac35794405","totalEarnings":0,"missionNumber":1,"gameOver":true,"lostEarnings":2.0e-5}
+2026-01-22 02:09:50 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #1 | Asteroides: 0
+2026-01-22 02:09:50 | SESSÃO REGISTRADA: Missão #1 | ID: 23
+2026-01-22 02:09:50 | SUCESSO COMPLETO: {"success":true,"reward":"0.00000000","new_balance":"0.00000000","fee_registered":1.0e-5,"mission":1,"session_id":"23"}
+2026-01-22 02:13:47 | RECEBIDO: {"wallet":"0x182d5f8467fe0f7bd60c02f95dee7cac35794405","totalEarnings":0.032239999999999984,"missionNumber":2,"commonAsteroids":294,"rareAsteroids":31,"epicAsteroids":15,"legendaryAsteroids":4,"totalAsteroids":344,"livesRemaining":2,"hardMode":false}
+2026-01-22 02:13:47 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #2 | Asteroides: 344
+2026-01-22 02:13:47 | SESSÃO REGISTRADA: Missão #2 | ID: 24
+2026-01-22 02:13:47 | SUCESSO COMPLETO: {"success":true,"reward":"0.03224000","new_balance":"0.03224000","fee_registered":1.0e-5,"mission":2,"session_id":"24"}
+2026-01-22 03:06:24 | RECEBIDO: {"wallet":"0xe9a210869cc40dc42a79bd7991602fb3d76f92ea","totalEarnings":0.022209999999999997,"missionNumber":45,"commonAsteroids":41,"rareAsteroids":22,"epicAsteroids":9,"legendaryAsteroids":4,"totalAsteroids":76,"livesRemaining":6,"hardMode":false}
+2026-01-22 03:06:24 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #45 | Asteroides: 76
+2026-01-22 03:06:24 | SESSÃO REGISTRADA: Missão #45 | ID: 25
+2026-01-22 03:06:24 | SUCESSO COMPLETO: {"success":true,"reward":"0.02221000","new_balance":"0.07804000","fee_registered":1.0e-5,"mission":45,"session_id":"25"}
+2026-01-22 15:17:15 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.04016000000000022,"missionNumber":43,"commonAsteroids":276,"rareAsteroids":46,"epicAsteroids":17,"legendaryAsteroids":5,"totalAsteroids":344,"livesRemaining":6,"hardMode":false}
+2026-01-22 15:17:15 | TAXA REGISTRADA: 1.0E-5 BNB | Missão #43 | Asteroides: 344
+2026-01-22 15:17:15 | SESSÃO REGISTRADA: Missão #43 | ID: 26
+2026-01-22 15:17:15 | SUCESSO COMPLETO: {"success":true,"reward":"0.04016000","new_balance":"0.52228452","fee_registered":1.0e-5,"mission":43,"session_id":"26"}
+2026-01-22 21:41:43 | RECEBIDO: {"wallet":"0xc48cebdf29561dedad82a084c2390021ad24775c","totalEarnings":0.02479999999999998,"missionNumber":1,"commonAsteroids":90,"rareAsteroids":29,"epicAsteroids":9,"legendaryAsteroids":4,"totalAsteroids":132,"livesRemaining":5,"hardMode":false}
+2026-01-22 21:41:43 | SUCESSO: {"success":true,"reward":"0.02480000","new_balance":"0.02708452","fee_registered":1.0e-5,"mission":1}
+2026-01-23 13:32:45 | RECEBIDO: {"wallet":"0xb890ac554530d064cf7b52aa3a9b65ea174934c5","totalEarnings":0.018929999999999968,"missionNumber":1,"commonAsteroids":103,"rareAsteroids":37,"epicAsteroids":6,"legendaryAsteroids":1,"totalAsteroids":147,"livesRemaining":3,"hardMode":false}
+2026-01-23 13:32:45 | SUCESSO: {"success":true,"reward":"0.01893000","new_balance":"0.01893000","fee_registered":1.0e-5,"mission":1}
+2026-01-23 14:06:45 | RECEBIDO: {"wallet":"0xb890ac554530d064cf7b52aa3a9b65ea174934c5","totalEarnings":0.018919999999999965,"missionNumber":2,"commonAsteroids":112,"rareAsteroids":34,"epicAsteroids":7,"legendaryAsteroids":1,"totalAsteroids":154,"livesRemaining":5,"hardMode":false}
+2026-01-23 14:06:45 | SUCESSO: {"success":true,"reward":"0.01892000","new_balance":"0.03785000","fee_registered":1.0e-5,"mission":2}
