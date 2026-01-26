@@ -35,17 +35,21 @@ try {
     $pdo = new PDO(
         "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
         DB_USER,
-        DB_PASS,
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        DB_PASS
     );
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
+    // Iniciar transação
     $pdo->beginTransaction();
 
-    // 1) Buscar comissões disponíveis (LOCK)
+    // ============================================
+    // 1. BUSCAR COMISSÕES DISPONÍVEIS (LOCK)
+    // ============================================
     $stmt = $pdo->prepare("
         SELECT id, commission_amount, referred_wallet
         FROM referrals
-        WHERE referrer_wallet = ? AND status = 'completed'
+        WHERE referrer_wallet = ?
+          AND status = 'completed'
         FOR UPDATE
     ");
     $stmt->execute([$wallet]);
@@ -57,15 +61,18 @@ try {
         exit;
     }
 
+    // Calcular total
     $totalAmount = 0;
-    $referralIds = [];
+    $referralIds = array();
 
     foreach ($pendingCommissions as $commission) {
         $totalAmount += (float)$commission['commission_amount'];
         $referralIds[] = $commission['id'];
     }
 
-    // 2) Atualizar status dos referrals
+    // ============================================
+    // 2. ATUALIZAR STATUS DOS REFERRALS
+    // ============================================
     $placeholders = implode(',', array_fill(0, count($referralIds), '?'));
     $stmt = $pdo->prepare("
         UPDATE referrals
@@ -74,7 +81,9 @@ try {
     ");
     $stmt->execute($referralIds);
 
-    // 3) Adicionar ao balance do jogador
+    // ============================================
+    // 3. ADICIONAR AO BALANCE DO JOGADOR
+    // ============================================
     $stmt = $pdo->prepare("
         UPDATE players
         SET balance_usdt = balance_usdt + ?
@@ -82,6 +91,7 @@ try {
     ");
     $stmt->execute([$totalAmount, $wallet]);
 
+    // Verificar se atualizou algum registro
     if ($stmt->rowCount() === 0) {
         // Jogador não existe, criar
         $stmt = $pdo->prepare("
@@ -91,8 +101,11 @@ try {
         $stmt->execute([$wallet, $totalAmount]);
     }
 
-    // 4) Registrar transação (schema confirmado)
+    // ============================================
+    // 4. REGISTRAR TRANSAÇÃO (schema confirmado)
+    // ============================================
     $tableExists = $pdo->query("SHOW TABLES LIKE 'transactions'")->fetch();
+
     if ($tableExists) {
         $description = 'Comissão de afiliados (' . count($referralIds) . ' indicações)';
 
@@ -104,13 +117,17 @@ try {
         $stmt->execute([$wallet, $totalAmount, $description]);
     }
 
-    // 5) Buscar novo saldo
+    // ============================================
+    // 5. BUSCAR NOVO SALDO
+    // ============================================
     $stmt = $pdo->prepare("SELECT balance_usdt FROM players WHERE wallet_address = ?");
     $stmt->execute([$wallet]);
     $newBalance = (float)$stmt->fetchColumn();
 
+    // Commit
     $pdo->commit();
 
+    // Log para debug
     error_log("Comissão resgatada: Wallet={$wallet}, Amount={$totalAmount}, Referrals=" . implode(',', $referralIds));
 
     echo json_encode([
