@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | CRYPTO ASTEROID RUSH</title>
+    <meta name="description" content="Your control panel - Track missions, earnings and manage USDT.">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body data-page="dashboard">
+<div class="cosmic-bg"></div>
+
+<div id="connectOverlay" class="connect-overlay">
+    <div class="connect-box">
+        <div class="connect-icon"><i class="fas fa-rocket"></i></div>
+        <h2 class="connect-title">WELCOME, COMMANDER</h2>
+        <p class="connect-desc">Connect your MetaMask wallet on BSC network to access your dashboard.</p>
+        <button id="connectBtn" class="btn btn-primary btn-lg"><i class="fab fa-ethereum"></i> Connect MetaMask</button>
+    </div>
+</div>
+
+<div class="container">
+    <header class="header">
+        <a href="index.html" class="logo"><span class="logo-icon">&#9732;&#65039;</span><span class="logo-text">ASTEROID RUSH</span></a>
+        <nav class="nav" id="nav">
+            <a href="dashboard.html" class="nav-link active">Dashboard</a>
+            <a href="game.html" class="nav-link">Play</a>
+            <a href="wallet.html" class="nav-link">Wallet</a>
+            <a href="staking.html" class="nav-link">Staking</a>
+            <a href="affiliates.html" class="nav-link">Affiliates</a>
+        </nav>
+        <button id="walletBtn" class="wallet-btn"><i class="fas fa-wallet"></i> Connect</button>
+        <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
+    </header>
+    
+    <section class="page-header">
+        <p class="text-dim">Welcome back, Commander!</p>
+        <h1 class="page-title">CONTROL PANEL</h1>
+        <p class="page-subtitle">Track your missions and manage your earnings.</p>
+    </section>
+    
+    <section class="stats-grid">
+        <div class="stat-card"><div class="stat-icon"><i class="fas fa-wallet"></i></div><div class="stat-value" id="statBalance">$0.0000</div><div class="stat-label">Available Balance</div></div>
+        <div class="stat-card success"><div class="stat-icon"><i class="fas fa-coins"></i></div><div class="stat-value" id="statEarned">$0.0000</div><div class="stat-label">Total Earned</div></div>
+        <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-gamepad"></i></div><div class="stat-value" id="statGames">0</div><div class="stat-label">Missions</div></div>
+        <div class="stat-card"><div class="stat-icon"><i class="fas fa-lock"></i></div><div class="stat-value" id="statStaked">$0.0000</div><div class="stat-label">In Staking</div></div>
+    </section>
+    
+    <section>
+        <h2 class="section-title"><i class="fas fa-bolt"></i> Quick Actions</h2>
+        <div class="action-grid">
+            <a href="game.html" class="action-card play">
+                <div class="action-icon"><i class="fas fa-rocket"></i></div>
+                <h3 class="action-title">START MISSION</h3>
+                <p class="action-desc">Destroy asteroids and earn USDT! 180 seconds of action.</p>
+                <span class="action-link">Play Now <i class="fas fa-arrow-right"></i></span>
+            </a>
+            <a href="wallet.html" class="action-card wallet">
+                <div class="action-icon"><i class="fas fa-wallet"></i></div>
+                <h3 class="action-title">MY WALLET</h3>
+                <p class="action-desc">View balance, history and request withdrawals.</p>
+                <span class="action-link">View Wallet <i class="fas fa-arrow-right"></i></span>
+            </a>
+            <a href="staking.html" class="action-card staking">
+                <div class="action-icon"><i class="fas fa-chart-line"></i></div>
+                <h3 class="action-title">STAKING 12% APY</h3>
+                <p class="action-desc">Multiply your earnings with automatic yields.</p>
+                <span class="action-link">Stake Now <i class="fas fa-arrow-right"></i></span>
+            </a>
+            <a href="affiliates.html" class="action-card affiliate">
+                <div class="action-icon"><i class="fas fa-users"></i></div>
+                <h3 class="action-title">AFFILIATES</h3>
+                <p class="action-desc">Invite friends and earn $1.00 per referral!</p>
+                <span class="action-link">Invite Friends <i class="fas fa-arrow-right"></i></span>
+            </a>
+        </div>
+    </section>
+    
+    <section class="mb-30">
+        <h2 class="section-title"><i class="fas fa-history"></i> Recent Activity</h2>
+        <div class="activity-list" id="activityList">
+            <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>
+        </div>
+    </section>
+    
+    <footer class="footer">
+    <a href="https://t.me/AsteroidRushOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Join our Telegram</a>
+    <div class="footer-links">
+        <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> How to Play</a>
+        <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Gameplay Guide</a>
+        <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economy</a>
+        <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
+        <a href="terms.html" class="footer-link"><i class="fas fa-file-contract"></i> Terms</a>
+        <a href="privacy.html" class="footer-link"><i class="fas fa-shield-alt"></i> Privacy</a>
+    </div>
+    <p class="footer-copy">© 2026 Crypto Asteroid Rush. All rights reserved.</p>
+</footer>
+</div>
+
+<style>
+/* Estilo para o card de Affiliates */
+.action-card.affiliate {
+    background: linear-gradient(135deg, rgba(146, 254, 157, 0.1), rgba(0, 240, 255, 0.05));
+    border-color: var(--success);
+}
+.action-card.affiliate .action-icon {
+    background: rgba(5, 255, 161, 0.2);
+    color: var(--success);
+}
+.action-card.affiliate:hover {
+    border-color: var(--success);
+    box-shadow: 0 10px 30px rgba(5, 255, 161, 0.2);
+}
+</style>
+
+<script src="js/main.js"></script>
+</body>
+</html>

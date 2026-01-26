@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Loading Mission | Crypto Asteroid Rush</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #00f0ff;
+            --primary-glow: rgba(0, 240, 255, 0.5);
+            --secondary: #7b2ff7;
+            --accent: #ff00aa;
+            --bg-dark: #0a0a12;
+            --bg-medium: #12121f;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --text-muted: #606070;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a12 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+        
+        /* Stars Background */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .star {
+            position: absolute;
+            background: #fff;
+            border-radius: 50%;
+            animation: twinkle 2s ease-in-out infinite;
+        }
+        
+        .star.small { width: 1px; height: 1px; opacity: 0.4; }
+        .star.medium { width: 2px; height: 2px; opacity: 0.6; }
+        .star.large { width: 3px; height: 3px; opacity: 0.8; }
+        
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+        
+        /* Main Container */
+        .loading-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+        
+        /* Header */
+        .loading-header {
+            margin-bottom: 20px;
+        }
+        
+        .loading-header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            letter-spacing: 3px;
+            color: var(--primary);
+            text-shadow: 0 0 20px var(--primary-glow);
+            margin-bottom: 5px;
+        }
+        
+        .loading-header p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+        }
+        
+        /* Ad Container */
+        .ad-container {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 12px;
+            min-height: 280px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            contain: strict;
+        }
+        
+        /* Ad Slots */
+        .ad-slot {
+            display: none;
+            width: 100%;
+            height: 100%;
+            min-height: 280px;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .ad-slot.active {
+            display: flex;
+        }
+        
+        /* Isolation Layer - ONDE OS ANÚNCIOS FICAM */
+        .ad-isolation-layer {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden !important;
+            isolation: isolate;
+        }
+        
+        /* Placeholder */
+        .ad-placeholder {
+            color: var(--text-muted);
+            text-align: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .ad-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+        
+        .ad-placeholder p {
+            font-size: 0.85rem;
+        }
+        
+        /* Progress Section */
+        .progress-section {
+            margin-bottom: 20px;
+        }
+        
+        .progress-bar-container {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 25px;
+            height: 12px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+        
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
+            border-radius: 25px;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+        
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .progress-percent {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            color: var(--primary);
+        }
+        
+        .progress-status {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            letter-spacing: 1px;
+        }
+        
+        .time-remaining {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            color: var(--text-muted);
+        }
+        
+        /* Tips Section */
+        .tips-section {
+            background: rgba(0, 240, 255, 0.08);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .tips-section i {
+            color: #ffaa00;
+            margin-right: 8px;
+        }
+        
+        .tip-text {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+        
+        /* Responsive */
+        @media (max-width: 480px) {
+            .loading-header h1 {
+                font-size: 1.2rem;
+            }
+            
+            .ad-container {
+                min-height: 250px;
+            }
+            
+            .progress-percent {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Stars Background -->
+<div class="stars" id="stars"></div>
+
+<!-- Main Loading Container -->
+<div class="loading-container">
+    
+    <!-- Header -->
+    <div class="loading-header">
+        <h1><i class="fas fa-satellite-dish"></i> MISSION BRIEFING</h1>
+        <p>PREPARING YOUR SPACECRAFT</p>
+    </div>
+    
+    <!-- AD CONTAINER -->
+    <div class="ad-container" id="adContainer">
+        
+        <!-- AD SLOT 1 - COLE SEU CÓDIGO AQUI -->
+        <div class="ad-slot" id="adSlot1">
+            <div class="ad-isolation-layer" id="isolation1">
+                <!-- 〰️〰️〰️〰️〰️ COLE SEU SCRIPT AQUI 〰️〰️〰️〰️〰️ -->
+                <script>(function(s){s.dataset.zone='10511998',s.src='https://gizokraijaw.net/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+                <div class="ad-placeholder">
+                    <i class="fas fa-ad"></i>
+                    <p>Ad Slot 1</p>
+                    <small>Paste your ad code above this placeholder</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- AD SLOT 2 - COLE SEU CÓDIGO AQUI -->
+        <div class="ad-slot" id="adSlot2">
+            <div class="ad-isolation-layer" id="isolation2">
+                <!-- 〰️〰️〰️〰️〰️ COLE SEU SCRIPT AQUI 〰️〰️〰️〰️〰️ -->
+                <script>(function(s){s.dataset.zone='10511993',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+                <div class="ad-placeholder">
+                    <i class="fas fa-ad"></i>
+                    <p>Ad Slot 2</p>
+                    <small>Paste your ad code above this placeholder</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- AD SLOT 3 - COLE SEU CÓDIGO AQUI -->
+        <div class="ad-slot" id="adSlot3">
+            <div class="ad-isolation-layer" id="isolation3">
+                <!-- 〰️〰️〰️〰️〰️ COLE SEU SCRIPT AQUI 〰️〰️〰️〰️〰️ -->
+               <script src="https://3nbf4.com/act/files/tag.min.js?z=10511992" data-cfasync="false" async></script>
+                <div class="ad-placeholder">
+                    <i class="fas fa-ad"></i>
+                    <p>Ad Slot 3</p>
+                    <small>Paste your ad code above this placeholder</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- AD SLOT 4 - COLE SEU CÓDIGO AQUI -->
+        <div class="ad-slot" id="adSlot4">
+            <div class="ad-isolation-layer" id="isolation4">
+                <!-- 〰️〰️〰️〰️〰️ COLE SEU SCRIPT AQUI 〰️〰️〰️〰️〰️ -->
+                <div class="ad-placeholder">
+                    <i class="fas fa-ad"></i>
+                    <p>Ad Slot 4</p>
+                    <small>Paste your ad code above this placeholder</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- AD SLOT 5 - COLE SEU CÓDIGO AQUI -->
+        <div class="ad-slot" id="adSlot5">
+            <div class="ad-isolation-layer" id="isolation5">
+                <!-- 〰️〰️〰️〰️〰️ COLE SEU SCRIPT AQUI 〰️〰️〰️〰️〰️ -->
+                <div class="ad-placeholder">
+                    <i class="fas fa-ad"></i>
+                    <p>Ad Slot 5</p>
+                    <small>Paste your ad code above this placeholder</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- AD SLOT 6 - COLE SEU CÓDIGO AQUI -->
+        <div class="ad-slot" id="adSlot6">
+            <div class="ad-isolation-layer" id="isolation6">
+                <!-- 〰️〰️〰️〰️〰️ COLE SEU SCRIPT AQUI 〰️〰️〰️〰️〰️ -->
+                <div class="ad-placeholder">
+                    <i class="fas fa-ad"></i>
+                    <p>Ad Slot 6</p>
+                    <small>Paste your ad code above this placeholder</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- AD SLOT 7 - COLE SEU CÓDIGO AQUI -->
+        <div class="ad-slot" id="adSlot7">
+            <div class="ad-isolation-layer" id="isolation7">
+                <!-- 〰️〰️〰️〰️〰️ COLE SEU SCRIPT AQUI 〰️〰️〰️〰️〰️ -->
+                <div class="ad-placeholder">
+                    <i class="fas fa-ad"></i>
+                    <p>Ad Slot 7</p>
+                    <small>Paste your ad code above this placeholder</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- AD SLOT 8 - COLE SEU CÓDIGO AQUI -->
+        <div class="ad-slot" id="adSlot8">
+            <div class="ad-isolation-layer" id="isolation8">
+                <!-- 〰️〰️〰️〰️〰️ COLE SEU SCRIPT AQUI 〰️〰️〰️〰️〰️ -->
+                <div class="ad-placeholder">
+                    <i class="fas fa-ad"></i>
+                    <p>Ad Slot 8</p>
+                    <small>Paste your ad code above this placeholder</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- AD SLOT 9 - COLE SEU CÓDIGO AQUI -->
+        <div class="ad-slot" id="adSlot9">
+            <div class="ad-isolation-layer" id="isolation9">
+                <!-- 〰️〰️〰️〰️〰️ COLE SEU SCRIPT AQUI 〰️〰️〰️〰️〰️ -->
+                <div class="ad-placeholder">
+                    <i class="fas fa-ad"></i>
+                    <p>Ad Slot 9</p>
+                    <small>Paste your ad code above this placeholder</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- AD SLOT 10 - COLE SEU CÓDIGO AQUI -->
+        <div class="ad-slot" id="adSlot10">
+            <div class="ad-isolation-layer" id="isolation10">
+                <!-- 〰️〰️〰️〰️〰️ COLE SEU SCRIPT AQUI 〰️〰️〰️〰️〰️ -->
+                <div class="ad-placeholder">
+                    <i class="fas fa-ad"></i>
+                    <p>Ad Slot 10</p>
+                    <small>Paste your ad code above this placeholder</small>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+    
+    <!-- Progress Section -->
+    <div class="progress-section">
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="progress-info">
+            <span class="progress-percent" id="progressPercent">0%</span>
+            <span class="time-remaining" id="timeRemaining">15s</span>
+        </div>
+        <div class="progress-status" id="progressStatus">Initializing systems...</div>
+    </div>
+    
+    <!-- Tips Section -->
+    <div class="tips-section">
+        <i class="fas fa-lightbulb"></i>
+        <span class="tip-text" id="tipText">TIP: Destroy valuable asteroids to earn USDT!</span>
+    </div>
+    
+</div>
+
+<script>
+// ============================================
+// CONFIGURAÇÃO
+// ============================================
+const LOADING_DURATION = 15;
+const TIP_CHANGE_INTERVAL = 4;
+
+const GAME_TIPS = [
+    "TIP: Destroy valuable asteroids to earn USDT!",
+    "TIP: Rare asteroids glow blue and are worth more!",
+    "TIP: Epic asteroids have a purple glow - high value!",
+    "TIP: Legendary asteroids shine gold - maximum reward!",
+    "TIP: Avoid collisions to keep your lives!",
+    "TIP: Common asteroids have no value but can hit you!",
+    "TIP: Use arrow keys or A/D to move, Space to fire",
+    "TIP: Your earnings depend on your skill!",
+    "TIP: 6 lives per mission - protect your ship!",
+    "TIP: Watch out for fast-moving asteroids!",
+    "TIP: Hold the FIRE button for continuous shooting",
+    "TIP: Some missions are harder than others!"
+];
+
+const STATUS_MESSAGES = [
+    "Initializing systems...",
+    "Loading asteroid data...",
+    "Calibrating weapons...",
+    "Scanning asteroid field...",
+    "Preparing navigation...",
+    "Charging engines...",
+    "Running diagnostics...",
+    "Establishing connection...",
+    "Loading ship modules...",
+    "Finalizing mission data...",
+    "Almost ready...",
+    "Launching in moments..."
+];
+
+// ============================================
+// SISTEMA DE CONTAINMENT SIMPLES
+// ============================================
+function setupAdContainment() {
+    // Estilos para forçar ads dentro do container
+    const style = document.createElement('style');
+    style.textContent = `
+        .ad-isolation-layer * {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            z-index: 1 !important;
+            overflow: hidden !important;
+        }
+        
+        .ad-container {
+            contain: strict !important;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Sobrescrever appendChild para redirecionar ads
+    const originalAppend = Element.prototype.appendChild;
+    Element.prototype.appendChild = function(child) {
+        // Se estiver tentando adicionar ao body dentro de um slot ativo
+        if (this === document.body) {
+            const activeSlot = document.querySelector('.ad-slot.active .ad-isolation-layer');
+            if (activeSlot) {
+                return originalAppend.call(activeSlot, child);
+            }
+        }
+        return originalAppend.call(this, child);
+    };
+    
+    // Sobrescrever createElement para modificar scripts
+    const originalCreate = document.createElement;
+    document.createElement = function(tagName) {
+        const element = originalCreate.call(document, tagName);
+        
+        if (tagName === 'script') {
+            const originalSet = Object.getOwnPropertyDescriptor(element, 'src').set;
+            Object.defineProperty(element, 'src', {
+                set: function(value) {
+                    // Modificar scripts de ads para usar container correto
+                    if (value.includes('gizokraijaw.net') || 
+                        value.includes('nap5k.com') || 
+                        value.includes('3nbf4.com')) {
+                        console.log('🔧 Modificando script de ad para usar container');
+                    }
+                    return originalSet.call(this, value);
+                }
+            });
+        }
+        
+        return element;
+    };
+}
+
+// ============================================
+// GERENCIAMENTO DE ADS
+// ============================================
+function initializeAds() {
+    // Configurar containment primeiro
+    setupAdContainment();
+    
+    const adSlots = document.querySelectorAll('.ad-slot');
+    if (adSlots.length === 0) return;
+    
+    // Selecionar slot aleatório
+    const randomSlot = Math.floor(Math.random() * adSlots.length);
+    
+    // Mostrar apenas o slot selecionado
+    adSlots.forEach((slot, index) => {
+        if (index === randomSlot) {
+            slot.classList.add('active');
+            console.log(`📢 Mostrando Ad Slot ${index + 1}`);
+        } else {
+            slot.classList.remove('active');
+        }
+    });
+    
+    // Processar scripts após 100ms (tempo para containment ativar)
+    setTimeout(() => {
+        const activeSlot = document.querySelector('.ad-slot.active .ad-isolation-layer');
+        if (activeSlot) {
+            processAdScripts(activeSlot);
+        }
+    }, 100);
+}
+
+function processAdScripts(container) {
+    // Encontrar e processar scripts
+    const scripts = container.querySelectorAll('script');
+    
+    scripts.forEach(script => {
+        // Se for script inline, adicionar defer
+        if (!script.src && script.textContent) {
+            script.defer = true;
+        }
+        
+        // Se for script externo, garantir que execute no container
+        if (script.src) {
+            const newScript = document.createElement('script');
+            newScript.src = script.src;
+            newScript.defer = true;
+            newScript.async = false;
+            
+            // Copiar atributos
+            Array.from(script.attributes).forEach(attr => {
+                if (attr.name !== 'src') {
+                    newScript.setAttribute(attr.name, attr.value);
+                }
+            });
+            
+            // Substituir script original
+            script.parentNode.replaceChild(newScript, script);
+        }
+    });
+}
+
+// ============================================
+// FUNDO DE ESTRELAS
+// ============================================
+function createStars() {
+    const starsContainer = document.getElementById('stars');
+    const starCount = window.innerWidth < 768 ? 50 : 100;
+    
+    for (let i = 0; i < starCount; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        
+        const rand = Math.random();
+        if (rand < 0.6) star.classList.add('small');
+        else if (rand < 0.9) star.classList.add('medium');
+        else star.classList.add('large');
+        
+        star.style.left = Math.random() * 100 + '%';
+        star.style.top = Math.random() * 100 + '%';
+        star.style.animationDelay = Math.random() * 3 + 's';
+        
+        starsContainer.appendChild(star);
+    }
+}
+
+// ============================================
+// PROGRESSO DO LOADING
+// ============================================
+let currentProgress = 0;
+let timeElapsed = 0;
+let loadingInterval = null;
+let tipIndex = 0;
+
+function startLoading() {
+    const progressBar = document.getElementById('progressBar');
+    const progressPercent = document.getElementById('progressPercent');
+    const timeRemaining = document.getElementById('timeRemaining');
+    const progressStatus = document.getElementById('progressStatus');
+    const tipText = document.getElementById('tipText');
+    
+    // Embaralhar dicas
+    shuffleArray(GAME_TIPS);
+    
+    loadingInterval = setInterval(() => {
+        timeElapsed += 0.1;
+        
+        const targetProgress = (timeElapsed / LOADING_DURATION) * 100;
+        const randomVariation = Math.random() * 2 - 1;
+        currentProgress = Math.min(100, targetProgress + randomVariation);
+        
+        progressBar.style.width = currentProgress + '%';
+        progressPercent.textContent = Math.floor(currentProgress) + '%';
+        
+        const remaining = Math.max(0, Math.ceil(LOADING_DURATION - timeElapsed));
+        timeRemaining.textContent = remaining + 's';
+        
+        const statusIndex = Math.min(
+            Math.floor(currentProgress / (100 / STATUS_MESSAGES.length)),
+            STATUS_MESSAGES.length - 1
+        );
+        progressStatus.textContent = STATUS_MESSAGES[statusIndex];
+        
+        if (Math.floor(timeElapsed) % TIP_CHANGE_INTERVAL === 0 && 
+            Math.floor(timeElapsed) !== Math.floor(timeElapsed - 0.1)) {
+            tipIndex = (tipIndex + 1) % GAME_TIPS.length;
+            tipText.textContent = GAME_TIPS[tipIndex];
+        }
+        
+        if (timeElapsed >= LOADING_DURATION) {
+            clearInterval(loadingInterval);
+            goToGame();
+        }
+        
+    }, 100);
+}
+
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+// ============================================
+// NAVEGAÇÃO
+// ============================================
+function goToGame() {
+    sessionStorage.setItem('loadingComplete', 'true');
+    window.location.href = 'game.html?start=true';
+}
+
+function validateAccess() {
+    const params = new URLSearchParams(window.location.search);
+    const fromPayment = params.get('paid') === 'true';
+    
+    if (!fromPayment) {
+        console.log('Acesso direto - permitido para teste');
+        // Em produção: window.location.href = 'game.html';
+    }
+}
+
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
+document.addEventListener('DOMContentLoaded', () => {
+    validateAccess();
+    createStars();
+    initializeAds();
+    startLoading();
+});
+</script>
+
+</body>
+</html>

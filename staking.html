@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staking 12% APY | CRYPTO ASTEROID RUSH</title>
+    <meta name="description" content="Multiply your earnings with 12% APY staking.">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .apy-badge { display: inline-flex; align-items: center; gap: 10px; background: rgba(5, 255, 161, 0.15); border: 2px solid var(--success); border-radius: 50px; padding: 12px 25px; margin-bottom: 30px; }
+        .apy-badge i { font-size: 1.5rem; color: var(--success); }
+        .apy-value { font-family: 'Orbitron', sans-serif; font-size: 1.8rem; font-weight: 900; color: var(--success); }
+        .staking-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .staking-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--border-color); text-align: center; }
+        .staking-card-icon { font-size: 1.8rem; margin-bottom: 10px; color: var(--primary); }
+        .staking-card.success .staking-card-icon { color: var(--success); }
+        .staking-card.warning .staking-card-icon { color: var(--warning); }
+        .staking-card-value { font-family: 'Orbitron', sans-serif; font-size: 1.4rem; font-weight: 700; margin-bottom: 5px; }
+        .staking-card-label { color: var(--text-dim); font-size: 0.85rem; }
+        .stake-form { background: var(--card-bg); border-radius: 15px; padding: 30px; border: 1px solid var(--border-color); margin-bottom: 30px; }
+        .stake-input-group { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .stake-input { flex: 1; min-width: 150px; padding: 15px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-light); font-size: 1.1rem; font-family: 'Orbitron', sans-serif; }
+        .stake-input:focus { outline: none; border-color: var(--success); }
+        .quick-amounts { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+        .quick-btn { padding: 8px 15px; background: rgba(5, 255, 161, 0.1); border: 1px solid var(--success); border-radius: 20px; color: var(--success); font-size: 0.85rem; cursor: pointer; transition: all 0.3s; }
+        .quick-btn:hover { background: rgba(5, 255, 161, 0.2); }
+        .stake-buttons { display: flex; gap: 15px; flex-wrap: wrap; }
+        .projection-box { background: var(--card-bg); border-radius: 15px; padding: 30px; border: 1px solid var(--border-color); margin-bottom: 30px; }
+        .projection-input { display: flex; gap: 15px; align-items: center; margin-bottom: 25px; flex-wrap: wrap; }
+        .projection-input input { flex: 1; min-width: 120px; padding: 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-light); font-size: 1rem; }
+        .projection-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; }
+        .projection-item { text-align: center; padding: 15px; background: rgba(5, 255, 161, 0.05); border-radius: 10px; border: 1px solid rgba(5, 255, 161, 0.2); }
+        .projection-period { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 5px; }
+        .projection-value { font-family: 'Orbitron', sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--success); }
+        .info-box { background: rgba(0, 240, 255, 0.05); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; margin-bottom: 30px; }
+        .info-box h4 { color: var(--primary); margin-bottom: 10px; font-size: 1rem; }
+        .info-box ul { list-style: none; color: var(--text-dim); font-size: 0.9rem; }
+        .info-box li { padding: 5px 0; }
+        .info-box li i { color: var(--success); margin-right: 8px; }
+        @media (max-width: 480px) { .apy-value { font-size: 1.5rem; } .staking-card-value { font-size: 1.2rem; } .stake-buttons { flex-direction: column; } .stake-buttons .btn { width: 100%; } }
+    </style>
+</head>
+<body data-page="staking">
+<div class="cosmic-bg"></div>
+
+<div id="connectOverlay" class="connect-overlay">
+    <div class="connect-box">
+        <div class="connect-icon"><i class="fas fa-chart-line"></i></div>
+        <h2 class="connect-title">WELCOME, COMMANDER</h2>
+        <p class="connect-desc">Connect your MetaMask wallet on BSC network to access staking.</p>
+        <button id="connectBtn" class="btn btn-primary btn-lg"><i class="fab fa-ethereum"></i> Connect MetaMask</button>
+    </div>
+</div>
+
+<div class="container">
+    <header class="header">
+        <a href="index.html" class="logo"><span class="logo-icon">☄️</span><span class="logo-text">ASTEROID RUSH</span></a>
+        <nav class="nav" id="nav">
+            <a href="dashboard.html" class="nav-link">Dashboard</a>
+            <a href="game.html" class="nav-link">Play</a>
+            <a href="wallet.html" class="nav-link">Wallet</a>
+            <a href="staking.html" class="nav-link active">Staking</a>
+        </nav>
+        <button id="walletBtn" class="wallet-btn"><i class="fas fa-wallet"></i> Connect</button>
+        <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
+    </header>
+    
+    <section class="page-header">
+        <h1 class="page-title">STAKING 12% APY</h1>
+        <p class="page-subtitle">Multiply your earnings with automatic hourly yields.</p>
+        <div class="apy-badge"><i class="fas fa-fire"></i><span class="apy-value">12% APY</span></div>
+    </section>
+    
+    <section class="staking-grid">
+        <div class="staking-card"><div class="staking-card-icon"><i class="fas fa-wallet"></i></div><div class="staking-card-value" id="stakingBalance">$0.000000</div><div class="staking-card-label">Your Balance</div></div>
+        <div class="staking-card success"><div class="staking-card-icon"><i class="fas fa-lock"></i></div><div class="staking-card-value text-success" id="totalStaked">$0.000000</div><div class="staking-card-label">Total Staked</div></div>
+        <div class="staking-card warning"><div class="staking-card-icon"><i class="fas fa-coins"></i></div><div class="staking-card-value text-warning" id="stakingEarned">$0.000000</div><div class="staking-card-label">Total Earned</div></div>
+        <div class="staking-card"><div class="staking-card-icon"><i class="fas fa-clock"></i></div><div class="staking-card-value text-primary" id="todayEarnings">+$0.000000</div><div class="staking-card-label">Today's Earnings</div></div>
+    </section>
+    
+    <section class="stake-form">
+        <h3 class="section-title mb-20"><i class="fas fa-plus-circle"></i> Create New Stake</h3>
+        <div class="stake-input-group">
+            <input type="number" class="stake-input" id="stakeAmount" placeholder="0.00" step="0.000001" min="0.0001">
+            <span class="text-dim">USDT</span>
+        </div>
+        <div class="quick-amounts">
+            <button class="quick-btn" onclick="setStakeAmount(0.01)">$0.01</button>
+            <button class="quick-btn" onclick="setStakeAmount(0.1)">$0.10</button>
+            <button class="quick-btn" onclick="setStakeAmount(1)">$1.00</button>
+            <button class="quick-btn" onclick="setStakeAmount(10)">$10.00</button>
+            <button class="quick-btn" onclick="setMaxAmount()">MAX</button>
+        </div>
+        <div class="stake-buttons">
+            <button class="btn btn-success btn-lg" id="stakeBtn"><i class="fas fa-rocket"></i> STAKE NOW</button>
+            <button class="btn btn-outline btn-lg" id="unstakeBtn" disabled><i class="fas fa-wallet"></i> UNSTAKE ALL</button>
+        </div>
+    </section>
+    
+    <section class="projection-box">
+        <h3 class="section-title mb-20"><i class="fas fa-calculator"></i> Earnings Calculator</h3>
+        <div class="projection-input">
+            <span class="text-dim">If you stake</span>
+            <input type="number" id="projectionAmount" value="100" min="0.01" step="1" oninput="updateProjection()">
+            <span class="text-dim">USDT, you'll earn:</span>
+        </div>
+        <div class="projection-grid">
+            <div class="projection-item"><div class="projection-period">1 Hour</div><div class="projection-value" id="projHour">$0.001370</div></div>
+            <div class="projection-item"><div class="projection-period">1 Day</div><div class="projection-value" id="projDay">$0.032877</div></div>
+            <div class="projection-item"><div class="projection-period">1 Week</div><div class="projection-value" id="projWeek">$0.230567</div></div>
+            <div class="projection-item"><div class="projection-period">1 Month</div><div class="projection-value" id="projMonth">$1.005034</div></div>
+            <div class="projection-item"><div class="projection-period">1 Year</div><div class="projection-value" id="projYear">$12.749685</div></div>
+        </div>
+    </section>
+    
+    <section class="info-box">
+        <h4><i class="fas fa-info-circle"></i> How It Works</h4>
+        <ul>
+            <li><i class="fas fa-check"></i> Annual yield of <strong>12% APY</strong></li>
+            <li><i class="fas fa-check"></i> Interest credited <strong>automatically every hour</strong></li>
+            <li><i class="fas fa-check"></i> <strong>No lock period</strong> - withdraw anytime</li>
+            <li><i class="fas fa-check"></i> Minimum amount: <strong>$0.0001 USDT</strong></li>
+            <li><i class="fas fa-check"></i> Continuous compounding maximizes your earnings</li>
+        </ul>
+    </section>
+    
+   <footer class="footer">
+    <a href="https://t.me/AsteroidRushOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Join our Telegram</a>
+    <div class="footer-links">
+        <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> How to Play</a>
+        <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Gameplay Guide</a>
+        <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economy</a>
+        <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
+        <a href="terms.html" class="footer-link"><i class="fas fa-file-contract"></i> Terms</a>
+        <a href="privacy.html" class="footer-link"><i class="fas fa-shield-alt"></i> Privacy</a>
+    </div>
+    <p class="footer-copy">© 2026 Crypto Asteroid Rush. All rights reserved.</p>
+</footer>
+</div>
+<script src="js/main.js"></script>
+<script>document.addEventListener('DOMContentLoaded', () => { updateProjection(); });</script>
+</body>
+</html>

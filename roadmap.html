@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roadmap | Crypto Asteroid Rush</title>
+    <meta name="description" content="Discover the future of Crypto Asteroid Rush. Our strategic roadmap outlines upcoming features, improvements, and the exciting journey ahead for our space adventure.">
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/main.css">
+    
+    <style>
+        /* ===== ROADMAP HERO ===== */
+        .roadmap-hero {
+            padding: 120px 0 80px;
+            background: linear-gradient(135deg, 
+                rgba(10, 15, 30, 0.95) 0%,
+                rgba(20, 30, 60, 0.9) 50%,
+                rgba(5, 10, 25, 0.95) 100%),
+                radial-gradient(circle at 30% 20%, rgba(0, 240, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 70% 80%, rgba(123, 47, 247, 0.1) 0%, transparent 50%);
+            text-align: center;
+        }
+        
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(123, 47, 247, 0.2));
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 50px;
+            padding: 12px 25px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .hero-badge i {
+            color: var(--primary);
+        }
+        
+        .roadmap-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            color: #fff;
+            margin-bottom: 20px;
+        }
+        
+        .roadmap-title span {
+            background: linear-gradient(135deg, #00f0ff, #7b2ff7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .roadmap-subtitle {
+            font-size: 1.2rem;
+            color: var(--text-dim);
+            max-width: 700px;
+            margin: 0 auto 40px;
+            line-height: 1.6;
+        }
+        
+        /* ===== TIMELINE CONTAINER ===== */
+        .timeline-container {
+            position: relative;
+            padding: 80px 0;
+            background: linear-gradient(180deg, 
+                rgba(15, 22, 36, 0.95) 0%,
+                rgba(10, 15, 30, 0.98) 100%);
+        }
+        
+        /* ===== TIMELINE LINE ===== */
+        .timeline-line {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, 
+                var(--primary) 0%,
+                var(--secondary) 25%,
+                var(--accent) 50%,
+                var(--success) 75%,
+                var(--warning) 100%);
+            z-index: 1;
+        }
+        
+        /* ===== MILESTONE STYLES ===== */
+        .milestone {
+            position: relative;
+            margin-bottom: 120px;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease;
+        }
+        
+        .milestone.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .milestone.active {
+            opacity: 1;
+        }
+        
+        .milestone.completed .milestone-dot {
+            background: var(--success);
+            box-shadow: 0 0 20px rgba(5, 255, 161, 0.4);
+        }
+        
+        .milestone.in-progress .milestone-dot {
+            background: var(--primary);
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.6);
+            animation: pulse 2s infinite;
+        }
+        
+        .milestone.upcoming .milestone-dot {
+            background: var(--text-dim);
+        }
+        
+        .milestone:nth-child(odd) {
+            padding-right: calc(50% + 40px);
+            text-align: right;
+        }
+        
+        .milestone:nth-child(even) {
+            padding-left: calc(50% + 40px);
+            text-align: left;
+        }
+        
+        /* ===== MILESTONE DOT ===== */
+        .milestone-dot {
+            position: absolute;
+            top: 0;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 4px solid rgba(15, 22, 36, 0.95);
+            z-index: 2;
+        }
+        
+        .milestone:nth-child(odd) .milestone-dot {
+            right: calc(50% - 12px);
+        }
+        
+        .milestone:nth-child(even) .milestone-dot {
+            left: calc(50% - 12px);
+        }
+        
+        /* ===== MILESTONE CONTENT ===== */
+        .milestone-content {
+            background: linear-gradient(145deg, rgba(25, 35, 55, 0.8), rgba(15, 22, 36, 0.9));
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            position: relative;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .milestone.completed .milestone-content {
+            border-color: rgba(5, 255, 161, 0.3);
+            background: linear-gradient(145deg, rgba(25, 55, 45, 0.8), rgba(15, 36, 30, 0.9));
+        }
+        
+        .milestone.in-progress .milestone-content {
+            border-color: rgba(0, 240, 255, 0.3);
+            box-shadow: 0 10px 40px rgba(0, 240, 255, 0.15);
+        }
+        
+        .milestone.upcoming .milestone-content {
+            border-color: rgba(255, 255, 255, 0.05);
+            opacity: 0.8;
+        }
+        
+        .milestone-content:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+        }
+        
+        /* ===== MILESTONE HEADER ===== */
+        .milestone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .milestone-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            color: #fff;
+        }
+        
+        .milestone-title i {
+            margin-right: 10px;
+        }
+        
+        .milestone-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .status-completed {
+            background: rgba(5, 255, 161, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(5, 255, 161, 0.3);
+        }
+        
+        .status-in-progress {
+            background: rgba(0, 240, 255, 0.15);
+            color: var(--primary);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            animation: pulse-text 2s infinite;
+        }
+        
+        .status-upcoming {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-dim);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* ===== PLAYER COUNT ===== */
+        .player-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 170, 0, 0.1);
+            border: 1px solid rgba(255, 170, 0, 0.3);
+            border-radius: 20px;
+            padding: 8px 20px;
+            margin-bottom: 20px;
+            color: var(--warning);
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 600;
+        }
+        
+        /* ===== FEATURES LIST ===== */
+        .features-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .feature-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-item:hover {
+            background: rgba(0, 240, 255, 0.05);
+            transform: translateX(5px);
+        }
+        
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            background: rgba(0, 240, 255, 0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+        }
+        
+        .milestone.completed .feature-icon {
+            background: rgba(5, 255, 161, 0.1);
+            color: var(--success);
+        }
+        
+        .feature-content h4 {
+            color: #fff;
+            margin-bottom: 5px;
+            font-size: 1rem;
+        }
+        
+        .feature-content p {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            margin: 0;
+            line-height: 1.5;
+        }
+        
+        /* ===== DISCLAIMER SECTION ===== */
+        .disclaimer-section {
+            padding: 80px 0;
+            text-align: center;
+            background: linear-gradient(135deg, 
+                rgba(10, 15, 30, 0.95) 0%,
+                rgba(15, 22, 36, 0.9) 100%);
+        }
+        
+        .disclaimer-box {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+            background: linear-gradient(135deg, 
+                rgba(255, 170, 0, 0.05) 0%,
+                rgba(255, 100, 0, 0.05) 100%);
+            border: 1px solid rgba(255, 170, 0, 0.2);
+            border-radius: 20px;
+        }
+        
+        .disclaimer-box h3 {
+            color: var(--warning);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .disclaimer-box p {
+            color: var(--text-dim);
+            line-height: 1.7;
+            margin-bottom: 15px;
+        }
+        
+        .disclaimer-box strong {
+            color: #fff;
+        }
+        
+        /* ===== PROGRESS SECTION ===== */
+        .progress-section {
+            padding: 60px 0;
+            text-align: center;
+            background: linear-gradient(180deg, 
+                rgba(15, 22, 36, 0.9) 0%,
+                rgba(10, 15, 30, 0.95) 100%);
+        }
+        
+        .progress-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            color: var(--primary);
+            margin-bottom: 40px;
+        }
+        
+        .progress-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .progress-item {
+            margin-bottom: 30px;
+        }
+        
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            color: var(--text-dim);
+        }
+        
+        .progress-bar {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            border-radius: 5px;
+            transition: width 1.5s ease;
+        }
+        
+        /* ===== ANIMATIONS ===== */
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 240, 255, 0); }
+        }
+        
+        @keyframes pulse-text {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* ===== RESPONSIVE DESIGN ===== */
+        @media (max-width: 1024px) {
+            .timeline-line {
+                left: 40px;
+            }
+            
+            .milestone:nth-child(odd),
+            .milestone:nth-child(even) {
+                padding-left: 80px;
+                padding-right: 20px;
+                text-align: left;
+            }
+            
+            .milestone:nth-child(odd) .milestone-dot,
+            .milestone:nth-child(even) .milestone-dot {
+                left: 34px;
+                right: auto;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .roadmap-title {
+                font-size: 2.2rem;
+            }
+            
+            .milestone-content {
+                padding: 25px;
+            }
+            
+            .milestone-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .milestone-title {
+                font-size: 1.3rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .roadmap-title {
+                font-size: 1.8rem;
+            }
+            
+            .roadmap-subtitle {
+                font-size: 1rem;
+            }
+            
+            .milestone {
+                margin-bottom: 80px;
+            }
+            
+            .disclaimer-box {
+                padding: 25px;
+            }
+        }
+    </style>
+</head>
+<body data-page="roadmap">
+<div class="cosmic-bg"></div>
+
+<!-- ===== HERO SECTION ===== -->
+<section class="roadmap-hero">
+    <div class="container">
+        <div class="hero-badge">
+            <i class="fas fa-map-signs"></i>
+            <span>STRATEGIC VISION</span>
+        </div>
+        
+        <h1 class="roadmap-title">OUR <span>JOURNEY</span> TO THE STARS</h1>
+        
+        <p class="roadmap-subtitle">
+            Discover the strategic roadmap that outlines our vision for Crypto Asteroid Rush. 
+            From infrastructure improvements to exciting new features, see how we're building 
+            the ultimate space adventure together with our community.
+        </p>
+        
+        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-top: 40px;">
+            <a href="#current-milestone" class="btn btn-primary">
+                <i class="fas fa-rocket"></i> Current Focus
+            </a>
+            <a href="#disclaimer" class="btn btn-outline">
+                <i class="fas fa-info-circle"></i> Important Notice
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- ===== TIMELINE SECTION ===== -->
+<section class="timeline-container">
+    <div class="timeline-line"></div>
+    
+    <div class="container">
+        <!-- Milestone 1: 1K Players -->
+        <div class="milestone completed" id="current-milestone">
+            <div class="milestone-dot"></div>
+            <div class="milestone-content">
+                <div class="milestone-header">
+                    <h3 class="milestone-title"><i class="fas fa-check-circle"></i> 1,000 PLAYERS MILESTONE</h3>
+                    <span class="milestone-status status-completed">
+                        <i class="fas fa-check"></i> COMPLETED
+                    </span>
+                </div>
+                
+                <div class="player-count">
+                    <i class="fas fa-users"></i>
+                    <span>1,000+ Active Commanders</span>
+                </div>
+                
+                <ul class="features-list">
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Server Infrastructure Upgrade</h4>
+                            <p>Enhanced server capacity and performance to support growing player base</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-gamepad"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Game Logic Optimization</h4>
+                            <p>Improved asteroid spawning algorithms and reward distribution systems</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Security Review & Enhancement</h4>
+                            <p>Comprehensive security audit and implementation of additional protections</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-bug"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Bug Fixes & Quality Assurance</h4>
+                            <p>Addressing reported issues and improving overall game stability</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-tools"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Routine Maintenance</h4>
+                            <p>Regular updates and improvements to ensure optimal performance</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Milestone 2: 5K Players -->
+        <div class="milestone in-progress">
+            <div class="milestone-dot"></div>
+            <div class="milestone-content">
+                <div class="milestone-header">
+                    <h3 class="milestone-title"><i class="fas fa-bolt"></i> 5,000 PLAYERS MILESTONE</h3>
+                    <span class="milestone-status status-in-progress">
+                        <i class="fas fa-spinner fa-spin"></i> IN PROGRESS
+                    </span>
+                </div>
+                
+                <div class="player-count">
+                    <i class="fas fa-users"></i>
+                    <span>Target: 5,000 Active Commanders</span>
+                </div>
+                
+                <ul class="features-list">
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Advanced Server Scaling</h4>
+                            <p>Implementation of auto-scaling infrastructure to handle increased load</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-gas-pump"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Withdrawal Optimization</h4>
+                            <p>Review and adjustment of withdrawal limits to optimize gas fee efficiency</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Weekly Ranking System</h4>
+                            <p>Launch of competitive leaderboards with weekly prize distributions</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-sync-alt"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>General Game Updates</h4>
+                            <p>Continuous improvements based on community feedback and data analysis</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Milestone 3: 20K Players -->
+        <div class="milestone upcoming">
+            <div class="milestone-dot"></div>
+            <div class="milestone-content">
+                <div class="milestone-header">
+                    <h3 class="milestone-title"><i class="fas fa-satellite"></i> 20,000 PLAYERS MILESTONE</h3>
+                    <span class="milestone-status status-upcoming">
+                        <i class="fas fa-clock"></i> UPCOMING
+                    </span>
+                </div>
+                
+                <div class="player-count">
+                    <i class="fas fa-users"></i>
+                    <span>Target: 20,000 Active Commanders</span>
+                </div>
+                
+                <ul class="features-list">
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Enterprise Server Infrastructure</h4>
+                            <p>Deployment of global server clusters for reduced latency worldwide</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-gamepad"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Major Game Updates</h4>
+                            <p>New ship types, asteroid variations, and enhanced visual effects</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Enhanced Security Protocols</h4>
+                            <p>Implementation of advanced anti-cheat and fraud prevention systems</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-bug"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Comprehensive Bug Resolution</h4>
+                            <p>Dedicated phase for polishing and perfecting the gaming experience</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Milestone 4: 50K Players -->
+        <div class="milestone upcoming">
+            <div class="milestone-dot"></div>
+            <div class="milestone-content">
+                <div class="milestone-header">
+                    <h3 class="milestone-title"><i class="fas fa-chart-line"></i> 50,000 PLAYERS MILESTONE</h3>
+                    <span class="milestone-status status-upcoming">
+                        <i class="fas fa-clock"></i> UPCOMING
+                    </span>
+                </div>
+                
+                <div class="player-count">
+                    <i class="fas fa-users"></i>
+                    <span>Target: 50,000 Active Commanders</span>
+                </div>
+                
+                <ul class="features-list">
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Cloud-Native Architecture</h4>
+                            <p>Migration to cloud-native infrastructure for maximum scalability</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Game Economy Review</h4>
+                            <p>Analysis and optimization of reward structures for long-term sustainability</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-sync-alt"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>General Updates & Improvements</h4>
+                            <p>Continuous enhancements based on player behavior and market trends</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-tools"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>System Maintenance</h4>
+                            <p>Comprehensive maintenance to ensure peak performance at scale</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Milestone 5: 100K Players -->
+        <div class="milestone upcoming">
+            <div class="milestone-dot"></div>
+            <div class="milestone-content">
+                <div class="milestone-header">
+                    <h3 class="milestone-title"><i class="fas fa-globe"></i> 100,000 PLAYERS MILESTONE</h3>
+                    <span class="milestone-status status-upcoming">
+                        <i class="fas fa-clock"></i> FUTURE VISION
+                    </span>
+                </div>
+                
+                <div class="player-count">
+                    <i class="fas fa-users"></i>
+                    <span>Vision: 100,000+ Active Commanders</span>
+                </div>
+                
+                <ul class="features-list">
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Global Server Expansion</h4>
+                            <p>Worldwide server deployment for optimal regional performance</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Game Token Launch</h4>
+                            <p>Introduction of native utility token with multiple in-game applications</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-fist-raised"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>PVP Mode Launch</h4>
+                            <p>Player versus player battles with competitive rankings and rewards</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-sync-alt"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>Comprehensive Updates</h4>
+                            <p>Major feature additions and gameplay enhancements</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <div class="feature-content">
+                            <h4>General Review & Optimization</h4>
+                            <p>Holistic review of all systems for continuous improvement</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===== PROGRESS SECTION ===== -->
+<section class="progress-section">
+    <div class="container">
+        <h3 class="progress-title">OUR JOURNEY PROGRESS</h3>
+        
+        <div class="progress-container">
+            <div class="progress-item">
+                <div class="progress-label">
+                    <span>1,000 Players Milestone</span>
+                    <span>100%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 100%;"></div>
+                </div>
+            </div>
+            
+            <div class="progress-item">
+                <div class="progress-label">
+                    <span>5,000 Players Milestone</span>
+                    <span id="currentProgress">35%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 35%;"></div>
+                </div>
+            </div>
+            
+            <div class="progress-item">
+                <div class="progress-label">
+                    <span>20,000 Players Milestone</span>
+                    <span>0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%;"></div>
+                </div>
+            </div>
+            
+            <div class="progress-item">
+                <div class="progress-label">
+                    <span>50,000 Players Milestone</span>
+                    <span>0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%;"></div>
+                </div>
+            </div>
+            
+            <div class="progress-item">
+                <div class="progress-label">
+                    <span>100,000 Players Vision</span>
+                    <span>0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <p style="color: var(--text-dim); margin-top: 40px; max-width: 600px; margin-left: auto; margin-right: auto;">
+            <i class="fas fa-info-circle" style="color: var(--primary);"></i>
+            Progress is measured by active player count, feature completion, and community growth. 
+            We celebrate each milestone together!
+        </p>
+    </div>
+</section>
+
+<!-- ===== DISCLAIMER SECTION ===== -->
+<section class="disclaimer-section" id="disclaimer">
+    <div class="container">
+        <div class="disclaimer-box">
+            <h3><i class="fas fa-exclamation-triangle"></i> IMPORTANT: OUR DEVELOPMENT APPROACH</h3>
+            
+            <p>
+                This roadmap represents our strategic vision and development goals for Crypto Asteroid Rush. 
+                However, we want to be completely transparent about our approach:
+            </p>
+            
+            <p>
+                <strong>Flexibility is Key:</strong> In the dynamic world of blockchain gaming and technology, 
+                we maintain the flexibility to adapt our roadmap as needed. Updates, features, and timelines 
+                may be <strong>accelerated, delayed, or reprioritized</strong> based on:
+            </p>
+            
+            <ul style="text-align: left; color: var(--text-dim); margin: 20px 0; padding-left: 20px;">
+                <li>Community feedback and priorities</li>
+                <li>Technical requirements and discoveries</li>
+                <li>Market conditions and opportunities</li>
+                <li>Security considerations and audits</li>
+                <li>Resource availability and team capacity</li>
+            </ul>
+            
+            <p>
+                <strong>Quality Over Speed:</strong> We will never compromise on security, stability, or 
+                user experience to meet arbitrary deadlines. Each update undergoes rigorous testing before 
+                deployment to ensure the best possible experience for our commanders.
+            </p>
+            
+            <p>
+                <strong>Community-Driven Development:</strong> Your feedback shapes our journey. We regularly 
+                consult with our community through Telegram, surveys, and gameplay data to ensure we're 
+                building features that truly matter to our players.
+            </p>
+            
+            <p style="color: var(--warning); font-weight: 600; margin-top: 25px;">
+                <i class="fas fa-bullhorn"></i>
+                Stay tuned to our official Telegram channel for real-time updates and announcements!
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- ===== CTA SECTION ===== -->
+<section class="final-cta" style="padding: 80px 0;">
+    <div class="container">
+        <h2 class="cta-title">BE PART OF OUR JOURNEY</h2>
+        <p class="cta-subtitle">
+            Join thousands of commanders already shaping the future of Crypto Asteroid Rush. 
+            Your participation helps us reach each milestone faster!
+        </p>
+        
+        <div class="cta-buttons">
+            <a href="game.html" class="btn btn-primary btn-lg">
+                <i class="fas fa-rocket"></i>
+                START PLAYING NOW
+            </a>
+            <a href="https://t.me/AsteroidRushOfficial" target="_blank" class="btn btn-outline btn-lg">
+                <i class="fab fa-telegram"></i>
+                JOIN DEVELOPMENT UPDATES
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+    <div class="container">
+        <a href="https://t.me/AsteroidRushOfficial" target="_blank" class="btn btn-telegram">
+            <i class="fab fa-telegram"></i> Join Our Community
+        </a>
+        
+        <div class="footer-links">
+            <a href="dashboard.html" class="footer-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+            <a href="game.html" class="footer-link"><i class="fas fa-gamepad"></i> Play Game</a>
+            <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economy</a>
+            <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
+            <a href="index.html" class="footer-link"><i class="fas fa-home"></i> Home</a>
+        </div>
+        
+        <p class="footer-copy">© 2026 Crypto Asteroid Rush. Building the future together.</p>
+    </div>
+</footer>
+
+<!-- ===== SCRIPTS ===== -->
+<script>
+// Animate milestones on scroll
+function animateMilestones() {
+    const milestones = document.querySelectorAll('.milestone');
+    
+    milestones.forEach(milestone => {
+        const position = milestone.getBoundingClientRect().top;
+        const screenPosition = window.innerHeight / 1.2;
+        
+        if (position < screenPosition) {
+            milestone.classList.add('visible');
+        }
+    });
+}
+
+// Initialize animations
+window.addEventListener('scroll', animateMilestones);
+window.addEventListener('load', animateMilestones);
+
+// Simulate progress update (in real implementation, this would come from backend)
+function updateProgress() {
+    const currentProgress = document.getElementById('currentProgress');
+    let progress = 35; // Starting progress for current milestone
+    
+    // Animate progress bar
+    const interval = setInterval(() => {
+        if (progress < 45) { // Target progress for current milestone
+            progress++;
+            currentProgress.textContent = progress + '%';
+            
+            // Update progress bar width
+            const progressFill = document.querySelector('.progress-item:nth-child(2) .progress-fill');
+            if (progressFill) {
+                progressFill.style.width = progress + '%';
+            }
+        } else {
+            clearInterval(interval);
+        }
+    }, 50);
+}
+
+// Start progress animation after page loads
+setTimeout(updateProgress, 1000);
+
+// Smooth scrolling for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const targetId = this.getAttribute('href');
+        if (targetId === '#') return;
+        
+        const targetElement = document.querySelector(targetId);
+        if (targetElement) {
+            window.scrollTo({
+                top: targetElement.offsetTop - 80,
+                behavior: 'smooth'
+            });
+        }
+    });
+});
+
+// Update current player count (simulated - would come from backend in production)
+function updatePlayerCounts() {
+    // Simulate increasing player counts (in production, this would be real data)
+    const currentPlayers = 1800; // Example current player count
+    
+    // Update the "in progress" milestone player count
+    const progressCount = document.querySelector('.milestone.in-progress .player-count span');
+    if (progressCount) {
+        progressCount.textContent = `Current: ${currentPlayers.toLocaleString()} / 5,000 Active Commanders`;
+    }
+    
+    // Update progress percentage based on actual player count
+    const targetProgress = Math.min((currentPlayers / 5000) * 100, 100);
+    const currentProgress = document.getElementById('currentProgress');
+    if (currentProgress) {
+        currentProgress.textContent = Math.round(targetProgress) + '%';
+        
+        // Update progress bar
+        const progressFill = document.querySelector('.progress-item:nth-child(2) .progress-fill');
+        if (progressFill) {
+            progressFill.style.width = targetProgress + '%';
+        }
+    }
+}
+
+// Initialize player count updates
+updatePlayerCounts();
+</script>
+
+<script src="js/main.js"></script>
+</body>
+</html>

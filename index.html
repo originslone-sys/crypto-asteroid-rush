@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRYPTO ASTEROID RUSH | Earn USDT Destroying Asteroids</title>
+    <meta name="description" content="Destroy asteroids in space and earn USDT. 180 seconds of intense action with real-time rewards.">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+    
+    <style>
+        .hero { text-align: center; padding: 60px 0 80px; }
+        .hero-title {
+            font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 2.8rem; line-height: 1.1;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text; background-clip: text; color: transparent; margin-bottom: 20px;
+        }
+        .hero-subtitle { font-size: 1.1rem; color: var(--text-dim); max-width: 500px; margin: 0 auto 30px; line-height: 1.6; }
+        .hero-buttons { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+        .timer-badge {
+            display: inline-flex; align-items: center; gap: 10px;
+            background: rgba(0, 240, 255, 0.1); border: 1px solid var(--primary);
+            border-radius: 50px; padding: 10px 20px; margin-bottom: 25px;
+        }
+        .timer-value { font-family: 'Orbitron', sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--primary); }
+        .features { padding: 50px 0; }
+        .features-title { text-align: center; font-family: 'Orbitron', sans-serif; font-size: 1.5rem; color: var(--primary); margin-bottom: 30px; }
+        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .feature-card { background: var(--card-bg); border-radius: 15px; padding: 25px; border: 1px solid var(--border-color); text-align: center; }
+        .feature-icon { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 15px; background: rgba(0, 240, 255, 0.1); color: var(--primary); }
+        .feature-card:nth-child(2) .feature-icon { background: rgba(5, 255, 161, 0.1); color: var(--success); }
+        .feature-card:nth-child(3) .feature-icon { background: rgba(255, 209, 102, 0.1); color: var(--warning); }
+        .feature-title { font-family: 'Orbitron', sans-serif; font-size: 1rem; margin-bottom: 10px; }
+        .feature-desc { color: var(--text-dim); font-size: 0.9rem; line-height: 1.5; }
+        .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 30px; }
+        .step { text-align: center; padding: 20px; }
+        .step-number { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: var(--deep-space); font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.3rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; }
+        .step-title { font-weight: 700; margin-bottom: 8px; }
+        .step-desc { color: var(--text-dim); font-size: 0.9rem; }
+        .cta-section { text-align: center; padding: 60px 20px; background: linear-gradient(135deg, rgba(0, 240, 255, 0.05), rgba(146, 254, 157, 0.05)); border-radius: 20px; margin: 30px 0; }
+        .cta-title { font-family: 'Orbitron', sans-serif; font-size: 1.8rem; margin-bottom: 15px; }
+        .cta-desc { color: var(--text-dim); margin-bottom: 25px; }
+        .referral-banner {
+            background: linear-gradient(135deg, rgba(5, 255, 161, 0.1), rgba(0, 240, 255, 0.1));
+            border: 1px solid var(--success);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+            display: none;
+        }
+        .referral-banner.show { display: block; }
+        .referral-banner p { color: var(--success); margin: 0; }
+        .referral-banner strong { color: var(--primary); }
+        @media (max-width: 768px) { .hero-title { font-size: 2rem; } .features-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 480px) { .hero { padding: 40px 0 60px; } .hero-title { font-size: 1.7rem; } .hero-buttons { flex-direction: column; align-items: center; } .hero-buttons .btn { width: 100%; max-width: 280px; } .cta-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body data-page="home">
+<div class="cosmic-bg"></div>
+<div class="container">
+    <header class="header">
+        <a href="index.html" class="logo"><span class="logo-icon">☄️</span><span class="logo-text">ASTEROID RUSH</span></a>
+        <nav class="nav" id="nav">
+            <a href="dashboard.html" class="nav-link">Dashboard</a>
+            <a href="game.html" class="nav-link">Play</a>
+            <a href="wallet.html" class="nav-link">Wallet</a>
+            <a href="staking.html" class="nav-link">Staking</a>
+            <a href="affiliates.html" class="nav-link">Affiliates</a>
+            <a href="how-to-play.html" class="nav-link">How to Play</a>
+        </nav>
+        <a href="dashboard.html" class="wallet-btn"><i class="fas fa-rocket"></i> Enter</a>
+        <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
+    </header>
+    
+    <!-- Referral Banner -->
+    <div class="referral-banner" id="referralBanner">
+        <p><i class="fas fa-gift"></i> You were invited by a friend! Connect your wallet to start playing.</p>
+    </div>
+    
+    <section class="hero">
+        <div class="timer-badge"><i class="fas fa-clock"></i><span class="timer-value">180s</span><span class="text-dim">per mission</span></div>
+        <h1 class="hero-title">CRYPTO ASTEROID RUSH</h1>
+        <p class="hero-subtitle">Destroy asteroids in deep space and earn USDT in real-time. Every asteroid destroyed adds value to your wallet.</p>
+        <div class="hero-buttons">
+            <a href="game.html" class="btn btn-primary btn-lg"><i class="fas fa-play"></i> Play Now</a>
+            <a href="how-to-play.html" class="btn btn-outline btn-lg"><i class="fas fa-book"></i> How to Play</a>
+        </div>
+    </section>
+    
+    <section class="features">
+        <h2 class="features-title"><i class="fas fa-star"></i> Why Play?</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-coins"></i></div>
+                <h3 class="feature-title">Earn USDT</h3>
+                <p class="feature-desc">Every asteroid destroyed adds USDT to your wallet. Withdraw your earnings anytime.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                <h3 class="feature-title">Staking 12% APY</h3>
+                <p class="feature-desc">Multiply your earnings with staking. Automatic yields credited every hour.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-shield-alt"></i></div>
+                <h3 class="feature-title">Secure on BSC</h3>
+                <p class="feature-desc">Secure transactions on Binance Smart Chain. Minimal fee of only 0.00001 BNB per mission.</p>
+            </div>
+        </div>
+    </section>
+    
+    <section class="features">
+        <h2 class="features-title"><i class="fas fa-rocket"></i> How It Works</h2>
+        <div class="steps">
+            <div class="step"><div class="step-number">1</div><h4 class="step-title">Connect Wallet</h4><p class="step-desc">Use MetaMask on BSC network</p></div>
+            <div class="step"><div class="step-number">2</div><h4 class="step-title">Start Mission</h4><p class="step-desc">Pay 0.00001 BNB fee</p></div>
+            <div class="step"><div class="step-number">3</div><h4 class="step-title">Destroy Asteroids</h4><p class="step-desc">180 seconds of action</p></div>
+            <div class="step"><div class="step-number">4</div><h4 class="step-title">Collect Earnings</h4><p class="step-desc">USDT directly to wallet</p></div>
+        </div>
+    </section>
+    
+    <section class="cta-section">
+        <h2 class="cta-title">Ready for the Mission?</h2>
+        <p class="cta-desc">Start now and earn USDT by destroying asteroids in space.</p>
+        <a href="game.html" class="btn btn-primary btn-lg"><i class="fas fa-rocket"></i> Start Mission</a>
+    </section>
+    
+    <footer class="footer">
+        <a href="https://t.me/AsteroidRushOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Join our Telegram</a>
+        <div class="footer-links">
+            <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> How to Play</a>
+            <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Gameplay Guide</a>
+            <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economy</a>
+            <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
+            <a href="terms.html" class="footer-link"><i class="fas fa-file-contract"></i> Terms</a>
+            <a href="privacy.html" class="footer-link"><i class="fas fa-shield-alt"></i> Privacy</a>
+        </div>
+        <p class="footer-copy">&copy; 2026 Crypto Asteroid Rush. All rights reserved.</p>
+    </footer>
+</div>
+
+<script>
+// ============================================
+// CAPTURA DE CODIGO DE REFERRAL
+// ============================================
+(function() {
+    // Capturar codigo da URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    
+    if (refCode && /^[A-Z0-9]{6}$/i.test(refCode)) {
+        // Salvar no localStorage
+        localStorage.setItem('referralCode', refCode.toUpperCase());
+        localStorage.setItem('referralTimestamp', Date.now().toString());
+        
+        // Mostrar banner
+        const banner = document.getElementById('referralBanner');
+        if (banner) {
+            banner.classList.add('show');
+        }
+        
+        console.log('Referral code captured:', refCode.toUpperCase());
+        
+        // Limpar URL sem recarregar
+        if (window.history.replaceState) {
+            const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+        }
+    }
+    
+    // Verificar se ja tem codigo salvo (mostrar banner)
+    const savedRef = localStorage.getItem('referralCode');
+    if (savedRef && !localStorage.getItem('connectedWallet')) {
+        const banner = document.getElementById('referralBanner');
+        if (banner) {
+            banner.classList.add('show');
+        }
+    }
+})();
+</script>
+
+<script src="js/main.js"></script>
+</body>
+</html>

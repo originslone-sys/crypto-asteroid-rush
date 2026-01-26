@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Affiliates | CRYPTO ASTEROID RUSH</title>
+    <meta name="description" content="Invite friends and earn $1.00 for each referral that completes 100 missions.">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .affiliate-hero {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.1), rgba(146, 254, 157, 0.1));
+            border-radius: 20px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+        }
+        .affiliate-hero h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+        .affiliate-hero p {
+            color: var(--text-dim);
+            margin-bottom: 20px;
+        }
+        .reward-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(5, 255, 161, 0.1);
+            border: 1px solid var(--success);
+            border-radius: 50px;
+            padding: 12px 25px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            color: var(--success);
+        }
+        .referral-link-box {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        .referral-link-box h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+        .link-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .link-input {
+            flex: 1;
+            background: var(--deep-space);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px;
+            color: var(--text-color);
+            font-family: 'Exo 2', sans-serif;
+            font-size: 0.95rem;
+        }
+        .copy-btn {
+            background: var(--primary);
+            color: var(--deep-space);
+            border: none;
+            border-radius: 10px;
+            padding: 15px 25px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .copy-btn:hover {
+            background: var(--secondary);
+            transform: translateY(-2px);
+        }
+        .copy-btn.copied {
+            background: var(--success);
+        }
+        .referral-code {
+            display: inline-block;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px dashed var(--primary);
+            border-radius: 8px;
+            padding: 8px 15px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+            color: var(--primary);
+        }
+        .stats-grid-affiliate {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card-affiliate {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-card-affiliate .value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+        .stat-card-affiliate .label {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        .stat-card-affiliate.success .value { color: var(--success); }
+        .stat-card-affiliate.warning .value { color: var(--warning); }
+        .claim-section {
+            background: linear-gradient(135deg, rgba(5, 255, 161, 0.1), rgba(0, 240, 255, 0.05));
+            border: 1px solid var(--success);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .claim-info h4 {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--success);
+            margin-bottom: 5px;
+        }
+        .claim-amount {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            color: var(--success);
+        }
+        .claim-btn {
+            background: var(--success);
+            color: var(--deep-space);
+            border: none;
+            border-radius: 10px;
+            padding: 15px 30px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        .claim-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(5, 255, 161, 0.3);
+        }
+        .claim-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .referrals-table {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        .referrals-table h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--primary);
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        th {
+            background: rgba(0, 240, 255, 0.05);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+        td {
+            font-size: 0.9rem;
+        }
+        .wallet-cell {
+            font-family: monospace;
+            color: var(--primary);
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--deep-space);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-pending {
+            background: rgba(255, 209, 102, 0.2);
+            color: var(--warning);
+        }
+        .status-completed {
+            background: rgba(5, 255, 161, 0.2);
+            color: var(--success);
+        }
+        .status-claimed {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--primary);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--text-dim);
+        }
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        .how-it-works {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 30px;
+        }
+        .how-it-works h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+        .steps-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+        }
+        .step-number {
+            width: 35px;
+            height: 35px;
+            background: var(--primary);
+            color: var(--deep-space);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .step-content h4 {
+            font-size: 0.95rem;
+            margin-bottom: 5px;
+        }
+        .step-content p {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        @media (max-width: 768px) {
+            .link-container {
+                flex-direction: column;
+            }
+            .claim-section {
+                flex-direction: column;
+                text-align: center;
+            }
+            .claim-btn {
+                width: 100%;
+            }
+            .stats-grid-affiliate {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body data-page="affiliates">
+<div class="cosmic-bg"></div>
+
+<div id="connectOverlay" class="connect-overlay">
+    <div class="connect-box">
+        <div class="connect-icon"><i class="fas fa-users"></i></div>
+        <h2 class="connect-title">AFFILIATE PROGRAM</h2>
+        <p class="connect-desc">Connect your MetaMask wallet to access the affiliate program and start earning.</p>
+        <button id="connectBtn" class="btn btn-primary btn-lg"><i class="fab fa-ethereum"></i> Connect MetaMask</button>
+    </div>
+</div>
+
+<div class="container">
+    <header class="header">
+        <a href="index.html" class="logo"><span class="logo-icon">☄️</span><span class="logo-text">ASTEROID RUSH</span></a>
+        <nav class="nav" id="nav">
+            <a href="dashboard.html" class="nav-link">Dashboard</a>
+            <a href="game.html" class="nav-link">Play</a>
+            <a href="wallet.html" class="nav-link">Wallet</a>
+            <a href="affiliates.html" class="nav-link active">Affiliates</a>
+        </nav>
+        <button id="walletBtn" class="wallet-btn"><i class="fas fa-wallet"></i> Connect</button>
+        <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
+    </header>
+    
+    <section class="page-header">
+        <p class="text-dim">Invite friends and earn rewards!</p>
+        <h1 class="page-title">AFFILIATE PROGRAM</h1>
+    </section>
+    
+    <!-- Hero Section -->
+    <div class="affiliate-hero">
+        <h2><i class="fas fa-gift"></i> Earn $1.00 Per Referral</h2>
+        <p>Share your unique link. When your friend completes 100 missions, you earn $1.00!</p>
+        <div class="reward-badge">
+            <i class="fas fa-coins"></i>
+            <span>$1.00 per referral</span>
+        </div>
+    </div>
+    
+    <!-- Referral Link Box -->
+    <div class="referral-link-box">
+        <h3><i class="fas fa-link"></i> Your Referral Link</h3>
+        <div class="link-container">
+            <input type="text" class="link-input" id="referralLink" readonly value="Loading...">
+            <button class="copy-btn" id="copyBtn" onclick="copyReferralLink()">
+                <i class="fas fa-copy"></i> Copy
+            </button>
+        </div>
+        <p style="color: var(--text-dim); font-size: 0.9rem;">
+            Your code: <span class="referral-code" id="referralCode">------</span>
+        </p>
+    </div>
+    
+    <!-- Stats Grid -->
+    <div class="stats-grid-affiliate">
+        <div class="stat-card-affiliate">
+            <div class="value" id="statTotalReferred">0</div>
+            <div class="label">Total Invited</div>
+        </div>
+        <div class="stat-card-affiliate warning">
+            <div class="value" id="statPending">0</div>
+            <div class="label">In Progress</div>
+        </div>
+        <div class="stat-card-affiliate success">
+            <div class="value" id="statCompleted">0</div>
+            <div class="label">Completed</div>
+        </div>
+        <div class="stat-card-affiliate success">
+            <div class="value" id="statTotalEarned">$0.00</div>
+            <div class="label">Total Earned</div>
+        </div>
+    </div>
+    
+    <!-- Claim Section -->
+    <div class="claim-section" id="claimSection" style="display: none;">
+        <div class="claim-info">
+            <h4><i class="fas fa-hand-holding-usd"></i> Available to Claim</h4>
+            <div class="claim-amount" id="claimAmount">$0.00</div>
+        </div>
+        <button class="claim-btn" id="claimBtn" onclick="claimCommissions()">
+            <i class="fas fa-download"></i> CLAIM TO BALANCE
+        </button>
+    </div>
+    
+    <!-- Referrals Table -->
+    <div class="referrals-table">
+        <h3><i class="fas fa-users"></i> Your Referrals</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Wallet</th>
+                        <th>Progress</th>
+                        <th>Status</th>
+                        <th>Commission</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody id="referralsTableBody">
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Loading...</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- How It Works -->
+    <div class="how-it-works">
+        <h3><i class="fas fa-info-circle"></i> How It Works</h3>
+        <div class="steps-list">
+            <div class="step-item">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h4>Share Your Link</h4>
+                    <p>Copy your unique referral link and share with friends.</p>
+                </div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h4>Friend Joins</h4>
+                    <p>Your friend clicks the link and connects their wallet.</p>
+                </div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h4>They Play</h4>
+                    <p>Your friend plays and completes 100 missions.</p>
+                </div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h4>You Earn</h4>
+                    <p>$1.00 becomes available. Claim to your balance!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+  <footer class="footer">
+    <a href="https://t.me/AsteroidRushOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Join our Telegram</a>
+    <div class="footer-links">
+        <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> How to Play</a>
+        <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Gameplay Guide</a>
+        <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economy</a>
+        <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
+        <a href="terms.html" class="footer-link"><i class="fas fa-file-contract"></i> Terms</a>
+        <a href="privacy.html" class="footer-link"><i class="fas fa-shield-alt"></i> Privacy</a>
+    </div>
+    <p class="footer-copy">© 2026 Crypto Asteroid Rush. All rights reserved.</p>
+</footer>
+</div>
+
+<script src="js/main.js"></script>
+<script>
+// ============================================
+// AFFILIATES PAGE - JavaScript
+// ============================================
+
+let affiliateData = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Aguardar inicialização do main.js
+    setTimeout(() => {
+        if (currentWallet) {
+            loadAffiliateData();
+        }
+    }, 500);
+});
+
+async function loadAffiliateData() {
+    if (!currentWallet) return;
+    
+    try {
+        const res = await fetch(`api/referral-info.php?wallet=${encodeURIComponent(currentWallet)}`);
+        const data = await res.json();
+        
+        if (data.success) {
+            affiliateData = data;
+            updateAffiliateUI(data);
+        } else {
+            showNotification(data.error || 'Error loading affiliate data', 'error');
+        }
+    } catch (error) {
+        console.error('Error loading affiliate data:', error);
+        showNotification('Connection error', 'error');
+    }
+}
+
+function updateAffiliateUI(data) {
+    // Atualizar link e código
+    const baseUrl = window.location.origin + window.location.pathname.replace('affiliates.html', '');
+    const fullLink = baseUrl + '?ref=' + data.referral_code;
+    
+    document.getElementById('referralLink').value = fullLink;
+    document.getElementById('referralCode').textContent = data.referral_code;
+    
+    // Atualizar estatísticas
+    const stats = data.stats;
+    document.getElementById('statTotalReferred').textContent = stats.total_referred;
+    document.getElementById('statPending').textContent = stats.pending;
+    document.getElementById('statCompleted').textContent = stats.completed + (parseInt(stats.claimed) || 0);
+    document.getElementById('statTotalEarned').textContent = '$' + stats.total_earned;
+    
+    // Mostrar seção de claim se houver comissões disponíveis
+    const availableCommission = parseFloat(stats.available_commission);
+    if (availableCommission > 0) {
+        document.getElementById('claimSection').style.display = 'flex';
+        document.getElementById('claimAmount').textContent = '$' + stats.available_commission;
+    } else {
+        document.getElementById('claimSection').style.display = 'none';
+    }
+    
+    // Atualizar tabela de referrals
+    updateReferralsTable(data.referrals);
+}
+
+function updateReferralsTable(referrals) {
+    const tbody = document.getElementById('referralsTableBody');
+    
+    if (!referrals || referrals.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5">
+                    <div class="empty-state">
+                        <i class="fas fa-user-friends"></i>
+                        <h3>No referrals yet</h3>
+                        <p>Share your link to start earning!</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    let html = '';
+    referrals.forEach(ref => {
+        const statusClass = 'status-' + ref.status;
+        const statusText = ref.status.charAt(0).toUpperCase() + ref.status.slice(1);
+        const progressPercent = ref.progress_percent;
+        const progressText = ref.missions_completed + '/' + ref.missions_required;
+        const date = new Date(ref.created_at).toLocaleDateString();
+        
+        html += `
+            <tr>
+                <td class="wallet-cell">${ref.wallet_short}</td>
+                <td>
+                    <div>${progressText} missions</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                    </div>
+                </td>
+                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td style="color: var(--success);">$${ref.commission}</td>
+                <td style="color: var(--text-dim);">${date}</td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+function copyReferralLink() {
+    const linkInput = document.getElementById('referralLink');
+    const copyBtn = document.getElementById('copyBtn');
+    
+    linkInput.select();
+    linkInput.setSelectionRange(0, 99999); // Mobile
+    
+    navigator.clipboard.writeText(linkInput.value).then(() => {
+        copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        copyBtn.classList.add('copied');
+        
+        setTimeout(() => {
+            copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+            copyBtn.classList.remove('copied');
+        }, 2000);
+        
+        showNotification('Link copied to clipboard!', 'success');
+    }).catch(() => {
+        // Fallback
+        document.execCommand('copy');
+        showNotification('Link copied!', 'success');
+    });
+}
+
+async function claimCommissions() {
+    if (!currentWallet) {
+        showNotification('Please connect your wallet', 'warning');
+        return;
+    }
+    
+    const claimBtn = document.getElementById('claimBtn');
+    claimBtn.disabled = true;
+    claimBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    
+    try {
+        const res = await fetch('api/referral-claim.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet: currentWallet })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showNotification(`Successfully claimed $${data.amount_claimed}!`, 'success');
+            
+            // Recarregar dados
+            setTimeout(loadAffiliateData, 1000);
+        } else {
+            showNotification(data.error || 'Error claiming commissions', 'error');
+        }
+    } catch (error) {
+        console.error('Error claiming:', error);
+        showNotification('Connection error', 'error');
+    } finally {
+        claimBtn.disabled = false;
+        claimBtn.innerHTML = '<i class="fas fa-download"></i> CLAIM TO BALANCE';
+    }
+}
+
+// Expor funções globalmente
+window.copyReferralLink = copyReferralLink;
+window.claimCommissions = claimCommissions;
+window.loadAffiliateData = loadAffiliateData;
+</script>
+</body>
+</html>

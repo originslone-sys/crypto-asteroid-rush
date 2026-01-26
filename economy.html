@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Economy | CRYPTO ASTEROID RUSH</title>
+    <meta name="description" content="Understand how Crypto Asteroid Rush economy works - transparent rewards, sustainable model, and fair gameplay mechanics.">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .economy-hero {
+            text-align: center;
+            padding: 50px 20px;
+            background: linear-gradient(180deg, rgba(0,240,255,0.05) 0%, transparent 100%);
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 40px;
+        }
+        
+        .economy-hero h1 {
+            font-size: 2.2rem;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #00f0ff, #7b2ff7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .trust-badges {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 25px;
+        }
+        
+        .trust-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 255, 157, 0.08);
+            border: 1px solid rgba(0, 255, 157, 0.3);
+            border-radius: 25px;
+            padding: 10px 20px;
+            font-size: 0.85rem;
+            color: #00ff9d;
+        }
+        
+        .trust-badge i {
+            font-size: 1rem;
+        }
+        
+        .economy-section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(15, 22, 36, 0.8);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .economy-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, var(--primary), #7b2ff7);
+        }
+        
+        .economy-section h2 {
+            color: #fff;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .economy-section h2 i {
+            color: var(--primary);
+            font-size: 1.5rem;
+        }
+        
+        .economy-section p {
+            color: var(--text-dim);
+            line-height: 1.7;
+            margin-bottom: 15px;
+        }
+        
+        /* Reward Table */
+        .reward-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+        }
+        
+        .reward-table th,
+        .reward-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .reward-table th {
+            background: rgba(0,240,255,0.1);
+            color: var(--primary);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+        
+        .reward-table tr:hover {
+            background: rgba(255,255,255,0.02);
+        }
+        
+        .asteroid-type {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .asteroid-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .asteroid-dot.common { background: #6B4423; }
+        .asteroid-dot.rare { background: #1E90FF; box-shadow: 0 0 8px rgba(30,144,255,0.5); }
+        .asteroid-dot.epic { background: #9932CC; box-shadow: 0 0 8px rgba(153,50,204,0.5); }
+        .asteroid-dot.legendary { background: #FFD700; box-shadow: 0 0 8px rgba(255,215,0,0.5); }
+        
+        .spawn-rate {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+        
+        .reward-value {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+        }
+        
+        .reward-value.zero { color: var(--text-dim); }
+        .reward-value.low { color: #00ff9d; }
+        .reward-value.medium { color: #1E90FF; }
+        .reward-value.high { color: #9932CC; }
+        .reward-value.legendary { color: #FFD700; }
+        
+        /* Flow Diagram */
+        .flow-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+        }
+        
+        .flow-step {
+            flex: 1;
+            min-width: 200px;
+            max-width: 280px;
+            background: rgba(25, 35, 55, 0.9);
+            border-radius: 12px;
+            padding: 25px 20px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .flow-step:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(0,240,255,0.1);
+        }
+        
+        .flow-step .step-number {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--primary), #7b2ff7);
+            color: #000;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+        
+        .flow-step i {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+        
+        .flow-step h3 {
+            color: #fff;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+        
+        .flow-step p {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            margin: 0;
+        }
+        
+        .flow-arrow {
+            display: flex;
+            align-items: center;
+            color: var(--primary);
+            font-size: 1.5rem;
+        }
+        
+        /* Mechanic Cards */
+        .mechanics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+        
+        .mechanic-card {
+            background: linear-gradient(135deg, rgba(40, 55, 90, 0.6), rgba(20, 30, 50, 0.8));
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+        
+        .mechanic-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-3px);
+        }
+        
+        .mechanic-card .icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 240, 255, 0.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            color: var(--primary);
+        }
+        
+        .mechanic-card h3 {
+            color: #fff;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+        
+        .mechanic-card p {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin: 0;
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .stat-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+            font-family: 'Orbitron', sans-serif;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card .label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* Highlight Box */
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.08), rgba(123, 47, 247, 0.08));
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        
+        .highlight-box h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .highlight-box ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .highlight-box li {
+            color: var(--text-dim);
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        
+        .highlight-box li strong {
+            color: #fff;
+        }
+        
+        /* Warning Box */
+        .warning-box {
+            background: rgba(255, 170, 0, 0.08);
+            border: 1px solid rgba(255, 170, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        
+        .warning-box h4 {
+            color: #ffaa00;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .warning-box p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        
+        /* Commitment Section */
+        .commitment-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
+        }
+        
+        .commitment-card {
+            background: rgba(0, 255, 157, 0.05);
+            border: 1px solid rgba(0, 255, 157, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            transition: all 0.3s ease;
+        }
+        
+        .commitment-card:hover {
+            border-color: #00ff9d;
+            transform: translateY(-3px);
+        }
+        
+        .commitment-card h3 {
+            color: #00ff9d;
+            font-size: 1rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .commitment-card p {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin: 0;
+        }
+        
+        /* FAQ Link Section */
+        .faq-link-section {
+            text-align: center;
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        
+        .faq-link-section p {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+        
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #00a8b3);
+            color: #000;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,240,255,0.3);
+        }
+        
+        .btn-telegram {
+            background: #0088cc;
+            color: #fff;
+        }
+        
+        .btn-telegram:hover {
+            background: #006699;
+            transform: translateY(-2px);
+        }
+        
+        @media (max-width: 768px) {
+            .economy-hero h1 {
+                font-size: 1.6rem;
+            }
+            
+            .economy-section {
+                padding: 20px;
+            }
+            
+            .flow-arrow {
+                display: none;
+            }
+            
+            .reward-table th,
+            .reward-table td {
+                padding: 10px 8px;
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body data-page="economy">
+<div class="cosmic-bg"></div>
+<div class="container">
+    <header class="header">
+        <a href="index.html" class="logo"><span class="logo-icon">☄️</span><span class="logo-text">ASTEROID RUSH</span></a>
+        <nav class="nav" id="nav">
+            <a href="dashboard.html" class="nav-link">Dashboard</a>
+            <a href="game.html" class="nav-link">Play</a>
+            <a href="wallet.html" class="nav-link">Wallet</a>
+            <a href="staking.html" class="nav-link">Staking</a>
+            <a href="economy.html" class="nav-link active">Economy</a>
+            <a href="faq.html" class="nav-link">FAQ</a>
+        </nav>
+        <a href="game.html" class="wallet-btn"><i class="fas fa-play"></i> Play Now</a>
+        <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
+    </header>
+    
+    <!-- Hero Section -->
+    <section class="economy-hero">
+        <h1>HOW THE ECONOMY WORKS</h1>
+        <p class="page-subtitle">Understand our reward system, game mechanics, and why Crypto Asteroid Rush is built to last</p>
+        <div class="trust-badges">
+            <div class="trust-badge">
+                <i class="fas fa-gamepad"></i>
+                <span>Skill-Based Rewards</span>
+            </div>
+            <div class="trust-badge">
+                <i class="fas fa-balance-scale"></i>
+                <span>Fair Mechanics</span>
+            </div>
+            <div class="trust-badge">
+                <i class="fas fa-shield-alt"></i>
+                <span>Secure Payouts</span>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Reward System -->
+    <div class="economy-section">
+        <h2><i class="fas fa-coins"></i> ASTEROID REWARDS</h2>
+        <p>Destroy asteroids to earn USDT. Different asteroid types have different values and spawn rates. Your skill determines your earnings!</p>
+        
+        <table class="reward-table">
+            <thead>
+                <tr>
+                    <th>ASTEROID TYPE</th>
+                    <th>SPAWN RATE</th>
+                    <th>REWARD</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <div class="asteroid-type">
+                            <span class="asteroid-dot common"></span>
+                            <span>Common</span>
+                        </div>
+                    </td>
+                    <td class="spawn-rate">~86% of asteroids</td>
+                    <td><span class="reward-value zero">$0.0001</span></td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="asteroid-type">
+                            <span class="asteroid-dot rare"></span>
+                            <span>Rare</span>
+                        </div>
+                    </td>
+                    <td class="spawn-rate">~10% of asteroids</td>
+                    <td><span class="reward-value low">$0.0003</span></td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="asteroid-type">
+                            <span class="asteroid-dot epic"></span>
+                            <span>Epic</span>
+                        </div>
+                    </td>
+                    <td class="spawn-rate">~3% of asteroids</td>
+                    <td><span class="reward-value medium">$0.0008</span></td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="asteroid-type">
+                            <span class="asteroid-dot legendary"></span>
+                            <span>Legendary</span>
+                        </div>
+                    </td>
+                    <td class="spawn-rate">~1% of asteroids</td>
+                    <td><span class="reward-value legendary">$0.0020</span></td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div class="highlight-box">
+            <h3><i class="fas fa-lightbulb"></i> Pro Tips</h3>
+            <ul>
+                <li><strong>Focus on rare asteroids</strong> - they glow blue and are worth 3x more than common ones</li>
+                <li><strong>Watch for legendary asteroids</strong> - golden glow, worth 20x a common asteroid!</li>
+                <li><strong>Survive the full mission</strong> - if you lose all 6 lives, you lose your earnings</li>
+                <li><strong>Average earnings:</strong> $0.02 - $0.03 per 3-minute mission</li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- How It Works -->
+    <div class="economy-section">
+        <h2><i class="fas fa-cogs"></i> HOW IT WORKS</h2>
+        <p>Simple, transparent flow from mission start to payout:</p>
+        
+        <div class="flow-container">
+            <div class="flow-step">
+                <span class="step-number">1</span>
+                <i class="fas fa-rocket"></i>
+                <h3>Start Mission</h3>
+                <p>Pay 0.00001 BNB (~$0.006) entry fee to begin your 3-minute mission</p>
+            </div>
+            
+            <span class="flow-arrow"><i class="fas fa-chevron-right"></i></span>
+            
+            <div class="flow-step">
+                <span class="step-number">2</span>
+                <i class="fas fa-crosshairs"></i>
+                <h3>Destroy Asteroids</h3>
+                <p>Use your skills to destroy valuable asteroids and avoid damage</p>
+            </div>
+            
+            <span class="flow-arrow"><i class="fas fa-chevron-right"></i></span>
+            
+            <div class="flow-step">
+                <span class="step-number">3</span>
+                <i class="fas fa-wallet"></i>
+                <h3>Instant Credit</h3>
+                <p>Earnings are instantly credited to your dashboard balance</p>
+            </div>
+            
+            <span class="flow-arrow"><i class="fas fa-chevron-right"></i></span>
+            
+            <div class="flow-step">
+                <span class="step-number">4</span>
+                <i class="fas fa-money-bill-wave"></i>
+                <h3>Withdraw Anytime</h3>
+                <p>Request withdrawal and receive USDT within 24 hours</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Game Mechanics -->
+    <div class="economy-section">
+        <h2><i class="fas fa-balance-scale"></i> FAIR GAME MECHANICS</h2>
+        <p>Our economy is designed to reward skill while maintaining long-term sustainability:</p>
+        
+        <div class="mechanics-grid">
+            <div class="mechanic-card">
+                <div class="icon"><i class="fas fa-heart"></i></div>
+                <h3>6 Lives System</h3>
+                <p>Start each mission with 6 lives. Collide with asteroids and you lose a life. Lose all 6 and your mission earnings are forfeit. This rewards careful, skilled play.</p>
+            </div>
+            
+            <div class="mechanic-card">
+                <div class="icon"><i class="fas fa-tachometer-alt"></i></div>
+                <h3>90/10 Mission Balance</h3>
+                <p>90% of missions are normal difficulty. 10% are "hard mode" with faster asteroids - a necessary economic balance that skilled players can still profit from.</p>
+            </div>
+            
+            <div class="mechanic-card">
+                <div class="icon"><i class="fas fa-clock"></i></div>
+                <h3>3-Minute Missions</h3>
+                <p>Each mission lasts exactly 180 seconds. This creates consistent earning potential and prevents exploitation while keeping gameplay engaging.</p>
+            </div>
+            
+        </div>
+        
+        <div class="warning-box">
+            <h4><i class="fas fa-exclamation-triangle"></i> Important</h4>
+            <p>This is a skill-based game. Your earnings depend on how well you play. Better players earn more - there's no guaranteed income. Play responsibly and only with funds you can afford to lose.</p>
+        </div>
+    </div>
+    
+    <!-- Withdrawal & Staking -->
+    <div class="economy-section">
+        <h2><i class="fas fa-university"></i> WITHDRAWALS & STAKING</h2>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="value">$0.01</div>
+                <div class="label">Min Withdrawal</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">0%</div>
+                <div class="label">Withdrawal Fee</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">24h</div>
+                <div class="label">Processing Time</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">12%</div>
+                <div class="label">Staking APY</div>
+            </div>
+        </div>
+        
+        <div class="highlight-box">
+            <h3><i class="fas fa-info-circle"></i> Withdrawal Process</h3>
+            <ul>
+                <li><strong>No fees:</strong> We cover all transaction costs</li>
+                <li><strong>Daily processing:</strong> Withdrawals processed at 20:00 UTC</li>
+                <li><strong>Direct to wallet:</strong> USDT sent directly to your connected BSC wallet</li>
+                <li><strong>Staking option:</strong> Earn 12% APY by staking your balance instead of withdrawing</li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Affiliate Program -->
+    <div class="economy-section">
+        <h2><i class="fas fa-users"></i> AFFILIATE PROGRAM</h2>
+        <p>Invite friends and earn rewards when they play:</p>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="value">$1.00</div>
+                <div class="label">Per Referral</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">100</div>
+                <div class="label">Missions Required</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">∞</div>
+                <div class="label">No Limit</div>
+            </div>
+        </div>
+        
+        <div class="highlight-box">
+            <h3><i class="fas fa-gift"></i> How It Works</h3>
+            <ul>
+                <li>Share your unique referral link with friends</li>
+                <li>When they sign up and complete <strong>100 missions</strong>, you earn <strong>$1.00 USDT</strong></li>
+                <li>No limit on referrals - the more active players you bring, the more you earn</li>
+                <li>The 100-mission requirement ensures quality referrals and prevents abuse</li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Our Commitment -->
+    <div class="economy-section" style="border-left-color: #00ff9d;">
+        <h2 style="color: #00ff9d;"><i class="fas fa-handshake" style="color: #00ff9d;"></i> OUR COMMITMENT</h2>
+        
+        <div class="commitment-grid">
+            <div class="commitment-card">
+                <h3><i class="fas fa-shield-alt"></i> Secure Funds</h3>
+                <p>All player balances are backed and ready for withdrawal at any time. We maintain reserves to ensure smooth payouts.</p>
+            </div>
+            
+            <div class="commitment-card">
+                <h3><i class="fas fa-code"></i> Fair Play</h3>
+                <p>Game mechanics are consistent for all players. No hidden modifiers, no pay-to-win advantages. Pure skill-based gameplay.</p>
+            </div>
+            
+            <div class="commitment-card">
+                <h3><i class="fas fa-chart-line"></i> Sustainable Model</h3>
+                <p>Our economic balancers (hard mode, life system) ensure the game can continue rewarding players.</p>
+            </div>
+            
+        </div>
+        
+        <div class="faq-link-section">
+            <p><i class="fas fa-question-circle" style="color: var(--primary);"></i> Have more questions about how it all works?</p>
+            <div class="btn-group">
+                <a href="faq.html" class="btn btn-primary"><i class="fas fa-book"></i> Read FAQ</a>
+                <a href="https://t.me/AsteroidRushOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Join Telegram</a>
+            </div>
+        </div>
+    </div>
+    
+  <footer class="footer">
+    <a href="https://t.me/AsteroidRushOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Join our Telegram</a>
+    <div class="footer-links">
+        <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> How to Play</a>
+        <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Gameplay Guide</a>
+        <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
+        <a href="terms.html" class="footer-link"><i class="fas fa-file-contract"></i> Terms</a>
+        <a href="privacy.html" class="footer-link"><i class="fas fa-shield-alt"></i> Privacy</a>
+    </div>
+    <p class="footer-copy">© 2026 Crypto Asteroid Rush. Play Smart, Earn Rewards.</p>
+</footer>
+</div>
+<script src="js/main.js"></script>
+</body>
+</html>

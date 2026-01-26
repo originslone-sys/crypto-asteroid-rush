@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallet | CRYPTO ASTEROID RUSH</title>
+    <meta name="description" content="Manage your rewards - Balances, transactions and withdrawals.">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        /* Balance Cards */
+        .balance-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .balance-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .balance-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--primary);
+        }
+        
+        .balance-card.primary {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.1), transparent);
+        }
+        
+        .balance-icon {
+            font-size: 2rem;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+        
+        .balance-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            color: #fff;
+        }
+        
+        .balance-label {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        
+        /* Withdraw Section */
+        .withdraw-section {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 30px;
+        }
+        
+        .withdraw-section h3 {
+            color: var(--primary);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .withdraw-form {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .form-group label {
+            display: block;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+        }
+        
+        .withdraw-input {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-light);
+            font-size: 1rem;
+            font-family: 'Orbitron', sans-serif;
+            transition: all 0.3s;
+        }
+        
+        .withdraw-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+        }
+        
+        .withdraw-input::placeholder {
+            color: var(--text-dim);
+            font-family: 'Exo 2', sans-serif;
+        }
+        
+        .withdraw-info {
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(0, 240, 255, 0.05);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .withdraw-info i {
+            color: var(--primary);
+        }
+        
+        /* Transaction History */
+        .transactions-section {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .transactions-section h3 {
+            color: var(--primary);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .transaction-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border: 1px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .transaction-item:hover {
+            border-color: var(--border-color);
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .transaction-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .tx-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            background: rgba(0, 240, 255, 0.1);
+            flex-shrink: 0;
+        }
+        
+        .tx-icon.positive {
+            background: rgba(0, 255, 136, 0.15);
+            color: var(--success);
+        }
+        
+        .tx-icon.negative {
+            background: rgba(255, 51, 102, 0.15);
+            color: var(--danger);
+        }
+        
+        .tx-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .tx-type {
+            font-weight: 600;
+            margin-bottom: 3px;
+            color: #fff;
+        }
+        
+        .tx-desc {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .tx-amount {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            text-align: right;
+            min-width: 100px;
+        }
+        
+        .tx-meta {
+            text-align: right;
+            min-width: 100px;
+        }
+        
+        .tx-date {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-bottom: 3px;
+        }
+        
+        .tx-status {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        .tx-status.completed {
+            background: rgba(0, 255, 136, 0.15);
+            color: var(--success);
+        }
+        
+        .tx-status.pending {
+            background: rgba(255, 170, 0, 0.15);
+            color: var(--warning);
+        }
+        
+        .tx-status.failed,
+        .tx-status.rejected {
+            background: rgba(255, 51, 102, 0.15);
+            color: var(--danger);
+        }
+        
+        .tx-status.active {
+            background: rgba(0, 240, 255, 0.15);
+            color: var(--primary);
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        .empty-state p {
+            font-size: 1rem;
+        }
+        
+        /* Asteroid Details */
+        .asteroid-details {
+            display: flex;
+            gap: 8px;
+            margin-top: 5px;
+        }
+        
+        .asteroid-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
+        .asteroid-badge.legendary {
+            background: rgba(255, 215, 0, 0.2);
+            color: #FFD700;
+        }
+        
+        .asteroid-badge.epic {
+            background: rgba(153, 50, 204, 0.2);
+            color: #BA55D3;
+        }
+        
+        .asteroid-badge.rare {
+            background: rgba(30, 144, 255, 0.2);
+            color: #1E90FF;
+        }
+        
+        .asteroid-badge.common {
+            background: rgba(139, 105, 20, 0.2);
+            color: #B8860B;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .balance-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .transaction-item {
+                flex-wrap: wrap;
+            }
+            
+            .tx-amount {
+                order: 3;
+                width: 100%;
+                text-align: left;
+                margin-top: 10px;
+                padding-top: 10px;
+                border-top: 1px solid var(--border-color);
+            }
+            
+            .tx-meta {
+                order: 4;
+                text-align: left;
+                margin-top: 5px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .balance-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .balance-value {
+                font-size: 1.4rem;
+            }
+            
+            .withdraw-form {
+                flex-direction: column;
+            }
+            
+            .form-group {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body data-page="wallet">
+<div class="cosmic-bg"></div>
+
+<!-- Connect Overlay -->
+<div id="connectOverlay" class="connect-overlay">
+    <div class="connect-box">
+        <div class="connect-icon"><i class="fas fa-wallet"></i></div>
+        <h2 class="connect-title">WELCOME, COMMANDER</h2>
+        <p class="connect-desc">Connect your MetaMask wallet on BSC network to access your wallet.</p>
+        <button id="connectBtn" class="btn btn-primary btn-lg"><i class="fab fa-ethereum"></i> Connect MetaMask</button>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Header -->
+    <header class="header">
+        <a href="index.html" class="logo"><span class="logo-icon">☄️</span><span class="logo-text">ASTEROID RUSH</span></a>
+        <nav class="nav" id="nav">
+            <a href="dashboard.html" class="nav-link">Dashboard</a>
+            <a href="game.html" class="nav-link">Play</a>
+            <a href="wallet.html" class="nav-link active">Wallet</a>
+            <a href="staking.html" class="nav-link">Staking</a>
+            <a href="affiliates.html" class="nav-link">Affiliates</a>
+        </nav>
+        <button id="walletBtn" class="wallet-btn"><i class="fas fa-wallet"></i> Connect</button>
+        <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
+    </header>
+    
+    <!-- Page Header -->
+    <section class="page-header">
+        <h1 class="page-title">INTERGALACTIC WALLET</h1>
+        <p class="page-subtitle">Manage your earnings and request withdrawals</p>
+    </section>
+    
+    <!-- Balance Cards -->
+    <section class="balance-cards">
+        <div class="balance-card primary">
+            <div class="balance-icon"><i class="fas fa-wallet"></i></div>
+            <div class="balance-value" id="walletBalance">$0.000000</div>
+            <div class="balance-label">Available Balance</div>
+        </div>
+        <div class="balance-card">
+            <div class="balance-icon" style="color: var(--success);"><i class="fas fa-coins"></i></div>
+            <div class="balance-value" id="walletEarned" style="color: var(--success);">$0.000000</div>
+            <div class="balance-label">Total Earned</div>
+        </div>
+        <div class="balance-card">
+            <div class="balance-icon" style="color: var(--warning);"><i class="fas fa-arrow-up"></i></div>
+            <div class="balance-value" id="walletWithdrawn" style="color: var(--warning);">$0.000000</div>
+            <div class="balance-label">Total Withdrawn</div>
+        </div>
+        <div class="balance-card">
+            <div class="balance-icon" style="color: var(--danger);"><i class="fas fa-clock"></i></div>
+            <div class="balance-value" id="walletPending" style="color: var(--danger);">$0.000000</div>
+            <div class="balance-label">Pending Withdrawal</div>
+        </div>
+    </section>
+    
+    <!-- Withdraw Section -->
+    <section class="withdraw-section">
+        <h3><i class="fas fa-paper-plane"></i> Request Withdrawal</h3>
+        <div class="withdraw-form">
+            <div class="form-group">
+                <label>Amount (USDT)</label>
+                <input type="number" class="withdraw-input" id="withdrawAmount" placeholder="0.00" step="0.01" min="0.01">
+            </div>
+            <button class="btn btn-primary withdraw-btn" id="withdrawBtn" onclick="requestWithdraw()">
+                <i class="fas fa-paper-plane"></i> Request Withdrawal
+            </button>
+        </div>
+        <div class="withdraw-info">
+            <i class="fas fa-info-circle"></i>
+            <span>Minimum: $0.01 USDT • No fees • Processed within 24 hours • Sent to your connected wallet</span>
+        </div>
+    </section>
+    
+    <!-- Transaction History -->
+    <section class="transactions-section">
+        <h3><i class="fas fa-history"></i> Transaction History</h3>
+        <div id="transactionHistory">
+            <div class="empty-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading transactions...</p>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer class="footer">
+        <a href="https://t.me/AsteroidRushOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Join our Telegram</a>
+        <div class="footer-links">
+            <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> How to Play</a>
+            <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Gameplay</a>
+            <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economy</a>
+            <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
+        </div>
+        <p class="footer-copy">© 2026 Crypto Asteroid Rush. All rights reserved.</p>
+    </footer>
+</div>
+
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regras do Grupo | CRYPTO ASTEROID RUSH</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@300;400;500;600;700;800;900&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #00ffea;
+            --primary-glow: rgba(0, 255, 234, 0.4);
+            --secondary: #7b2cbf;
+            --danger: #ff5555;
+            --warning: #ffaa00;
+            --success: #00ff88;
+            --accent: #ff00aa;
+            --bg-primary: #0a0a16;
+            --bg-secondary: #14142e;
+            --bg-tertiary: #1e1e3a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0ff;
+            --text-muted: #8a8ac2;
+            --border: rgba(0, 255, 234, 0.3);
+            --radius-md: 16px;
+            --radius-sm: 8px;
+            --glow: 0 0 30px var(--primary-glow);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            font-family: 'Exo 2', 'Orbitron', sans-serif;
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .rules-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(20, 20, 46, 0.8);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 30px;
+            box-shadow: var(--glow);
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Header */
+        .rules-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 25px;
+            border-bottom: 2px solid var(--border);
+            position: relative;
+        }
+        
+        .rules-header::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .logo-icon {
+            font-size: 3rem;
+            color: var(--primary);
+            filter: drop-shadow(0 0 15px var(--primary-glow));
+            animation: pulse 2s infinite alternate;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+        
+        .logo-text {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 2.2rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 20px var(--primary-glow);
+        }
+        
+        .rules-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        
+        .rules-subtitle {
+            color: var(--text-muted);
+            font-size: 1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        /* Language Tabs */
+        .language-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .language-tab {
+            background: rgba(20, 20, 46, 0.6);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 30px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .language-tab.active {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+        
+        .language-tab:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 234, 0.2);
+        }
+        
+        /* Rules Content */
+        .rules-content {
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .rules-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .rule-section {
+            background: rgba(30, 30, 58, 0.6);
+            border-radius: var(--radius-md);
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--primary);
+            transition: var(--transition);
+        }
+        
+        .rule-section:hover {
+            border-left-color: var(--accent);
+            transform: translateX(5px);
+            background: rgba(30, 30, 58, 0.8);
+        }
+        
+        .rule-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 50%;
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            margin-right: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .rule-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .rule-items {
+            list-style: none;
+            padding-left: 20px;
+        }
+        
+        .rule-item {
+            margin-bottom: 12px;
+            padding-left: 30px;
+            position: relative;
+            color: var(--text-secondary);
+        }
+        
+        .rule-item::before {
+            content: '•';
+            color: var(--primary);
+            font-size: 1.5rem;
+            position: absolute;
+            left: 0;
+            top: -2px;
+        }
+        
+        /* Warning Section */
+        .warning-section {
+            background: rgba(255, 85, 85, 0.1);
+            border: 1px solid var(--danger);
+            border-radius: var(--radius-md);
+            padding: 25px;
+            margin: 30px 0;
+            border-left: 4px solid var(--danger);
+        }
+        
+        .warning-title {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--danger);
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .penalty-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .penalty-item {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: var(--radius-sm);
+            padding: 15px;
+            text-align: center;
+            border: 1px solid rgba(255, 85, 85, 0.3);
+        }
+        
+        .penalty-level {
+            color: var(--danger);
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+        
+        .penalty-action {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        /* Links Section */
+        .links-section {
+            background: rgba(0, 255, 234, 0.1);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 25px;
+            margin-top: 30px;
+            text-align: center;
+        }
+        
+        .links-title {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--primary);
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+        }
+        
+        .links-grid {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .link-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            background: rgba(20, 20, 46, 0.6);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            transition: var(--transition);
+            min-width: 140px;
+        }
+        
+        .link-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px var(--primary-glow);
+            border-color: var(--primary);
+        }
+        
+        .link-icon {
+            font-size: 1.8rem;
+            color: var(--primary);
+        }
+        
+        .link-text {
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        /* Footer */
+        .rules-footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        
+        .footer-note {
+            margin-top: 15px;
+            font-style: italic;
+            opacity: 0.8;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .rules-container {
+                padding: 20px;
+            }
+            
+            .logo-text {
+                font-size: 1.8rem;
+            }
+            
+            .language-tabs {
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            }
+            
+            .language-tab {
+                width: 100%;
+                text-align: center;
+            }
+            
+            .penalty-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .links-grid {
+                flex-direction: column;
+            }
+            
+            .link-item {
+                width: 100%;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .rules-title {
+                font-size: 1.5rem;
+            }
+            
+            .rule-section {
+                padding: 20px;
+            }
+            
+            .rule-title {
+                font-size: 1.1rem;
+            }
+            
+            .link-item {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="rules-container">
+        <!-- Header -->
+        <header class="rules-header">
+            <div class="logo-section">
+                <div class="logo-icon">☄️</div>
+                <div class="logo-text">CRYPTO ASTEROID RUSH</div>
+            </div>
+            <h1 class="rules-title">REGRAS OFICIAIS DO GRUPO</h1>
+            <p class="rules-subtitle">Comunidade oficial da missão intergaláctica onde asteroides valem USDT</p>
+            
+            <div class="language-tabs">
+                <button class="language-tab active" data-lang="pt">Português 🇧🇷</button>
+                <button class="language-tab" data-lang="en">English 🇺🇸</button>
+            </div>
+        </header>
+        
+        <!-- Portuguese Rules -->
+        <div class="rules-content active" id="rules-pt">
+            <!-- Section 1 -->
+            <div class="rule-section">
+                <h3 class="rule-title">
+                    <span class="rule-number">1</span> RESPEITO É OBRIGATÓRIO
+                </h3>
+                <ul class="rule-items">
+                    <li class="rule-item">Trate todos os membros com educação e cortesia</li>
+                    <li class="rule-item">Discurso de ódio, assédio ou discriminação são estritamente proibidos</li>
+                    <li class="rule-item">Discussões saudáveis são bem-vindas, brigas e ofensas não</li>
+                    <li class="rule-item">Respeite opiniões diferentes das suas</li>
+                </ul>
+            </div>
+            
+            <!-- Section 2 -->
+            <div class="rule-section">
+                <h3 class="rule-title">
+                    <span class="rule-number">2</span> CONTEÚDO PROIBIDO
+                </h3>
+                <ul class="rule-items">
+                    <li class="rule-item">Nada de spam, flood ou mensagens em cadeia</li>
+                    <li class="rule-item">Links de phishing, scams, pirataria ou conteúdo malicioso</li>
+                    <li class="rule-item">Autopromoção sem autorização prévia dos administradores</li>
+                    <li class="rule-item">Conteúdo NSFW (adulto) é estritamente proibido</li>
+                    <li class="rule-item">Divulgação de dados pessoais (doxing)</li>
+                </ul>
+            </div>
+            
+            <!-- Section 3 -->
+            <div class="rule-section">
+                <h3 class="rule-title">
+                    <span class="rule-number">3</span> SOBRE O JOGO
+                </h3>
+                <ul class="rule-items">
+                    <li class="rule-item">Dúvidas sobre gameplay, conexão e problemas técnicos são bem-vindas</li>
+                    <li class="rule-item">Compartilhe suas conquistas, pontuações e estratégias!</li>
+                    <li class="rule-item">Reporte bugs e sugira melhorias para @cryptoasteroidrush</li>
+                    <li class="rule-item">Não espalhe informações falsas sobre ganhos ou promessas irreais</li>
+                    <li class="rule-item">Discutir estratégias de jogo é permitido e encorajado</li>
+                </ul>
+            </div>
+            
+            <!-- Section 4 -->
+            <div class="rule-section">
+                <h3 class="rule-title">
+                    <span class="rule-number">4</span> COMUNICAÇÃO E SUPORTE
+                </h3>
+                <ul class="rule-items">
+                    <li class="rule-item">Use este grupo para conversas gerais sobre o jogo</li>
+                    <li class="rule-item">Suporte técnico direto: @cryptoasteroidrush</li>
+                    <li class="rule-item">Anúncios oficiais virão apenas de administradores (@admin)</li>
+                    <li class="rule-item">Evite marcar administradores sem necessidade urgente</li>
+                    <li class="rule-item">Para parcerias/business: legal@asteroidrush.com</li>
+                </ul>
+            </div>
+            
+            <!-- Warning Section -->
+            <div class="warning-section">
+                <h3 class="warning-title">
+                    <i class="fas fa-exclamation-triangle"></i> SISTEMA DE PUNIÇÕES
+                </h3>
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                    Violações das regras resultarão em ações moderadoras conforme a gravidade:
+                </p>
+                
+                <div class="penalty-grid">
+                    <div class="penalty-item">
+                        <div class="penalty-level">1ª VIOLAÇÃO</div>
+                        <div class="penalty-action">Aviso oficial</div>
+                    </div>
+                    <div class="penalty-item">
+                        <div class="penalty-level">2ª VIOLAÇÃO</div>
+                        <div class="penalty-action">Mute temporário (24h)</div>
+                    </div>
+                    <div class="penalty-item">
+                        <div class="penalty-level">3ª VIOLAÇÃO</div>
+                        <div class="penalty-action">Mute prolongado (7 dias)</div>
+                    </div>
+                    <div class="penalty-item">
+                        <div class="penalty-level">VIOLAÇÕES GRAVES</div>
+                        <div class="penalty-action">Banimento permanente</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- English Rules -->
+        <div class="rules-content" id="rules-en">
+            <!-- Section 1 -->
+            <div class="rule-section">
+                <h3 class="rule-title">
+                    <span class="rule-number">1</span> RESPECT IS MANDATORY
+                </h3>
+                <ul class="rule-items">
+                    <li class="rule-item">Treat all members with politeness and courtesy</li>
+                    <li class="rule-item">Hate speech, harassment, or discrimination are strictly prohibited</li>
+                    <li class="rule-item">Healthy discussions welcome, fights and insults are not</li>
+                    <li class="rule-item">Respect opinions different from your own</li>
+                </ul>
+            </div>
+            
+            <!-- Section 2 -->
+            <div class="rule-section">
+                <h3 class="rule-title">
+                    <span class="rule-number">2</span> FORBIDDEN CONTENT
+                </h3>
+                <ul class="rule-items">
+                    <li class="rule-item">No spam, flood, or chain messages</li>
+                    <li class="rule-item">Phishing links, scams, piracy, or malicious content</li>
+                    <li class="rule-item">Self-promotion without prior admin authorization</li>
+                    <li class="rule-item">NSFW (adult) content is strictly prohibited</li>
+                    <li class="rule-item">Sharing personal information (doxing)</li>
+                </ul>
+            </div>
+            
+            <!-- Section 3 -->
+            <div class="rule-section">
+                <h3 class="rule-title">
+                    <span class="rule-number">3</span> ABOUT THE GAME
+                </h3>
+                <ul class="rule-items">
+                    <li class="rule-item">Gameplay questions, connection and technical issues are welcome</li>
+                    <li class="rule-item">Share your achievements, scores, and strategies!</li>
+                    <li class="rule-item">Report bugs and suggest improvements to @cryptoasteroidrush</li>
+                    <li class="rule-item">Do not spread false information about earnings or unrealistic promises</li>
+                    <li class="rule-item">Discussing game strategies is allowed and encouraged</li>
+                </ul>
+            </div>
+            
+            <!-- Section 4 -->
+            <div class="rule-section">
+                <h3 class="rule-title">
+                    <span class="rule-number">4</span> COMMUNICATION & SUPPORT
+                </h3>
+                <ul class="rule-items">
+                    <li class="rule-item">Use this group for general game conversations</li>
+                    <li class="rule-item">Direct technical support: @cryptoasteroidrush</li>
+                    <li class="rule-item">Official announcements only from administrators (@admin)</li>
+                    <li class="rule-item">Avoid tagging admins without urgent need</li>
+                    <li class="rule-item">For partnerships/business: legal@cryptoasteroidrush.com</li>
+                </ul>
+            </div>
+            
+            <!-- Warning Section -->
+            <div class="warning-section">
+                <h3 class="warning-title">
+                    <i class="fas fa-exclamation-triangle"></i> PENALTY SYSTEM
+                </h3>
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                    Rule violations will result in moderator actions according to severity:
+                </p>
+                
+                <div class="penalty-grid">
+                    <div class="penalty-item">
+                        <div class="penalty-level">1ST VIOLATION</div>
+                        <div class="penalty-action">Official warning</div>
+                    </div>
+                    <div class="penalty-item">
+                        <div class="penalty-level">2ND VIOLATION</div>
+                        <div class="penalty-action">Temporary mute (24h)</div>
+                    </div>
+                    <div class="penalty-item">
+                        <div class="penalty-level">3RD VIOLATION</div>
+                        <div class="penalty-action">Extended mute (7 days)</div>
+                    </div>
+                    <div class="penalty-item">
+                        <div class="penalty-level">SEVERE VIOLATIONS</div>
+                        <div class="penalty-action">Permanent ban</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Links Section -->
+        <div class="links-section">
+            <h3 class="links-title">
+                <i class="fas fa-link"></i> LINKS IMPORTANTES / IMPORTANT LINKS
+            </h3>
+            <div class="links-grid">
+                <a href="https://asteroidrush.space/game.html" target="_blank" class="link-item">
+                    <i class="fas fa-gamepad link-icon"></i>
+                    <span class="link-text">JOGAR AGORA / PLAY NOW</span>
+                </a>
+                
+                <a href="https://asteroidrush.space/terms.html" target="_blank" class="link-item">
+                    <i class="fas fa-file-contract link-icon"></i>
+                    <span class="link-text">TERMOS DE USO / TERMS</span>
+                </a>
+                
+                <a href="https://t.me/cryptoasteroidrush" target="_blank" class="link-item">
+                    <i class="fas fa-headset link-icon"></i>
+                    <span class="link-text">SUPORTE / SUPPORT</span>
+                </a>
+                
+                <a href="https://asteroidrush.space" target="_blank" class="link-item">
+                    <i class="fas fa-rocket link-icon"></i>
+                    <span class="link-text">SITE OFICIAL / WEBSITE</span>
+                </a>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <footer class="rules-footer">
+            <p>© 2026 CRYPTO ASTEROID RUSH. Todos os direitos reservados / All rights reserved.</p>
+            <p class="footer-note">
+                Estas regras podem ser atualizadas periodicamente. A participação no grupo implica aceitação das regras.
+                <br>
+                These rules may be updated periodically. Group participation implies acceptance of the rules.
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Language switching functionality
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = document.querySelectorAll('.language-tab');
+            const contents = document.querySelectorAll('.rules-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Remove active class from all tabs and contents
+                    tabs.forEach(t => t.classList.remove('active'));
+                    contents.forEach(c => c.classList.remove('active'));
+                    
+                    // Add active class to clicked tab
+                    tab.classList.add('active');
+                    
+                    // Show corresponding content
+                    const lang = tab.getAttribute('data-lang');
+                    document.getElementById(`rules-${lang}`).classList.add('active');
+                    
+                    // Animation effect
+                    document.getElementById(`rules-${lang}`).style.animation = 'none';
+                    setTimeout(() => {
+                        document.getElementById(`rules-${lang}`).style.animation = 'fadeIn 0.5s ease-out';
+                    }, 10);
+                });
+            });
+            
+            // Add hover effects to rule sections
+            const ruleSections = document.querySelectorAll('.rule-section');
+            ruleSections.forEach(section => {
+                section.addEventListener('mouseenter', () => {
+                    section.style.transform = 'translateX(5px)';
+                });
+                
+                section.addEventListener('mouseleave', () => {
+                    section.style.transform = 'translateX(0)';
+                });
+            });
+            
+            // Add click animation to links
+            const links = document.querySelectorAll('.link-item');
+            links.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.currentTarget.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        e.currentTarget.style.transform = '';
+                    }, 200);
+                });
+            });
+            
+            // Auto-detect language preference
+            const userLang = navigator.language || navigator.userLanguage;
+            if (userLang.startsWith('en') && !document.querySelector('.language-tab.active').dataset.lang === 'en') {
+                document.querySelector('[data-lang="en"]').click();
+            }
+        });
+    </script>
+</body>
+</html>
