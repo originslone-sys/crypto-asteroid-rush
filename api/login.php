@@ -5,7 +5,7 @@
 // ATUALIZADO: Suporte a sistema de afiliados
 // ============================================
 
-require_once "../config.php";
+require_once __DIR__ . "/config.php";
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -27,18 +27,22 @@ if (!preg_match('/^0x[a-f0-9]{40}$/i', $wallet)) {
 }
 
 try {
-    $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4", DB_USER, DB_PASS);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
+    $pdo = getDatabaseConnection();
+    if (!$pdo) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao conectar ao banco']);
+        exit;
+    }
+
     // ============================================
     // 1. VERIFICAR SE É NOVO JOGADOR
     // ============================================
     $stmt = $pdo->prepare("SELECT id FROM players WHERE wallet_address = ?");
     $stmt->execute([$wallet]);
     $existingPlayer = $stmt->fetch();
-    
+
     $isNewPlayer = !$existingPlayer;
-    
+
     // ============================================
     // 2. INSERIR OU ATUALIZAR JOGADOR
     // ============================================
@@ -46,69 +50,62 @@ try {
         $pdo->prepare("INSERT INTO players (wallet_address, balance_usdt, total_played) VALUES (?, 0.0, 0)")
             ->execute([$wallet]);
     }
-    
+
     // ============================================
     // 3. PROCESSAR REFERRAL (APENAS PARA NOVOS JOGADORES)
     // ============================================
     $referralRegistered = false;
     $referrerWallet = null;
-    
+
     if ($isNewPlayer && !empty($referralCode)) {
-        // Validar formato do código (6 caracteres alfanuméricos)
-        if (preg_match('/^[A-Z0-9]{6}$/', $referralCode)) {
-            
-            // Verificar se tabelas de referral existem
-            $tableExists = $pdo->query("SHOW TABLES LIKE 'referral_codes'")->fetch();
-            
-            if ($tableExists) {
-                // Buscar wallet do referrer pelo código
-                $stmt = $pdo->prepare("SELECT wallet_address FROM referral_codes WHERE code = ?");
-                $stmt->execute([$referralCode]);
-                $referrer = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($referrer && $referrer['wallet_address'] !== $wallet) {
-                    $referrerWallet = $referrer['wallet_address'];
-                    
-                    // Verificar se usuário já foi indicado
-                    $stmt = $pdo->prepare("SELECT id FROM referrals WHERE referred_wallet = ?");
-                    $stmt->execute([$wallet]);
-                    
-                    if (!$stmt->fetch()) {
-                        // Registrar indicação
-                        $stmt = $pdo->prepare("
-                            INSERT INTO referrals 
-                            (referrer_wallet, referred_wallet, referral_code, missions_at_register, missions_completed) 
-                            VALUES (?, ?, ?, 0, 0)
-                        ");
-                        $stmt->execute([$referrerWallet, $wallet, $referralCode]);
-                        
-                        $referralRegistered = true;
-                        
-                        // Log
-                        error_log("Referral registrado via login: Referrer={$referrerWallet}, Referred={$wallet}, Code={$referralCode}");
-                    }
-                }
+
+        // 3.1 Validar formato do código (ex: ABC123)
+        if (!preg_match('/^[A-Z0-9]{6}$/', $referralCode)) {
+            echo json_encode(['success' => false, 'error' => 'Código de referral inválido']);
+            exit;
+        }
+
+        // 3.2 Buscar carteira do referenciador
+        $stmt = $pdo->prepare("SELECT wallet_address FROM referrals WHERE referral_code = ?");
+        $stmt->execute([$referralCode]);
+        $ref = $stmt->fetch();
+
+        if ($ref && !empty($ref['wallet_address'])) {
+            $referrerWallet = strtolower($ref['wallet_address']);
+
+            // Evitar auto-referral
+            if ($referrerWallet !== $wallet) {
+
+                // 3.3 Registrar referral do jogador
+                $stmt = $pdo->prepare("INSERT INTO referral_players (player_wallet, referrer_wallet, referral_code, created_at) VALUES (?, ?, ?, NOW())");
+                $stmt->execute([$wallet, $referrerWallet, $referralCode]);
+
+                // 3.4 Incrementar contador de referrals do referenciador
+                $pdo->prepare("UPDATE referrals SET total_referrals = total_referrals + 1 WHERE wallet_address = ?")
+                    ->execute([$referrerWallet]);
+
+                $referralRegistered = true;
             }
         }
     }
-    
+
     // ============================================
-    // 4. RETORNAR RESPOSTA
+    // 4. RETORNAR DADOS DO JOGADOR
     // ============================================
-    $response = [
+    $stmt = $pdo->prepare("SELECT id, wallet_address, balance_usdt, total_played FROM players WHERE wallet_address = ?");
+    $stmt->execute([$wallet]);
+    $player = $stmt->fetch();
+
+    echo json_encode([
         'success' => true,
-        'is_new_player' => $isNewPlayer
-    ];
-    
-    if ($referralRegistered) {
-        $response['referral_registered'] = true;
-        $response['referrer'] = substr($referrerWallet, 0, 6) . '...' . substr($referrerWallet, -4);
-    }
-    
-    echo json_encode($response);
-    
+        'player' => $player,
+        'is_new_player' => $isNewPlayer,
+        'referral_registered' => $referralRegistered,
+        'referrer_wallet' => $referrerWallet
+    ]);
+
 } catch (Exception $e) {
     error_log("Erro em login.php: " . $e->getMessage());
-    echo json_encode(['success' => false, 'error' => 'Erro no servidor']);
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Erro interno']);
 }
-?>
