@@ -5,6 +5,8 @@
 // ============================================
 
 // Tentar incluir config de diferentes locais
+error_log("MARKER_GAME_START_V1 file=" . __FILE__);
+error_log("MARKER_GAME_START_V1 sha1=" . sha1_file(__FILE__));
 if (file_exists(__DIR__ . "/config.php")) {
     require_once __DIR__ . "/config.php";
 } elseif (file_exists(__DIR__ . "/../config.php")) {
@@ -104,6 +106,7 @@ try {
     // ============================================
     // 2. BUSCAR/CRIAR JOGADOR
     // ============================================
+    error_log("MARKER_GAME_START_V1 about to INSERT game_sessions (no player_id expected)");
     $stmt = $pdo->prepare("SELECT id, total_played FROM players WHERE wallet_address = ?");
     $stmt->execute([$wallet]);
     $player = $stmt->fetch();
