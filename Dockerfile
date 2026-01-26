@@ -1,25 +1,29 @@
 FROM php:7.4-apache
 
+# Remove configurações padrão do Apache que podem causar conflito
+RUN rm -f /etc/apache2/apache2.conf
+
+# Copia nossa configuração limpa do Apache
+COPY apache-config.conf /etc/apache2/apache2.conf
+
 # Remove qualquer configuração de MPM existente
-RUN rm -rf /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf
+RUN rm -rf /etc/apache2/mods-enabled/mpm_*.conf /etc/apache2/mods-enabled/mpm_*.load 2>/dev/null || true
 
-# Habilita explicitamente apenas o prefork
-RUN a2enmod mpm_prefork
-
-# Verifica e define o MPM explicitamente
-RUN echo "LoadModule mpm_prefork_module /usr/lib/apache2/modules/mod_mpm_prefork.so" > /etc/apache2/mods-available/mpm_prefork.load
-RUN echo "<IfModule mpm_prefork_module>\n    StartServers            5\n    MinSpareServers         5\n    MaxSpareServers        10\n    MaxRequestWorkers      150\n    MaxConnectionsPerChild   0\n</IfModule>" > /etc/apache2/mods-available/mpm_prefork.conf
-
-# Cria os links simbólicos
-RUN ln -sf /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load
-RUN ln -sf /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf
-
-# Instala extensões PHP
+# Instala extensões PHP necessárias
 RUN docker-php-ext-install mysqli pdo pdo_mysql
 
-# Copia seu projeto
+# Habilita mod_rewrite (se necessário)
+RUN a2enmod rewrite
+
+# Copia o projeto para o diretório do Apache
 COPY . /var/www/html/
 
-RUN chown -R www-data:www-data /var/www/html
+# Ajusta permissões
+RUN chown -R www-data:www-data /var/www/html && \
+    chmod -R 755 /var/www/html
 
+# Expõe a porta 80
 EXPOSE 80
+
+# Comando para iniciar o Apache
+CMD ["apache2-foreground"]
