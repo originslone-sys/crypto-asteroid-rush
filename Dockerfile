@@ -1,19 +1,20 @@
-FROM php:7.4-apache-bullseye
+FROM php:7.4-apache
 
-# SOLUÇÃO: Força apenas um MPM via linha de comando
-RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf && \
-    a2dismod mpm_event mpm_worker --force && \
-    a2enmod mpm_prefork rewrite && \
-    echo "Mutex posixsem" >> /etc/apache2/apache2.conf
+# 1. Corrige MPM de uma vez por todas
+RUN a2dismod mpm_event mpm_worker --force
+RUN a2enmod mpm_prefork rewrite
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
-# PHP extensions
+# 2. Extensões PHP
 RUN docker-php-ext-install mysqli pdo pdo_mysql
 
-# Seu projeto
+# 3. Copia TUDO para o Apache
 COPY . /var/www/html/
+
+# 4. Permissões básicas
 RUN chown -R www-data:www-data /var/www/html
 
 EXPOSE 80
 
-# COMANDO CRÍTICO: Força o MPM na inicialização
-CMD ["sh", "-c", "a2dismod mpm_event mpm_worker --force; a2enmod mpm_prefork; apache2-foreground"]
+# 5. Comando SIMPLES que funciona
+CMD ["apache2-foreground"]
