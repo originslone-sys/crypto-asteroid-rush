@@ -1,17 +1,10 @@
 FROM php:7.4-apache
 
-# CORREÇÃO DO ERRO: Remove conflitos de MPM
-RUN rm -f /etc/apache2/mods-enabled/mpm_*.load && \
-    rm -f /etc/apache2/mods-enabled/mpm_*.conf && \
-    ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/
+# SOLUÇÃO DEFINITIVA
+RUN echo "" > /etc/apache2/mods-enabled/mpm_prefork.load && \
+    echo "LoadModule mpm_prefork_module /usr/lib/apache2/modules/mod_mpm_prefork.so" > /etc/apache2/mods-enabled/mpm_prefork.load
 
-# Extensões PHP
 RUN docker-php-ext-install mysqli pdo pdo_mysql
-
-# Copia projeto
 COPY . /var/www/html/
-
-# Permissões
 RUN chown -R www-data:www-data /var/www/html
-
 EXPOSE 80
