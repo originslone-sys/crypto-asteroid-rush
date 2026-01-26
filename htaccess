@@ -1,0 +1,5 @@
+Options -Indexes
+<Files ~ "\.(env|json|log|sql)$">
+    Order allow,deny
+    Deny from all
+</Files>
