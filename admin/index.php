@@ -9,17 +9,20 @@ session_start();
 date_default_timezone_set('America/Sao_Paulo');
 
 // ============================================
-// Configuração de autenticação (preservada)
+// Configuração de autenticação (mantida)
 // ============================================
 define('ADMIN_USER', 'admin');
 define('ADMIN_PASS', 'admin123'); // ⚠️ ALTERE ESTA SENHA EM PRODUÇÃO!
+
+// Caminho base dinâmico (Railway-safe)
+$basePath = dirname($_SERVER['PHP_SELF']);
 
 // ============================================
 // Logout
 // ============================================
 if (isset($_GET['logout'])) {
     session_destroy();
-    header('Location: index.php');
+    header('Location: ' . $basePath . '/index.php');
     exit;
 }
 
@@ -37,10 +40,8 @@ if (!isset($_SESSION['admin'])) {
             $_SESSION['admin'] = true;
             $_SESSION['admin_name'] = $username;
 
-            // ✅ Correção Railway:
-            // Antes: header('Location: index.php');
-            // Agora: caminho relativo correto para o painel
-            header('Location: pages/dashboard.php');
+            // ✅ Correção Railway: redirecionamento dinâmico
+            header('Location: ' . $basePath . '/pages/dashboard.php');
             exit;
         } else {
             $error = 'Credenciais inválidas!';
@@ -56,7 +57,9 @@ if (!isset($_SESSION['admin'])) {
         <title>Admin Login | Crypto Asteroid Rush</title>
         <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-        <link rel="stylesheet" href="css/admin.css">
+
+        <!-- ✅ Caminho CSS corrigido (Railway-safe) -->
+        <link rel="stylesheet" href="<?php echo $basePath; ?>/css/admin.css">
     </head>
     <body>
         <div class="login-wrapper">
@@ -83,7 +86,7 @@ if (!isset($_SESSION['admin'])) {
                     </div>
 
                     <button type="submit" class="btn btn-primary" style="width:100%;">
-                        <i class="fas fa-sign-in-alt"></i> Entrar
+                        <i class="fas fa-sign-in-alt"></i> Acessar Painel
                     </button>
                 </form>
 
@@ -99,7 +102,7 @@ if (!isset($_SESSION['admin'])) {
 }
 
 // ============================================
-// Sessão ativa → carregar painel principal
+// Sessão ativa → painel principal (preservado)
 // ============================================
 ?>
 <!DOCTYPE html>
@@ -110,7 +113,9 @@ if (!isset($_SESSION['admin'])) {
     <title>Admin | Crypto Asteroid Rush</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/admin.css">
+
+    <!-- ✅ Caminho CSS corrigido -->
+    <link rel="stylesheet" href="<?php echo $basePath; ?>/css/admin.css">
 </head>
 <body>
     <?php include_once "includes/header.php"; ?>
