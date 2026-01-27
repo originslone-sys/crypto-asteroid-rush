@@ -1197,4 +1197,75 @@ body {
    ============================================ */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg-dark); }
+
 ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 2px; }
+/* ============================================
+   CRYPTO ASTEROID RUSH - Balance Update CSS
+   Adicionar ao final do game.css
+   ============================================ */
+
+/* New Balance Display in End Game Modal */
+.balance-update {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 20px;
+    padding: 15px 25px;
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 200, 100, 0.05));
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    border-radius: 12px;
+    animation: balancePulse 2s ease-in-out infinite;
+}
+
+.balance-update .balance-icon {
+    font-size: 24px;
+    color: #00ff88;
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+.balance-update .balance-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.balance-update .balance-label {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Rajdhani', sans-serif;
+}
+
+.balance-update .balance-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #00ff88;
+    font-family: 'Orbitron', monospace;
+    text-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
+}
+
+@keyframes balancePulse {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+    }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .balance-update {
+        padding: 12px 20px;
+    }
+    
+    .balance-update .balance-icon {
+        font-size: 20px;
+    }
+    
+    .balance-update .balance-value {
+        font-size: 18px;
+    }
+}
