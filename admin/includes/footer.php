@@ -1,17 +1,15 @@
 <?php
-// ===============================================================
-// CRYPTO ASTEROID RUSH - ADMIN FOOTER
-// Compatível com Railway (PHP 8 + MySQL 8)
-// ===============================================================
+// ============================================
+// CRYPTO ASTEROID RUSH - Admin Footer
+// Arquivo: admin/includes/footer.php
+// ============================================
 ?>
-        </main> <!-- /admin-main -->
-    </div> <!-- /admin-container -->
-
-    <footer class="admin-footer">
-        <p>© <?php echo date('Y'); ?> Crypto Asteroid Rush — Todos os direitos reservados.</p>
-    </footer>
-
-    <!-- Script principal (Railway) -->
-    <script src="../js/admin.js"></script>
+    </div> <!-- .admin-wrapper -->
+    
+    <script src="<?php echo $ADMIN_BASE_URL; ?>/js/admin.js"></script>
+    
+    <?php if (isset($extraScripts)): ?>
+        <?php echo $extraScripts; ?>
+    <?php endif; ?>
 </body>
 </html>
