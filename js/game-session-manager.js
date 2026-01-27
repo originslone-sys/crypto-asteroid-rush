@@ -1,7 +1,8 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Session Manager v2.0
+   CRYPTO ASTEROID RUSH - Session Manager v2.1
    File: js/game-session-manager.js
    Complete session lifecycle management
+   FIX: endSession now sends stats and destroyed_asteroids
    ============================================ */
 
 const SessionManager = {
@@ -136,7 +137,8 @@ const SessionManager = {
     },
     
     // End the current session
-    async endSession(score, earnings) {
+    // FIX v2.1: Now accepts stats and destroyedAsteroids parameters
+    async endSession(score, earnings, stats = null, destroyedAsteroids = null) {
         if (!this.currentSession) {
             console.warn('⚠️ No active session to end');
             return null;
@@ -146,6 +148,7 @@ const SessionManager = {
             id: this.currentSession.id,
             score: score,
             earnings: earnings,
+            stats: stats,
             queuedEvents: this.eventQueue.length
         });
         
@@ -161,16 +164,29 @@ const SessionManager = {
         }
         
         try {
+            // Build request body with all required fields
+            const requestBody = {
+                session_id: this.currentSession.id,
+                session_token: this.currentSession.token,
+                wallet: this.currentSession.wallet,
+                score: score,
+                earnings: earnings
+            };
+            
+            // Add stats if provided
+            if (stats) {
+                requestBody.stats = stats;
+            }
+            
+            // Add destroyed asteroids list if provided
+            if (destroyedAsteroids && Array.isArray(destroyedAsteroids)) {
+                requestBody.destroyed_asteroids = destroyedAsteroids;
+            }
+            
             const response = await fetch('api/game-end.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    session_id: this.currentSession.id,
-                    session_token: this.currentSession.token,
-                    wallet: this.currentSession.wallet,
-                    score: score,
-                    earnings: earnings
-                })
+                body: JSON.stringify(requestBody)
             });
             
             const result = await response.json();
