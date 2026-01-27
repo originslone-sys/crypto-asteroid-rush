@@ -2,6 +2,7 @@
    CRYPTO ASTEROID RUSH - UI Functions
    File: js/game-ui.js
    Native alerts and improved UX
+   FIX v2.0: showEndGameResults accepts server values
    ============================================ */
 
 let loadingScreen, connectModal, gameMenuModal, endGameModal, gameOverModal;
@@ -348,17 +349,23 @@ function showGameOver(lostEarnings) {
 }
 
 // Show end game results
-function showEndGameResults(stats) {
+// FIX v2.0: Now accepts optional server-confirmed values
+function showEndGameResults(stats, serverEarnings = null, serverBalance = null) {
     const finalScore = document.getElementById('finalScore');
     const finalReward = document.getElementById('finalReward');
     const breakdownContainer = document.getElementById('asteroidsBreakdown');
     
+    // FIX: Use server earnings if available, fallback to gameState
+    const displayEarnings = (serverEarnings !== null && !isNaN(serverEarnings)) 
+        ? serverEarnings 
+        : gameState.earnings;
+    
     if (finalScore) finalScore.textContent = gameState.score;
-    if (finalReward) finalReward.textContent = `$${gameState.earnings.toFixed(4)}`;
+    if (finalReward) finalReward.textContent = `$${parseFloat(displayEarnings).toFixed(4)}`;
     
     // Generate breakdown
     if (breakdownContainer) {
-        breakdownContainer.innerHTML = `
+        let breakdownHTML = `
             <div class="breakdown-title">ASTEROIDS BREAKDOWN</div>
             <div class="breakdown-grid">
                 <div class="breakdown-item">
@@ -391,9 +398,32 @@ function showEndGameResults(stats) {
                 </div>
             </div>
         `;
+        
+        // FIX: Add new balance info if available from server
+        if (serverBalance !== null && !isNaN(serverBalance)) {
+            breakdownHTML += `
+                <div class="balance-update">
+                    <div class="balance-icon"><i class="fas fa-wallet"></i></div>
+                    <div class="balance-info">
+                        <span class="balance-label">New Balance</span>
+                        <span class="balance-value">$${parseFloat(serverBalance).toFixed(4)}</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        breakdownContainer.innerHTML = breakdownHTML;
     }
     
     showModal('endGameModal');
+    
+    // Log for debugging
+    console.log('📊 showEndGameResults called with:', {
+        stats,
+        serverEarnings,
+        serverBalance,
+        displayEarnings
+    });
 }
 
 // Update selected ship info
