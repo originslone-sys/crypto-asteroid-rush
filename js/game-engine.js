@@ -1,7 +1,8 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Game Engine v5.0
+   CRYPTO ASTEROID RUSH - Game Engine v5.1
    File: js/game-engine.js
    Envia stats detalhados + lista de asteroides
+   FIX: Atualiza UI com valores retornados do servidor
    ============================================ */
 
 let canvas, ctx;
@@ -313,6 +314,7 @@ function startGameTimer() {
 }
 
 // End game (time up - success)
+// FIX v5.1: Atualiza UI e gameState com valores do servidor
 async function endGame() {
     gameState.gameActive = false;
     if (gameState.gameTimer) clearInterval(gameState.gameTimer);
@@ -342,6 +344,11 @@ async function endGame() {
         reward: a.reward
     }));
     
+    // Variáveis para armazenar resposta do servidor
+    let serverEarnings = gameState.earnings;
+    let serverBalance = null;
+    let serverResponse = null;
+    
     if (gameState.sessionId && gameState.sessionToken) {
         try {
             const response = await fetch('api/game-end.php', {
@@ -362,11 +369,25 @@ async function endGame() {
             console.log('✅ Game-end response:', result);
             
             if (result.success) {
-                console.log(`💰 Final earnings: $${result.final_earnings}`);
-                console.log(`📦 New balance: $${result.new_balance}`);
+                // FIX: Usar valores do servidor
+                serverEarnings = parseFloat(result.final_earnings) || gameState.earnings;
+                serverBalance = parseFloat(result.new_balance) || null;
+                serverResponse = result;
+                
+                console.log(`💰 Final earnings: $${serverEarnings}`);
+                console.log(`📦 New balance: $${serverBalance}`);
+                
+                // Atualizar gameState com valores confirmados pelo servidor
+                gameState.earnings = serverEarnings;
+                gameState.serverConfirmedEarnings = serverEarnings;
+                gameState.newBalance = serverBalance;
                 
                 if (result.warning) {
                     console.warn(`⚠️ Warning: ${result.warning}`);
+                }
+                
+                if (result.referral_bonus_unlocked) {
+                    console.log('🎁 Referral bonus unlocked!');
                 }
             } else {
                 console.error('❌ Error:', result.error);
@@ -381,7 +402,8 @@ async function endGame() {
     }
     
     setTimeout(() => {
-        showEndGameResults(stats);
+        // FIX: Passar valores do servidor para a tela de resultados
+        showEndGameResults(stats, serverEarnings, serverBalance);
     }, 500);
     
     if (animationFrameId) cancelAnimationFrame(animationFrameId);
