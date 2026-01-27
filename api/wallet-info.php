@@ -1,16 +1,25 @@
 <?php
+// ============================================
+// CRYPTO ASTEROID RUSH - Wallet Info (Dashboard/Wallet/Staking)
+// Arquivo: api/wallet-info.php
+// Opção A: preservar funcionalidades, apenas corrigir para Railway + schema variável
+// ============================================
+
 require_once __DIR__ . "/config.php";
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
+    echo json_encode(['success' => true]);
+    exit;
 }
 
-// ---------- Input (JSON + POST + GET) ----------
+// ----------------------------
+// Input (JSON + POST + GET)
+// ----------------------------
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true);
 if (!is_array($input)) $input = [];
@@ -18,153 +27,212 @@ if (!is_array($input)) $input = [];
 $wallet = $input['wallet'] ?? ($_POST['wallet'] ?? ($_GET['wallet'] ?? ''));
 $wallet = trim(strtolower($wallet));
 
-if (!preg_match('/^0x[a-f0-9]{40}$/', $wallet)) {
+if (!preg_match('/^0x[a-f0-9]{40}$/i', $wallet)) {
     echo json_encode(['success' => false, 'error' => 'Carteira inválida']);
     exit;
 }
 
+function tableExists(PDO $pdo, string $table): bool {
+    // SHOW não aceita placeholder em prepares nativos
+    $q = $pdo->quote($table);
+    $stmt = $pdo->query("SHOW TABLES LIKE {$q}");
+    return (bool)$stmt->fetchColumn();
+}
+
+function getColumns(PDO $pdo, string $table): array {
+    $cols = [];
+    $stmt = $pdo->query("SHOW COLUMNS FROM `{$table}`");
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $cols[] = $row['Field'];
+    }
+    return $cols;
+}
+
+function pickFirstExisting(array $cols, array $candidates): ?string {
+    foreach ($candidates as $c) {
+        if (in_array($c, $cols, true)) return $c;
+    }
+    return null;
+}
+
 try {
     $pdo = getDatabaseConnection();
-    if (!$pdo) throw new Exception('Erro ao conectar ao banco');
+    if (!$pdo) throw new Exception("Erro ao conectar ao banco");
 
-    // ---------- Player ----------
-    $stmt = $pdo->prepare("
-        SELECT id, balance_usdt, total_played
-        FROM players
-        WHERE wallet_address = ?
-        LIMIT 1
-    ");
-    $stmt->execute([$wallet]);
-    $player = $stmt->fetch(PDO::FETCH_ASSOC);
+    $walletLower = $wallet;
 
-    if (!$player) {
-        // cria player (comportamento igual ao seu original)
-        $pdo->prepare("INSERT INTO players (wallet_address, balance_usdt, total_played) VALUES (?, 0.0, 0)")
-            ->execute([$wallet]);
-
-        echo json_encode([
-            'success' => true,
-            'player_exists' => false,
-            'balance_usdt' => 0.0,
-            'total_played' => 0,
-            'total_earned' => 0.0,
-            'total_withdrawn' => 0.0,
-            'pending_withdrawal' => 0.0,
-            'transactions' => []
-        ]);
-        exit;
-    }
-
-    $balanceUsdt = (float)$player['balance_usdt'];
-    $totalPlayed = (int)$player['total_played'];
-
-    // ---------- Total earned (mesma lógica do seu original: soma de entradas) ----------
-    $totalEarned = 0.0;
-
-    // 1) ganhos de missões (game_sessions.earnings_usdt)
-    $hasGameSessions = (bool)$pdo->query("SHOW TABLES LIKE 'game_sessions'")->fetch();
-    if ($hasGameSessions) {
-        $stmt = $pdo->prepare("
-            SELECT COALESCE(SUM(earnings_usdt), 0) AS total
-            FROM game_sessions
-            WHERE wallet_address = ?
-        ");
-        $stmt->execute([$wallet]);
-        $totalEarned += (float)$stmt->fetchColumn();
-    }
-
-    // 2) comissões (transactions) — coluna pode ser amount_usdt OU amount
-    $transactions = [];
-    $hasTransactions = (bool)$pdo->query("SHOW TABLES LIKE 'transactions'")->fetch();
-
-    $amountCol = null;
-    $createdCol = null;
-
-    if ($hasTransactions) {
-        $cols = $pdo->query("SHOW COLUMNS FROM transactions")->fetchAll(PDO::FETCH_COLUMN, 0);
-
-        if (in_array('amount_usdt', $cols, true)) $amountCol = 'amount_usdt';
-        elseif (in_array('amount', $cols, true))  $amountCol = 'amount';
-
-        if (in_array('created_at', $cols, true)) $createdCol = 'created_at';
-        elseif (in_array('date', $cols, true))   $createdCol = 'date';
-
-        // total de referral_commission
-        if ($amountCol) {
-            $stmt = $pdo->prepare("
-                SELECT COALESCE(SUM($amountCol), 0) AS total
-                FROM transactions
-                WHERE wallet_address = ?
-                  AND type = 'referral_commission'
-            ");
-            $stmt->execute([$wallet]);
-            $totalEarned += (float)$stmt->fetchColumn();
-        }
-
-        // lista de transações (se tiver colunas necessárias)
-        if ($amountCol && $createdCol) {
-            $stmt = $pdo->prepare("
-                SELECT type, $amountCol AS amount, $createdCol AS created_at
-                FROM transactions
-                WHERE wallet_address = ?
-                ORDER BY $createdCol DESC
-                LIMIT 50
-            ");
-            $stmt->execute([$wallet]);
-            $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        }
-    }
-
-    // ---------- Withdrawals (opcional: só se você tiver tabela/colunas) ----------
+    // Defaults
+    $balance = 0.0;
+    $totalPlayed = 0;
     $totalWithdrawn = 0.0;
     $pendingWithdrawal = 0.0;
+    $totalEarned = 0.0;
 
-    // Se existir tabela withdrawals, tenta calcular
-    $hasWithdrawals = (bool)$pdo->query("SHOW TABLES LIKE 'withdrawals'")->fetch();
-    if ($hasWithdrawals) {
-        $wcols = $pdo->query("SHOW COLUMNS FROM withdrawals")->fetchAll(PDO::FETCH_COLUMN, 0);
+    // ============================================
+    // 1) Players (saldo + total_played)
+    // ============================================
+    if (tableExists($pdo, 'players')) {
+        $stmt = $pdo->prepare("
+            SELECT balance_usdt, total_played
+            FROM players
+            WHERE LOWER(wallet_address) = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$walletLower]);
+        $player = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        $wAmountCol = in_array('amount_usdt', $wcols, true) ? 'amount_usdt' : (in_array('amount', $wcols, true) ? 'amount' : null);
-        $wStatusCol = in_array('status', $wcols, true) ? 'status' : null;
+        if ($player) {
+            $balance = (float)($player['balance_usdt'] ?? 0);
+            $totalPlayed = (int)($player['total_played'] ?? 0);
+        }
+    }
 
-        if ($wAmountCol) {
-            // total withdraw (status paid/approved)
-            if ($wStatusCol) {
-                $stmt = $pdo->prepare("
-                    SELECT COALESCE(SUM($wAmountCol), 0)
-                    FROM withdrawals
-                    WHERE wallet_address = ?
-                      AND $wStatusCol IN ('paid', 'approved', 'completed')
-                ");
-                $stmt->execute([$wallet]);
-                $totalWithdrawn = (float)$stmt->fetchColumn();
+    // ============================================
+    // 2) Withdrawals (pending + total withdrawn)
+    // ============================================
+    if (tableExists($pdo, 'withdrawals')) {
+        $wCols = getColumns($pdo, 'withdrawals');
+        $amountCol = pickFirstExisting($wCols, ['amount_usdt', 'amount']);
+        $statusCol = pickFirstExisting($wCols, ['status']);
+        $walletCol = pickFirstExisting($wCols, ['wallet_address', 'wallet']);
 
-                // pending
-                $stmt = $pdo->prepare("
-                    SELECT COALESCE(SUM($wAmountCol), 0)
-                    FROM withdrawals
-                    WHERE wallet_address = ?
-                      AND $wStatusCol IN ('pending', 'processing')
-                ");
-                $stmt->execute([$wallet]);
-                $pendingWithdrawal = (float)$stmt->fetchColumn();
+        if ($amountCol && $statusCol && $walletCol) {
+            // Pending statuses (compatível com variações)
+            $pendingStatuses = ['pending', 'requested', 'processing', 'awaiting', 'waiting'];
+
+            $inPending = implode(',', array_fill(0, count($pendingStatuses), '?'));
+            $params = array_merge([$walletLower], $pendingStatuses);
+
+            $stmt = $pdo->prepare("
+                SELECT COALESCE(SUM({$amountCol}), 0) as total
+                FROM withdrawals
+                WHERE LOWER({$walletCol}) = ?
+                  AND {$statusCol} IN ({$inPending})
+            ");
+            $stmt->execute($params);
+            $pendingWithdrawal = (float)$stmt->fetchColumn();
+
+            // Completed/approved
+            $doneStatuses = ['approved', 'completed', 'paid', 'success'];
+            $inDone = implode(',', array_fill(0, count($doneStatuses), '?'));
+            $params2 = array_merge([$walletLower], $doneStatuses);
+
+            $stmt = $pdo->prepare("
+                SELECT COALESCE(SUM({$amountCol}), 0) as total
+                FROM withdrawals
+                WHERE LOWER({$walletCol}) = ?
+                  AND {$statusCol} IN ({$inDone})
+            ");
+            $stmt->execute($params2);
+            $totalWithdrawn = (float)$stmt->fetchColumn();
+        }
+    }
+
+    // ============================================
+    // 3) Total Earned (créditos, ignorando saídas)
+    //    Regra: somar créditos de missões + créditos de transactions
+    // ============================================
+
+    // 3a) Missões: game_sessions.earnings_usdt (se existir)
+    if (tableExists($pdo, 'game_sessions')) {
+        $gsCols = getColumns($pdo, 'game_sessions');
+        if (in_array('earnings_usdt', $gsCols, true)) {
+            $statusCol = pickFirstExisting($gsCols, ['status']);
+            $walletCol = pickFirstExisting($gsCols, ['wallet_address', 'wallet']);
+
+            if ($walletCol) {
+                if ($statusCol) {
+                    $stmt = $pdo->prepare("
+                        SELECT COALESCE(SUM(earnings_usdt), 0)
+                        FROM game_sessions
+                        WHERE LOWER({$walletCol}) = ?
+                          AND {$statusCol} = 'completed'
+                    ");
+                    $stmt->execute([$walletLower]);
+                } else {
+                    // Sem status: soma tudo do wallet (fallback)
+                    $stmt = $pdo->prepare("
+                        SELECT COALESCE(SUM(earnings_usdt), 0)
+                        FROM game_sessions
+                        WHERE LOWER({$walletCol}) = ?
+                    ");
+                    $stmt->execute([$walletLower]);
+                }
+
+                $totalEarned += (float)$stmt->fetchColumn();
             }
         }
     }
 
+    // 3b) Transactions: somar créditos comuns (e fallback amount>0)
+    if (tableExists($pdo, 'transactions')) {
+        $txCols = getColumns($pdo, 'transactions');
+        $amountCol = pickFirstExisting($txCols, ['amount_usdt', 'amount']);
+        $walletCol = pickFirstExisting($txCols, ['wallet_address', 'wallet']);
+        $typeCol = pickFirstExisting($txCols, ['type']);
+        $statusCol = pickFirstExisting($txCols, ['status']);
+
+        if ($amountCol && $walletCol) {
+            // Tipos de crédito mais comuns nesse projeto
+            $creditTypes = ['game_reward', 'referral_commission', 'unstake', 'withdrawal_rejected'];
+
+            if ($typeCol) {
+                $inTypes = implode(',', array_fill(0, count($creditTypes), '?'));
+                $params = array_merge([$walletLower], $creditTypes);
+
+                // Se tiver status, preferir completed
+                if ($statusCol) {
+                    $stmt = $pdo->prepare("
+                        SELECT COALESCE(SUM({$amountCol}), 0)
+                        FROM transactions
+                        WHERE LOWER({$walletCol}) = ?
+                          AND {$typeCol} IN ({$inTypes})
+                          AND {$statusCol} IN ('completed','success','approved')
+                    ");
+                    $stmt->execute($params);
+                    $totalEarned += (float)$stmt->fetchColumn();
+                } else {
+                    $stmt = $pdo->prepare("
+                        SELECT COALESCE(SUM({$amountCol}), 0)
+                        FROM transactions
+                        WHERE LOWER({$walletCol}) = ?
+                          AND {$typeCol} IN ({$inTypes})
+                    ");
+                    $stmt->execute($params);
+                    $totalEarned += (float)$stmt->fetchColumn();
+                }
+            } else {
+                // Fallback: sem coluna type → soma tudo positivo
+                $stmt = $pdo->prepare("
+                    SELECT COALESCE(SUM(CASE WHEN {$amountCol} > 0 THEN {$amountCol} ELSE 0 END), 0)
+                    FROM transactions
+                    WHERE LOWER({$walletCol}) = ?
+                ");
+                $stmt->execute([$walletLower]);
+                $totalEarned += (float)$stmt->fetchColumn();
+            }
+        }
+    }
+
+    // ============================================
+    // Output (campos usados pelo main.js)
+    // main.js lê: balance, total_earned, total_played, total_withdrawn, pending_withdrawal
+    // ============================================
     echo json_encode([
         'success' => true,
-        'player_exists' => true,
-        'balance_usdt' => $balanceUsdt,
-        'total_played' => $totalPlayed,
-        'total_earned' => (float)$totalEarned,
-        'total_withdrawn' => (float)$totalWithdrawn,
-        'pending_withdrawal' => (float)$pendingWithdrawal,
-        'transactions' => $transactions
+        'wallet' => $walletLower,
+
+        'balance' => number_format($balance, 8, '.', ''),
+        'balance_usdt' => number_format($balance, 8, '.', ''), // compatibilidade
+
+        'total_earned' => number_format($totalEarned, 8, '.', ''),
+        'total_withdrawn' => number_format($totalWithdrawn, 8, '.', ''),
+        'pending_withdrawal' => number_format($pendingWithdrawal, 8, '.', ''),
+        'total_played' => (int)$totalPlayed
     ]);
 
 } catch (Exception $e) {
-    error_log("wallet-info error: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Erro interno']);
+    error_log("wallet-info.php error: " . $e->getMessage());
+    echo json_encode(['success' => false, 'error' => 'Database error']);
 }
+?>
