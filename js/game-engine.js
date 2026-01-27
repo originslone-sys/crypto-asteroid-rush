@@ -1,8 +1,8 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Game Engine v5.1
+   CRYPTO ASTEROID RUSH - Game Engine v5.2
    File: js/game-engine.js
-   Envia stats detalhados + lista de asteroides
-   FIX: Atualiza UI com valores retornados do servidor
+   FIX: Garante dados de sessão antes de enviar
+   FIX: Usa SessionManager como fonte de verdade
    ============================================ */
 
 let canvas, ctx;
@@ -227,6 +227,28 @@ function handleShipCollision(asteroid) {
     return false;
 }
 
+// ============================================
+// HELPER: Obter dados de sessão de forma segura
+// ============================================
+function getSessionData() {
+    // Tentar obter do SessionManager primeiro (fonte de verdade)
+    if (typeof SessionManager !== 'undefined' && SessionManager.currentSession) {
+        const session = SessionManager.currentSession;
+        return {
+            sessionId: session.id,
+            sessionToken: session.token,
+            wallet: session.wallet
+        };
+    }
+    
+    // Fallback para gameState
+    return {
+        sessionId: gameState.sessionId,
+        sessionToken: gameState.sessionToken,
+        wallet: gameState.wallet
+    };
+}
+
 // Game Over (lost all lives)
 async function gameOver() {
     gameState.gameActive = false;
@@ -249,24 +271,35 @@ async function gameOver() {
     
     console.log('💀 GAME OVER - Lost $' + lostEarnings.toFixed(4));
     
-    if (gameState.sessionId && gameState.sessionToken) {
+    // FIX: Obter dados de sessão de forma segura
+    const sessionData = getSessionData();
+    
+    console.log('📤 Session data for game-end:', sessionData);
+    
+    if (sessionData.sessionId && sessionData.sessionToken && sessionData.wallet) {
         try {
-            await fetch('api/game-end.php', {
+            const response = await fetch('api/game-end.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    session_id: gameState.sessionId,
-                    session_token: gameState.sessionToken,
-                    wallet: gameState.wallet,
+                    session_id: sessionData.sessionId,
+                    session_token: sessionData.sessionToken,
+                    wallet: sessionData.wallet,
                     score: gameState.score,
                     earnings: 0,
                     stats: stats,
                     destroyed_asteroids: []
                 })
             });
+            
+            const result = await response.json();
+            console.log('✅ Game-over response:', result);
+            
         } catch (e) {
-            console.error('❌ Error:', e);
+            console.error('❌ Error sending game-over:', e);
         }
+    } else {
+        console.error('❌ Missing session data!', sessionData);
     }
     
     setTimeout(() => {
@@ -314,7 +347,6 @@ function startGameTimer() {
 }
 
 // End game (time up - success)
-// FIX v5.1: Atualiza UI e gameState com valores do servidor
 async function endGame() {
     gameState.gameActive = false;
     if (gameState.gameTimer) clearInterval(gameState.gameTimer);
@@ -344,20 +376,33 @@ async function endGame() {
         reward: a.reward
     }));
     
+    // FIX: Obter dados de sessão de forma segura
+    const sessionData = getSessionData();
+    
+    console.log('📤 Session data for game-end:', sessionData);
+    console.log('📤 Payload:', {
+        session_id: sessionData.sessionId,
+        session_token: sessionData.sessionToken,
+        wallet: sessionData.wallet,
+        score: gameState.score,
+        earnings: gameState.earnings,
+        stats: stats,
+        destroyed_count: destroyedList.length
+    });
+    
     // Variáveis para armazenar resposta do servidor
     let serverEarnings = gameState.earnings;
     let serverBalance = null;
-    let serverResponse = null;
     
-    if (gameState.sessionId && gameState.sessionToken) {
+    if (sessionData.sessionId && sessionData.sessionToken && sessionData.wallet) {
         try {
             const response = await fetch('api/game-end.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    session_id: gameState.sessionId,
-                    session_token: gameState.sessionToken,
-                    wallet: gameState.wallet,
+                    session_id: sessionData.sessionId,
+                    session_token: sessionData.sessionToken,
+                    wallet: sessionData.wallet,
                     score: gameState.score,
                     earnings: gameState.earnings,
                     stats: stats,
@@ -369,10 +414,9 @@ async function endGame() {
             console.log('✅ Game-end response:', result);
             
             if (result.success) {
-                // FIX: Usar valores do servidor
+                // Usar valores do servidor
                 serverEarnings = parseFloat(result.final_earnings) || gameState.earnings;
                 serverBalance = parseFloat(result.new_balance) || null;
-                serverResponse = result;
                 
                 console.log(`💰 Final earnings: $${serverEarnings}`);
                 console.log(`📦 New balance: $${serverBalance}`);
@@ -390,7 +434,7 @@ async function endGame() {
                     console.log('🎁 Referral bonus unlocked!');
                 }
             } else {
-                console.error('❌ Error:', result.error);
+                console.error('❌ Server error:', result.error);
                 
                 if (result.banned) {
                     showNotification('⛔ CONTA SUSPENSA', result.error, false);
@@ -399,10 +443,17 @@ async function endGame() {
         } catch (e) {
             console.error('❌ Network error:', e);
         }
+    } else {
+        console.error('❌ Missing session data! Cannot save game.', sessionData);
+        showNotification('⚠️ ERROR', 'Session data missing - earnings may not be saved', true);
+    }
+    
+    // Limpar sessão do SessionManager
+    if (typeof SessionManager !== 'undefined') {
+        SessionManager.clearSession();
     }
     
     setTimeout(() => {
-        // FIX: Passar valores do servidor para a tela de resultados
         showEndGameResults(stats, serverEarnings, serverBalance);
     }, 500);
     
@@ -447,3 +498,4 @@ window.startSpawnTimer = startSpawnTimer;
 window.startGameTimer = startGameTimer;
 window.endGame = endGame;
 window.updateShipPosition = updateShipPosition;
+window.getSessionData = getSessionData;
