@@ -1,7 +1,8 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Ship Designs v3.0
+   CRYPTO ASTEROID RUSH - Ship Designs v3.1
    File: js/game-ships.js
    7 Unique Fighter Ships
+   FIX: Seleção de nave persiste corretamente
    ============================================ */
 
 const SHIP_DESIGNS = {
@@ -111,9 +112,14 @@ function getRandomShipDesign() {
 }
 
 // Select ship for current session
+// FIX: Agora salva no localStorage para persistir entre recarregamentos
 function selectShipForSession(designKey) {
     if (SHIP_DESIGNS[designKey]) {
         gameState.selectedShipDesign = SHIP_DESIGNS[designKey];
+        
+        // FIX: Salvar no localStorage
+        localStorage.setItem('selectedShipKey', designKey);
+        
         updateShipSelectionUI(designKey);
         updateSelectedShipInfo(gameState.selectedShipDesign);
         showNotification('SHIP SELECTED', gameState.selectedShipDesign.name, true);
@@ -122,12 +128,23 @@ function selectShipForSession(designKey) {
 }
 
 // Get ship for game
+// FIX: Verifica localStorage se gameState.selectedShipDesign estiver null
 function getShipForGame() {
+    // Primeiro, verificar se há uma nave selecionada no gameState
     if (gameState.selectedShipDesign) {
         console.log('🎮 Using selected ship:', gameState.selectedShipDesign.name);
         return gameState.selectedShipDesign;
     }
     
+    // FIX: Verificar localStorage como fallback
+    const savedShipKey = localStorage.getItem('selectedShipKey');
+    if (savedShipKey && SHIP_DESIGNS[savedShipKey]) {
+        console.log('🎮 Using saved ship from localStorage:', SHIP_DESIGNS[savedShipKey].name);
+        gameState.selectedShipDesign = SHIP_DESIGNS[savedShipKey];
+        return SHIP_DESIGNS[savedShipKey];
+    }
+    
+    // Se nada foi selecionado, usar aleatória
     const randomDesign = getRandomShipDesign();
     console.log('🎮 Using random ship:', randomDesign.name);
     return randomDesign;
@@ -143,6 +160,14 @@ function updateShipSelectionUI(selectedKey) {
             btn.classList.remove('selected');
         }
     });
+}
+
+// FIX: Limpar seleção de nave (chamar APENAS quando o jogador voltar ao menu)
+function clearShipSelection() {
+    gameState.selectedShipDesign = null;
+    localStorage.removeItem('selectedShipKey');
+    updateShipSelectionUI(null);
+    console.log('🧹 Ship selection cleared');
 }
 
 // Create ship selection UI
@@ -175,9 +200,18 @@ function addShipSelectionUI() {
         });
     });
     
-    // Clear previous selection
-    gameState.selectedShipDesign = null;
-    updateSelectedShipInfo(null);
+    // FIX: Restaurar seleção do localStorage se existir
+    const savedShipKey = localStorage.getItem('selectedShipKey');
+    if (savedShipKey && SHIP_DESIGNS[savedShipKey]) {
+        gameState.selectedShipDesign = SHIP_DESIGNS[savedShipKey];
+        updateShipSelectionUI(savedShipKey);
+        updateSelectedShipInfo(SHIP_DESIGNS[savedShipKey]);
+        console.log('🚀 Restored ship selection:', SHIP_DESIGNS[savedShipKey].name);
+    } else {
+        // Nenhuma nave salva, não selecionar nada
+        gameState.selectedShipDesign = null;
+        updateSelectedShipInfo(null);
+    }
 }
 
 // Helper function for ship preview
@@ -198,3 +232,4 @@ window.selectShipForSession = selectShipForSession;
 window.getShipForGame = getShipForGame;
 window.updateShipSelectionUI = updateShipSelectionUI;
 window.addShipSelectionUI = addShipSelectionUI;
+window.clearShipSelection = clearShipSelection;
