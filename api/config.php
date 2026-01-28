@@ -2,7 +2,8 @@
 // ============================================
 // CRYPTO ASTEROID RUSH - Configuração
 // Arquivo: api/config.php
-// v2.0 - Compatível Railway + cPanel
+// v3.0 - Compatível Railway + cPanel
+// COMMON asteroids = $0 (no reward)
 // ============================================
 
 // ============================================
@@ -40,16 +41,26 @@ define('GAME_TOLERANCE', 15); // Tolerância em segundos (para lag de rede)
 define('MAX_ASTEROIDS_PER_SECOND', 3); // Máximo de asteroides destruídos por segundo
 define('ENTRY_FEE_BNB', 0.00001); // Taxa de entrada
 
-// Recompensas (devem ser iguais ao frontend)
+// ============================================
+// RECOMPENSAS (devem ser iguais ao frontend)
+// v3.0: COMMON = 0 (asteroides comuns não valem nada)
+// ============================================
 define('REWARD_NONE', 0);
-define('REWARD_COMMON', 0.0001);
-define('REWARD_RARE', 0.01);
-define('REWARD_EPIC', 0.10);
+define('REWARD_COMMON', 0);        // $0.00 - Sem valor!
+define('REWARD_RARE', 0.0003);     // $0.0003
+define('REWARD_EPIC', 0.0008);     // $0.0008
+define('REWARD_LEGENDARY', 0.002); // $0.002
 
 // Limites por missão
 define('MAX_RARE_PER_MISSION', 2);
 define('MAX_EPIC_PER_MISSION', 1);
 define('EPIC_MIN_MISSIONS_INTERVAL', 15);
+
+// ============================================
+// LIMITES DE IP (Anti-abuse)
+// ============================================
+define('MAX_MISSIONS_PER_HOUR', 5);       // Máximo 5 missões por hora por IP
+define('MAX_CONCURRENT_MISSIONS', 1);      // Apenas 1 missão simultânea por IP
 
 // Função para conexão com o banco
 function getDatabaseConnection() {
@@ -88,5 +99,26 @@ function validateSessionToken($token, $wallet, $sessionId, $createdAt) {
 function secureLog($message, $file = 'game_security.log') {
     $logEntry = date('Y-m-d H:i:s') . ' | ' . $message . "\n";
     file_put_contents(__DIR__ . '/' . $file, $logEntry, FILE_APPEND);
+}
+
+// ============================================
+// FUNÇÃO: Obter IP real do cliente
+// ============================================
+function getClientIP() {
+    // Cloudflare
+    if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+        return $_SERVER['HTTP_CF_CONNECTING_IP'];
+    }
+    // Proxy
+    if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $ips = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+        return trim($ips[0]);
+    }
+    // Real IP header
+    if (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+        return $_SERVER['HTTP_X_REAL_IP'];
+    }
+    // Direct connection
+    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 }
 ?>
