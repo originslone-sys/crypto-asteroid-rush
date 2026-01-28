@@ -1,8 +1,9 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Session Manager v2.1
+   CRYPTO ASTEROID RUSH - Session Manager v2.2
    File: js/game-session-manager.js
    Complete session lifecycle management
-   FIX: endSession now sends stats and destroyed_asteroids
+   FIX: Mantém dados da sessão na queue para não perder eventos
+   FIX: Log detalhado para debug
    ============================================ */
 
 const SessionManager = {
@@ -19,6 +20,12 @@ const SessionManager = {
         while (this.eventQueue.length > 0) {
             const event = this.eventQueue.shift();
             
+            // FIX: Os dados já estão no evento, não precisa de currentSession
+            if (!event.data || !event.data.session_id || !event.data.wallet) {
+                console.warn('⚠️ Event missing required data, skipping:', event);
+                continue;
+            }
+            
             try {
                 const response = await fetch('api/game-event.php', {
                     method: 'POST',
@@ -29,7 +36,7 @@ const SessionManager = {
                 const result = await response.json();
                 
                 if (!result.success) {
-                    console.warn('⚠️ Event recording failed:', result.error);
+                    console.warn('⚠️ Event recording failed:', result.error, '| Data:', event.data);
                     
                     // If rate limited, put back in queue and wait
                     if (result.throttled) {
@@ -114,45 +121,50 @@ const SessionManager = {
     },
     
     // Register asteroid destruction event (queued)
-    recordEvent(asteroidId, rewardType) {
+    // FIX: Copia os dados da sessão para o evento (não depende de currentSession depois)
+    recordEvent(asteroidId, rewardType, rewardAmount = 0) {
         if (!this.currentSession) {
             console.warn('⚠️ No active session for event recording');
             return;
         }
         
-        // Add to queue instead of sending immediately
-        this.eventQueue.push({
-            data: {
-                session_id: this.currentSession.id,
-                session_token: this.currentSession.token,
-                wallet: this.currentSession.wallet,
-                asteroid_id: asteroidId,
-                reward_type: rewardType,
-                timestamp: Math.floor(Date.now() / 1000)
-            }
-        });
+        // FIX: Copiar todos os dados necessários para o evento
+        // Assim mesmo se a sessão for limpa, o evento ainda tem os dados
+        const eventData = {
+            session_id: this.currentSession.id,
+            session_token: this.currentSession.token,
+            wallet: this.currentSession.wallet,
+            asteroid_id: asteroidId,
+            reward_type: rewardType.toLowerCase(), // Garantir lowercase
+            reward_amount: rewardAmount,
+            timestamp: Math.floor(Date.now() / 1000)
+        };
+        
+        // Add to queue
+        this.eventQueue.push({ data: eventData });
         
         // Start processing queue if not already processing
         this.processEventQueue();
     },
     
     // End the current session
-    // FIX v2.1: Now accepts stats and destroyedAsteroids parameters
     async endSession(score, earnings, stats = null, destroyedAsteroids = null) {
         if (!this.currentSession) {
             console.warn('⚠️ No active session to end');
             return null;
         }
         
+        // FIX: Guardar referência da sessão antes de qualquer operação
+        const sessionToEnd = { ...this.currentSession };
+        
         console.log('🏁 Ending session...', {
-            id: this.currentSession.id,
+            id: sessionToEnd.id,
             score: score,
             earnings: earnings,
-            stats: stats,
             queuedEvents: this.eventQueue.length
         });
         
-        // Wait for all queued events to finish
+        // Wait for all queued events to finish (mas não limpa a sessão ainda)
         if (this.eventQueue.length > 0) {
             console.log(`⏳ Waiting for ${this.eventQueue.length} queued events...`);
             let waitCount = 0;
@@ -164,11 +176,11 @@ const SessionManager = {
         }
         
         try {
-            // Build request body with all required fields
+            // Build request body
             const requestBody = {
-                session_id: this.currentSession.id,
-                session_token: this.currentSession.token,
-                wallet: this.currentSession.wallet,
+                session_id: sessionToEnd.id,
+                session_token: sessionToEnd.token,
+                wallet: sessionToEnd.wallet,
                 score: score,
                 earnings: earnings
             };
@@ -198,8 +210,7 @@ const SessionManager = {
                     newBalance: result.new_balance
                 });
                 
-                // Clear session
-                const sessionData = this.currentSession;
+                // Agora sim, limpar sessão
                 this.currentSession = null;
                 this.eventQueue = [];
                 
