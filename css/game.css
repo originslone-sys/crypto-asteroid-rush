@@ -1269,3 +1269,144 @@ body {
         font-size: 18px;
     }
 }
+/* ============================================
+   CRYPTO ASTEROID RUSH - Correções CSS v1.0
+   Adicionar ao final de game.css
+   ============================================ */
+
+/* ============================================
+   FIX: LIVES DISPLAY - Vidas apagam corretamente
+   ============================================ */
+
+/* Vida ativa (cheia) */
+.life.active {
+    background: var(--danger);
+    transform: scale(1);
+    opacity: 1;
+}
+
+/* Vida perdida (apagada) */
+.life.lost {
+    background: rgba(255, 51, 102, 0.15) !important;
+    transform: scale(0.8);
+    opacity: 0.4;
+    border: 1px solid rgba(255, 51, 102, 0.3);
+}
+
+/* Animação quando está perdendo a vida */
+.life.losing {
+    animation: lifeLosing 0.3s ease-out;
+}
+
+@keyframes lifeLosing {
+    0% {
+        background: var(--danger);
+        transform: scale(1);
+        box-shadow: 0 0 10px var(--danger);
+    }
+    50% {
+        background: #ff6688;
+        transform: scale(1.3);
+        box-shadow: 0 0 20px var(--danger);
+    }
+    100% {
+        background: rgba(255, 51, 102, 0.15);
+        transform: scale(0.8);
+        box-shadow: none;
+    }
+}
+
+/* ============================================
+   NEW BALANCE DISPLAY - Mostra saldo atualizado
+   ============================================ */
+.balance-update {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 200, 100, 0.05));
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    border-radius: 12px;
+    animation: balanceAppear 0.5s ease-out;
+}
+
+.balance-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--success), #00aa66);
+    border-radius: 50%;
+    color: white;
+    font-size: 1rem;
+}
+
+.balance-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.balance-label {
+    font-family: var(--font-primary);
+    font-size: 0.6rem;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.balance-value {
+    font-family: var(--font-primary);
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--success);
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+}
+
+@keyframes balanceAppear {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Pulso suave no balance */
+@keyframes balancePulse {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+    }
+}
+
+.balance-update:hover {
+    animation: balancePulse 2s ease-in-out infinite;
+}
+
+/* ============================================
+   RESPONSIVO
+   ============================================ */
+@media (max-width: 380px) {
+    .balance-update {
+        padding: 10px 15px;
+        gap: 8px;
+    }
+    
+    .balance-icon {
+        width: 30px;
+        height: 30px;
+        font-size: 0.85rem;
+    }
+    
+    .balance-value {
+        font-size: 1rem;
+    }
+}
