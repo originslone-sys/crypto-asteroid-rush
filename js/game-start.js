@@ -1,7 +1,8 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Game Start v3.0
+   CRYPTO ASTEROID RUSH - Game Start v3.1
    File: js/game-start.js
    Pre-game loading screen with ads support
+   FIX: Não limpa seleção de nave no início do jogo
    ============================================ */
 
 // Start game with loading screen (skip if auto-start)
@@ -70,9 +71,13 @@ async function actualStartGame() {
     gameState.lastFireTime = 0;
     gameState.keys = { left: false, right: false, fire: false };
     
-    // Setup ship
+    // ============================================
+    // FIX: Obter nave ANTES de limpar seleção
+    // ============================================
     const shipDesign = getShipForGame();
     gameState.currentSessionShip = shipDesign;
+    
+    console.log('🚀 Using ship for this mission:', shipDesign.name);
     
     gameState.ship = {
         x: canvas.width / 2,
@@ -112,9 +117,12 @@ async function actualStartGame() {
         }, 500);
     }
     
-    // Reset ship selection
-    gameState.selectedShipDesign = null;
-    updateShipSelectionUI(null);
+    // ============================================
+    // FIX: NÃO limpar seleção aqui!
+    // A seleção só deve ser limpa se o jogador quiser trocar de nave
+    // ============================================
+    // REMOVIDO: gameState.selectedShipDesign = null;
+    // REMOVIDO: updateShipSelectionUI(null);
     
     // Show mission info
     showMissionStartInfo();
