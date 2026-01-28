@@ -2,7 +2,7 @@
 // ============================================
 // CRYPTO ASTEROID RUSH - Finalizar Sessão de Jogo
 // Arquivo: api/game-end.php
-// v6.1 - FIX: Cria jogador se não existir
+// v7.0 - Libera lock de IP + COMMON = $0
 // ============================================
 
 if (file_exists(__DIR__ . "/config.php")) {
@@ -32,8 +32,11 @@ define('EARNINGS_SUSPECT_THRESHOLD', 0.10);  // Suspeito se > $0.10
 define('EARNINGS_BLOCK_THRESHOLD', 0.20);    // Bloqueia se > $0.20
 define('AUTO_BAN_AFTER_ALERTS', 5);          // Ban automático após 5 alertas
 
-// Recompensas (fonte da verdade)
-if (!defined('REWARD_COMMON')) define('REWARD_COMMON', 0.0001);
+// ============================================
+// RECOMPENSAS (fonte da verdade)
+// v7.0: COMMON = 0 (asteroides comuns não valem nada)
+// ============================================
+if (!defined('REWARD_COMMON')) define('REWARD_COMMON', 0);
 if (!defined('REWARD_RARE')) define('REWARD_RARE', 0.0003);
 if (!defined('REWARD_EPIC')) define('REWARD_EPIC', 0.0008);
 if (!defined('REWARD_LEGENDARY')) define('REWARD_LEGENDARY', 0.002);
@@ -48,6 +51,22 @@ if (!function_exists('secureLog')) {
 if (!function_exists('validateWallet')) {
     function validateWallet($wallet) {
         return preg_match('/^0x[a-fA-F0-9]{40}$/', $wallet);
+    }
+}
+
+if (!function_exists('getClientIP')) {
+    function getClientIP() {
+        if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+            return $_SERVER['HTTP_CF_CONNECTING_IP'];
+        }
+        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $ips = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+            return trim($ips[0]);
+        }
+        if (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+            return $_SERVER['HTTP_X_REAL_IP'];
+        }
+        return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
     }
 }
 
@@ -84,7 +103,7 @@ function registerSuspiciousActivity($pdo, $wallet, $sessionId, $type, $data, $ip
         $sessionId,
         $type,
         json_encode($data),
-        $ipAddress ?: ($_SERVER['REMOTE_ADDR'] ?? '')
+        $ipAddress ?: getClientIP()
     ]);
     
     return $pdo->lastInsertId();
@@ -139,6 +158,24 @@ function checkAndApplyPenalties($pdo, $wallet) {
 }
 
 // ============================================
+// FUNÇÃO: Liberar lock de IP
+// ============================================
+function releaseIPLock($pdo, $sessionId) {
+    try {
+        $pdo->prepare("
+            UPDATE ip_sessions 
+            SET status = 'completed', ended_at = NOW()
+            WHERE session_id = ? AND status = 'active'
+        ")->execute([$sessionId]);
+        
+        return true;
+    } catch (Exception $e) {
+        secureLog("IP_LOCK_RELEASE_ERROR | Session: {$sessionId} | Error: " . $e->getMessage());
+        return false;
+    }
+}
+
+// ============================================
 // INÍCIO DO PROCESSAMENTO
 // ============================================
 
@@ -172,7 +209,6 @@ try {
     
     // ============================================
     // VERIFICAR/CRIAR JOGADOR
-    // FIX v6.1: Garante que jogador existe
     // ============================================
     $stmt = $pdo->prepare("SELECT id, balance_usdt, is_banned, ban_reason, total_played FROM players WHERE wallet_address = ?");
     $stmt->execute([$wallet]);
@@ -199,6 +235,9 @@ try {
     
     // Verificar ban
     if ($playerData['is_banned']) {
+        // Liberar lock de IP mesmo se banido
+        releaseIPLock($pdo, $sessionId);
+        
         echo json_encode([
             'success' => false, 
             'error' => 'Conta suspensa: ' . ($playerData['ban_reason'] ?? 'Violação dos termos'),
@@ -216,11 +255,16 @@ try {
     $session = $stmt->fetch();
     
     if (!$session) {
+        // Liberar lock de IP mesmo se sessão não encontrada
+        releaseIPLock($pdo, $sessionId);
+        
         echo json_encode(['success' => false, 'error' => 'Sessao nao encontrada ou ja finalizada']);
         exit;
     }
     
     if ($session['session_token'] !== $sessionToken) {
+        releaseIPLock($pdo, $sessionId);
+        
         echo json_encode(['success' => false, 'error' => 'Token invalido']);
         exit;
     }
@@ -237,6 +281,7 @@ try {
     $finalStats = $clientStats;
     
     // Se enviou lista de asteroides, recalcular para comparação
+    // NOTA: COMMON agora vale $0
     $calculatedEarnings = 0;
     if (!empty($destroyedAsteroids)) {
         foreach ($destroyedAsteroids as $asteroid) {
@@ -246,11 +291,12 @@ try {
                 case 'LEGENDARY': $calculatedEarnings += REWARD_LEGENDARY; break;
                 case 'EPIC': $calculatedEarnings += REWARD_EPIC; break;
                 case 'RARE': $calculatedEarnings += REWARD_RARE; break;
-                case 'COMMON': $calculatedEarnings += REWARD_COMMON; break;
+                case 'COMMON': $calculatedEarnings += REWARD_COMMON; break; // = 0
             }
         }
     } else {
         // Calcular baseado nos stats
+        // NOTA: COMMON * 0 = 0
         $calculatedEarnings = 
             ($clientStats['common'] * REWARD_COMMON) +
             ($clientStats['rare'] * REWARD_RARE) +
@@ -314,6 +360,8 @@ try {
     $penaltyResult = checkAndApplyPenalties($pdo, $wallet);
     
     if ($penaltyResult['banned']) {
+        releaseIPLock($pdo, $sessionId);
+        
         echo json_encode([
             'success' => false,
             'error' => 'Conta suspensa por atividade suspeita',
@@ -329,7 +377,6 @@ try {
     
     // ============================================
     // ATUALIZAR SALDO
-    // FIX v6.1: Agora $playerData sempre existe
     // ============================================
     $currentBalance = (float)($playerData['balance_usdt'] ?? 0);
     $newBalance = $currentBalance + $finalEarnings;
@@ -344,11 +391,12 @@ try {
     secureLog("BALANCE_UPDATE | Wallet: {$wallet} | Old: \${$currentBalance} | Earnings: \${$finalEarnings} | New: \${$newBalance}");
     
     // ============================================
-    // COLUNAS EXTRAS
+    // COLUNAS EXTRAS (garantir que existem)
     // ============================================
     try { $pdo->exec("ALTER TABLE game_sessions ADD COLUMN legendary_asteroids INT DEFAULT 0 AFTER epic_asteroids"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE game_sessions ADD COLUMN common_asteroids INT DEFAULT 0 AFTER legendary_asteroids"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE game_sessions ADD COLUMN alert_level VARCHAR(20) DEFAULT NULL"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE game_sessions ADD COLUMN ip_address VARCHAR(45) DEFAULT NULL"); } catch (Exception $e) {}
     
     // ============================================
     // FINALIZAR SESSÃO
@@ -385,6 +433,11 @@ try {
         $sessionId
     ]);
     
+    // ============================================
+    // LIBERAR LOCK DE IP
+    // ============================================
+    releaseIPLock($pdo, $sessionId);
+    
     // Referral
     $referralCompleted = false;
     if (function_exists('updateReferralProgress') && $finalEarnings > 0) {
@@ -394,7 +447,6 @@ try {
     
     // ============================================
     // REGISTRAR TRANSAÇÃO
-    // FIX v6.1: Adiciona registro de transação
     // ============================================
     if ($finalEarnings > 0) {
         try {
@@ -442,6 +494,11 @@ try {
     echo json_encode($response);
     
 } catch (Exception $e) {
+    // Tentar liberar lock mesmo em caso de erro
+    if (isset($pdo) && $sessionId) {
+        releaseIPLock($pdo, $sessionId);
+    }
+    
     secureLog("END_ERROR | Session: {$sessionId} | Error: " . $e->getMessage());
     echo json_encode(['success' => false, 'error' => 'Erro ao finalizar sessao: ' . $e->getMessage()]);
 }
