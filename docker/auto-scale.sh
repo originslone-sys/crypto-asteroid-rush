@@ -1,66 +1,126 @@
 #!/bin/bash
 # ===========================================
 # Auto-Scale Script - Crypto Asteroid Rush
-# Detecta RAM disponível e ajusta PHP-FPM
+# v2.0 - Detecta RAM do CONTAINER (não do host)
 # ===========================================
 
 set -e
 
 echo "=========================================="
-echo "🚀 Crypto Asteroid Rush - Auto Scale"
+echo "🚀 Crypto Asteroid Rush - Auto Scale v2.0"
 echo "=========================================="
 
-# Detecta memória total em MB
-TOTAL_RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
-TOTAL_RAM_MB=$((TOTAL_RAM_KB / 1024))
+# ===========================================
+# DETECTA MEMÓRIA DO CONTAINER
+# Prioridade: cgroup v2 → cgroup v1 → /proc/meminfo
+# ===========================================
 
-echo "📊 RAM Detectada: ${TOTAL_RAM_MB}MB"
+get_container_memory_mb() {
+    local mem_bytes=0
+    
+    # Tenta cgroup v2 (Railway, Docker moderno)
+    if [ -f "/sys/fs/cgroup/memory.max" ]; then
+        mem_bytes=$(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo "0")
+        # "max" significa sem limite, usa /proc/meminfo
+        if [ "$mem_bytes" = "max" ]; then
+            mem_bytes=0
+        fi
+    fi
+    
+    # Tenta cgroup v1 (Docker antigo)
+    if [ "$mem_bytes" = "0" ] || [ -z "$mem_bytes" ]; then
+        if [ -f "/sys/fs/cgroup/memory/memory.limit_in_bytes" ]; then
+            mem_bytes=$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null || echo "0")
+            # Valor muito alto significa sem limite
+            if [ "$mem_bytes" -gt 100000000000000 ] 2>/dev/null; then
+                mem_bytes=0
+            fi
+        fi
+    fi
+    
+    # Fallback: variável de ambiente do Railway
+    if [ "$mem_bytes" = "0" ] || [ -z "$mem_bytes" ]; then
+        if [ -n "$RAILWAY_MEMORY_MB" ]; then
+            echo "$RAILWAY_MEMORY_MB"
+            return
+        fi
+    fi
+    
+    # Fallback: assume 512MB (Railway free tier)
+    if [ "$mem_bytes" = "0" ] || [ -z "$mem_bytes" ]; then
+        echo "512"
+        return
+    fi
+    
+    # Converte bytes para MB
+    echo $((mem_bytes / 1024 / 1024))
+}
+
+TOTAL_RAM_MB=$(get_container_memory_mb)
+
+# Validação: se ainda for um valor absurdo, assume 512MB
+if [ "$TOTAL_RAM_MB" -gt 32768 ] 2>/dev/null; then
+    echo "⚠️  RAM detectada muito alta ($TOTAL_RAM_MB MB), assumindo 512MB (free tier)"
+    TOTAL_RAM_MB=512
+fi
+
+echo "📊 RAM do Container: ${TOTAL_RAM_MB}MB"
 
 # ===========================================
 # TABELA DE ESCALA
 # Cada worker PHP-FPM usa ~30-40MB
-# Reservamos 30% para Nginx, MySQL, Sistema
+# Reservamos 30% para Nginx, Sistema, Buffer
 # ===========================================
 
-if [ $TOTAL_RAM_MB -le 512 ]; then
+if [ "$TOTAL_RAM_MB" -le 512 ]; then
     # Railway Free: 512MB
     PM_MAX_CHILDREN=15
     PM_START_SERVERS=2
     PM_MIN_SPARE=1
     PM_MAX_SPARE=5
     EXPECTED_USERS="200-500"
+    OPCACHE_MEMORY=128
+    NGINX_WORKERS="auto"
     
-elif [ $TOTAL_RAM_MB -le 1024 ]; then
+elif [ "$TOTAL_RAM_MB" -le 1024 ]; then
     # 1GB RAM
     PM_MAX_CHILDREN=30
     PM_START_SERVERS=5
     PM_MIN_SPARE=3
     PM_MAX_SPARE=10
     EXPECTED_USERS="500-1000"
+    OPCACHE_MEMORY=128
+    NGINX_WORKERS="auto"
     
-elif [ $TOTAL_RAM_MB -le 2048 ]; then
+elif [ "$TOTAL_RAM_MB" -le 2048 ]; then
     # 2GB RAM
     PM_MAX_CHILDREN=50
     PM_START_SERVERS=10
     PM_MIN_SPARE=5
     PM_MAX_SPARE=20
     EXPECTED_USERS="1000-1500"
+    OPCACHE_MEMORY=256
+    NGINX_WORKERS=2
     
-elif [ $TOTAL_RAM_MB -le 4096 ]; then
+elif [ "$TOTAL_RAM_MB" -le 4096 ]; then
     # 4GB RAM
     PM_MAX_CHILDREN=100
     PM_START_SERVERS=20
     PM_MIN_SPARE=10
     PM_MAX_SPARE=40
     EXPECTED_USERS="1500-2500"
+    OPCACHE_MEMORY=256
+    NGINX_WORKERS=4
     
-elif [ $TOTAL_RAM_MB -le 8192 ]; then
+elif [ "$TOTAL_RAM_MB" -le 8192 ]; then
     # 8GB RAM
     PM_MAX_CHILDREN=200
     PM_START_SERVERS=40
     PM_MIN_SPARE=20
     PM_MAX_SPARE=80
     EXPECTED_USERS="2500-5000"
+    OPCACHE_MEMORY=512
+    NGINX_WORKERS=4
     
 else
     # 8GB+ RAM
@@ -69,6 +129,8 @@ else
     PM_MIN_SPARE=30
     PM_MAX_SPARE=120
     EXPECTED_USERS="5000+"
+    OPCACHE_MEMORY=512
+    NGINX_WORKERS=8
 fi
 
 echo "⚙️  Configuração PHP-FPM:"
@@ -87,7 +149,7 @@ cat > /usr/local/etc/php-fpm.d/zz-dynamic.conf << EOF
 [www]
 ; ===========================================
 ; Configuração gerada automaticamente
-; RAM: ${TOTAL_RAM_MB}MB
+; RAM Container: ${TOTAL_RAM_MB}MB
 ; Capacidade: ${EXPECTED_USERS} jogadores
 ; ===========================================
 
@@ -114,13 +176,6 @@ echo "✅ Configuração PHP-FPM gerada!"
 # AJUSTA OPCACHE BASEADO NA RAM
 # ===========================================
 
-if [ $TOTAL_RAM_MB -ge 2048 ]; then
-    # Mais RAM = mais cache
-    OPCACHE_MEMORY=256
-else
-    OPCACHE_MEMORY=128
-fi
-
 cat > /usr/local/etc/php/conf.d/zz-opcache-dynamic.ini << EOF
 ; OPcache dinâmico - RAM: ${TOTAL_RAM_MB}MB
 opcache.memory_consumption=${OPCACHE_MEMORY}
@@ -129,18 +184,9 @@ EOF
 echo "✅ OPcache ajustado para ${OPCACHE_MEMORY}MB"
 
 # ===========================================
-# AJUSTA NGINX WORKERS BASEADO NA RAM
+# AJUSTA NGINX WORKERS
 # ===========================================
 
-if [ $TOTAL_RAM_MB -ge 4096 ]; then
-    NGINX_WORKERS=4
-elif [ $TOTAL_RAM_MB -ge 2048 ]; then
-    NGINX_WORKERS=2
-else
-    NGINX_WORKERS="auto"
-fi
-
-# Atualiza nginx.conf com workers corretos
 sed -i "s/worker_processes auto;/worker_processes ${NGINX_WORKERS};/" /etc/nginx/nginx.conf
 
 echo "✅ Nginx workers: ${NGINX_WORKERS}"
