@@ -1,8 +1,9 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - UI Functions
+   CRYPTO ASTEROID RUSH - UI Functions v2.1
    File: js/game-ui.js
    Native alerts and improved UX
-   FIX v2.0: showEndGameResults accepts server values
+   FIX: Vidas apagam corretamente ao perder
+   FIX: Mostra new balance do servidor
    ============================================ */
 
 let loadingScreen, connectModal, gameMenuModal, endGameModal, gameOverModal;
@@ -196,7 +197,9 @@ function updateUI() {
     updateLivesDisplay();
 }
 
-// Update lives display
+// ============================================
+// FIX: Update lives display - agora apaga corretamente
+// ============================================
 function updateLivesDisplay() {
     const livesContainer = document.getElementById('lives');
     if (!livesContainer) return;
@@ -204,26 +207,46 @@ function updateLivesDisplay() {
     const lifeElements = livesContainer.querySelectorAll('.life');
     lifeElements.forEach((life, index) => {
         if (index < gameState.lives) {
+            // Vida ativa
             life.classList.add('active');
             life.classList.remove('lost');
         } else {
+            // FIX: Vida perdida - adiciona classe 'lost' para estilização
             life.classList.remove('active');
+            life.classList.add('lost');
         }
     });
 }
 
-// Animate life lost
+// ============================================
+// FIX: Animate life lost - animação + apaga permanentemente
+// ============================================
 function animateLifeLost() {
     const livesContainer = document.getElementById('lives');
     if (!livesContainer) return;
     
-    const lifeElements = livesContainer.querySelectorAll('.life.active');
-    if (lifeElements.length > 0) {
-        const lastLife = lifeElements[lifeElements.length - 1];
-        lastLife.classList.add('lost');
+    // Encontrar a última vida ativa (a que será perdida)
+    const lifeElements = livesContainer.querySelectorAll('.life');
+    let lostLifeIndex = -1;
+    
+    // Encontrar o índice da vida que acabou de perder
+    lifeElements.forEach((life, index) => {
+        if (index === gameState.lives) {
+            lostLifeIndex = index;
+        }
+    });
+    
+    if (lostLifeIndex >= 0 && lostLifeIndex < lifeElements.length) {
+        const lostLife = lifeElements[lostLifeIndex];
+        
+        // Adicionar animação de piscar
+        lostLife.classList.add('losing');
+        
+        // Após animação, marcar como perdida permanentemente
         setTimeout(() => {
-            lastLife.classList.remove('active', 'lost');
-        }, 500);
+            lostLife.classList.remove('active', 'losing');
+            lostLife.classList.add('lost');
+        }, 300);
     }
 }
 
@@ -249,7 +272,7 @@ function showNotification(title, message, isSpecial = false) {
         } else if (title.includes('RARE')) {
             notifIcon.className = 'fas fa-diamond';
             notification.style.borderColor = '#1E90FF';
-        } else if (title.includes('DAMAGE') || title.includes('HIT')) {
+        } else if (title.includes('DAMAGE') || title.includes('HIT') || title.includes('COLLISION')) {
             notifIcon.className = 'fas fa-exclamation-triangle';
             notification.style.borderColor = 'var(--danger)';
         } else {
@@ -348,14 +371,22 @@ function showGameOver(lostEarnings) {
     showModal('gameOverModal');
 }
 
-// Show end game results
-// FIX v2.0: Now accepts optional server-confirmed values
+// ============================================
+// FIX: Show end game results - aceita valores do servidor
+// ============================================
 function showEndGameResults(stats, serverEarnings = null, serverBalance = null) {
+    console.log('📊 showEndGameResults called with:', { 
+        displayEarnings: serverEarnings || gameState.earnings,
+        serverBalance: serverBalance,
+        serverEarnings: serverEarnings,
+        stats: stats 
+    });
+    
     const finalScore = document.getElementById('finalScore');
     const finalReward = document.getElementById('finalReward');
     const breakdownContainer = document.getElementById('asteroidsBreakdown');
     
-    // FIX: Use server earnings if available, fallback to gameState
+    // FIX: Usar earnings do servidor se disponível
     const displayEarnings = (serverEarnings !== null && !isNaN(serverEarnings)) 
         ? serverEarnings 
         : gameState.earnings;
@@ -363,67 +394,59 @@ function showEndGameResults(stats, serverEarnings = null, serverBalance = null) 
     if (finalScore) finalScore.textContent = gameState.score;
     if (finalReward) finalReward.textContent = `$${parseFloat(displayEarnings).toFixed(4)}`;
     
-    // Generate breakdown
-    if (breakdownContainer) {
-        let breakdownHTML = `
-            <div class="breakdown-title">ASTEROIDS BREAKDOWN</div>
-            <div class="breakdown-grid">
-                <div class="breakdown-item">
-                    <span class="breakdown-type common">
-                        <span class="dot"></span>
-                        Common
-                    </span>
-                    <span class="breakdown-count">${stats.common}</span>
-                </div>
-                <div class="breakdown-item">
-                    <span class="breakdown-type rare">
-                        <span class="dot"></span>
-                        Rare
-                    </span>
-                    <span class="breakdown-count">${stats.rare} (+$${(stats.rare * CONFIG.REWARDS.RARE).toFixed(4)})</span>
-                </div>
-                <div class="breakdown-item">
-                    <span class="breakdown-type epic">
-                        <span class="dot"></span>
-                        Epic
-                    </span>
-                    <span class="breakdown-count">${stats.epic} (+$${(stats.epic * CONFIG.REWARDS.EPIC).toFixed(4)})</span>
-                </div>
-                <div class="breakdown-item">
-                    <span class="breakdown-type legendary">
-                        <span class="dot"></span>
-                        Legendary
-                    </span>
-                    <span class="breakdown-count">${stats.legendary} (+$${(stats.legendary * CONFIG.REWARDS.LEGENDARY).toFixed(4)})</span>
+    // Generate breakdown HTML
+    let breakdownHTML = `
+        <div class="breakdown-title">ASTEROIDS BREAKDOWN</div>
+        <div class="breakdown-grid">
+            <div class="breakdown-item">
+                <span class="breakdown-type common">
+                    <span class="dot"></span>
+                    Common
+                </span>
+                <span class="breakdown-count">${stats.common}</span>
+            </div>
+            <div class="breakdown-item">
+                <span class="breakdown-type rare">
+                    <span class="dot"></span>
+                    Rare
+                </span>
+                <span class="breakdown-count">${stats.rare} (+$${(stats.rare * CONFIG.REWARDS.RARE).toFixed(4)})</span>
+            </div>
+            <div class="breakdown-item">
+                <span class="breakdown-type epic">
+                    <span class="dot"></span>
+                    Epic
+                </span>
+                <span class="breakdown-count">${stats.epic} (+$${(stats.epic * CONFIG.REWARDS.EPIC).toFixed(4)})</span>
+            </div>
+            <div class="breakdown-item">
+                <span class="breakdown-type legendary">
+                    <span class="dot"></span>
+                    Legendary
+                </span>
+                <span class="breakdown-count">${stats.legendary} (+$${(stats.legendary * CONFIG.REWARDS.LEGENDARY).toFixed(4)})</span>
+            </div>
+        </div>
+    `;
+    
+    // FIX: Adicionar NEW BALANCE se disponível
+    if (serverBalance !== null && !isNaN(serverBalance)) {
+        breakdownHTML += `
+            <div class="balance-update">
+                <div class="balance-icon"><i class="fas fa-wallet"></i></div>
+                <div class="balance-info">
+                    <span class="balance-label">NEW BALANCE</span>
+                    <span class="balance-value">$${parseFloat(serverBalance).toFixed(4)}</span>
                 </div>
             </div>
         `;
-        
-        // FIX: Add new balance info if available from server
-        if (serverBalance !== null && !isNaN(serverBalance)) {
-            breakdownHTML += `
-                <div class="balance-update">
-                    <div class="balance-icon"><i class="fas fa-wallet"></i></div>
-                    <div class="balance-info">
-                        <span class="balance-label">New Balance</span>
-                        <span class="balance-value">$${parseFloat(serverBalance).toFixed(4)}</span>
-                    </div>
-                </div>
-            `;
-        }
-        
+    }
+    
+    if (breakdownContainer) {
         breakdownContainer.innerHTML = breakdownHTML;
     }
     
     showModal('endGameModal');
-    
-    // Log for debugging
-    console.log('📊 showEndGameResults called with:', {
-        stats,
-        serverEarnings,
-        serverBalance,
-        displayEarnings
-    });
 }
 
 // Update selected ship info
@@ -437,7 +460,7 @@ function updateSelectedShipInfo(shipDesign) {
             nameEl.textContent = shipDesign.name;
             nameEl.style.color = shipDesign.primary;
         } else {
-            nameEl.textContent = 'Select a ship for this mission';
+            nameEl.textContent = 'Random ship will be assigned';
             nameEl.style.color = '';
         }
     }
