@@ -1,6 +1,7 @@
 /* ============================================
    CRYPTO ASTEROID RUSH - Game Configuration
    File: js/game-config.js
+   v3.2 - COMMON asteroids = $0 (no reward)
    Target earnings: $0.02-0.03, max $0.05
    Lives system + 90/10 house edge rule
    ============================================ */
@@ -29,12 +30,15 @@ const CONFIG = {
     // Network
     BSC_CHAIN_ID: "0x38",
     
+    // ============================================
     // REWARD VALUES
+    // v3.2: COMMON = 0 (asteroides comuns não valem nada)
+    // ============================================
     REWARDS: {
-        COMMON: 0.00001,
-        RARE: 0.0003,
-        EPIC: 0.0008,
-        LEGENDARY: 0.002
+        COMMON: 0,          // $0.00 - Sem valor!
+        RARE: 0.0003,       // $0.0003 por asteroide raro
+        EPIC: 0.0008,       // $0.0008 por asteroide épico
+        LEGENDARY: 0.002    // $0.002 por asteroide lendário
     },
     
     // SPAWN RATES (normal missions - 90%)
@@ -122,6 +126,7 @@ function determineHardMode() {
     
     if (missionStats.isHardMode) {
         console.log('🎰 Hard Mode Mission - House Edge Active');
+        console.log('💡 Player can still win if they survive!');
     } else {
         console.log('🎮 Normal Mission - Player can win');
     }
@@ -183,11 +188,13 @@ const GAME_TIPS = [
     "TIP: Epic asteroids have a purple glow - high value!",
     "TIP: Legendary asteroids shine gold - maximum reward!",
     "TIP: Avoid collisions to keep your lives!",
-    "TIP: Common asteroids have no value but can hit you!",
+    "TIP: Common asteroids have NO value - focus on colored ones!",
     "TIP: Use keyboard arrows or A/D to move, Space to fire",
     "TIP: Your earnings depend on your skill!",
     "TIP: 6 lives per mission - protect your ship!",
-    "TIP: Watch out for fast asteroids!"
+    "TIP: Watch out for fast asteroids!",
+    "TIP: Hard mode? Survive and you still earn!",
+    "TIP: You can play up to 5 missions per hour"
 ];
 
 function getRandomTip() {
