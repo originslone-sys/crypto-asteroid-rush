@@ -1,22 +1,30 @@
 <?php
 // ============================================
-// CRYPTO ASTEROID RUSH - Login / Registro
+// UNOBIX - Login (Compatibilidade)
 // Arquivo: api/login.php
-// ATUALIZADO: Suporte a sistema de afiliados
+// DEPRECATED: Use auth-google.php para novas integrações
+// Este arquivo mantém compatibilidade com wallet MetaMask
 // ============================================
 
 require_once __DIR__ . "/config.php";
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+setCorsHeaders();
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
+$rawInput = file_get_contents('php://input');
+$input = json_decode($rawInput, true);
+if (!is_array($input)) $input = [];
+
+// Verificar se é login Google ou Wallet
+$googleUid = isset($input['google_uid']) ? trim($input['google_uid']) : '';
+
+// Se tiver google_uid, redirecionar para auth-google
+if (!empty($googleUid)) {
+    $input['action'] = 'login';
+    require_once __DIR__ . "/auth-google.php";
+    exit;
 }
 
-$input = json_decode(file_get_contents('php://input'), true);
+// MODO LEGADO: Login via Wallet (MetaMask)
 $wallet = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
 $referralCode = isset($input['referral_code']) ? trim(strtoupper($input['referral_code'])) : '';
 
@@ -37,7 +45,7 @@ try {
     // ============================================
     // 1. VERIFICAR SE É NOVO JOGADOR
     // ============================================
-    $stmt = $pdo->prepare("SELECT id FROM players WHERE wallet_address = ?");
+    $stmt = $pdo->prepare("SELECT * FROM players WHERE wallet_address = ?");
     $stmt->execute([$wallet]);
     $existingPlayer = $stmt->fetch();
 
@@ -47,44 +55,51 @@ try {
     // 2. INSERIR OU ATUALIZAR JOGADOR
     // ============================================
     if ($isNewPlayer) {
-        $pdo->prepare("INSERT INTO players (wallet_address, balance_usdt, total_played) VALUES (?, 0.0, 0)")
-            ->execute([$wallet]);
+        $pdo->prepare("
+            INSERT INTO players (wallet_address, balance_brl, balance_usdt, total_played) 
+            VALUES (?, 0, 0, 0)
+        ")->execute([$wallet]);
     }
 
     // ============================================
-    // 3. PROCESSAR REFERRAL (APENAS PARA NOVOS JOGADORES)
+    // 3. PROCESSAR REFERRAL (APENAS PARA NOVOS)
     // ============================================
     $referralRegistered = false;
     $referrerWallet = null;
 
     if ($isNewPlayer && !empty($referralCode)) {
+        if (preg_match('/^[A-Z0-9]{6}$/', $referralCode)) {
+            // Buscar referenciador
+            $stmt = $pdo->prepare("
+                SELECT wallet_address, google_uid FROM referral_codes WHERE code = ?
+            ");
+            $stmt->execute([$referralCode]);
+            $ref = $stmt->fetch();
 
-        // 3.1 Validar formato do código (ex: ABC123)
-        if (!preg_match('/^[A-Z0-9]{6}$/', $referralCode)) {
-            echo json_encode(['success' => false, 'error' => 'Código de referral inválido']);
-            exit;
-        }
+            if ($ref && !empty($ref['wallet_address'])) {
+                $referrerWallet = strtolower($ref['wallet_address']);
 
-        // 3.2 Buscar carteira do referenciador
-        $stmt = $pdo->prepare("SELECT wallet_address FROM referrals WHERE referral_code = ?");
-        $stmt->execute([$referralCode]);
-        $ref = $stmt->fetch();
-
-        if ($ref && !empty($ref['wallet_address'])) {
-            $referrerWallet = strtolower($ref['wallet_address']);
-
-            // Evitar auto-referral
-            if ($referrerWallet !== $wallet) {
-
-                // 3.3 Registrar referral do jogador
-                $stmt = $pdo->prepare("INSERT INTO referral_players (player_wallet, referrer_wallet, referral_code, created_at) VALUES (?, ?, ?, NOW())");
-                $stmt->execute([$wallet, $referrerWallet, $referralCode]);
-
-                // 3.4 Incrementar contador de referrals do referenciador
-                $pdo->prepare("UPDATE referrals SET total_referrals = total_referrals + 1 WHERE wallet_address = ?")
-                    ->execute([$referrerWallet]);
-
-                $referralRegistered = true;
+                // Evitar auto-referral
+                if ($referrerWallet !== $wallet) {
+                    try {
+                        $stmt = $pdo->prepare("
+                            INSERT INTO referrals (
+                                referrer_wallet, referrer_google_uid,
+                                referred_wallet, referral_code, 
+                                status, created_at
+                            ) VALUES (?, ?, ?, ?, 'pending', NOW())
+                        ");
+                        $stmt->execute([
+                            $referrerWallet, 
+                            $ref['google_uid'],
+                            $wallet, 
+                            $referralCode
+                        ]);
+                        $referralRegistered = true;
+                    } catch (Exception $e) {
+                        // Ignorar duplicata
+                    }
+                }
             }
         }
     }
@@ -92,16 +107,31 @@ try {
     // ============================================
     // 4. RETORNAR DADOS DO JOGADOR
     // ============================================
-    $stmt = $pdo->prepare("SELECT id, wallet_address, balance_usdt, total_played FROM players WHERE wallet_address = ?");
+    $stmt = $pdo->prepare("
+        SELECT id, wallet_address, balance_brl, balance_usdt, total_played,
+               google_uid, email, display_name
+        FROM players WHERE wallet_address = ?
+    ");
     $stmt->execute([$wallet]);
     $player = $stmt->fetch();
 
     echo json_encode([
         'success' => true,
-        'player' => $player,
+        'player' => [
+            'id' => (int)$player['id'],
+            'wallet_address' => $player['wallet_address'],
+            'google_uid' => $player['google_uid'],
+            'email' => $player['email'],
+            'display_name' => $player['display_name'],
+            'balance_brl' => (float)($player['balance_brl'] ?? 0),
+            'balance_usdt' => (float)($player['balance_usdt'] ?? 0),
+            'total_played' => (int)($player['total_played'] ?? 0)
+        ],
         'is_new_player' => $isNewPlayer,
         'referral_registered' => $referralRegistered,
-        'referrer_wallet' => $referrerWallet
+        'referrer_wallet' => $referrerWallet,
+        'legacy_mode' => true,
+        'message' => 'Login via wallet é modo legado. Recomendamos usar Google Auth.'
     ]);
 
 } catch (Exception $e) {
