@@ -1,145 +1,565 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Staking 12% APY | CRYPTO ASTEROID RUSH</title>
-    <meta name="description" content="Multiply your earnings with 12% APY staking.">
+    <title>Staking 5% APY | UNOBIX</title>
+    <meta name="description" content="Multiplique seus ganhos com 5% APY de rendimento anual.">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/main.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    
     <style>
-        .apy-badge { display: inline-flex; align-items: center; gap: 10px; background: rgba(5, 255, 161, 0.15); border: 2px solid var(--success); border-radius: 50px; padding: 12px 25px; margin-bottom: 30px; }
+        .apy-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(5, 255, 161, 0.15);
+            border: 2px solid var(--success);
+            border-radius: 50px;
+            padding: 12px 25px;
+            margin-bottom: 30px;
+        }
         .apy-badge i { font-size: 1.5rem; color: var(--success); }
         .apy-value { font-family: 'Orbitron', sans-serif; font-size: 1.8rem; font-weight: 900; color: var(--success); }
-        .staking-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
-        .staking-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--border-color); text-align: center; }
+        
+        .staking-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .staking-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
         .staking-card-icon { font-size: 1.8rem; margin-bottom: 10px; color: var(--primary); }
         .staking-card.success .staking-card-icon { color: var(--success); }
         .staking-card.warning .staking-card-icon { color: var(--warning); }
         .staking-card-value { font-family: 'Orbitron', sans-serif; font-size: 1.4rem; font-weight: 700; margin-bottom: 5px; }
         .staking-card-label { color: var(--text-dim); font-size: 0.85rem; }
-        .stake-form { background: var(--card-bg); border-radius: 15px; padding: 30px; border: 1px solid var(--border-color); margin-bottom: 30px; }
-        .stake-input-group { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
-        .stake-input { flex: 1; min-width: 150px; padding: 15px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-light); font-size: 1.1rem; font-family: 'Orbitron', sans-serif; }
+        
+        .stake-form {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 30px;
+        }
+        .stake-input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .stake-input {
+            flex: 1;
+            min-width: 150px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-light);
+            font-size: 1.1rem;
+            font-family: 'Orbitron', sans-serif;
+        }
         .stake-input:focus { outline: none; border-color: var(--success); }
+        
         .quick-amounts { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
-        .quick-btn { padding: 8px 15px; background: rgba(5, 255, 161, 0.1); border: 1px solid var(--success); border-radius: 20px; color: var(--success); font-size: 0.85rem; cursor: pointer; transition: all 0.3s; }
+        .quick-btn {
+            padding: 8px 15px;
+            background: rgba(5, 255, 161, 0.1);
+            border: 1px solid var(--success);
+            border-radius: 20px;
+            color: var(--success);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
         .quick-btn:hover { background: rgba(5, 255, 161, 0.2); }
+        
         .stake-buttons { display: flex; gap: 15px; flex-wrap: wrap; }
-        .projection-box { background: var(--card-bg); border-radius: 15px; padding: 30px; border: 1px solid var(--border-color); margin-bottom: 30px; }
-        .projection-input { display: flex; gap: 15px; align-items: center; margin-bottom: 25px; flex-wrap: wrap; }
-        .projection-input input { flex: 1; min-width: 120px; padding: 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-light); font-size: 1rem; }
-        .projection-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; }
-        .projection-item { text-align: center; padding: 15px; background: rgba(5, 255, 161, 0.05); border-radius: 10px; border: 1px solid rgba(5, 255, 161, 0.2); }
+        
+        .projection-box {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 30px;
+        }
+        .projection-input {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        .projection-input input {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-light);
+            font-size: 1rem;
+        }
+        .projection-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+        }
+        .projection-item {
+            text-align: center;
+            padding: 15px;
+            background: rgba(5, 255, 161, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(5, 255, 161, 0.2);
+        }
         .projection-period { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 5px; }
         .projection-value { font-family: 'Orbitron', sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--success); }
-        .info-box { background: rgba(0, 240, 255, 0.05); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; margin-bottom: 30px; }
+        
+        .info-box {
+            background: rgba(0, 240, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
         .info-box h4 { color: var(--primary); margin-bottom: 10px; font-size: 1rem; }
         .info-box ul { list-style: none; color: var(--text-dim); font-size: 0.9rem; }
         .info-box li { padding: 5px 0; }
         .info-box li i { color: var(--success); margin-right: 8px; }
-        @media (max-width: 480px) { .apy-value { font-size: 1.5rem; } .staking-card-value { font-size: 1.2rem; } .stake-buttons { flex-direction: column; } .stake-buttons .btn { width: 100%; } }
+        
+        /* Pending Reward */
+        .pending-reward {
+            background: linear-gradient(135deg, rgba(5, 255, 161, 0.1), rgba(0, 240, 255, 0.05));
+            border: 1px solid var(--success);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .pending-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .pending-icon {
+            font-size: 2rem;
+            color: var(--success);
+        }
+        .pending-text h4 {
+            color: var(--success);
+            margin-bottom: 5px;
+        }
+        .pending-text p {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        .pending-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--success);
+        }
+        
+        @media (max-width: 480px) {
+            .apy-value { font-size: 1.5rem; }
+            .staking-card-value { font-size: 1.2rem; }
+            .stake-buttons { flex-direction: column; }
+            .stake-buttons .btn { width: 100%; }
+        }
     </style>
 </head>
 <body data-page="staking">
 <div class="cosmic-bg"></div>
 
+<!-- Overlay de Login -->
 <div id="connectOverlay" class="connect-overlay">
     <div class="connect-box">
         <div class="connect-icon"><i class="fas fa-chart-line"></i></div>
-        <h2 class="connect-title">WELCOME, COMMANDER</h2>
-        <p class="connect-desc">Connect your MetaMask wallet on BSC network to access staking.</p>
-        <button id="connectBtn" class="btn btn-primary btn-lg"><i class="fab fa-ethereum"></i> Connect MetaMask</button>
+        <h2 class="connect-title">BEM-VINDO, COMANDANTE</h2>
+        <p class="connect-desc">Entre com sua conta Google para acessar o staking.</p>
+        <button id="connectBtn" class="btn btn-primary btn-lg">
+            <i class="fab fa-google"></i> Entrar com Google
+        </button>
     </div>
 </div>
 
 <div class="container">
     <header class="header">
-        <a href="index.html" class="logo"><span class="logo-icon">☄️</span><span class="logo-text">ASTEROID RUSH</span></a>
+        <a href="index.html" class="logo">
+            <span class="logo-icon"><img src="img/logo-unobix.png" alt="Unobix"></span>
+            <span class="logo-text">UNOBIX</span>
+        </a>
         <nav class="nav" id="nav">
-            <a href="dashboard.html" class="nav-link">Dashboard</a>
-            <a href="game.html" class="nav-link">Play</a>
-            <a href="wallet.html" class="nav-link">Wallet</a>
+            <a href="dashboard.html" class="nav-link">Painel</a>
+            <a href="game.html" class="nav-link">Jogar</a>
+            <a href="wallet.html" class="nav-link">Carteira</a>
             <a href="staking.html" class="nav-link active">Staking</a>
+            <a href="affiliates.html" class="nav-link">Afiliados</a>
         </nav>
-        <button id="walletBtn" class="wallet-btn"><i class="fas fa-wallet"></i> Connect</button>
+        <button id="walletBtn" class="wallet-btn">
+            <i class="fas fa-user-circle"></i>
+            <span id="userDisplayName">Entrar</span>
+        </button>
         <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
     </header>
     
     <section class="page-header">
-        <h1 class="page-title">STAKING 12% APY</h1>
-        <p class="page-subtitle">Multiply your earnings with automatic hourly yields.</p>
-        <div class="apy-badge"><i class="fas fa-fire"></i><span class="apy-value">12% APY</span></div>
+        <h1 class="page-title">STAKING 5% APY</h1>
+        <p class="page-subtitle">Multiplique seus ganhos com rendimento automático diário.</p>
+        <div class="apy-badge">
+            <i class="fas fa-seedling"></i>
+            <span class="apy-value">5% APY</span>
+        </div>
     </section>
     
+    <!-- Cards de Status -->
     <section class="staking-grid">
-        <div class="staking-card"><div class="staking-card-icon"><i class="fas fa-wallet"></i></div><div class="staking-card-value" id="stakingBalance">$0.000000</div><div class="staking-card-label">Your Balance</div></div>
-        <div class="staking-card success"><div class="staking-card-icon"><i class="fas fa-lock"></i></div><div class="staking-card-value text-success" id="totalStaked">$0.000000</div><div class="staking-card-label">Total Staked</div></div>
-        <div class="staking-card warning"><div class="staking-card-icon"><i class="fas fa-coins"></i></div><div class="staking-card-value text-warning" id="stakingEarned">$0.000000</div><div class="staking-card-label">Total Earned</div></div>
-        <div class="staking-card"><div class="staking-card-icon"><i class="fas fa-clock"></i></div><div class="staking-card-value text-primary" id="todayEarnings">+$0.000000</div><div class="staking-card-label">Today's Earnings</div></div>
+        <div class="staking-card">
+            <div class="staking-card-icon"><i class="fas fa-wallet"></i></div>
+            <div class="staking-card-value" id="stakingBalance">R$ 0,00</div>
+            <div class="staking-card-label">Seu Saldo</div>
+        </div>
+        <div class="staking-card success">
+            <div class="staking-card-icon"><i class="fas fa-lock"></i></div>
+            <div class="staking-card-value text-success" id="totalStaked">R$ 0,00</div>
+            <div class="staking-card-label">Em Staking</div>
+        </div>
+        <div class="staking-card warning">
+            <div class="staking-card-icon"><i class="fas fa-coins"></i></div>
+            <div class="staking-card-value text-warning" id="stakingEarned">R$ 0,00</div>
+            <div class="staking-card-label">Total Ganho</div>
+        </div>
+        <div class="staking-card">
+            <div class="staking-card-icon"><i class="fas fa-clock"></i></div>
+            <div class="staking-card-value text-primary" id="pendingReward">+R$ 0,00</div>
+            <div class="staking-card-label">Rendimento Pendente</div>
+        </div>
     </section>
     
+    <!-- Rendimento Pendente (se houver) -->
+    <div class="pending-reward" id="pendingRewardSection" style="display: none;">
+        <div class="pending-info">
+            <div class="pending-icon"><i class="fas fa-gift"></i></div>
+            <div class="pending-text">
+                <h4>Rendimento Acumulado</h4>
+                <p>Será creditado automaticamente ao fazer unstake</p>
+            </div>
+        </div>
+        <div class="pending-value" id="pendingRewardValue">+R$ 0,00</div>
+    </div>
+    
+    <!-- Formulário de Stake -->
     <section class="stake-form">
-        <h3 class="section-title mb-20"><i class="fas fa-plus-circle"></i> Create New Stake</h3>
+        <h3 class="section-title mb-20"><i class="fas fa-plus-circle"></i> Fazer Stake</h3>
         <div class="stake-input-group">
-            <input type="number" class="stake-input" id="stakeAmount" placeholder="0.00" step="0.000001" min="0.0001">
-            <span class="text-dim">USDT</span>
+            <input type="number" class="stake-input" id="stakeAmount" placeholder="0,00" step="0.01" min="0.01">
+            <span class="text-dim">R$</span>
         </div>
         <div class="quick-amounts">
-            <button class="quick-btn" onclick="setStakeAmount(0.01)">$0.01</button>
-            <button class="quick-btn" onclick="setStakeAmount(0.1)">$0.10</button>
-            <button class="quick-btn" onclick="setStakeAmount(1)">$1.00</button>
-            <button class="quick-btn" onclick="setStakeAmount(10)">$10.00</button>
-            <button class="quick-btn" onclick="setMaxAmount()">MAX</button>
+            <button class="quick-btn" onclick="setStakeAmount(1)">R$ 1</button>
+            <button class="quick-btn" onclick="setStakeAmount(5)">R$ 5</button>
+            <button class="quick-btn" onclick="setStakeAmount(10)">R$ 10</button>
+            <button class="quick-btn" onclick="setStakeAmount(50)">R$ 50</button>
+            <button class="quick-btn" onclick="setStakeAmount(100)">R$ 100</button>
+            <button class="quick-btn" onclick="setMaxAmount()">MÁXIMO</button>
         </div>
         <div class="stake-buttons">
-            <button class="btn btn-success btn-lg" id="stakeBtn"><i class="fas fa-rocket"></i> STAKE NOW</button>
-            <button class="btn btn-outline btn-lg" id="unstakeBtn" disabled><i class="fas fa-wallet"></i> UNSTAKE ALL</button>
+            <button class="btn btn-success btn-lg" id="stakeBtn" onclick="doStake()">
+                <i class="fas fa-rocket"></i> FAZER STAKE
+            </button>
+            <button class="btn btn-outline btn-lg" id="unstakeBtn" onclick="doUnstake()" disabled>
+                <i class="fas fa-wallet"></i> RESGATAR TUDO
+            </button>
         </div>
     </section>
     
+    <!-- Calculadora de Rendimentos -->
     <section class="projection-box">
-        <h3 class="section-title mb-20"><i class="fas fa-calculator"></i> Earnings Calculator</h3>
+        <h3 class="section-title mb-20"><i class="fas fa-calculator"></i> Calculadora de Rendimentos</h3>
         <div class="projection-input">
-            <span class="text-dim">If you stake</span>
-            <input type="number" id="projectionAmount" value="100" min="0.01" step="1" oninput="updateProjection()">
-            <span class="text-dim">USDT, you'll earn:</span>
+            <span class="text-dim">Se você aplicar</span>
+            <input type="number" id="projectionAmount" value="100" min="1" step="1" oninput="updateProjection()">
+            <span class="text-dim">R$, você ganhará:</span>
         </div>
         <div class="projection-grid">
-            <div class="projection-item"><div class="projection-period">1 Hour</div><div class="projection-value" id="projHour">$0.001370</div></div>
-            <div class="projection-item"><div class="projection-period">1 Day</div><div class="projection-value" id="projDay">$0.032877</div></div>
-            <div class="projection-item"><div class="projection-period">1 Week</div><div class="projection-value" id="projWeek">$0.230567</div></div>
-            <div class="projection-item"><div class="projection-period">1 Month</div><div class="projection-value" id="projMonth">$1.005034</div></div>
-            <div class="projection-item"><div class="projection-period">1 Year</div><div class="projection-value" id="projYear">$12.749685</div></div>
+            <div class="projection-item">
+                <div class="projection-period">1 Dia</div>
+                <div class="projection-value" id="projDay">R$ 0,01</div>
+            </div>
+            <div class="projection-item">
+                <div class="projection-period">1 Semana</div>
+                <div class="projection-value" id="projWeek">R$ 0,10</div>
+            </div>
+            <div class="projection-item">
+                <div class="projection-period">1 Mês</div>
+                <div class="projection-value" id="projMonth">R$ 0,42</div>
+            </div>
+            <div class="projection-item">
+                <div class="projection-period">6 Meses</div>
+                <div class="projection-value" id="proj6Month">R$ 2,53</div>
+            </div>
+            <div class="projection-item">
+                <div class="projection-period">1 Ano</div>
+                <div class="projection-value" id="projYear">R$ 5,13</div>
+            </div>
         </div>
     </section>
     
+    <!-- Informações -->
     <section class="info-box">
-        <h4><i class="fas fa-info-circle"></i> How It Works</h4>
+        <h4><i class="fas fa-info-circle"></i> Como Funciona</h4>
         <ul>
-            <li><i class="fas fa-check"></i> Annual yield of <strong>12% APY</strong></li>
-            <li><i class="fas fa-check"></i> Interest credited <strong>automatically every hour</strong></li>
-            <li><i class="fas fa-check"></i> <strong>No lock period</strong> - withdraw anytime</li>
-            <li><i class="fas fa-check"></i> Minimum amount: <strong>$0.0001 USDT</strong></li>
-            <li><i class="fas fa-check"></i> Continuous compounding maximizes your earnings</li>
+            <li><i class="fas fa-check"></i> Rendimento anual de <strong>5% APY</strong></li>
+            <li><i class="fas fa-check"></i> Juros compostos <strong>calculados diariamente</strong></li>
+            <li><i class="fas fa-check"></i> <strong>Sem período de bloqueio</strong> - resgate quando quiser</li>
+            <li><i class="fas fa-check"></i> Valor mínimo: <strong>R$ 0,01</strong></li>
+            <li><i class="fas fa-check"></i> Rendimento creditado automaticamente ao fazer unstake</li>
         </ul>
     </section>
     
-   <footer class="footer">
-    <a href="https://t.me/AsteroidRushOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Join our Telegram</a>
-    <div class="footer-links">
-        <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> How to Play</a>
-        <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Gameplay Guide</a>
-        <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economy</a>
-        <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
-        <a href="terms.html" class="footer-link"><i class="fas fa-file-contract"></i> Terms</a>
-        <a href="privacy.html" class="footer-link"><i class="fas fa-shield-alt"></i> Privacy</a>
-    </div>
-    <p class="footer-copy">© 2026 Crypto Asteroid Rush. All rights reserved.</p>
-</footer>
+    <!-- Rodapé -->
+    <footer class="footer">
+        <a href="https://t.me/UnobixOfficial" target="_blank" class="btn btn-telegram">
+            <i class="fab fa-telegram"></i> Nosso Telegram
+        </a>
+        <div class="footer-links">
+            <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> Como Jogar</a>
+            <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Guia do Jogo</a>
+            <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economia</a>
+            <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
+        </div>
+        <p class="footer-copy">© 2026 Unobix. Todos os direitos reservados.</p>
+    </footer>
 </div>
+
+<!-- Scripts -->
+<script src="js/firebase-config.js"></script>
+<script src="js/auth-manager.js"></script>
 <script src="js/main.js"></script>
-<script>document.addEventListener('DOMContentLoaded', () => { updateProjection(); });</script>
+
+<script>
+const APY = 0.05; // 5% ao ano
+let userBalance = 0;
+let userStaked = 0;
+
+// Formatar valores em BRL
+function formatBRL(value) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(value || 0);
+}
+
+// Atualizar projeções
+function updateProjection() {
+    const amount = parseFloat(document.getElementById('projectionAmount').value) || 0;
+    const dailyRate = APY / 365;
+    
+    // Juros compostos: A = P(1 + r)^t
+    const day1 = amount * (Math.pow(1 + dailyRate, 1) - 1);
+    const week1 = amount * (Math.pow(1 + dailyRate, 7) - 1);
+    const month1 = amount * (Math.pow(1 + dailyRate, 30) - 1);
+    const month6 = amount * (Math.pow(1 + dailyRate, 180) - 1);
+    const year1 = amount * (Math.pow(1 + dailyRate, 365) - 1);
+    
+    document.getElementById('projDay').textContent = formatBRL(day1);
+    document.getElementById('projWeek').textContent = formatBRL(week1);
+    document.getElementById('projMonth').textContent = formatBRL(month1);
+    document.getElementById('proj6Month').textContent = formatBRL(month6);
+    document.getElementById('projYear').textContent = formatBRL(year1);
+}
+
+// Definir valor rápido
+function setStakeAmount(amount) {
+    document.getElementById('stakeAmount').value = amount.toFixed(2);
+}
+
+// Definir valor máximo
+function setMaxAmount() {
+    document.getElementById('stakeAmount').value = userBalance.toFixed(2);
+}
+
+// Carregar dados de staking
+async function loadStakingData() {
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    try {
+        // Carregar saldo
+        const balanceRes = await fetch('/api/balance.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid })
+        });
+        const balanceData = await balanceRes.json();
+        
+        if (balanceData.success) {
+            userBalance = parseFloat(balanceData.balance_brl) || 0;
+            userStaked = parseFloat(balanceData.staked_balance_brl) || 0;
+            
+            document.getElementById('stakingBalance').textContent = formatBRL(userBalance);
+            document.getElementById('totalStaked').textContent = formatBRL(userStaked);
+            
+            // Habilitar/desabilitar botão unstake
+            document.getElementById('unstakeBtn').disabled = userStaked <= 0;
+        }
+
+        // Carregar dados de stake
+        const stakeRes = await fetch('/api/get-stakes.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid })
+        });
+        const stakeData = await stakeRes.json();
+        
+        if (stakeData.success) {
+            const totalEarned = parseFloat(stakeData.total_earned_brl) || 0;
+            const pendingReward = parseFloat(stakeData.pending_reward_brl) || 0;
+            
+            document.getElementById('stakingEarned').textContent = formatBRL(totalEarned);
+            document.getElementById('pendingReward').textContent = '+' + formatBRL(pendingReward);
+            
+            // Mostrar seção de rendimento pendente se houver
+            if (pendingReward > 0.001) {
+                document.getElementById('pendingRewardSection').style.display = 'flex';
+                document.getElementById('pendingRewardValue').textContent = '+' + formatBRL(pendingReward);
+            } else {
+                document.getElementById('pendingRewardSection').style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+    }
+}
+
+// Fazer stake
+async function doStake() {
+    const user = window.authManager?.currentUser;
+    if (!user) {
+        alert('Você precisa estar logado!');
+        return;
+    }
+
+    const amount = parseFloat(document.getElementById('stakeAmount').value);
+    
+    if (!amount || amount < 0.01) {
+        alert('O valor mínimo para stake é R$ 0,01');
+        return;
+    }
+    
+    if (amount > userBalance) {
+        alert('Saldo insuficiente!');
+        return;
+    }
+
+    const btn = document.getElementById('stakeBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+
+    try {
+        const response = await fetch('/api/stake.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                google_uid: user.uid,
+                amount_brl: amount
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ Stake realizado com sucesso!\n\nSeu rendimento de 5% ao ano começará a ser calculado agora.');
+            document.getElementById('stakeAmount').value = '';
+            loadStakingData();
+        } else {
+            alert('Erro: ' + (data.error || 'Falha ao fazer stake'));
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro de conexão. Tente novamente.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-rocket"></i> FAZER STAKE';
+    }
+}
+
+// Fazer unstake
+async function doUnstake() {
+    const user = window.authManager?.currentUser;
+    if (!user) {
+        alert('Você precisa estar logado!');
+        return;
+    }
+
+    if (userStaked <= 0) {
+        alert('Você não tem nada em stake!');
+        return;
+    }
+
+    if (!confirm('Deseja resgatar todo o seu stake?\n\nO rendimento acumulado será creditado junto.')) {
+        return;
+    }
+
+    const btn = document.getElementById('unstakeBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+
+    try {
+        const response = await fetch('/api/unstake.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const reward = formatBRL(data.reward_brl || 0);
+            const total = formatBRL(data.total_returned_brl || 0);
+            alert(`✅ Unstake realizado com sucesso!\n\nRendimento: ${reward}\nTotal creditado: ${total}`);
+            loadStakingData();
+        } else {
+            alert('Erro: ' + (data.error || 'Falha ao fazer unstake'));
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro de conexão. Tente novamente.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-wallet"></i> RESGATAR TUDO';
+    }
+}
+
+// Inicializar
+document.addEventListener('DOMContentLoaded', () => {
+    updateProjection();
+});
+
+document.addEventListener('authStateChanged', (e) => {
+    if (e.detail.user) {
+        document.getElementById('connectOverlay').classList.remove('active');
+        loadStakingData();
+    } else {
+        document.getElementById('connectOverlay').classList.add('active');
+    }
+});
+</script>
 </body>
 </html>
