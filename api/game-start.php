@@ -1,85 +1,45 @@
 <?php
 // ============================================
-// CRYPTO ASTEROID RUSH - Iniciar Sessão de Jogo
+// UNOBIX - Iniciar Sessão de Jogo
 // Arquivo: api/game-start.php
-// v4.0 - Controle de IP: 5 missões/hora, 1 simultânea
+// v2.0 - Google Auth + Hard Mode 40% + BRL
 // ============================================
 
 require_once __DIR__ . "/config.php";
 
-// Rate limiter (se existir)
 if (file_exists(__DIR__ . "/rate-limiter.php")) {
     require_once __DIR__ . "/rate-limiter.php";
 }
 
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+setCorsHeaders();
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
-}
+// ============================================
+// LER INPUT
+// ============================================
+$rawInput = file_get_contents('php://input');
+$input = json_decode($rawInput, true);
+if (!is_array($input)) $input = [];
 
-// Fallbacks (caso alguma constante/função não exista no config)
-if (!defined('GAME_SECRET_KEY')) define('GAME_SECRET_KEY', 'CAR_2026_S3CR3T_K3Y_X9Z2M4');
-if (!defined('GAME_DURATION')) define('GAME_DURATION', 180);
-if (!defined('EPIC_MIN_MISSIONS_INTERVAL')) define('EPIC_MIN_MISSIONS_INTERVAL', 15);
-if (!defined('MAX_MISSIONS_PER_HOUR')) define('MAX_MISSIONS_PER_HOUR', 5);
-if (!defined('MAX_CONCURRENT_MISSIONS')) define('MAX_CONCURRENT_MISSIONS', 1);
-
-if (!defined('REWARD_NONE')) define('REWARD_NONE', 0);
-if (!defined('REWARD_COMMON')) define('REWARD_COMMON', 0);
-if (!defined('REWARD_RARE')) define('REWARD_RARE', 0.0003);
-if (!defined('REWARD_EPIC')) define('REWARD_EPIC', 0.0008);
-if (!defined('REWARD_LEGENDARY')) define('REWARD_LEGENDARY', 0.002);
-
-if (!function_exists('generateSessionToken')) {
-    function generateSessionToken($wallet, $sessionId) {
-        $data = $wallet . '|' . $sessionId . '|' . time() . '|' . GAME_SECRET_KEY;
-        return hash('sha256', $data);
-    }
-}
-
-if (!function_exists('secureLog')) {
-    function secureLog($message, $file = 'game_security.log') {
-        $logEntry = date('Y-m-d H:i:s') . ' | ' . $message . "\n";
-        file_put_contents(__DIR__ . '/' . $file, $logEntry, FILE_APPEND);
-    }
-}
-
-if (!function_exists('validateWallet')) {
-    function validateWallet($wallet) {
-        return preg_match('/^0x[a-fA-F0-9]{40}$/', $wallet);
-    }
-}
-
-if (!function_exists('getClientIP')) {
-    function getClientIP() {
-        if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
-            return $_SERVER['HTTP_CF_CONNECTING_IP'];
-        }
-        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $ips = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-            return trim($ips[0]);
-        }
-        if (!empty($_SERVER['HTTP_X_REAL_IP'])) {
-            return $_SERVER['HTTP_X_REAL_IP'];
-        }
-        return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-    }
-}
-
-$input = json_decode(file_get_contents('php://input'), true);
+// Suporte híbrido: google_uid (novo) ou wallet (compatibilidade)
+$googleUid = isset($input['google_uid']) ? trim($input['google_uid']) : '';
 $wallet = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
 $txHash = isset($input['txHash']) ? trim($input['txHash']) : '';
 
-if (!validateWallet($wallet)) {
-    echo json_encode(['success' => false, 'error' => 'Carteira inválida']);
+// Determinar identificador principal
+$identifier = '';
+$identifierType = '';
+
+if (!empty($googleUid) && validateGoogleUid($googleUid)) {
+    $identifier = $googleUid;
+    $identifierType = 'google_uid';
+} elseif (!empty($wallet) && validateWallet($wallet)) {
+    $identifier = $wallet;
+    $identifierType = 'wallet';
+} else {
+    echo json_encode(['success' => false, 'error' => 'Identificação inválida. Faça login novamente.']);
     exit;
 }
 
-// Obter IP do cliente
 $clientIP = getClientIP();
 
 try {
@@ -98,7 +58,8 @@ try {
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             ip_address VARCHAR(45) NOT NULL,
             session_id INT NOT NULL,
-            wallet_address VARCHAR(42) NOT NULL,
+            google_uid VARCHAR(128) DEFAULT NULL,
+            wallet_address VARCHAR(42) DEFAULT NULL,
             status ENUM('active', 'completed', 'expired') DEFAULT 'active',
             started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             ended_at DATETIME DEFAULT NULL,
@@ -110,10 +71,9 @@ try {
 
     // ============================================
     // VERIFICAÇÃO 1: Missão simultânea por IP
-    // Apenas 1 missão ativa por IP
     // ============================================
     $stmt = $pdo->prepare("
-        SELECT ips.id, ips.session_id, ips.wallet_address, gs.status as game_status
+        SELECT ips.id, ips.session_id, gs.status as game_status
         FROM ip_sessions ips
         LEFT JOIN game_sessions gs ON gs.id = ips.session_id
         WHERE ips.ip_address = ?
@@ -122,12 +82,11 @@ try {
         LIMIT 1
     ");
     $stmt->execute([$clientIP]);
-    $activeSession = $stmt->fetch(PDO::FETCH_ASSOC);
+    $activeSession = $stmt->fetch();
 
     if ($activeSession) {
-        // Verificar se a sessão do jogo ainda está ativa
         if ($activeSession['game_status'] === 'active') {
-            secureLog("CONCURRENT_BLOCK | IP: {$clientIP} | Wallet: {$wallet} | Active session: {$activeSession['session_id']}");
+            secureLog("CONCURRENT_BLOCK | IP: {$clientIP} | ID: {$identifier} | Active session: {$activeSession['session_id']}");
             
             echo json_encode([
                 'success' => false,
@@ -137,12 +96,8 @@ try {
             ]);
             exit;
         } else {
-            // Sessão do jogo foi finalizada, atualizar ip_sessions
-            $pdo->prepare("
-                UPDATE ip_sessions 
-                SET status = 'completed', ended_at = NOW()
-                WHERE id = ?
-            ")->execute([$activeSession['id']]);
+            $pdo->prepare("UPDATE ip_sessions SET status = 'completed', ended_at = NOW() WHERE id = ?")
+                ->execute([$activeSession['id']]);
         }
     }
 
@@ -156,50 +111,43 @@ try {
         AND started_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
     ");
     $stmt->execute([$clientIP]);
-    $hourlyCount = $stmt->fetch(PDO::FETCH_ASSOC);
+    $hourlyCount = $stmt->fetch();
     
     $missionsThisHour = (int)($hourlyCount['mission_count'] ?? 0);
 
     if ($missionsThisHour >= MAX_MISSIONS_PER_HOUR) {
-        // Calcular tempo de espera
         $stmt = $pdo->prepare("
-            SELECT started_at
-            FROM ip_sessions
+            SELECT started_at FROM ip_sessions
             WHERE ip_address = ?
             AND started_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-            ORDER BY started_at ASC
-            LIMIT 1
+            ORDER BY started_at ASC LIMIT 1
         ");
         $stmt->execute([$clientIP]);
-        $oldestSession = $stmt->fetch(PDO::FETCH_ASSOC);
+        $oldest = $stmt->fetch();
         
         $waitSeconds = 0;
-        if ($oldestSession) {
-            $oldestTime = strtotime($oldestSession['started_at']);
-            $waitSeconds = max(0, ($oldestTime + 3600) - time());
+        if ($oldest) {
+            $waitSeconds = max(0, (strtotime($oldest['started_at']) + 3600) - time());
         }
         
-        $waitMinutes = ceil($waitSeconds / 60);
-        
-        secureLog("HOURLY_LIMIT | IP: {$clientIP} | Wallet: {$wallet} | Count: {$missionsThisHour}");
+        secureLog("HOURLY_LIMIT | IP: {$clientIP} | ID: {$identifier} | Count: {$missionsThisHour}");
         
         echo json_encode([
             'success' => false,
-            'error' => "Limite de " . MAX_MISSIONS_PER_HOUR . " missões por hora atingido. Aguarde {$waitMinutes} minutos.",
+            'error' => "Limite de " . MAX_MISSIONS_PER_HOUR . " missões por hora atingido. Aguarde " . ceil($waitSeconds / 60) . " minutos.",
             'error_code' => 'HOURLY_LIMIT',
             'missions_played' => $missionsThisHour,
             'max_missions' => MAX_MISSIONS_PER_HOUR,
-            'wait_seconds' => $waitSeconds,
-            'wait_minutes' => $waitMinutes
+            'wait_seconds' => $waitSeconds
         ]);
         exit;
     }
 
     // ============================================
-    // 0) RATE LIMIT ADICIONAL (se existir)
+    // VERIFICAÇÃO 3: Rate limiter adicional
     // ============================================
     if (class_exists('RateLimiter')) {
-        $limiter = new RateLimiter($pdo, $wallet);
+        $limiter = new RateLimiter($pdo, $wallet ?: null, $googleUid ?: null);
         $rateCheck = $limiter->checkGameStart();
 
         if (!($rateCheck['allowed'] ?? true)) {
@@ -207,7 +155,6 @@ try {
                 'success' => false,
                 'error' => $rateCheck['error'] ?? 'Rate limit',
                 'wait_seconds' => $rateCheck['wait_seconds'] ?? null,
-                'retry_after' => $rateCheck['retry_after'] ?? null,
                 'banned' => $rateCheck['banned'] ?? false
             ]);
             exit;
@@ -215,13 +162,16 @@ try {
     }
 
     // ============================================
-    // 1) BUSCAR PLAYER
+    // BUSCAR/CRIAR JOGADOR
     // ============================================
-    $stmt = $pdo->prepare("SELECT id, total_played, is_banned, ban_reason FROM players WHERE wallet_address = ? LIMIT 1");
-    $stmt->execute([$wallet]);
-    $player = $stmt->fetch(PDO::FETCH_ASSOC);
+    $player = getOrCreatePlayer($pdo, $input);
+    
+    if (!$player) {
+        echo json_encode(['success' => false, 'error' => 'Não foi possível identificar o jogador']);
+        exit;
+    }
 
-    if ($player && $player['is_banned']) {
+    if ($player['is_banned']) {
         echo json_encode([
             'success' => false,
             'error' => 'Conta suspensa: ' . ($player['ban_reason'] ?? 'Violação dos termos'),
@@ -230,68 +180,82 @@ try {
         exit;
     }
 
-    if (!$player) {
-        // Cria player (mantém o schema atual)
-        $stmtIns = $pdo->prepare("INSERT INTO players (wallet_address, balance_usdt, total_played) VALUES (?, 0, 0)");
-        $stmtIns->execute([$wallet]);
-
-        $playerId = (int)$pdo->lastInsertId();
-        $totalPlayed = 0;
-    } else {
-        $playerId = (int)$player['id'];
-        $totalPlayed = (int)$player['total_played'];
-    }
-
+    $playerId = (int)$player['id'];
+    $playerGoogleUid = $player['google_uid'] ?? null;
+    $playerWallet = $player['wallet_address'];
+    $totalPlayed = (int)$player['total_played'];
     $missionNumber = $totalPlayed + 1;
 
     // ============================================
-    // 2) ANTI-SPAM POR WALLET: 3 minutos entre missões
-    // (Isso é além do limite de IP)
+    // VERIFICAÇÃO 4: Cooldown de 3 minutos por usuário
     // ============================================
+    $whereClause = $playerGoogleUid 
+        ? "(google_uid = ? OR wallet_address = ?)" 
+        : "wallet_address = ?";
+    $params = $playerGoogleUid 
+        ? [$playerGoogleUid, $playerWallet] 
+        : [$playerWallet];
+
     $stmt = $pdo->prepare("
-        SELECT id, created_at
-        FROM game_sessions
-        WHERE wallet_address = ?
-          AND status IN ('active', 'completed')
-          AND created_at > DATE_SUB(NOW(), INTERVAL 3 MINUTE)
-        ORDER BY created_at DESC
-        LIMIT 1
+        SELECT id, created_at FROM game_sessions
+        WHERE {$whereClause}
+        AND status IN ('active', 'completed')
+        AND created_at > DATE_SUB(NOW(), INTERVAL 3 MINUTE)
+        ORDER BY created_at DESC LIMIT 1
     ");
-    $stmt->execute([$wallet]);
-    $recentSession = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt->execute($params);
+    $recentSession = $stmt->fetch();
 
     if ($recentSession) {
         $waitTime = 180 - (time() - strtotime($recentSession['created_at']));
         echo json_encode([
             'success' => false,
             'error' => 'Aguarde antes de jogar novamente',
-            'error_code' => 'WALLET_COOLDOWN',
+            'error_code' => 'USER_COOLDOWN',
             'wait_seconds' => max(0, (int)$waitTime)
         ]);
         exit;
     }
 
     // ============================================
-    // 3) DEFINIR ESPECIAIS (rare/epic)
+    // DETERMINAR HARD MODE (40% via stored procedure)
     // ============================================
-    // Raros: 70% chance 1, 30% chance 2
-    $rareCount = (mt_rand(1, 100) <= 70) ? 1 : 2;
+    $isHardMode = false;
+    try {
+        $stmt = $pdo->query("CALL sp_get_mission_difficulty()");
+        $difficulty = $stmt->fetch();
+        $isHardMode = isset($difficulty['is_hard_mode']) && $difficulty['is_hard_mode'] == 1;
+        $stmt->closeCursor();
+    } catch (Exception $e) {
+        // Fallback: calcular localmente
+        $isHardMode = isHardModeMission();
+    }
 
-    // Épico: a cada 15+ missões (desde o último épico), com 30% de chance
+    // ============================================
+    // DEFINIR ESPECIAIS (rare/epic)
+    // No hard mode, menos especiais
+    // ============================================
+    if ($isHardMode) {
+        $rareCount = (mt_rand(1, 100) <= 50) ? 1 : 0;  // 50% chance de 1 raro no hard mode
+    } else {
+        $rareCount = (mt_rand(1, 100) <= 70) ? 1 : 2;  // 70% chance 1, 30% chance 2
+    }
+
+    // Épico: a cada 15+ missões desde o último épico, com 30% chance
     $stmt = $pdo->prepare("
-        SELECT MAX(mission_number) AS last_epic
-        FROM game_sessions
-        WHERE wallet_address = ?
-          AND epic_asteroids > 0
+        SELECT MAX(mission_number) AS last_epic FROM game_sessions
+        WHERE (google_uid = ? OR wallet_address = ?) AND epic_asteroids > 0
     ");
-    $stmt->execute([$wallet]);
-    $lastEpic = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt->execute([$playerGoogleUid, $playerWallet]);
+    $lastEpic = $stmt->fetch();
 
     $lastEpicMission = isset($lastEpic['last_epic']) ? (int)$lastEpic['last_epic'] : 0;
     $missionsSinceEpic = $missionNumber - $lastEpicMission;
-    $hasEpic = ($missionsSinceEpic >= EPIC_MIN_MISSIONS_INTERVAL && mt_rand(1, 100) <= 30);
+    
+    // No hard mode, épico é mais raro
+    $epicChance = $isHardMode ? 15 : 30;
+    $hasEpic = ($missionsSinceEpic >= 15 && mt_rand(1, 100) <= $epicChance);
 
-    // IDs dos especiais (cliente valida/alinha isso)
     $rareIds = [];
     for ($i = 0; $i < $rareCount; $i++) {
         $rareIds[] = mt_rand(50, 200);
@@ -299,31 +263,39 @@ try {
     $epicId = $hasEpic ? mt_rand(201, 250) : 0;
 
     // ============================================
-    // 4) CRIAR SESSÃO
+    // CRIAR SESSÃO
     // ============================================
     $sessionToken = '';
+    $captchaRequired = CAPTCHA_REQUIRED_ON_VICTORY ? 1 : 0;
 
     $stmt = $pdo->prepare("
         INSERT INTO game_sessions (
+            google_uid,
             wallet_address,
             session_token,
             mission_number,
             status,
+            is_hard_mode,
+            captcha_required,
             rare_asteroids_target,
             epic_asteroid_target,
             rare_ids,
             epic_id,
             tx_hash,
             ip_address,
+            earnings_brl,
             started_at,
             created_at
-        ) VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        ) VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())
     ");
 
     $stmt->execute([
-        $wallet,
+        $playerGoogleUid,
+        $playerWallet,
         $sessionToken,
         $missionNumber,
+        $isHardMode ? 1 : 0,
+        $captchaRequired,
         $rareCount,
         $hasEpic ? 1 : 0,
         json_encode($rareIds),
@@ -333,49 +305,56 @@ try {
     ]);
 
     $sessionId = (int)$pdo->lastInsertId();
+    $sessionToken = generateSessionToken($identifier, $sessionId);
 
-    // Token final
-    $sessionToken = generateSessionToken($wallet, $sessionId);
-
-    $stmt = $pdo->prepare("UPDATE game_sessions SET session_token = ? WHERE id = ?");
-    $stmt->execute([$sessionToken, $sessionId]);
+    $pdo->prepare("UPDATE game_sessions SET session_token = ? WHERE id = ?")
+        ->execute([$sessionToken, $sessionId]);
 
     // ============================================
-    // 5) REGISTRAR NA TABELA DE CONTROLE DE IP
+    // REGISTRAR NA TABELA DE CONTROLE DE IP
     // ============================================
     $pdo->prepare("
-        INSERT INTO ip_sessions (ip_address, session_id, wallet_address, status, started_at)
-        VALUES (?, ?, ?, 'active', NOW())
-    ")->execute([$clientIP, $sessionId, $wallet]);
+        INSERT INTO ip_sessions (ip_address, session_id, google_uid, wallet_address, status, started_at)
+        VALUES (?, ?, ?, ?, 'active', NOW())
+    ")->execute([$clientIP, $sessionId, $playerGoogleUid, $playerWallet]);
 
-    secureLog("GAME_START | IP: {$clientIP} | Wallet: {$wallet} | Session: {$sessionId} | Mission: {$missionNumber} | Missions this hour: " . ($missionsThisHour + 1));
+    secureLog("GAME_START | IP: {$clientIP} | UID: {$playerGoogleUid} | Wallet: {$playerWallet} | Session: {$sessionId} | Mission: {$missionNumber} | HardMode: " . ($isHardMode ? 'YES' : 'NO'));
 
     // ============================================
-    // 6) RETORNAR
+    // RESPOSTA
     // ============================================
-    echo json_encode([
+    $response = [
         'success' => true,
         'session_id' => $sessionId,
         'session_token' => $sessionToken,
         'player_id' => $playerId,
         'mission_number' => $missionNumber,
+        'is_hard_mode' => $isHardMode,
         'rare_count' => $rareCount,
         'has_epic' => (bool)$hasEpic,
         'rare_ids' => $rareIds,
         'epic_id' => $epicId,
         'game_duration' => GAME_DURATION,
+        'initial_lives' => INITIAL_LIVES,
         'missions_remaining' => MAX_MISSIONS_PER_HOUR - $missionsThisHour - 1,
-        'rewards' => [
-            'none' => REWARD_NONE,
-            'common' => REWARD_COMMON,
-            'rare' => REWARD_RARE,
-            'epic' => REWARD_EPIC,
-            'legendary' => REWARD_LEGENDARY
-        ]
-    ]);
+        'captcha_required' => (bool)$captchaRequired
+    ];
+
+    // Se hard mode, enviar configurações especiais
+    if ($isHardMode) {
+        $response['hard_mode_config'] = [
+            'speed_multiplier' => HARD_MODE_SPEED_MULTIPLIER,
+            'spawn_multiplier' => HARD_MODE_SPAWN_MULTIPLIER
+        ];
+    }
+
+    // NÃO enviar valores de recompensa nem spawn rates (secreto!)
+    // O frontend deve mostrar valores genéricos
+
+    echo json_encode($response);
 
 } catch (Exception $e) {
-    secureLog("GAME START ERROR | wallet={$wallet} | IP={$clientIP} | msg=" . $e->getMessage());
+    secureLog("GAME_START_ERROR | ID: {$identifier} | IP: {$clientIP} | Error: " . $e->getMessage());
     error_log("Erro em game-start.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Erro interno']);
