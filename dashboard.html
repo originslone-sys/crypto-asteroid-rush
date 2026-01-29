@@ -1,106 +1,144 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard | CRYPTO ASTEROID RUSH</title>
-    <meta name="description" content="Your control panel - Track missions, earnings and manage USDT.">
+    <title>Painel | UNOBIX</title>
+    <meta name="description" content="Seu painel de controle - Acompanhe missões, ganhos e gerencie seu saldo em R$.">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/main.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 </head>
 <body data-page="dashboard">
 <div class="cosmic-bg"></div>
 
+<!-- Overlay de Login -->
 <div id="connectOverlay" class="connect-overlay">
     <div class="connect-box">
         <div class="connect-icon"><i class="fas fa-rocket"></i></div>
-        <h2 class="connect-title">WELCOME, COMMANDER</h2>
-        <p class="connect-desc">Connect your MetaMask wallet on BSC network to access your dashboard.</p>
-        <button id="connectBtn" class="btn btn-primary btn-lg"><i class="fab fa-ethereum"></i> Connect MetaMask</button>
+        <h2 class="connect-title">BEM-VINDO, COMANDANTE</h2>
+        <p class="connect-desc">Entre com sua conta Google para acessar seu painel de controle.</p>
+        <button id="connectBtn" class="btn btn-primary btn-lg">
+            <i class="fab fa-google"></i> Entrar com Google
+        </button>
     </div>
 </div>
 
 <div class="container">
     <header class="header">
-        <a href="index.html" class="logo"><span class="logo-icon">&#9732;&#65039;</span><span class="logo-text">ASTEROID RUSH</span></a>
+        <a href="index.html" class="logo">
+            <span class="logo-icon"><img src="img/logo-unobix.png" alt="Unobix"></span>
+            <span class="logo-text">UNOBIX</span>
+        </a>
         <nav class="nav" id="nav">
-            <a href="dashboard.html" class="nav-link active">Dashboard</a>
-            <a href="game.html" class="nav-link">Play</a>
-            <a href="wallet.html" class="nav-link">Wallet</a>
+            <a href="dashboard.html" class="nav-link active">Painel</a>
+            <a href="game.html" class="nav-link">Jogar</a>
+            <a href="wallet.html" class="nav-link">Carteira</a>
             <a href="staking.html" class="nav-link">Staking</a>
-            <a href="affiliates.html" class="nav-link">Affiliates</a>
+            <a href="affiliates.html" class="nav-link">Afiliados</a>
         </nav>
-        <button id="walletBtn" class="wallet-btn"><i class="fas fa-wallet"></i> Connect</button>
+        <button id="walletBtn" class="wallet-btn">
+            <i class="fas fa-user-circle"></i> 
+            <span id="userDisplayName">Entrar</span>
+        </button>
         <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
     </header>
     
     <section class="page-header">
-        <p class="text-dim">Welcome back, Commander!</p>
-        <h1 class="page-title">CONTROL PANEL</h1>
-        <p class="page-subtitle">Track your missions and manage your earnings.</p>
+        <p class="text-dim">Bem-vindo de volta, Comandante!</p>
+        <h1 class="page-title">PAINEL DE CONTROLE</h1>
+        <p class="page-subtitle">Acompanhe suas missões e gerencie seus ganhos.</p>
     </section>
     
+    <!-- Cards de Estatísticas -->
     <section class="stats-grid">
-        <div class="stat-card"><div class="stat-icon"><i class="fas fa-wallet"></i></div><div class="stat-value" id="statBalance">$0.0000</div><div class="stat-label">Available Balance</div></div>
-        <div class="stat-card success"><div class="stat-icon"><i class="fas fa-coins"></i></div><div class="stat-value" id="statEarned">$0.0000</div><div class="stat-label">Total Earned</div></div>
-        <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-gamepad"></i></div><div class="stat-value" id="statGames">0</div><div class="stat-label">Missions</div></div>
-        <div class="stat-card"><div class="stat-icon"><i class="fas fa-lock"></i></div><div class="stat-value" id="statStaked">$0.0000</div><div class="stat-label">In Staking</div></div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-wallet"></i></div>
+            <div class="stat-value" id="statBalance">R$ 0,00</div>
+            <div class="stat-label">Saldo Disponível</div>
+        </div>
+        <div class="stat-card success">
+            <div class="stat-icon"><i class="fas fa-coins"></i></div>
+            <div class="stat-value" id="statEarned">R$ 0,00</div>
+            <div class="stat-label">Total Ganho</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-icon"><i class="fas fa-gamepad"></i></div>
+            <div class="stat-value" id="statGames">0</div>
+            <div class="stat-label">Missões</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-lock"></i></div>
+            <div class="stat-value" id="statStaked">R$ 0,00</div>
+            <div class="stat-label">Em Staking</div>
+        </div>
     </section>
     
+    <!-- Ações Rápidas -->
     <section>
-        <h2 class="section-title"><i class="fas fa-bolt"></i> Quick Actions</h2>
+        <h2 class="section-title"><i class="fas fa-bolt"></i> Ações Rápidas</h2>
         <div class="action-grid">
             <a href="game.html" class="action-card play">
                 <div class="action-icon"><i class="fas fa-rocket"></i></div>
-                <h3 class="action-title">START MISSION</h3>
-                <p class="action-desc">Destroy asteroids and earn USDT! 180 seconds of action.</p>
-                <span class="action-link">Play Now <i class="fas fa-arrow-right"></i></span>
+                <h3 class="action-title">INICIAR MISSÃO</h3>
+                <p class="action-desc">Destrua asteroides e ganhe R$! 180 segundos de ação intensa.</p>
+                <span class="action-link">Jogar Agora <i class="fas fa-arrow-right"></i></span>
             </a>
             <a href="wallet.html" class="action-card wallet">
                 <div class="action-icon"><i class="fas fa-wallet"></i></div>
-                <h3 class="action-title">MY WALLET</h3>
-                <p class="action-desc">View balance, history and request withdrawals.</p>
-                <span class="action-link">View Wallet <i class="fas fa-arrow-right"></i></span>
+                <h3 class="action-title">MINHA CARTEIRA</h3>
+                <p class="action-desc">Veja seu saldo, histórico e solicite saques via PIX.</p>
+                <span class="action-link">Ver Carteira <i class="fas fa-arrow-right"></i></span>
             </a>
             <a href="staking.html" class="action-card staking">
                 <div class="action-icon"><i class="fas fa-chart-line"></i></div>
-                <h3 class="action-title">STAKING 12% APY</h3>
-                <p class="action-desc">Multiply your earnings with automatic yields.</p>
-                <span class="action-link">Stake Now <i class="fas fa-arrow-right"></i></span>
+                <h3 class="action-title">STAKING 5% APY</h3>
+                <p class="action-desc">Multiplique seus ganhos com rendimento automático.</p>
+                <span class="action-link">Fazer Stake <i class="fas fa-arrow-right"></i></span>
             </a>
             <a href="affiliates.html" class="action-card affiliate">
                 <div class="action-icon"><i class="fas fa-users"></i></div>
-                <h3 class="action-title">AFFILIATES</h3>
-                <p class="action-desc">Invite friends and earn $1.00 per referral!</p>
-                <span class="action-link">Invite Friends <i class="fas fa-arrow-right"></i></span>
+                <h3 class="action-title">AFILIADOS</h3>
+                <p class="action-desc">Convide amigos e ganhe R$ 1,00 por indicação!</p>
+                <span class="action-link">Convidar Amigos <i class="fas fa-arrow-right"></i></span>
             </a>
         </div>
     </section>
     
+    <!-- Atividade Recente -->
     <section class="mb-30">
-        <h2 class="section-title"><i class="fas fa-history"></i> Recent Activity</h2>
+        <h2 class="section-title"><i class="fas fa-history"></i> Atividade Recente</h2>
         <div class="activity-list" id="activityList">
-            <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>
+            <div class="empty-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Carregando...</p>
+            </div>
         </div>
     </section>
     
+    <!-- Rodapé -->
     <footer class="footer">
-    <a href="https://t.me/AsteroidRushOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Join our Telegram</a>
-    <div class="footer-links">
-        <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> How to Play</a>
-        <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Gameplay Guide</a>
-        <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economy</a>
-        <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
-        <a href="terms.html" class="footer-link"><i class="fas fa-file-contract"></i> Terms</a>
-        <a href="privacy.html" class="footer-link"><i class="fas fa-shield-alt"></i> Privacy</a>
-    </div>
-    <p class="footer-copy">© 2026 Crypto Asteroid Rush. All rights reserved.</p>
-</footer>
+        <a href="https://t.me/UnobixOfficial" target="_blank" class="btn btn-telegram">
+            <i class="fab fa-telegram"></i> Nosso Telegram
+        </a>
+        <div class="footer-links">
+            <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> Como Jogar</a>
+            <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Guia do Jogo</a>
+            <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economia</a>
+            <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
+            <a href="terms.html" class="footer-link"><i class="fas fa-file-contract"></i> Termos</a>
+            <a href="privacy.html" class="footer-link"><i class="fas fa-shield-alt"></i> Privacidade</a>
+        </div>
+        <p class="footer-copy">© 2026 Unobix. Todos os direitos reservados.</p>
+    </footer>
 </div>
 
 <style>
-/* Estilo para o card de Affiliates */
+/* Estilo para o card de Afiliados */
 .action-card.affiliate {
     background: linear-gradient(135deg, rgba(146, 254, 157, 0.1), rgba(0, 240, 255, 0.05));
     border-color: var(--success);
@@ -113,8 +151,162 @@
     border-color: var(--success);
     box-shadow: 0 10px 30px rgba(5, 255, 161, 0.2);
 }
+
+/* Avatar do usuário logado */
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 8px;
+    border: 2px solid var(--primary);
+}
+
+.wallet-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 </style>
 
+<!-- Scripts -->
+<script src="js/firebase-config.js"></script>
+<script src="js/auth-manager.js"></script>
 <script src="js/main.js"></script>
+
+<script>
+// Formatar valores em BRL
+function formatBRL(value) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(value || 0);
+}
+
+// Carregar dados do dashboard
+async function loadDashboardData() {
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    try {
+        const response = await fetch('/api/balance.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('statBalance').textContent = formatBRL(data.balance_brl);
+            document.getElementById('statEarned').textContent = formatBRL(data.total_earned_brl);
+            document.getElementById('statGames').textContent = data.total_played || 0;
+            document.getElementById('statStaked').textContent = formatBRL(data.staked_balance_brl);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+    }
+}
+
+// Carregar atividade recente
+async function loadRecentActivity() {
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    try {
+        const response = await fetch('/api/transactions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                google_uid: user.uid,
+                limit: 5
+            })
+        });
+        
+        const data = await response.json();
+        const container = document.getElementById('activityList');
+        
+        if (data.success && data.transactions?.length > 0) {
+            container.innerHTML = data.transactions.map(tx => `
+                <div class="activity-item">
+                    <div class="activity-icon ${tx.type.includes('earn') ? 'positive' : ''}">
+                        <i class="fas fa-${getActivityIcon(tx.type)}"></i>
+                    </div>
+                    <div class="activity-info">
+                        <div class="activity-title">${getActivityTitle(tx.type)}</div>
+                        <div class="activity-desc">${tx.description || ''}</div>
+                    </div>
+                    <div class="activity-amount ${parseFloat(tx.amount_brl) > 0 ? 'positive' : ''}">
+                        ${formatBRL(tx.amount_brl)}
+                    </div>
+                    <div class="activity-date">${formatDate(tx.created_at)}</div>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>Nenhuma atividade ainda. Jogue para começar a ganhar!</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Erro ao carregar atividade:', error);
+        document.getElementById('activityList').innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Erro ao carregar atividade</p>
+            </div>
+        `;
+    }
+}
+
+function getActivityIcon(type) {
+    const icons = {
+        'game_earning': 'gamepad',
+        'stake_reward': 'chart-line',
+        'referral_bonus': 'users',
+        'withdrawal': 'arrow-up',
+        'withdrawal_rejected': 'times-circle',
+        'stake': 'lock',
+        'unstake': 'unlock'
+    };
+    return icons[type] || 'circle';
+}
+
+function getActivityTitle(type) {
+    const titles = {
+        'game_earning': 'Ganhos da Missão',
+        'stake_reward': 'Rendimento Staking',
+        'referral_bonus': 'Bônus de Indicação',
+        'withdrawal': 'Saque Solicitado',
+        'withdrawal_approved': 'Saque Aprovado',
+        'withdrawal_rejected': 'Saque Rejeitado',
+        'stake': 'Stake Realizado',
+        'unstake': 'Unstake Realizado'
+    };
+    return titles[type] || type;
+}
+
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// Inicializar quando autenticado
+document.addEventListener('authStateChanged', (e) => {
+    if (e.detail.user) {
+        document.getElementById('connectOverlay').classList.remove('active');
+        loadDashboardData();
+        loadRecentActivity();
+    } else {
+        document.getElementById('connectOverlay').classList.add('active');
+    }
+});
+</script>
 </body>
 </html>
