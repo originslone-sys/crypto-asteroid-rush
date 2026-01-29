@@ -1,42 +1,36 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gameplay Guide | CRYPTO ASTEROID RUSH</title>
-    <meta name="description" content="Learn how to play Crypto Asteroid Rush - controls, strategies, asteroid types, and tips to maximize your earnings.">
+    <title>Guia do Jogo | UNOBIX</title>
+    <meta name="description" content="Aprenda a jogar Unobix - controles, estratégias, tipos de asteroides e dicas para maximizar seus ganhos.">
+    <link rel="icon" type="image/png" href="img/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary: #00f0ff;
-            --primary-glow: rgba(0, 240, 255, 0.4);
-            --secondary: #7b2ff7;
-            --accent: #ff00aa;
-            --success: #00ff88;
+            --primary: #00E5CC;
+            --primary-glow: rgba(0, 229, 204, 0.4);
+            --secondary: #7BF542;
+            --accent: #B8FF00;
+            --success: #00FF88;
             --warning: #ffaa00;
             --danger: #ff3366;
-            --bg-primary: #0a0a12;
+            --bg-primary: #0a0a0f;
             --bg-secondary: #12121f;
             --bg-tertiary: #1a1a2e;
             --text-primary: #ffffff;
             --text-secondary: #b0b0c0;
             --text-muted: #707080;
-            --border: rgba(0, 240, 255, 0.2);
+            --border: rgba(0, 229, 204, 0.2);
             --radius-sm: 8px;
             --radius-md: 12px;
             --radius-lg: 20px;
         }
         
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        html {
-            scroll-behavior: smooth;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
         
         body {
             font-family: 'Exo 2', sans-serif;
@@ -46,21 +40,17 @@
             min-height: 100vh;
         }
         
-        /* Background Effects */
         .bg-effects {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             pointer-events: none;
             z-index: 0;
             background:
-                radial-gradient(ellipse at 20% 20%, rgba(123, 47, 247, 0.1) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 80%, rgba(0, 240, 255, 0.08) 0%, transparent 50%);
+                radial-gradient(ellipse at 20% 20%, rgba(123, 245, 66, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(0, 229, 204, 0.08) 0%, transparent 50%);
         }
         
-        /* Container */
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -89,14 +79,9 @@
             color: var(--primary);
         }
         
-        .logo-icon {
-            font-size: 1.5rem;
-        }
+        .logo img { width: 40px; height: 40px; border-radius: 50%; }
         
-        .nav-links {
-            display: flex;
-            gap: 30px;
-        }
+        .nav-links { display: flex; gap: 30px; }
         
         .nav-links a {
             color: var(--text-secondary);
@@ -105,10 +90,7 @@
             transition: color 0.3s;
         }
         
-        .nav-links a:hover,
-        .nav-links a.active {
-            color: var(--primary);
-        }
+        .nav-links a:hover, .nav-links a.active { color: var(--primary); }
         
         .play-btn {
             background: linear-gradient(135deg, var(--primary), var(--secondary));
@@ -133,7 +115,7 @@
         
         .hero h1 {
             font-family: 'Orbitron', sans-serif;
-            font-size: 3rem;
+            font-size: 2.5rem;
             font-weight: 800;
             margin-bottom: 20px;
             background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
@@ -160,21 +142,17 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(0, 240, 255, 0.1);
+            background: rgba(0, 229, 204, 0.1);
             border: 1px solid var(--border);
             padding: 10px 20px;
             border-radius: 25px;
             font-size: 0.9rem;
         }
         
-        .hero-badge i {
-            color: var(--primary);
-        }
+        .hero-badge i { color: var(--primary); }
         
         /* Section Styles */
-        .section {
-            padding: 60px 0;
-        }
+        .section { padding: 60px 0; }
         
         .section-header {
             text-align: center;
@@ -183,7 +161,7 @@
         
         .section-header h2 {
             font-family: 'Orbitron', sans-serif;
-            font-size: 2rem;
+            font-size: 1.8rem;
             color: var(--primary);
             margin-bottom: 15px;
             display: flex;
@@ -198,98 +176,10 @@
             margin: 0 auto;
         }
         
-        /* Video Section */
-        .video-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-            gap: 30px;
-            margin-bottom: 40px;
-        }
-        
-        .video-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-            transition: all 0.3s;
-        }
-        
-        .video-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0, 240, 255, 0.15);
-            border-color: var(--primary);
-        }
-        
-        .video-header {
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.3);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .video-header .icon {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.3rem;
-            color: #fff;
-        }
-        
-        .video-header h3 {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.2rem;
-            margin-bottom: 3px;
-        }
-        
-        .video-header span {
-            color: var(--text-muted);
-            font-size: 0.85rem;
-        }
-        
-        .video-container {
-            position: relative;
-            padding-bottom: 56.25%;
-            background: #000;
-        }
-        
-        .video-container video {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-        
-        .video-features {
-            padding: 20px;
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-        }
-        
-        .video-feature {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-        }
-        
-        .video-feature i {
-            color: var(--primary);
-            width: 20px;
-        }
-        
-        /* Controls Section */
+        /* Controls Grid */
         .controls-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 30px;
         }
         
@@ -298,160 +188,81 @@
             border: 1px solid var(--border);
             border-radius: var(--radius-lg);
             padding: 30px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .control-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: linear-gradient(180deg, var(--primary), var(--secondary));
         }
         
         .control-card h3 {
             font-family: 'Orbitron', sans-serif;
-            font-size: 1.3rem;
-            margin-bottom: 25px;
+            color: var(--primary);
+            margin-bottom: 20px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
         
-        .control-card h3 i {
-            color: var(--primary);
-        }
-        
-        .control-list {
-            list-style: none;
-        }
+        .control-list { list-style: none; }
         
         .control-item {
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
             padding: 15px 0;
             border-bottom: 1px solid rgba(255,255,255,0.05);
         }
         
-        .control-item:last-child {
-            border-bottom: none;
-        }
+        .control-item:last-child { border-bottom: none; }
         
-        .control-action {
-            color: var(--text-secondary);
-        }
+        .control-action { color: var(--text-secondary); }
         
-        .control-key {
-            display: flex;
-            gap: 8px;
-        }
+        .control-key { display: flex; gap: 8px; }
         
         .key {
-            background: rgba(0, 240, 255, 0.1);
+            background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
             border: 1px solid var(--border);
             padding: 8px 15px;
-            border-radius: 6px;
+            border-radius: var(--radius-sm);
             font-family: 'Orbitron', sans-serif;
             font-size: 0.85rem;
             color: var(--primary);
         }
         
-        /* Asteroids Section */
+        /* Asteroids Grid */
         .asteroids-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
         }
         
         .asteroid-card {
             background: var(--bg-secondary);
-            border: 1px solid var(--border);
+            border: 2px solid var(--border);
             border-radius: var(--radius-lg);
-            padding: 25px;
+            padding: 30px;
             text-align: center;
             transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
         }
         
         .asteroid-card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
         
-        .asteroid-card.common { border-top: 3px solid #6B4423; }
-        .asteroid-card.rare { border-top: 3px solid #1E90FF; }
-        .asteroid-card.epic { border-top: 3px solid #9932CC; }
-        .asteroid-card.legendary { border-top: 3px solid #FFD700; }
+        .asteroid-card.common { border-color: rgba(107, 68, 35, 0.5); }
+        .asteroid-card.rare { border-color: rgba(30, 144, 255, 0.5); }
+        .asteroid-card.epic { border-color: rgba(153, 50, 204, 0.5); }
+        .asteroid-card.legendary { border-color: rgba(255, 215, 0, 0.5); }
         
-        .asteroid-visual {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            position: relative;
-        }
-        
-        .asteroid-card.common .asteroid-visual {
-            background: radial-gradient(circle, #8B6914 0%, #6B4423 100%);
-        }
-        
-        .asteroid-card.rare .asteroid-visual {
-            background: radial-gradient(circle, #4169E1 0%, #1E90FF 100%);
-            box-shadow: 0 0 30px rgba(30, 144, 255, 0.4);
-            animation: pulse-blue 2s infinite;
-        }
-        
-        .asteroid-card.epic .asteroid-visual {
-            background: radial-gradient(circle, #BA55D3 0%, #9932CC 100%);
-            box-shadow: 0 0 30px rgba(153, 50, 204, 0.4);
-            animation: pulse-purple 2s infinite;
-        }
-        
-        .asteroid-card.legendary .asteroid-visual {
-            background: radial-gradient(circle, #FFD700 0%, #FFA500 100%);
-            box-shadow: 0 0 40px rgba(255, 215, 0, 0.5);
-            animation: pulse-gold 1.5s infinite;
-        }
-        
-        @keyframes pulse-blue {
-            0%, 100% { box-shadow: 0 0 20px rgba(30, 144, 255, 0.4); }
-            50% { box-shadow: 0 0 40px rgba(30, 144, 255, 0.6); }
-        }
-        
-        @keyframes pulse-purple {
-            0%, 100% { box-shadow: 0 0 20px rgba(153, 50, 204, 0.4); }
-            50% { box-shadow: 0 0 40px rgba(153, 50, 204, 0.6); }
-        }
-        
-        @keyframes pulse-gold {
-            0%, 100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
-            50% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.8); }
-        }
+        .asteroid-visual { font-size: 3rem; margin-bottom: 15px; }
         
         .asteroid-name {
             font-family: 'Orbitron', sans-serif;
-            font-size: 1.1rem;
+            font-size: 1rem;
             margin-bottom: 10px;
         }
         
-        .asteroid-card.common .asteroid-name { color: #B8860B; }
-        .asteroid-card.rare .asteroid-name { color: #1E90FF; }
-        .asteroid-card.epic .asteroid-name { color: #9932CC; }
-        .asteroid-card.legendary .asteroid-name { color: #FFD700; }
-        
         .asteroid-reward {
             font-family: 'Orbitron', sans-serif;
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 8px;
+            font-size: 1.3rem;
+            margin-bottom: 5px;
         }
         
         .asteroid-card.common .asteroid-reward { color: var(--text-muted); }
@@ -459,23 +270,18 @@
         .asteroid-card.epic .asteroid-reward { color: #9932CC; }
         .asteroid-card.legendary .asteroid-reward { color: #FFD700; }
         
-        .asteroid-rate {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-        }
-        
-        /* Tips Section */
+        /* Tips Grid */
         .tips-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 25px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
         }
         
         .tip-card {
             background: var(--bg-secondary);
             border: 1px solid var(--border);
             border-radius: var(--radius-lg);
-            padding: 30px;
+            padding: 25px;
             transition: all 0.3s;
         }
         
@@ -485,55 +291,50 @@
         }
         
         .tip-icon {
-            width: 60px;
-            height: 60px;
-            background: rgba(0, 240, 255, 0.1);
-            border-radius: 15px;
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            background: rgba(0, 229, 204, 0.1);
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 20px;
-            font-size: 1.5rem;
+            margin-bottom: 15px;
             color: var(--primary);
+            font-size: 1.3rem;
         }
         
         .tip-card h3 {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.1rem;
-            margin-bottom: 12px;
+            font-size: 1rem;
+            margin-bottom: 10px;
         }
         
         .tip-card p {
             color: var(--text-secondary);
-            font-size: 0.95rem;
-            line-height: 1.6;
+            font-size: 0.9rem;
         }
         
         /* CTA Section */
         .cta-section {
-            text-align: center;
+            background: linear-gradient(135deg, rgba(0, 229, 204, 0.1), rgba(123, 245, 66, 0.1));
             padding: 80px 0;
-            background: linear-gradient(180deg, transparent, rgba(0, 240, 255, 0.05));
-            border-top: 1px solid var(--border);
-            margin-top: 40px;
+            text-align: center;
+            margin-top: 60px;
         }
         
         .cta-section h2 {
             font-family: 'Orbitron', sans-serif;
-            font-size: 2.2rem;
+            font-size: 2rem;
             margin-bottom: 15px;
         }
         
         .cta-section p {
             color: var(--text-secondary);
             margin-bottom: 30px;
-            font-size: 1.1rem;
         }
         
         .cta-buttons {
             display: flex;
-            justify-content: center;
             gap: 20px;
+            justify-content: center;
             flex-wrap: wrap;
         }
         
@@ -541,11 +342,10 @@
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            padding: 15px 35px;
+            padding: 15px 30px;
             border-radius: var(--radius-md);
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 600;
             text-decoration: none;
+            font-weight: 600;
             transition: all 0.3s;
         }
         
@@ -554,35 +354,27 @@
             color: #000;
         }
         
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px var(--primary-glow);
-        }
-        
         .btn-secondary {
             background: transparent;
-            border: 2px solid var(--border);
-            color: var(--text-primary);
-        }
-        
-        .btn-secondary:hover {
-            border-color: var(--primary);
+            border: 2px solid var(--primary);
             color: var(--primary);
         }
+        
+        .btn:hover { transform: translateY(-2px); }
         
         /* Footer */
         .footer {
             text-align: center;
             padding: 40px 0;
             border-top: 1px solid var(--border);
-            color: var(--text-muted);
         }
         
         .footer-links {
             display: flex;
-            justify-content: center;
             gap: 30px;
+            justify-content: center;
             margin-bottom: 20px;
+            flex-wrap: wrap;
         }
         
         .footer-links a {
@@ -591,68 +383,21 @@
             transition: color 0.3s;
         }
         
-        .footer-links a:hover {
-            color: var(--primary);
-        }
+        .footer-links a:hover { color: var(--primary); }
+        
+        .footer p { color: var(--text-muted); font-size: 0.9rem; }
         
         /* Responsive */
-        @media (max-width: 1024px) {
-            .asteroids-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .tips-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-        
         @media (max-width: 768px) {
-            .navbar {
-                flex-wrap: wrap;
-                gap: 15px;
-            }
-            
-            .nav-links {
-                display: none;
-            }
-            
-            .hero h1 {
-                font-size: 2rem;
-            }
-            
-            .video-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .controls-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .asteroids-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .tips-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .video-features {
-                grid-template-columns: 1fr;
-            }
+            .nav-links { display: none; }
+            .hero h1 { font-size: 1.8rem; }
+            .controls-grid { grid-template-columns: 1fr; }
+            .asteroids-grid { grid-template-columns: repeat(2, 1fr); }
         }
         
         @media (max-width: 480px) {
-            .hero h1 {
-                font-size: 1.6rem;
-            }
-            
-            .section-header h2 {
-                font-size: 1.5rem;
-            }
-            
-            .asteroids-grid {
-                grid-template-columns: 1fr;
-            }
+            .asteroids-grid { grid-template-columns: 1fr; }
+            .hero-badges { flex-direction: column; align-items: center; }
         }
     </style>
 </head>
@@ -663,163 +408,98 @@
         <!-- Navigation -->
         <nav class="navbar">
             <a href="index.html" class="logo">
-                <span class="logo-icon">☄️</span>
-                <span>ASTEROID RUSH</span>
+                <img src="img/logo.png" alt="Unobix">
+                <span>UNOBIX</span>
             </a>
             <div class="nav-links">
-                <a href="dashboard.html">Dashboard</a>
-                <a href="game.html">Play</a>
-                <a href="wallet.html">Wallet</a>
-                <a href="economy.html">Economy</a>
-                <a href="gameplay.html" class="active">Gameplay</a>
-                <a href="faq.html">FAQ</a>
+                <a href="dashboard.html">Painel</a>
+                <a href="game.html">Jogar</a>
+                <a href="wallet.html">Carteira</a>
+                <a href="staking.html">Staking</a>
+                <a href="gameplay.html" class="active">Guia</a>
             </div>
-            <a href="game.html" class="play-btn"><i class="fas fa-play"></i> Play Now</a>
+            <a href="game.html" class="play-btn"><i class="fas fa-play"></i> Jogar</a>
         </nav>
         
         <!-- Hero -->
         <section class="hero">
-            <h1>MASTER THE GAMEPLAY</h1>
-            <p>Learn the controls, understand asteroid types, and discover strategies to maximize your earnings in Crypto Asteroid Rush</p>
+            <h1><i class="fas fa-gamepad"></i> GUIA DO JOGO</h1>
+            <p>Domine os controles, conheça os asteroides e maximize seus ganhos com estratégias de especialista</p>
             <div class="hero-badges">
-                <div class="hero-badge">
-                    <i class="fas fa-clock"></i>
-                    <span>3-Minute Missions</span>
-                </div>
-                <div class="hero-badge">
-                    <i class="fas fa-heart"></i>
-                    <span>6 Lives</span>
-                </div>
-                <div class="hero-badge">
-                    <i class="fas fa-coins"></i>
-                    <span>Earn USDT</span>
-                </div>
-            </div>
-        </section>
-        
-        <!-- Video Section -->
-        <section class="section">
-            <div class="section-header">
-                <h2><i class="fas fa-play-circle"></i> GAMEPLAY IN ACTION</h2>
-                <p>Watch how the game works on different platforms</p>
-            </div>
-            
-            <div class="video-grid">
-                <!-- Desktop Video -->
-                <div class="video-card">
-                    <div class="video-header">
-                        <div class="icon"><i class="fas fa-desktop"></i></div>
-                        <div>
-                            <h3>Desktop Version</h3>
-                            <span>Keyboard & Mouse controls</span>
-                        </div>
-                    </div>
-                    <div class="video-container">
-                        <video controls poster="thumbnails/pc-gameplay-thumb.jpg">
-                            <source src="videos/pc-gameplay.mp4" type="video/mp4">
-                            Your browser does not support video.
-                        </video>
-                    </div>
-                    <div class="video-features">
-                        <div class="video-feature"><i class="fas fa-expand"></i> Full HD graphics</div>
-                        <div class="video-feature"><i class="fas fa-mouse"></i> Precise mouse aim</div>
-                        <div class="video-feature"><i class="fas fa-keyboard"></i> Keyboard movement</div>
-                        <div class="video-feature"><i class="fas fa-bolt"></i> 60+ FPS smooth</div>
-                    </div>
-                </div>
-                
-                <!-- Mobile Video -->
-                <div class="video-card">
-                    <div class="video-header">
-                        <div class="icon"><i class="fas fa-mobile-alt"></i></div>
-                        <div>
-                            <h3>Mobile Version</h3>
-                            <span>Touch controls optimized</span>
-                        </div>
-                    </div>
-                    <div class="video-container">
-                        <video controls poster="thumbnails/mobile-gameplay-thumb.jpg">
-                            <source src="videos/mobile-gameplay.mp4" type="video/mp4">
-                            Your browser does not support video.
-                        </video>
-                    </div>
-                    <div class="video-features">
-                        <div class="video-feature"><i class="fas fa-hand-pointer"></i> Touch controls</div>
-                        <div class="video-feature"><i class="fas fa-mobile"></i> Responsive UI</div>
-                        <div class="video-feature"><i class="fas fa-battery-full"></i> Battery optimized</div>
-                        <div class="video-feature"><i class="fas fa-wifi"></i> Low data usage</div>
-                    </div>
-                </div>
+                <span class="hero-badge"><i class="fas fa-gift"></i> 100% Grátis</span>
+                <span class="hero-badge"><i class="fas fa-clock"></i> 180 segundos</span>
+                <span class="hero-badge"><i class="fas fa-heart"></i> 6 vidas</span>
+                <span class="hero-badge"><i class="fas fa-coins"></i> Ganhos reais</span>
             </div>
         </section>
         
         <!-- Controls Section -->
         <section class="section">
             <div class="section-header">
-                <h2><i class="fas fa-gamepad"></i> CONTROLS</h2>
-                <p>Master the controls to become a skilled asteroid hunter</p>
+                <h2><i class="fas fa-keyboard"></i> CONTROLES</h2>
+                <p>Domine os controles para se tornar um caçador de asteroides habilidoso</p>
             </div>
             
             <div class="controls-grid">
-                <!-- Desktop Controls -->
+                <!-- Desktop -->
                 <div class="control-card">
-                    <h3><i class="fas fa-desktop"></i> Desktop Controls</h3>
+                    <h3><i class="fas fa-desktop"></i> Controles Desktop</h3>
                     <ul class="control-list">
                         <li class="control-item">
-                            <span class="control-action">Move Left</span>
+                            <span class="control-action">Mover Esquerda</span>
                             <div class="control-key">
                                 <span class="key">A</span>
                                 <span class="key">←</span>
                             </div>
                         </li>
                         <li class="control-item">
-                            <span class="control-action">Move Right</span>
+                            <span class="control-action">Mover Direita</span>
                             <div class="control-key">
                                 <span class="key">D</span>
                                 <span class="key">→</span>
                             </div>
                         </li>
                         <li class="control-item">
-                            <span class="control-action">Fire</span>
+                            <span class="control-action">Atirar</span>
                             <div class="control-key">
-                                <span class="key">SPACE</span>
+                                <span class="key">ESPAÇO</span>
                             </div>
                         </li>
                         <li class="control-item">
-                            <span class="control-action">Auto-Fire</span>
+                            <span class="control-action">Tiro Contínuo</span>
                             <div class="control-key">
-                                <span class="key">Hold SPACE</span>
+                                <span class="key">Segurar ESPAÇO</span>
                             </div>
                         </li>
                     </ul>
                 </div>
                 
-                <!-- Mobile Controls -->
+                <!-- Mobile -->
                 <div class="control-card">
-                    <h3><i class="fas fa-mobile-alt"></i> Mobile Controls</h3>
+                    <h3><i class="fas fa-mobile-alt"></i> Controles Mobile</h3>
                     <ul class="control-list">
                         <li class="control-item">
-                            <span class="control-action">Move Left</span>
+                            <span class="control-action">Mover Esquerda</span>
                             <div class="control-key">
-                                <span class="key">← Button</span>
+                                <span class="key">Botão ←</span>
                             </div>
                         </li>
                         <li class="control-item">
-                            <span class="control-action">Move Right</span>
+                            <span class="control-action">Mover Direita</span>
                             <div class="control-key">
-                                <span class="key">→ Button</span>
+                                <span class="key">Botão →</span>
                             </div>
                         </li>
                         <li class="control-item">
-                            <span class="control-action">Fire</span>
+                            <span class="control-action">Atirar</span>
                             <div class="control-key">
-                                <span class="key">FIRE Button</span>
+                                <span class="key">Botão TIRO</span>
                             </div>
                         </li>
                         <li class="control-item">
-                            <span class="control-action">Auto-Fire</span>
+                            <span class="control-action">Tiro Contínuo</span>
                             <div class="control-key">
-                                <span class="key">Hold FIRE</span>
+                                <span class="key">Segurar TIRO</span>
                             </div>
                         </li>
                     </ul>
@@ -830,42 +510,37 @@
         <!-- Asteroids Section -->
         <section class="section">
             <div class="section-header">
-                <h2><i class="fas fa-meteor"></i> ASTEROID TYPES</h2>
-                <p>Learn to identify and prioritize valuable asteroids</p>
+                <h2><i class="fas fa-meteor"></i> TIPOS DE ASTEROIDES</h2>
+                <p>Aprenda a identificar e priorizar asteroides valiosos pelo brilho</p>
             </div>
             
             <div class="asteroids-grid">
-                <!-- Common -->
                 <div class="asteroid-card common">
                     <div class="asteroid-visual">🪨</div>
-                    <div class="asteroid-name">COMMON</div>
-                    <div class="asteroid-reward">$0.00</div>
-                    <div class="asteroid-rate">~86% spawn rate</div>
-                    <div class="asteroid-note" style="font-size: 0.75rem; color: #ff6666; margin-top: 5px;">No value - dodge or destroy</div>
+                    <div class="asteroid-name">COMUM</div>
+                    <div class="asteroid-reward">R$ 0,00</div>
+                    <p style="font-size: 0.8rem; color: #ff6666; margin-top: 10px;">Sem valor - desvie ou destrua</p>
                 </div>
                 
-                <!-- Rare -->
                 <div class="asteroid-card rare">
                     <div class="asteroid-visual">💎</div>
-                    <div class="asteroid-name">RARE</div>
-                    <div class="asteroid-reward">$0.0003</div>
-                    <div class="asteroid-rate">~10% spawn rate</div>
+                    <div class="asteroid-name">RARO</div>
+                    <div class="asteroid-reward">R$ 0,001</div>
+                    <p style="font-size: 0.8rem; color: #1E90FF; margin-top: 10px;">Brilho azul</p>
                 </div>
                 
-                <!-- Epic -->
                 <div class="asteroid-card epic">
                     <div class="asteroid-visual">🔮</div>
-                    <div class="asteroid-name">EPIC</div>
-                    <div class="asteroid-reward">$0.0008</div>
-                    <div class="asteroid-rate">~3% spawn rate</div>
+                    <div class="asteroid-name">ÉPICO</div>
+                    <div class="asteroid-reward">R$ 0,005</div>
+                    <p style="font-size: 0.8rem; color: #9932CC; margin-top: 10px;">Brilho roxo</p>
                 </div>
                 
-                <!-- Legendary -->
                 <div class="asteroid-card legendary">
                     <div class="asteroid-visual">⭐</div>
-                    <div class="asteroid-name">LEGENDARY</div>
-                    <div class="asteroid-reward">$0.0020</div>
-                    <div class="asteroid-rate">~1% spawn rate</div>
+                    <div class="asteroid-name">LENDÁRIO</div>
+                    <div class="asteroid-reward">R$ 0,02</div>
+                    <p style="font-size: 0.8rem; color: #FFD700; margin-top: 10px;">Brilho dourado - NUNCA perca!</p>
                 </div>
             </div>
         </section>
@@ -873,51 +548,57 @@
         <!-- Tips Section -->
         <section class="section">
             <div class="section-header">
-                <h2><i class="fas fa-lightbulb"></i> PRO TIPS</h2>
-                <p>Strategies to maximize your earnings</p>
+                <h2><i class="fas fa-lightbulb"></i> DICAS DE ESPECIALISTA</h2>
+                <p>Estratégias para maximizar seus ganhos</p>
             </div>
             
             <div class="tips-grid">
                 <div class="tip-card">
                     <div class="tip-icon"><i class="fas fa-crosshairs"></i></div>
-                    <h3>Prioritize Rare Asteroids</h3>
-                    <p>Blue glowing asteroids are worth 3x more. Always aim for them first when they appear on screen.</p>
+                    <h3>Priorize Asteroides Raros</h3>
+                    <p>Asteroides com brilho azul valem mais. Sempre mire neles primeiro quando aparecerem na tela.</p>
                 </div>
                 
                 <div class="tip-card">
                     <div class="tip-icon"><i class="fas fa-shield-alt"></i></div>
-                    <h3>Protect Your Lives</h3>
-                    <p>Losing all 6 lives means losing all earnings. Sometimes dodging is better than risking a collision.</p>
+                    <h3>Proteja Suas Vidas</h3>
+                    <p>Perder todas as 6 vidas significa perder todos os ganhos. Às vezes desviar é melhor que arriscar uma colisão.</p>
                 </div>
                 
                 <div class="tip-card">
                     <div class="tip-icon"><i class="fas fa-eye"></i></div>
-                    <h3>Watch for Golden Glow</h3>
-                    <p>Legendary asteroids have a golden glow and are worth 20x a common. Never miss them!</p>
+                    <h3>Observe o Brilho Dourado</h3>
+                    <p>Asteroides lendários têm brilho dourado e valem R$ 0,02. Nunca deixe passar!</p>
                 </div>
                 
                 <div class="tip-card">
                     <div class="tip-icon"><i class="fas fa-arrows-alt-h"></i></div>
-                    <h3>Stay Mobile</h3>
-                    <p>Keep moving to avoid collisions. A stationary ship is an easy target for incoming asteroids.</p>
+                    <h3>Continue se Movendo</h3>
+                    <p>Mantenha-se em movimento para evitar colisões. Uma nave parada é alvo fácil.</p>
                 </div>
                 
                 <div class="tip-card">
                     <div class="tip-icon"><i class="fas fa-fire"></i></div>
-                    <h3>Use Auto-Fire</h3>
-                    <p>Hold the fire button for continuous shooting. This helps maximize asteroid destruction.</p>
-                </div>
-                
-                <div class="tip-card">
-                    <div class="tip-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                    <h3>Hard Mode Awareness</h3>
-                    <p>10% of missions are harder with faster asteroids. Stay alert and play more defensively.</p>
+                    <h3>Use Tiro Contínuo</h3>
+                    <p>Segure o botão de tiro para disparo contínuo. Isso ajuda a maximizar a destruição de asteroides.</p>
                 </div>
                 
                 <div class="tip-card">
                     <div class="tip-icon"><i class="fas fa-clock"></i></div>
-                    <h3>Mission Limit</h3>
-                    <p>You can play up to 5 missions per hour. Plan your sessions wisely to maximize your earnings!</p>
+                    <h3>Limite de Missões</h3>
+                    <p>Você pode jogar até 5 missões por hora. Planeje suas sessões para maximizar seus ganhos!</p>
+                </div>
+                
+                <div class="tip-card">
+                    <div class="tip-icon"><i class="fas fa-robot"></i></div>
+                    <h3>Complete o CAPTCHA</h3>
+                    <p>Ao vencer, complete o CAPTCHA rapidamente para confirmar seus ganhos.</p>
+                </div>
+                
+                <div class="tip-card">
+                    <div class="tip-icon"><i class="fas fa-piggy-bank"></i></div>
+                    <h3>Use o Staking</h3>
+                    <p>Coloque seus ganhos para render 5% APY enquanto você não saca!</p>
                 </div>
             </div>
         </section>
@@ -926,16 +607,16 @@
     <!-- CTA Section -->
     <section class="cta-section">
         <div class="container">
-            <h2>READY TO START EARNING?</h2>
-            <p>Put your skills to the test and start destroying asteroids for USDT rewards</p>
+            <h2>PRONTO PARA COMEÇAR A GANHAR?</h2>
+            <p>Coloque suas habilidades à prova e comece a destruir asteroides por recompensas em BRL</p>
             <div class="cta-buttons">
                 <a href="game.html" class="btn btn-primary">
                     <i class="fas fa-rocket"></i>
-                    START MISSION
+                    INICIAR MISSÃO
                 </a>
                 <a href="economy.html" class="btn btn-secondary">
                     <i class="fas fa-coins"></i>
-                    VIEW ECONOMY
+                    VER ECONOMIA
                 </a>
             </div>
         </div>
@@ -945,25 +626,14 @@
     <footer class="footer">
         <div class="container">
             <div class="footer-links">
-                <a href="index.html">Home</a>
-                <a href="dashboard.html">Dashboard</a>
-                <a href="economy.html">Economy</a>
+                <a href="index.html">Início</a>
+                <a href="dashboard.html">Painel</a>
+                <a href="economy.html">Economia</a>
                 <a href="faq.html">FAQ</a>
-                <a href="https://t.me/AsteroidRushOfficial" target="_blank">Telegram</a>
+                <a href="https://t.me/UnobixOfficial" target="_blank">Telegram</a>
             </div>
-            <p>© 2026 Crypto Asteroid Rush. Play Smart, Earn Rewards.</p>
+            <p>© 2026 Unobix. Jogue Esperto, Ganhe Recompensas.</p>
         </div>
     </footer>
-    
-    <script>
-        // Pause other videos when one plays
-        document.querySelectorAll('video').forEach(video => {
-            video.addEventListener('play', () => {
-                document.querySelectorAll('video').forEach(v => {
-                    if (v !== video) v.pause();
-                });
-            });
-        });
-    </script>
 </body>
 </html>
