@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CRYPTO ASTEROID RUSH | Earn USDT Destroying Asteroids</title>
-    <meta name="description" content="Destroy asteroids in space and earn USDT. 180 seconds of intense action with real-time rewards.">
+    <title>UNOBIX | Jogue e Ganhe Dinheiro Real</title>
+    <meta name="description" content="Destrua asteroides no espaço e ganhe dinheiro real em BRL. 180 segundos de ação intensa com recompensas em tempo real.">
     
+    <link rel="icon" type="image/png" href="img/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/main.css">
@@ -54,6 +55,16 @@
         .referral-banner.show { display: block; }
         .referral-banner p { color: var(--success); margin: 0; }
         .referral-banner strong { color: var(--primary); }
+        .free-badge {
+            background: linear-gradient(135deg, var(--success), #00d4aa);
+            color: #000;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
         @media (max-width: 768px) { .hero-title { font-size: 2rem; } .features-grid { grid-template-columns: 1fr; } }
         @media (max-width: 480px) { .hero { padding: 40px 0 60px; } .hero-title { font-size: 1.7rem; } .hero-buttons { flex-direction: column; align-items: center; } .hero-buttons .btn { width: 100%; max-width: 280px; } .cta-title { font-size: 1.4rem; } }
     </style>
@@ -62,121 +73,116 @@
 <div class="cosmic-bg"></div>
 <div class="container">
     <header class="header">
-        <a href="index.html" class="logo"><span class="logo-icon">☄️</span><span class="logo-text">ASTEROID RUSH</span></a>
+        <a href="index.html" class="logo">
+            <img src="img/logo.png" alt="Unobix" class="logo-img">
+            <span class="logo-text">UNOBIX</span>
+        </a>
         <nav class="nav" id="nav">
-            <a href="dashboard.html" class="nav-link">Dashboard</a>
-            <a href="game.html" class="nav-link">Play</a>
-            <a href="wallet.html" class="nav-link">Wallet</a>
+            <a href="dashboard.html" class="nav-link">Painel</a>
+            <a href="game.html" class="nav-link">Jogar</a>
+            <a href="wallet.html" class="nav-link">Carteira</a>
             <a href="staking.html" class="nav-link">Staking</a>
-            <a href="affiliates.html" class="nav-link">Affiliates</a>
-            <a href="how-to-play.html" class="nav-link">How to Play</a>
+            <a href="affiliates.html" class="nav-link">Afiliados</a>
+            <a href="how-to-play.html" class="nav-link">Como Jogar</a>
         </nav>
-        <a href="dashboard.html" class="wallet-btn"><i class="fas fa-rocket"></i> Enter</a>
+        <a href="dashboard.html" class="wallet-btn"><i class="fas fa-rocket"></i> Entrar</a>
         <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
     </header>
     
     <!-- Referral Banner -->
     <div class="referral-banner" id="referralBanner">
-        <p><i class="fas fa-gift"></i> You were invited by a friend! Connect your wallet to start playing.</p>
+        <p><i class="fas fa-gift"></i> Você foi convidado por um amigo! Faça login para começar a jogar.</p>
     </div>
     
     <section class="hero">
-        <div class="timer-badge"><i class="fas fa-clock"></i><span class="timer-value">180s</span><span class="text-dim">per mission</span></div>
-        <h1 class="hero-title">CRYPTO ASTEROID RUSH</h1>
-        <p class="hero-subtitle">Destroy asteroids in deep space and earn USDT in real-time. Every asteroid destroyed adds value to your wallet.</p>
+        <span class="free-badge"><i class="fas fa-gift"></i> 100% GRÁTIS PARA JOGAR</span>
+        <div class="timer-badge"><i class="fas fa-clock"></i><span class="timer-value">180s</span><span class="text-dim">por missão</span></div>
+        <h1 class="hero-title">UNOBIX</h1>
+        <p class="hero-subtitle">Destrua asteroides no espaço profundo e ganhe dinheiro real em BRL. Cada asteroide destruído adiciona valor à sua carteira.</p>
         <div class="hero-buttons">
-            <a href="game.html" class="btn btn-primary btn-lg"><i class="fas fa-play"></i> Play Now</a>
-            <a href="how-to-play.html" class="btn btn-outline btn-lg"><i class="fas fa-book"></i> How to Play</a>
+            <a href="game.html" class="btn btn-primary btn-lg"><i class="fas fa-play"></i> Jogar Agora</a>
+            <a href="how-to-play.html" class="btn btn-outline btn-lg"><i class="fas fa-book"></i> Como Jogar</a>
         </div>
     </section>
     
     <section class="features">
-        <h2 class="features-title"><i class="fas fa-star"></i> Why Play?</h2>
+        <h2 class="features-title"><i class="fas fa-star"></i> Por que Jogar?</h2>
         <div class="features-grid">
             <div class="feature-card">
                 <div class="feature-icon"><i class="fas fa-coins"></i></div>
-                <h3 class="feature-title">Earn USDT</h3>
-                <p class="feature-desc">Every asteroid destroyed adds USDT to your wallet. Withdraw your earnings anytime.</p>
+                <h3 class="feature-title">Ganhe em BRL</h3>
+                <p class="feature-desc">Cada asteroide destruído adiciona reais à sua carteira. Saque seus ganhos via PIX, PayPal ou USDT.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
-                <h3 class="feature-title">Staking 12% APY</h3>
-                <p class="feature-desc">Multiply your earnings with staking. Automatic yields credited every hour.</p>
+                <h3 class="feature-title">Staking 5% APY</h3>
+                <p class="feature-desc">Multiplique seus ganhos com staking. Rendimentos automáticos creditados a cada hora.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon"><i class="fas fa-shield-alt"></i></div>
-                <h3 class="feature-title">Secure on BSC</h3>
-                <p class="feature-desc">Secure transactions on Binance Smart Chain. Minimal fee of only 0.00001 BNB per mission.</p>
+                <h3 class="feature-title">Login com Google</h3>
+                <p class="feature-desc">Acesso rápido e seguro com sua conta Google. Sem carteira cripto, sem complicação.</p>
             </div>
         </div>
     </section>
     
     <section class="features">
-        <h2 class="features-title"><i class="fas fa-rocket"></i> How It Works</h2>
+        <h2 class="features-title"><i class="fas fa-rocket"></i> Como Funciona</h2>
         <div class="steps">
-            <div class="step"><div class="step-number">1</div><h4 class="step-title">Connect Wallet</h4><p class="step-desc">Use MetaMask on BSC network</p></div>
-            <div class="step"><div class="step-number">2</div><h4 class="step-title">Start Mission</h4><p class="step-desc">Pay 0.00001 BNB fee</p></div>
-            <div class="step"><div class="step-number">3</div><h4 class="step-title">Destroy Asteroids</h4><p class="step-desc">180 seconds of action</p></div>
-            <div class="step"><div class="step-number">4</div><h4 class="step-title">Collect Earnings</h4><p class="step-desc">USDT directly to wallet</p></div>
+            <div class="step"><div class="step-number">1</div><h4 class="step-title">Login Google</h4><p class="step-desc">Conecte com sua conta Google</p></div>
+            <div class="step"><div class="step-number">2</div><h4 class="step-title">Iniciar Missão</h4><p class="step-desc">Gratuito - sem taxas!</p></div>
+            <div class="step"><div class="step-number">3</div><h4 class="step-title">Destruir Asteroides</h4><p class="step-desc">180 segundos de ação</p></div>
+            <div class="step"><div class="step-number">4</div><h4 class="step-title">Receber Ganhos</h4><p class="step-desc">BRL direto na carteira</p></div>
         </div>
     </section>
     
     <section class="cta-section">
-        <h2 class="cta-title">Ready for the Mission?</h2>
-        <p class="cta-desc">Start now and earn USDT by destroying asteroids in space.</p>
-        <a href="game.html" class="btn btn-primary btn-lg"><i class="fas fa-rocket"></i> Start Mission</a>
+        <h2 class="cta-title">Pronto para a Missão?</h2>
+        <p class="cta-desc">Comece agora e ganhe dinheiro destruindo asteroides no espaço.</p>
+        <a href="game.html" class="btn btn-primary btn-lg"><i class="fas fa-rocket"></i> Iniciar Missão</a>
     </section>
     
     <footer class="footer">
-        <a href="https://t.me/AsteroidRushOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Join our Telegram</a>
+        <a href="https://t.me/UnobixOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Entre no Telegram</a>
         <div class="footer-links">
-            <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> How to Play</a>
-            <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Gameplay Guide</a>
-            <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economy</a>
+            <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> Como Jogar</a>
+            <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Guia do Jogo</a>
+            <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economia</a>
             <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
-            <a href="terms.html" class="footer-link"><i class="fas fa-file-contract"></i> Terms</a>
-            <a href="privacy.html" class="footer-link"><i class="fas fa-shield-alt"></i> Privacy</a>
+            <a href="terms.html" class="footer-link"><i class="fas fa-file-contract"></i> Termos</a>
+            <a href="privacy.html" class="footer-link"><i class="fas fa-shield-alt"></i> Privacidade</a>
         </div>
-        <p class="footer-copy">&copy; 2026 Crypto Asteroid Rush. All rights reserved.</p>
+        <p class="footer-copy">&copy; 2026 Unobix. Todos os direitos reservados.</p>
     </footer>
 </div>
 
 <script>
 // ============================================
-// CAPTURA DE CODIGO DE REFERRAL
+// CAPTURA DE CÓDIGO DE REFERRAL
 // ============================================
 (function() {
-    // Capturar codigo da URL
     const urlParams = new URLSearchParams(window.location.search);
     const refCode = urlParams.get('ref');
     
     if (refCode && /^[A-Z0-9]{6}$/i.test(refCode)) {
-        // Salvar no localStorage
         localStorage.setItem('referralCode', refCode.toUpperCase());
         localStorage.setItem('referralTimestamp', Date.now().toString());
         
-        // Mostrar banner
         const banner = document.getElementById('referralBanner');
-        if (banner) {
-            banner.classList.add('show');
-        }
+        if (banner) banner.classList.add('show');
         
-        console.log('Referral code captured:', refCode.toUpperCase());
+        console.log('Código de referral capturado:', refCode.toUpperCase());
         
-        // Limpar URL sem recarregar
         if (window.history.replaceState) {
             const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
             window.history.replaceState({}, document.title, cleanUrl);
         }
     }
     
-    // Verificar se ja tem codigo salvo (mostrar banner)
     const savedRef = localStorage.getItem('referralCode');
-    if (savedRef && !localStorage.getItem('connectedWallet')) {
+    if (savedRef && !localStorage.getItem('unobix_user')) {
         const banner = document.getElementById('referralBanner');
-        if (banner) {
-            banner.classList.add('show');
-        }
+        if (banner) banner.classList.add('show');
     }
 })();
 </script>
