@@ -1,15 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wallet | CRYPTO ASTEROID RUSH</title>
-    <meta name="description" content="Manage your rewards - Balances, transactions and withdrawals.">
+    <title>Carteira | UNOBIX</title>
+    <meta name="description" content="Gerencie seus ganhos - Saldo, transações e saques via PIX.">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/main.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    
     <style>
-        /* Balance Cards */
+        /* Cards de Saldo */
         .balance-cards {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -55,7 +60,7 @@
             font-size: 0.85rem;
         }
         
-        /* Withdraw Section */
+        /* Seção de Saque */
         .withdraw-section {
             background: var(--card-bg);
             border-radius: 15px;
@@ -72,6 +77,50 @@
             display: flex;
             align-items: center;
             gap: 10px;
+        }
+        
+        /* Método de Pagamento */
+        .payment-methods {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .payment-method {
+            flex: 1;
+            min-width: 140px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .payment-method:hover {
+            border-color: var(--primary);
+        }
+        
+        .payment-method.selected {
+            border-color: var(--success);
+            background: rgba(5, 255, 161, 0.1);
+        }
+        
+        .payment-method i {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            display: block;
+        }
+        
+        .payment-method.pix i { color: #32BCAD; }
+        .payment-method.paypal i { color: #00457C; }
+        .payment-method.usdt i { color: #26A17B; }
+        
+        .payment-method span {
+            font-size: 0.85rem;
+            color: var(--text-light);
         }
         
         .withdraw-form {
@@ -116,6 +165,15 @@
             font-family: 'Exo 2', sans-serif;
         }
         
+        /* Campo dinâmico baseado no método */
+        #paymentDetailsGroup {
+            display: none;
+        }
+        
+        #paymentDetailsGroup.visible {
+            display: block;
+        }
+        
         .withdraw-info {
             margin-top: 15px;
             padding: 12px;
@@ -132,7 +190,16 @@
             color: var(--primary);
         }
         
-        /* Transaction History */
+        .withdraw-info.warning {
+            background: rgba(255, 170, 0, 0.1);
+            border: 1px solid rgba(255, 170, 0, 0.3);
+        }
+        
+        .withdraw-info.warning i {
+            color: var(--warning);
+        }
+        
+        /* Histórico de Transações */
         .transactions-section {
             background: var(--card-bg);
             border-radius: 15px;
@@ -220,6 +287,9 @@
             min-width: 100px;
         }
         
+        .tx-amount.positive { color: var(--success); }
+        .tx-amount.negative { color: var(--danger); }
+        
         .tx-meta {
             text-align: right;
             min-width: 100px;
@@ -238,28 +308,11 @@
             display: inline-block;
         }
         
-        .tx-status.completed {
-            background: rgba(0, 255, 136, 0.15);
-            color: var(--success);
-        }
+        .tx-status.completed { background: rgba(0, 255, 136, 0.15); color: var(--success); }
+        .tx-status.pending { background: rgba(255, 170, 0, 0.15); color: var(--warning); }
+        .tx-status.failed, .tx-status.rejected { background: rgba(255, 51, 102, 0.15); color: var(--danger); }
         
-        .tx-status.pending {
-            background: rgba(255, 170, 0, 0.15);
-            color: var(--warning);
-        }
-        
-        .tx-status.failed,
-        .tx-status.rejected {
-            background: rgba(255, 51, 102, 0.15);
-            color: var(--danger);
-        }
-        
-        .tx-status.active {
-            background: rgba(0, 240, 255, 0.15);
-            color: var(--primary);
-        }
-        
-        /* Empty State */
+        /* Estado vazio */
         .empty-state {
             text-align: center;
             padding: 40px 20px;
@@ -272,50 +325,14 @@
             opacity: 0.5;
         }
         
-        .empty-state p {
-            font-size: 1rem;
-        }
-        
-        /* Asteroid Details */
-        .asteroid-details {
-            display: flex;
-            gap: 8px;
-            margin-top: 5px;
-        }
-        
-        .asteroid-badge {
-            font-size: 0.7rem;
-            padding: 2px 6px;
-            border-radius: 4px;
-            display: inline-flex;
-            align-items: center;
-            gap: 3px;
-        }
-        
-        .asteroid-badge.legendary {
-            background: rgba(255, 215, 0, 0.2);
-            color: #FFD700;
-        }
-        
-        .asteroid-badge.epic {
-            background: rgba(153, 50, 204, 0.2);
-            color: #BA55D3;
-        }
-        
-        .asteroid-badge.rare {
-            background: rgba(30, 144, 255, 0.2);
-            color: #1E90FF;
-        }
-        
-        .asteroid-badge.common {
-            background: rgba(139, 105, 20, 0.2);
-            color: #B8860B;
-        }
-        
-        /* Responsive */
+        /* Responsivo */
         @media (max-width: 768px) {
             .balance-cards {
                 grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .payment-methods {
+                flex-direction: column;
             }
             
             .transaction-item {
@@ -329,12 +346,6 @@
                 margin-top: 10px;
                 padding-top: 10px;
                 border-top: 1px solid var(--border-color);
-            }
-            
-            .tx-meta {
-                order: 4;
-                text-align: left;
-                margin-top: 5px;
             }
         }
         
@@ -360,103 +371,398 @@
 <body data-page="wallet">
 <div class="cosmic-bg"></div>
 
-<!-- Connect Overlay -->
+<!-- Overlay de Login -->
 <div id="connectOverlay" class="connect-overlay">
     <div class="connect-box">
         <div class="connect-icon"><i class="fas fa-wallet"></i></div>
-        <h2 class="connect-title">WELCOME, COMMANDER</h2>
-        <p class="connect-desc">Connect your MetaMask wallet on BSC network to access your wallet.</p>
-        <button id="connectBtn" class="btn btn-primary btn-lg"><i class="fab fa-ethereum"></i> Connect MetaMask</button>
+        <h2 class="connect-title">BEM-VINDO, COMANDANTE</h2>
+        <p class="connect-desc">Entre com sua conta Google para acessar sua carteira.</p>
+        <button id="connectBtn" class="btn btn-primary btn-lg">
+            <i class="fab fa-google"></i> Entrar com Google
+        </button>
     </div>
 </div>
 
 <div class="container">
     <!-- Header -->
     <header class="header">
-        <a href="index.html" class="logo"><span class="logo-icon">☄️</span><span class="logo-text">ASTEROID RUSH</span></a>
+        <a href="index.html" class="logo">
+            <span class="logo-icon"><img src="img/logo-unobix.png" alt="Unobix"></span>
+            <span class="logo-text">UNOBIX</span>
+        </a>
         <nav class="nav" id="nav">
-            <a href="dashboard.html" class="nav-link">Dashboard</a>
-            <a href="game.html" class="nav-link">Play</a>
-            <a href="wallet.html" class="nav-link active">Wallet</a>
+            <a href="dashboard.html" class="nav-link">Painel</a>
+            <a href="game.html" class="nav-link">Jogar</a>
+            <a href="wallet.html" class="nav-link active">Carteira</a>
             <a href="staking.html" class="nav-link">Staking</a>
-            <a href="affiliates.html" class="nav-link">Affiliates</a>
+            <a href="affiliates.html" class="nav-link">Afiliados</a>
         </nav>
-        <button id="walletBtn" class="wallet-btn"><i class="fas fa-wallet"></i> Connect</button>
+        <button id="walletBtn" class="wallet-btn">
+            <i class="fas fa-user-circle"></i>
+            <span id="userDisplayName">Entrar</span>
+        </button>
         <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
     </header>
     
-    <!-- Page Header -->
+    <!-- Cabeçalho da Página -->
     <section class="page-header">
-        <h1 class="page-title">INTERGALACTIC WALLET</h1>
-        <p class="page-subtitle">Manage your earnings and request withdrawals</p>
+        <h1 class="page-title">CARTEIRA INTERGALÁCTICA</h1>
+        <p class="page-subtitle">Gerencie seus ganhos e solicite saques</p>
     </section>
     
-    <!-- Balance Cards -->
+    <!-- Cards de Saldo -->
     <section class="balance-cards">
         <div class="balance-card primary">
             <div class="balance-icon"><i class="fas fa-wallet"></i></div>
-            <div class="balance-value" id="walletBalance">$0.000000</div>
-            <div class="balance-label">Available Balance</div>
+            <div class="balance-value" id="walletBalance">R$ 0,00</div>
+            <div class="balance-label">Saldo Disponível</div>
         </div>
         <div class="balance-card">
             <div class="balance-icon" style="color: var(--success);"><i class="fas fa-coins"></i></div>
-            <div class="balance-value" id="walletEarned" style="color: var(--success);">$0.000000</div>
-            <div class="balance-label">Total Earned</div>
+            <div class="balance-value" id="walletEarned" style="color: var(--success);">R$ 0,00</div>
+            <div class="balance-label">Total Ganho</div>
         </div>
         <div class="balance-card">
             <div class="balance-icon" style="color: var(--warning);"><i class="fas fa-arrow-up"></i></div>
-            <div class="balance-value" id="walletWithdrawn" style="color: var(--warning);">$0.000000</div>
-            <div class="balance-label">Total Withdrawn</div>
+            <div class="balance-value" id="walletWithdrawn" style="color: var(--warning);">R$ 0,00</div>
+            <div class="balance-label">Total Sacado</div>
         </div>
         <div class="balance-card">
             <div class="balance-icon" style="color: var(--danger);"><i class="fas fa-clock"></i></div>
-            <div class="balance-value" id="walletPending" style="color: var(--danger);">$0.000000</div>
-            <div class="balance-label">Pending Withdrawal</div>
+            <div class="balance-value" id="walletPending" style="color: var(--danger);">R$ 0,00</div>
+            <div class="balance-label">Saque Pendente</div>
         </div>
     </section>
     
-    <!-- Withdraw Section -->
+    <!-- Seção de Saque -->
     <section class="withdraw-section">
-        <h3><i class="fas fa-paper-plane"></i> Request Withdrawal</h3>
+        <h3><i class="fas fa-paper-plane"></i> Solicitar Saque</h3>
+        
+        <!-- Métodos de Pagamento -->
+        <div class="payment-methods">
+            <div class="payment-method pix selected" data-method="pix" onclick="selectPaymentMethod('pix')">
+                <i class="fas fa-qrcode"></i>
+                <span>PIX</span>
+            </div>
+            <div class="payment-method paypal" data-method="paypal" onclick="selectPaymentMethod('paypal')">
+                <i class="fab fa-paypal"></i>
+                <span>PayPal</span>
+            </div>
+            <div class="payment-method usdt" data-method="usdt_bep20" onclick="selectPaymentMethod('usdt_bep20')">
+                <i class="fas fa-coins"></i>
+                <span>USDT (BEP20)</span>
+            </div>
+        </div>
+        
         <div class="withdraw-form">
             <div class="form-group">
-                <label>Amount (USDT)</label>
-                <input type="number" class="withdraw-input" id="withdrawAmount" placeholder="0.00" step="0.01" min="0.01">
+                <label>Valor (R$)</label>
+                <input type="number" class="withdraw-input" id="withdrawAmount" placeholder="0,00" step="0.01" min="1.00">
+            </div>
+            <div class="form-group" id="paymentDetailsGroup">
+                <label id="paymentDetailsLabel">Chave PIX</label>
+                <input type="text" class="withdraw-input" id="paymentDetails" placeholder="Digite sua chave PIX">
             </div>
             <button class="btn btn-primary withdraw-btn" id="withdrawBtn" onclick="requestWithdraw()">
-                <i class="fas fa-paper-plane"></i> Request Withdrawal
+                <i class="fas fa-paper-plane"></i> Solicitar Saque
             </button>
         </div>
+        
         <div class="withdraw-info">
             <i class="fas fa-info-circle"></i>
-            <span>Minimum: $0.01 USDT • No fees • Processed within 24 hours • Sent to your connected wallet</span>
+            <span>Mínimo: R$ 1,00 • Sem taxas • Processamento: dias 20-25 do mês • Limite: 1 saque por semana</span>
+        </div>
+        
+        <div class="withdraw-info warning" id="withdrawWarning" style="display: none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="withdrawWarningText"></span>
         </div>
     </section>
     
-    <!-- Transaction History -->
+    <!-- Histórico de Transações -->
     <section class="transactions-section">
-        <h3><i class="fas fa-history"></i> Transaction History</h3>
+        <h3><i class="fas fa-history"></i> Histórico de Transações</h3>
         <div id="transactionHistory">
             <div class="empty-state">
                 <i class="fas fa-spinner fa-spin"></i>
-                <p>Loading transactions...</p>
+                <p>Carregando transações...</p>
             </div>
         </div>
     </section>
     
-    <!-- Footer -->
+    <!-- Rodapé -->
     <footer class="footer">
-        <a href="https://t.me/AsteroidRushOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Join our Telegram</a>
+        <a href="https://t.me/UnobixOfficial" target="_blank" class="btn btn-telegram">
+            <i class="fab fa-telegram"></i> Nosso Telegram
+        </a>
         <div class="footer-links">
-            <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> How to Play</a>
-            <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Gameplay</a>
-            <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economy</a>
+            <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> Como Jogar</a>
+            <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Guia do Jogo</a>
+            <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economia</a>
             <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
         </div>
-        <p class="footer-copy">© 2026 Crypto Asteroid Rush. All rights reserved.</p>
+        <p class="footer-copy">© 2026 Unobix. Todos os direitos reservados.</p>
     </footer>
 </div>
 
+<!-- Scripts -->
+<script src="js/firebase-config.js"></script>
+<script src="js/auth-manager.js"></script>
 <script src="js/main.js"></script>
+
+<script>
+let selectedPaymentMethod = 'pix';
+
+// Formatar valores em BRL
+function formatBRL(value) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(value || 0);
+}
+
+// Selecionar método de pagamento
+function selectPaymentMethod(method) {
+    selectedPaymentMethod = method;
+    
+    // Atualizar visual
+    document.querySelectorAll('.payment-method').forEach(el => {
+        el.classList.remove('selected');
+    });
+    document.querySelector(`[data-method="${method}"]`).classList.add('selected');
+    
+    // Mostrar campo de detalhes
+    const detailsGroup = document.getElementById('paymentDetailsGroup');
+    const detailsLabel = document.getElementById('paymentDetailsLabel');
+    const detailsInput = document.getElementById('paymentDetails');
+    
+    detailsGroup.classList.add('visible');
+    
+    switch(method) {
+        case 'pix':
+            detailsLabel.textContent = 'Chave PIX';
+            detailsInput.placeholder = 'CPF, e-mail, celular ou chave aleatória';
+            detailsInput.type = 'text';
+            break;
+        case 'paypal':
+            detailsLabel.textContent = 'E-mail PayPal';
+            detailsInput.placeholder = 'seu-email@exemplo.com';
+            detailsInput.type = 'email';
+            break;
+        case 'usdt_bep20':
+            detailsLabel.textContent = 'Carteira BEP20';
+            detailsInput.placeholder = '0x...';
+            detailsInput.type = 'text';
+            break;
+    }
+}
+
+// Carregar dados da carteira
+async function loadWalletData() {
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    try {
+        const response = await fetch('/api/balance.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('walletBalance').textContent = formatBRL(data.balance_brl);
+            document.getElementById('walletEarned').textContent = formatBRL(data.total_earned_brl);
+            document.getElementById('walletWithdrawn').textContent = formatBRL(data.total_withdrawn_brl);
+            document.getElementById('walletPending').textContent = formatBRL(data.pending_withdrawal_brl || 0);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar carteira:', error);
+    }
+}
+
+// Carregar histórico de transações
+async function loadTransactionHistory() {
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    try {
+        const response = await fetch('/api/transactions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                google_uid: user.uid,
+                limit: 20
+            })
+        });
+        
+        const data = await response.json();
+        const container = document.getElementById('transactionHistory');
+        
+        if (data.success && data.transactions?.length > 0) {
+            container.innerHTML = data.transactions.map(tx => {
+                const isPositive = !tx.type.includes('withdrawal') && !tx.type.includes('stake');
+                const iconClass = isPositive ? 'positive' : 'negative';
+                const amountClass = isPositive ? 'positive' : '';
+                
+                return `
+                    <div class="transaction-item">
+                        <div class="tx-icon ${iconClass}">
+                            <i class="fas fa-${getTransactionIcon(tx.type)}"></i>
+                        </div>
+                        <div class="tx-info">
+                            <div class="tx-type">${getTransactionTitle(tx.type)}</div>
+                            <div class="tx-desc">${tx.description || ''}</div>
+                        </div>
+                        <div class="tx-amount ${amountClass}">
+                            ${isPositive ? '+' : ''}${formatBRL(tx.amount_brl)}
+                        </div>
+                        <div class="tx-meta">
+                            <div class="tx-date">${formatDate(tx.created_at)}</div>
+                            <span class="tx-status ${tx.status}">${getStatusText(tx.status)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>Nenhuma transação ainda. Jogue para começar a ganhar!</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Erro ao carregar transações:', error);
+    }
+}
+
+// Solicitar saque
+async function requestWithdraw() {
+    const user = window.authManager?.currentUser;
+    if (!user) {
+        alert('Você precisa estar logado!');
+        return;
+    }
+
+    const amount = parseFloat(document.getElementById('withdrawAmount').value);
+    const paymentDetails = document.getElementById('paymentDetails').value.trim();
+    
+    if (!amount || amount < 1) {
+        showWarning('O valor mínimo para saque é R$ 1,00');
+        return;
+    }
+    
+    if (!paymentDetails) {
+        showWarning('Preencha os dados de pagamento');
+        return;
+    }
+
+    const btn = document.getElementById('withdrawBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+
+    try {
+        const response = await fetch('/api/withdraw.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                google_uid: user.uid,
+                amount_brl: amount,
+                payment_method: selectedPaymentMethod,
+                payment_details: paymentDetails
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ Saque solicitado com sucesso!\n\nSeu saque será processado entre os dias 20-25 deste mês.');
+            document.getElementById('withdrawAmount').value = '';
+            document.getElementById('paymentDetails').value = '';
+            loadWalletData();
+            loadTransactionHistory();
+        } else {
+            showWarning(data.error || 'Erro ao solicitar saque');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showWarning('Erro de conexão. Tente novamente.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Solicitar Saque';
+    }
+}
+
+function showWarning(message) {
+    const warning = document.getElementById('withdrawWarning');
+    document.getElementById('withdrawWarningText').textContent = message;
+    warning.style.display = 'flex';
+    setTimeout(() => { warning.style.display = 'none'; }, 5000);
+}
+
+function getTransactionIcon(type) {
+    const icons = {
+        'game_earning': 'gamepad',
+        'stake_reward': 'chart-line',
+        'referral_bonus': 'users',
+        'withdrawal': 'arrow-up',
+        'withdrawal_approved': 'check-circle',
+        'withdrawal_rejected': 'times-circle',
+        'stake': 'lock',
+        'unstake': 'unlock'
+    };
+    return icons[type] || 'circle';
+}
+
+function getTransactionTitle(type) {
+    const titles = {
+        'game_earning': 'Ganhos da Missão',
+        'stake_reward': 'Rendimento Staking',
+        'referral_bonus': 'Bônus de Indicação',
+        'withdrawal': 'Saque Solicitado',
+        'withdrawal_approved': 'Saque Aprovado',
+        'withdrawal_rejected': 'Saque Rejeitado',
+        'stake': 'Stake Realizado',
+        'unstake': 'Unstake Realizado'
+    };
+    return titles[type] || type;
+}
+
+function getStatusText(status) {
+    const texts = {
+        'completed': 'Concluído',
+        'pending': 'Pendente',
+        'approved': 'Aprovado',
+        'rejected': 'Rejeitado',
+        'failed': 'Falhou'
+    };
+    return texts[status] || status;
+}
+
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// Inicializar
+document.addEventListener('authStateChanged', (e) => {
+    if (e.detail.user) {
+        document.getElementById('connectOverlay').classList.remove('active');
+        loadWalletData();
+        loadTransactionHistory();
+        selectPaymentMethod('pix'); // Default
+    } else {
+        document.getElementById('connectOverlay').classList.add('active');
+    }
+});
+</script>
 </body>
 </html>
