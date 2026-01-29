@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>How to Play | CRYPTO ASTEROID RUSH</title>
-    <meta name="description" content="Learn how to play Crypto Asteroid Rush and earn USDT destroying asteroids.">
+    <title>Como Jogar | UNOBIX</title>
+    <meta name="description" content="Aprenda a jogar Unobix e ganhe dinheiro real destruindo asteroides.">
+    <link rel="icon" type="image/png" href="img/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/main.css">
@@ -15,97 +16,108 @@
         .guide-section ul { color: var(--text-dim); margin-left: 20px; line-height: 1.8; }
         .guide-section li { margin-bottom: 8px; }
         .step-visual { display: flex; gap: 20px; flex-wrap: wrap; margin: 30px 0; }
-        .step-box { flex: 1; min-width: 200px; background: rgba(0, 240, 255, 0.05); border-radius: 15px; padding: 25px; text-align: center; border: 1px solid var(--border-color); }
+        .step-box { flex: 1; min-width: 200px; background: rgba(0, 229, 204, 0.05); border-radius: 15px; padding: 25px; text-align: center; border: 1px solid var(--border-color); }
         .step-box-number { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: var(--deep-space); font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.3rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; }
         .step-box h3 { font-size: 1rem; margin-bottom: 10px; }
-        .step-box p { color: var(--text-dim); font-size: 0.9rem; }
+        .step-box p { color: var(--text-dim); font-size: 0.9rem; margin: 0; }
         .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
         .control-card { background: rgba(0, 0, 0, 0.2); border-radius: 10px; padding: 20px; text-align: center; }
         .control-key { font-family: 'Orbitron', sans-serif; font-size: 1.3rem; color: var(--primary); margin-bottom: 10px; }
         .control-desc { color: var(--text-dim); font-size: 0.9rem; }
         .asteroid-types { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-top: 20px; }
         .asteroid-type { background: rgba(0, 0, 0, 0.2); border-radius: 10px; padding: 20px; text-align: center; border: 1px solid transparent; transition: all 0.3s; }
-        .asteroid-type:hover { border-color: var(--border-color); }
+        .asteroid-type:hover { border-color: var(--border-color); transform: translateY(-3px); }
         .asteroid-type-icon { font-size: 2rem; margin-bottom: 10px; }
         .asteroid-type-name { font-weight: 600; margin-bottom: 5px; }
         .asteroid-type-value { color: var(--success); font-family: 'Orbitron', sans-serif; font-size: 0.9rem; }
-        .asteroid-type-rate { color: var(--text-dim); font-size: 0.75rem; margin-top: 5px; }
-        .highlight-box { background: linear-gradient(135deg, rgba(255, 0, 170, 0.1), rgba(123, 47, 247, 0.1)); border: 1px solid rgba(255, 0, 170, 0.3); border-radius: 10px; padding: 20px; margin: 20px 0; }
-        .highlight-box h4 { color: var(--accent); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .highlight-box { background: linear-gradient(135deg, rgba(0, 229, 204, 0.1), rgba(123, 245, 66, 0.1)); border: 1px solid rgba(0, 229, 204, 0.3); border-radius: 10px; padding: 20px; margin: 20px 0; }
+        .highlight-box h4 { color: var(--primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
         .warning-box { background: rgba(255, 170, 0, 0.1); border: 1px solid rgba(255, 170, 0, 0.3); border-radius: 10px; padding: 20px; margin: 20px 0; }
         .warning-box h4 { color: #ffaa00; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .success-box { background: rgba(0, 255, 136, 0.1); border: 1px solid rgba(0, 255, 136, 0.3); border-radius: 10px; padding: 20px; margin: 20px 0; }
+        .success-box h4 { color: var(--success); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
         .lives-display { display: flex; gap: 8px; justify-content: center; margin: 15px 0; }
         .life-icon { width: 25px; height: 25px; background: #ff3366; border-radius: 4px; box-shadow: 0 0 10px rgba(255, 51, 102, 0.5); }
+        .free-highlight { background: linear-gradient(135deg, var(--success), #00d4aa); color: #000; padding: 3px 10px; border-radius: 5px; font-weight: 700; }
     </style>
 </head>
 <body data-page="howtoplay">
 <div class="cosmic-bg"></div>
 <div class="container">
     <header class="header">
-        <a href="index.html" class="logo"><span class="logo-icon">☄️</span><span class="logo-text">ASTEROID RUSH</span></a>
+        <a href="index.html" class="logo">
+            <img src="img/logo.png" alt="Unobix" class="logo-img">
+            <span class="logo-text">UNOBIX</span>
+        </a>
         <nav class="nav" id="nav">
-            <a href="dashboard.html" class="nav-link">Dashboard</a>
-            <a href="game.html" class="nav-link">Play</a>
-            <a href="wallet.html" class="nav-link">Wallet</a>
+            <a href="dashboard.html" class="nav-link">Painel</a>
+            <a href="game.html" class="nav-link">Jogar</a>
+            <a href="wallet.html" class="nav-link">Carteira</a>
             <a href="staking.html" class="nav-link">Staking</a>
-            <a href="how-to-play.html" class="nav-link active">How to Play</a>
+            <a href="how-to-play.html" class="nav-link active">Como Jogar</a>
         </nav>
-        <a href="game.html" class="wallet-btn"><i class="fas fa-play"></i> Play Now</a>
+        <a href="game.html" class="wallet-btn"><i class="fas fa-play"></i> Jogar</a>
         <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
     </header>
     
     <section class="page-header">
-        <h1 class="page-title">HOW TO PLAY</h1>
-        <p class="page-subtitle">Complete guide to start earning USDT destroying asteroids!</p>
+        <h1 class="page-title">COMO JOGAR</h1>
+        <p class="page-subtitle">Guia completo para começar a ganhar dinheiro destruindo asteroides!</p>
     </section>
     
-    <!-- Quick Start -->
+    <!-- Início Rápido -->
     <section class="guide-section">
-        <h2><i class="fas fa-rocket"></i> Quick Start</h2>
+        <h2><i class="fas fa-rocket"></i> Início Rápido</h2>
         <div class="step-visual">
             <div class="step-box">
                 <div class="step-box-number">1</div>
-                <h3>Connect Wallet</h3>
-                <p>Install MetaMask and connect on BSC network</p>
+                <h3>Login Google</h3>
+                <p>Faça login com sua conta Google - rápido e seguro</p>
             </div>
             <div class="step-box">
                 <div class="step-box-number">2</div>
-                <h3>Select Ship</h3>
-                <p>Choose from 7 unique fighter ships</p>
+                <h3>Escolha a Nave</h3>
+                <p>Selecione entre 7 naves únicas</p>
             </div>
             <div class="step-box">
                 <div class="step-box-number">3</div>
-                <h3>Pay Fee</h3>
-                <p>0.00001 BNB per mission (less than $0.01)</p>
+                <h3>Assista o Anúncio</h3>
+                <p>Breve anúncio na tela de carregamento</p>
             </div>
             <div class="step-box">
                 <div class="step-box-number">4</div>
-                <h3>Play & Earn</h3>
-                <p>Destroy asteroids, avoid collisions, earn USDT!</p>
+                <h3>Jogue e Ganhe!</h3>
+                <p>Destrua asteroides, sobreviva e ganhe BRL!</p>
             </div>
+        </div>
+        
+        <div class="success-box">
+            <h4><i class="fas fa-gift"></i> 100% Gratuito!</h4>
+            <p>Diferente de outros jogos, o Unobix é <span class="free-highlight">completamente grátis</span>. Não há taxas de entrada - você ganha dinheiro real apenas jogando!</p>
         </div>
     </section>
     
-    <!-- Game Objective -->
+    <!-- Objetivo do Jogo -->
     <section class="guide-section">
-        <h2><i class="fas fa-bullseye"></i> Game Objective</h2>
-        <p>Your mission is to <strong>destroy as many valuable asteroids as possible</strong> within 180 seconds while keeping your ship alive. Each asteroid you destroy earns you USDT cryptocurrency that goes directly to your wallet!</p>
+        <h2><i class="fas fa-bullseye"></i> Objetivo do Jogo</h2>
+        <p>Sua missão é <strong>destruir o máximo de asteroides valiosos possível</strong> em 180 segundos enquanto mantém sua nave viva. Cada asteroide que você destrói adiciona reais à sua carteira!</p>
         
         <div class="highlight-box">
-            <h4><i class="fas fa-star"></i> Key Points</h4>
+            <h4><i class="fas fa-star"></i> Pontos Importantes</h4>
             <ul>
-                <li><strong>Destroy asteroids</strong> to earn USDT rewards</li>
-                <li><strong>Avoid collisions</strong> - you have 6 lives per mission</li>
-                <li><strong>Target rare asteroids</strong> - they glow and are worth more!</li>
-                <li><strong>Survive until the end</strong> - if you lose all lives, you lose all earnings!</li>
+                <li><strong>Destrua asteroides</strong> para ganhar recompensas em BRL</li>
+                <li><strong>Evite colisões</strong> - você tem 6 vidas por missão</li>
+                <li><strong>Mire nos asteroides raros</strong> - eles brilham e valem mais!</li>
+                <li><strong>Sobreviva até o fim</strong> - se perder todas as vidas, perde todos os ganhos!</li>
+                <li><strong>Complete o CAPTCHA</strong> - ao vencer, confirme que você é humano</li>
             </ul>
         </div>
     </section>
     
-    <!-- Lives System -->
+    <!-- Sistema de Vidas -->
     <section class="guide-section">
-        <h2><i class="fas fa-heart"></i> Lives System</h2>
-        <p>Each mission starts with <strong>6 lives</strong>. If an asteroid collides with your ship, you lose one life. Be careful!</p>
+        <h2><i class="fas fa-heart"></i> Sistema de Vidas</h2>
+        <p>Cada missão começa com <strong>6 vidas</strong>. Se um asteroide colidir com sua nave, você perde uma vida. Tenha cuidado!</p>
         
         <div class="lives-display">
             <div class="life-icon"></div>
@@ -117,173 +129,189 @@
         </div>
         
         <div class="warning-box">
-            <h4><i class="fas fa-exclamation-triangle"></i> Game Over Warning</h4>
-            <p>If you lose all 6 lives before the mission ends, it's <strong>GAME OVER</strong> and you lose ALL earnings from that mission! Your skill in dodging asteroids is just as important as destroying them.</p>
+            <h4><i class="fas fa-exclamation-triangle"></i> Aviso de Game Over</h4>
+            <p>Se você perder todas as 6 vidas antes da missão terminar, é <strong>GAME OVER</strong> e você perde TODOS os ganhos da missão! Sua habilidade em desviar de asteroides é tão importante quanto destruí-los.</p>
         </div>
     </section>
     
-    <!-- Controls -->
+    <!-- Controles -->
     <section class="guide-section">
-        <h2><i class="fas fa-gamepad"></i> Game Controls</h2>
-        <p>Control your spaceship to destroy asteroids and dodge collisions. The controls are simple but mastering them takes practice!</p>
+        <h2><i class="fas fa-gamepad"></i> Controles do Jogo</h2>
+        <p>Controle sua nave para destruir asteroides e desviar de colisões. Os controles são simples mas dominá-los requer prática!</p>
         
         <div class="controls-grid">
             <div class="control-card">
                 <div class="control-key">← →</div>
-                <div class="control-desc">Arrow keys to move left/right</div>
+                <div class="control-desc">Setas para mover esquerda/direita</div>
             </div>
             <div class="control-card">
                 <div class="control-key">A D</div>
-                <div class="control-desc">Alternative movement keys</div>
+                <div class="control-desc">Teclas alternativas de movimento</div>
             </div>
             <div class="control-card">
-                <div class="control-key">SPACE</div>
-                <div class="control-desc">Hold to fire continuously</div>
+                <div class="control-key">ESPAÇO</div>
+                <div class="control-desc">Atirar (segure para tiro contínuo)</div>
             </div>
             <div class="control-card">
                 <div class="control-key">📱</div>
-                <div class="control-desc">Touch buttons on mobile</div>
+                <div class="control-desc">Mobile: botões na tela</div>
             </div>
         </div>
-        
-        <p style="margin-top: 20px;"><strong>Pro tip:</strong> On mobile, hold the direction buttons for continuous movement and hold FIRE for rapid shooting!</p>
     </section>
     
-    <!-- Asteroid Types -->
+    <!-- Tipos de Asteroides -->
     <section class="guide-section">
-        <h2><i class="fas fa-meteor"></i> Asteroid Types & Values</h2>
-        <p>Different asteroids have different values. Rare asteroids glow and are worth significantly more! Learn to identify them quickly.</p>
+        <h2><i class="fas fa-meteor"></i> Tipos de Asteroides</h2>
+        <p>Existem 4 tipos de asteroides, cada um com valor diferente. Aprenda a identificá-los pelo brilho!</p>
         
         <div class="asteroid-types">
             <div class="asteroid-type">
                 <div class="asteroid-type-icon">🪨</div>
-                <div class="asteroid-type-name">Common</div>
-                <div class="asteroid-type-value">$0.00</div>
-                <div class="asteroid-type-rate">~86% spawn rate</div>
+                <div class="asteroid-type-name">Comum</div>
+                <div class="asteroid-type-value" style="color: var(--text-dim);">R$ 0,00</div>
             </div>
             <div class="asteroid-type" style="border-color: rgba(30, 144, 255, 0.5);">
                 <div class="asteroid-type-icon" style="color: #1E90FF;">💎</div>
-                <div class="asteroid-type-name">Rare</div>
-                <div class="asteroid-type-value">$0.0003</div>
-                <div class="asteroid-type-rate">~10% spawn rate</div>
+                <div class="asteroid-type-name">Raro</div>
+                <div class="asteroid-type-value">R$ 0,001</div>
             </div>
             <div class="asteroid-type" style="border-color: rgba(153, 50, 204, 0.5);">
                 <div class="asteroid-type-icon" style="color: #9932CC;">🔮</div>
-                <div class="asteroid-type-name">Epic</div>
-                <div class="asteroid-type-value">$0.0008</div>
-                <div class="asteroid-type-rate">~3% spawn rate</div>
+                <div class="asteroid-type-name">Épico</div>
+                <div class="asteroid-type-value">R$ 0,005</div>
             </div>
             <div class="asteroid-type" style="border-color: rgba(255, 215, 0, 0.5);">
                 <div class="asteroid-type-icon" style="color: #FFD700;">⭐</div>
-                <div class="asteroid-type-name">Legendary</div>
-                <div class="asteroid-type-value">$0.002</div>
-                <div class="asteroid-type-rate">~1% spawn rate</div>
+                <div class="asteroid-type-name">Lendário</div>
+                <div class="asteroid-type-value">R$ 0,02</div>
             </div>
         </div>
         
-        <p style="margin-top: 20px;"><strong>Note:</strong> Common asteroids have NO value but can still damage your ship! You might want to dodge them instead of wasting shots.</p>
+        <p style="margin-top: 20px;"><strong>Dica:</strong> Asteroides comuns NÃO têm valor mas podem danificar sua nave! Considere desviar deles em vez de gastar tiros.</p>
     </section>
     
-    <!-- Mission Modes -->
+    <!-- Dificuldade das Missões -->
     <section class="guide-section">
-        <h2><i class="fas fa-dice"></i> Mission Difficulty</h2>
-        <p>Missions have varying difficulty levels that affect asteroid speed and spawn rates.</p>
+        <h2><i class="fas fa-dice"></i> Dificuldade das Missões</h2>
+        <p>As missões variam em dificuldade. Algumas são mais desafiadoras que outras!</p>
         
         <div class="highlight-box">
-            <h4><i class="fas fa-gamepad"></i> Normal Mode (90% of missions)</h4>
-            <p>Standard asteroid speeds and spawn rates. Your skill determines your earnings. Good players can consistently earn $0.02-0.05 per mission.</p>
+            <h4><i class="fas fa-gamepad"></i> Missões Normais</h4>
+            <p>A maioria das missões tem velocidade e spawn padrão. Sua habilidade determina seus ganhos. Bons jogadores podem ganhar consistentemente R$ 0,02-0,03 por missão.</p>
         </div>
         
         <div class="warning-box">
-            <h4><i class="fas fa-bolt"></i> Hard Mode (10% of missions)</h4>
-            <p>Faster asteroids, more frequent spawns, and more valuable asteroids. These missions are challenging! Focus on survival and dodge when needed.</p>
+            <h4><i class="fas fa-bolt"></i> Missões Difíceis</h4>
+            <p>Algumas missões são aleatoriamente mais desafiadoras - asteroides mais rápidos e menos frequentes. Foque na sobrevivência e desvie quando necessário!</p>
         </div>
     </section>
     
-    <!-- Earnings Potential -->
+    <!-- Potencial de Ganhos -->
     <section class="guide-section">
-        <h2><i class="fas fa-coins"></i> Earnings Potential</h2>
-        <p>Your earnings depend entirely on your skill! Here's what to expect:</p>
+        <h2><i class="fas fa-coins"></i> Potencial de Ganhos</h2>
+        <p>Seus ganhos dependem inteiramente da sua habilidade! Veja o que esperar:</p>
         <ul>
-            <li><strong>Beginner:</strong> $0.01 - $0.02 per mission</li>
-            <li><strong>Intermediate:</strong> $0.02 - $0.03 per mission</li>
-            <li><strong>Expert:</strong> $0.03 - $0.05+ per mission</li>
+            <li><strong>Iniciante:</strong> R$ 0,01 - R$ 0,02 por missão</li>
+            <li><strong>Intermediário:</strong> R$ 0,02 - R$ 0,03 por missão</li>
+            <li><strong>Expert:</strong> R$ 0,03 - R$ 0,05+ por missão</li>
         </ul>
-        <p style="margin-top: 15px;">Remember: losing all lives means losing ALL earnings from that mission. Survival is key!</p>
+        <p style="margin-top: 15px;">Lembre-se: perder todas as vidas significa perder TODOS os ganhos da missão. Sobrevivência é fundamental!</p>
     </section>
     
-    <!-- Pro Tips -->
+    <!-- CAPTCHA -->
     <section class="guide-section">
-        <h2><i class="fas fa-lightbulb"></i> Pro Tips</h2>
-        <ul>
-            <li><strong>Prioritize glowing asteroids</strong> - They're worth much more than common ones</li>
-            <li><strong>Keep moving</strong> - A moving target is harder to hit</li>
-            <li><strong>Don't chase common asteroids</strong> - They're worth $0.00, focus on survival</li>
-            <li><strong>Watch the edges</strong> - Asteroids can appear from the sides</li>
-            <li><strong>Hold FIRE</strong> - Continuous shooting is better than tapping</li>
-            <li><strong>Learn asteroid patterns</strong> - They have slight horizontal drift</li>
-            <li><strong>Use staking</strong> - Put your earnings to work with 12% APY</li>
-            <li><strong>Play daily</strong> - Consistent players earn more over time</li>
-        </ul>
+        <h2><i class="fas fa-robot"></i> Verificação CAPTCHA</h2>
+        <p>Ao completar uma missão com sucesso (sobrevivendo até o fim), você precisará completar uma verificação CAPTCHA simples.</p>
+        
+        <div class="highlight-box">
+            <h4><i class="fas fa-check-circle"></i> Por que o CAPTCHA?</h4>
+            <ul>
+                <li>Garante que você é um jogador real, não um bot</li>
+                <li>Protege a economia do jogo contra fraudes</li>
+                <li>É rápido e fácil de completar</li>
+                <li><strong>Só aparece quando você vence</strong> - Game Over não requer CAPTCHA</li>
+            </ul>
+        </div>
     </section>
     
-    <!-- Ships -->
+    <!-- Dicas Pro -->
     <section class="guide-section">
-        <h2><i class="fas fa-space-shuttle"></i> Available Ships</h2>
-        <p>Choose from 7 unique fighter ships before each mission. All ships have the same stats - pick the one you like best!</p>
+        <h2><i class="fas fa-lightbulb"></i> Dicas de Especialista</h2>
         <ul>
-            <li><strong>Phoenix Crimson</strong> - Red & Gold fighter</li>
-            <li><strong>Forest Guardian</strong> - Military green</li>
-            <li><strong>Thunder Strike</strong> - Electric blue</li>
-            <li><strong>Inferno Blaze</strong> - Volcanic orange</li>
-            <li><strong>Nebula Phantom</strong> - Cosmic purple</li>
-            <li><strong>Toxic Viper</strong> - Toxic green</li>
-            <li><strong>Steel Wolf</strong> - Metallic gray</li>
-        </ul>
-    </section>
-    
-    <!-- Requirements -->
-    <section class="guide-section">
-        <h2><i class="fas fa-check-circle"></i> Requirements</h2>
-        <ul>
-            <li><strong>MetaMask Wallet</strong> - Download from <a href="https://metamask.io" target="_blank" style="color: var(--primary);">metamask.io</a></li>
-            <li><strong>BSC Network</strong> - Binance Smart Chain (Chain ID: 56)</li>
-            <li><strong>Small BNB Balance</strong> - For mission fees (~0.00003 BNB per mission including gas)</li>
-            <li><strong>Modern Browser</strong> - Chrome, Firefox, Edge, Brave, or MetaMask mobile browser</li>
+            <li><strong>Priorize asteroides brilhantes</strong> - Eles valem muito mais que os comuns</li>
+            <li><strong>Continue se movendo</strong> - Um alvo em movimento é mais difícil de acertar</li>
+            <li><strong>Não persiga asteroides comuns</strong> - Valem R$ 0,00, foque na sobrevivência</li>
+            <li><strong>Observe as bordas</strong> - Asteroides podem aparecer dos lados</li>
+            <li><strong>Segure o TIRO</strong> - Tiro contínuo é melhor que apertar várias vezes</li>
+            <li><strong>Aprenda os padrões</strong> - Asteroides têm leve movimento horizontal</li>
+            <li><strong>Use o staking</strong> - Coloque seus ganhos para render com 5% APY</li>
+            <li><strong>Jogue regularmente</strong> - Jogadores consistentes ganham mais ao longo do tempo</li>
         </ul>
     </section>
     
-    <!-- Mission Limits -->
+    <!-- Naves -->
     <section class="guide-section">
-        <h2><i class="fas fa-hourglass-half"></i> Mission Limits</h2>
-        <p>To ensure fair play and system stability, there are some limits:</p>
+        <h2><i class="fas fa-space-shuttle"></i> Naves Disponíveis</h2>
+        <p>Escolha entre 7 naves únicas antes de cada missão. Todas as naves têm os mesmos atributos - escolha a que mais gostar!</p>
         <ul>
-            <li><strong>5 missions per hour</strong> - Plan your sessions accordingly</li>
-            <li><strong>1 mission at a time</strong> - Complete your current mission before starting another</li>
-            <li><strong>3 minutes per mission</strong> - Each mission lasts exactly 180 seconds</li>
+            <li><strong>Phoenix Carmesim</strong> - Vermelho e Dourado</li>
+            <li><strong>Guardião da Floresta</strong> - Verde militar</li>
+            <li><strong>Trovão Relâmpago</strong> - Azul elétrico</li>
+            <li><strong>Inferno Vulcânico</strong> - Laranja vulcânico</li>
+            <li><strong>Fantasma Nebular</strong> - Roxo cósmico</li>
+            <li><strong>Víbora Tóxica</strong> - Verde tóxico</li>
+            <li><strong>Lobo de Aço</strong> - Cinza metálico</li>
+        </ul>
+    </section>
+    
+    <!-- Requisitos -->
+    <section class="guide-section">
+        <h2><i class="fas fa-check-circle"></i> Requisitos</h2>
+        <ul>
+            <li><strong>Conta Google</strong> - Para login rápido e seguro</li>
+            <li><strong>Navegador Moderno</strong> - Chrome, Firefox, Edge, Safari ou Brave</li>
+            <li><strong>Conexão Internet</strong> - Para jogar e sincronizar ganhos</li>
+            <li><strong>Dispositivo</strong> - Funciona em desktop e mobile</li>
+        </ul>
+        
+        <div class="success-box">
+            <h4><i class="fas fa-wallet"></i> Métodos de Saque</h4>
+            <p>Você pode sacar seus ganhos via <strong>PIX</strong>, <strong>PayPal</strong> ou <strong>USDT BEP20</strong>. Sem necessidade de carteira cripto!</p>
+        </div>
+    </section>
+    
+    <!-- Limites -->
+    <section class="guide-section">
+        <h2><i class="fas fa-hourglass-half"></i> Limites de Missão</h2>
+        <p>Para garantir jogo justo e estabilidade do sistema, existem alguns limites:</p>
+        <ul>
+            <li><strong>5 missões por hora</strong> - Planeje suas sessões adequadamente</li>
+            <li><strong>1 missão por vez</strong> - Complete sua missão atual antes de iniciar outra</li>
+            <li><strong>3 minutos por missão</strong> - Cada missão dura exatamente 180 segundos</li>
+            <li><strong>3 minutos de intervalo</strong> - Aguarde entre missões</li>
         </ul>
         
         <div class="highlight-box">
-            <h4><i class="fas fa-calculator"></i> Earnings Potential</h4>
-            <p>With 5 missions per hour at an average of $0.02-0.03 each, skilled players can earn approximately <strong>$0.10-0.15 per hour</strong>. Focus on survival and valuable asteroids to maximize your earnings!</p>
+            <h4><i class="fas fa-calculator"></i> Potencial de Ganhos</h4>
+            <p>Com 5 missões por hora a uma média de R$ 0,02-0,03 cada, jogadores habilidosos podem ganhar aproximadamente <strong>R$ 0,10-0,15 por hora</strong>. Foque na sobrevivência e asteroides valiosos para maximizar seus ganhos!</p>
         </div>
     </section>
     
     <section class="text-center mb-30">
-        <a href="game.html" class="btn btn-primary btn-lg"><i class="fas fa-rocket"></i> Start Playing Now</a>
+        <a href="game.html" class="btn btn-primary btn-lg"><i class="fas fa-rocket"></i> Começar a Jogar Agora</a>
     </section>
     
     <footer class="footer">
-    <a href="https://t.me/AsteroidRushOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Join our Telegram</a>
-    <div class="footer-links">
-        <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Gameplay Guide</a>
-        <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economy</a>
-        <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
-        <a href="terms.html" class="footer-link"><i class="fas fa-file-contract"></i> Terms</a>
-        <a href="privacy.html" class="footer-link"><i class="fas fa-shield-alt"></i> Privacy</a>
-    </div>
-    <p class="footer-copy">© 2026 Crypto Asteroid Rush. All rights reserved.</p>
-</footer>
+        <a href="https://t.me/UnobixOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Entre no Telegram</a>
+        <div class="footer-links">
+            <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Guia do Jogo</a>
+            <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economia</a>
+            <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
+            <a href="terms.html" class="footer-link"><i class="fas fa-file-contract"></i> Termos</a>
+            <a href="privacy.html" class="footer-link"><i class="fas fa-shield-alt"></i> Privacidade</a>
+        </div>
+        <p class="footer-copy">© 2026 Unobix. Todos os direitos reservados.</p>
+    </footer>
 </div>
 <script src="js/main.js"></script>
 </body>
