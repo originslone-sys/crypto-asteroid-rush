@@ -1,71 +1,93 @@
 <?php
+// ============================================
+// UNOBIX - API de Saldo
+// Arquivo: api/balance.php
+// v4.0 - Suporta Google UID + Wallet + BRL
+// ============================================
+
 require_once __DIR__ . "/config.php";
 
+setCORSHeaders();
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    echo json_encode(['success' => true]);
-    exit;
-}
-
-// Input (JSON + POST + GET)
-$raw = file_get_contents('php://input');
-$input = json_decode($raw, true);
-if (!is_array($input)) $input = [];
-
-function pick_first($arr, $keys) {
-    foreach ($keys as $k) {
-        if (isset($arr[$k]) && $arr[$k] !== '') return $arr[$k];
-    }
-    return null;
-}
-
-$wallet =
-    pick_first($input, ['wallet','wallet_address','walletAddress','address']) ??
-    pick_first($_POST, ['wallet','wallet_address','walletAddress','address']) ??
-    pick_first($_GET,  ['wallet','wallet_address','walletAddress','address']) ??
-    '';
-
-$wallet = trim(strtolower($wallet));
+$input = getRequestInput();
 
 // Debug opcional: /api/balance.php?debug=1
-$debug = (isset($_GET['debug']) && $_GET['debug'] == '1');
+$debug = isset($_GET['debug']) && $_GET['debug'] == '1';
 
-if (!preg_match('/^0x[a-f0-9]{40}$/i', $wallet)) {
-    $resp = ['success' => false, 'balance' => '0.00000000', 'error' => 'Invalid wallet'];
+// Obter identificador do usuário
+$identifier = getUserIdentifier($input);
+
+if (!$identifier) {
+    $resp = [
+        'success' => false,
+        'balance_brl' => '0.00',
+        'balance' => '0.00', // Compatibilidade
+        'error' => 'Identificador inválido. Envie google_uid ou wallet_address.'
+    ];
+    
     if ($debug) {
         $resp['debug'] = [
-            'received_wallet' => $wallet,
-            'content_type' => ($_SERVER['CONTENT_TYPE'] ?? ''),
-            'raw_len' => strlen($raw),
             'input_keys' => array_keys($input),
-            'get_keys' => array_keys($_GET),
-            'post_keys' => array_keys($_POST),
+            'content_type' => $_SERVER['CONTENT_TYPE'] ?? '',
         ];
     }
+    
     echo json_encode($resp);
     exit;
 }
 
 try {
     $pdo = getDatabaseConnection();
-    if (!$pdo) throw new Exception("DB connection failed");
+    if (!$pdo) throw new Exception("Falha na conexão com o banco");
 
-    $stmt = $pdo->prepare("SELECT balance_usdt FROM players WHERE wallet_address = ? LIMIT 1");
-    $stmt->execute([$wallet]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    $player = getPlayerByIdentifier($pdo, $identifier);
 
-    $balance = $row ? (float)$row['balance_usdt'] : 0.0;
+    if (!$player) {
+        // Jogador não existe ainda - retornar saldo zero
+        echo json_encode([
+            'success' => true,
+            'balance_brl' => '0.00',
+            'balance' => '0.00000000', // Compatibilidade legacy
+            'staked_balance_brl' => '0.00',
+            'total_earned_brl' => '0.00',
+            'total_played' => 0,
+            'is_new_player' => true
+        ]);
+        exit;
+    }
+
+    // Calcular stake rewards pendentes
+    $stakeReward = 0;
+    if ($player['staked_balance_brl'] > 0 && $player['last_stake_update']) {
+        $secondsPassed = time() - strtotime($player['last_stake_update']);
+        $dailyRate = STAKE_APY / 365;
+        $daysElapsed = $secondsPassed / 86400;
+        $stakeReward = $player['staked_balance_brl'] * (pow(1 + $dailyRate, $daysElapsed) - 1);
+    }
 
     echo json_encode([
         'success' => true,
-        'balance' => number_format($balance, 8, '.', '')
+        'balance_brl' => number_format((float)$player['balance_brl'], 2, '.', ''),
+        'balance' => number_format((float)$player['balance_usdt'], 8, '.', ''), // Compatibilidade legacy
+        'staked_balance_brl' => number_format((float)$player['staked_balance_brl'], 2, '.', ''),
+        'pending_stake_reward' => number_format($stakeReward, 2, '.', ''),
+        'total_earned_brl' => number_format((float)$player['total_earned_brl'], 2, '.', ''),
+        'total_withdrawn_brl' => number_format((float)$player['total_withdrawn_brl'], 2, '.', ''),
+        'total_played' => (int)$player['total_played'],
+        'is_banned' => (bool)$player['is_banned'],
+        'display_name' => $player['display_name'] ?? null,
+        'email' => $player['email'] ?? null,
+        'is_new_player' => false
     ]);
+
 } catch (Exception $e) {
     error_log("balance.php error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'balance' => '0.00000000', 'error' => 'Server error']);
+    echo json_encode([
+        'success' => false,
+        'balance_brl' => '0.00',
+        'balance' => '0.00000000',
+        'error' => 'Erro no servidor'
+    ]);
 }
 ?>
