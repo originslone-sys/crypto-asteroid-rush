@@ -2,7 +2,8 @@
 // ============================================
 // CRYPTO ASTEROID RUSH - Registrar Evento de Jogo
 // Arquivo: api/game-event.php
-// v2.1 - FIX: Melhor validação e logs para debug
+// v3.0 - CORREÇÃO: Não aceita reward_amount do cliente
+//        CORREÇÃO: REWARD_COMMON = 0
 // ============================================
 
 if (file_exists(__DIR__ . "/config.php")) {
@@ -24,8 +25,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 if (!defined('GAME_DURATION')) define('GAME_DURATION', 180);
 if (!defined('GAME_TOLERANCE')) define('GAME_TOLERANCE', 300); // 5 minutos de tolerância
 if (!defined('MAX_EVENTS_PER_SECOND')) define('MAX_EVENTS_PER_SECOND', 10);
+
+// v3.0: CORREÇÃO - REWARD_COMMON = 0 (era 0.0001)
 if (!defined('REWARD_NONE')) define('REWARD_NONE', 0);
-if (!defined('REWARD_COMMON')) define('REWARD_COMMON', 0.0001);
+if (!defined('REWARD_COMMON')) define('REWARD_COMMON', 0);      // CORRIGIDO!
 if (!defined('REWARD_RARE')) define('REWARD_RARE', 0.0003);
 if (!defined('REWARD_EPIC')) define('REWARD_EPIC', 0.0008);
 if (!defined('REWARD_LEGENDARY')) define('REWARD_LEGENDARY', 0.002);
@@ -65,7 +68,7 @@ $sessionToken = isset($input['session_token']) ? trim($input['session_token']) :
 $wallet = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
 $asteroidId = isset($input['asteroid_id']) ? (int)$input['asteroid_id'] : 0;
 $rewardType = isset($input['reward_type']) ? trim(strtolower($input['reward_type'])) : 'none';
-$rewardAmount = isset($input['reward_amount']) ? (float)$input['reward_amount'] : 0;
+// v3.0: NÃO usamos mais $rewardAmount do cliente
 $timestamp = isset($input['timestamp']) ? (int)$input['timestamp'] : time();
 
 // FIX: Log detalhado do que foi recebido
@@ -164,7 +167,8 @@ try {
     }
     
     // ============================================
-    // 4. DETERMINAR RECOMPENSA
+    // 4. DETERMINAR RECOMPENSA - APENAS DO SERVIDOR
+    // v3.0: NUNCA aceitar reward_amount do cliente!
     // ============================================
     $validReward = 0;
     $validRewardType = 'none';
@@ -174,6 +178,7 @@ try {
     if (in_array($rewardType, $validTypes)) {
         $validRewardType = $rewardType;
         
+        // v3.0: Usar APENAS valores definidos no servidor
         switch ($rewardType) {
             case 'legendary':
                 $validReward = REWARD_LEGENDARY;
@@ -185,17 +190,20 @@ try {
                 $validReward = REWARD_RARE;
                 break;
             case 'common':
-                $validReward = REWARD_COMMON;
+                $validReward = REWARD_COMMON;  // = 0
                 break;
             default:
                 $validReward = 0;
         }
     }
     
-    // Se cliente enviou reward_amount, usar esse valor (com limite)
-    if ($rewardAmount > 0 && $rewardAmount <= 0.01) {
-        $validReward = $rewardAmount;
-    }
+    // ============================================
+    // v3.0: REMOVIDO - Não aceitar reward_amount do cliente
+    // Código anterior (VULNERÁVEL):
+    // if ($rewardAmount > 0 && $rewardAmount <= 0.01) {
+    //     $validReward = $rewardAmount;
+    // }
+    // ============================================
     
     // ============================================
     // 5. REGISTRAR EVENTO
