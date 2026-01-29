@@ -1,19 +1,13 @@
 <?php
 // ============================================
-// CRYPTO ASTEROID RUSH - Informações de Afiliados
+// UNOBIX - Informações de Afiliados
 // Arquivo: api/referral-info.php
+// v2.0 - Google Auth + BRL
 // ============================================
 
 require_once __DIR__ . "/config.php";
 
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
-}
+setCorsHeaders();
 
 // ===============================
 // Input (JSON + POST + GET)
@@ -22,12 +16,24 @@ $raw = file_get_contents('php://input');
 $input = json_decode($raw, true);
 if (!is_array($input)) $input = [];
 
+$googleUid = $input['google_uid'] ?? ($_POST['google_uid'] ?? ($_GET['google_uid'] ?? ''));
 $wallet = $input['wallet'] ?? ($_POST['wallet'] ?? ($_GET['wallet'] ?? ''));
+
+$googleUid = trim($googleUid);
 $wallet = trim(strtolower($wallet));
 
-// Validar wallet
-if (!preg_match('/^0x[a-f0-9]{40}$/', $wallet)) {
-    echo json_encode(['success' => false, 'error' => 'Carteira inválida']);
+// Determinar identificador
+$identifier = '';
+$identifierType = '';
+
+if (!empty($googleUid) && validateGoogleUid($googleUid)) {
+    $identifier = $googleUid;
+    $identifierType = 'google_uid';
+} elseif (!empty($wallet) && validateWallet($wallet)) {
+    $identifier = $wallet;
+    $identifierType = 'wallet';
+} else {
+    echo json_encode(['success' => false, 'error' => 'Identificação inválida']);
     exit;
 }
 
@@ -44,7 +50,6 @@ function generateReferralCode($pdo) {
             $code .= $characters[random_int(0, strlen($characters) - 1)];
         }
 
-        // Verificar se código já existe
         $stmt = $pdo->prepare("SELECT id FROM referral_codes WHERE code = ? LIMIT 1");
         $stmt->execute([$code]);
 
@@ -53,7 +58,6 @@ function generateReferralCode($pdo) {
         }
     }
 
-    // Fallback: hash + timestamp
     return strtoupper(substr(md5(uniqid('', true) . time()), 0, 6));
 }
 
@@ -61,115 +65,151 @@ try {
     $pdo = getDatabaseConnection();
     if (!$pdo) throw new Exception('Erro ao conectar ao banco');
 
-    // Verificar se tabelas existem
+    // Verificar tabelas
     $referralsExists = $pdo->query("SHOW TABLES LIKE 'referrals'")->fetch();
-    $codesExists     = $pdo->query("SHOW TABLES LIKE 'referral_codes'")->fetch();
+    $codesExists = $pdo->query("SHOW TABLES LIKE 'referral_codes'")->fetch();
 
     if (!$codesExists) {
-        echo json_encode(['success' => false, 'error' => 'Tabela referral_codes não encontrada']);
-        exit;
-    }
-    if (!$referralsExists) {
-        echo json_encode([
-            'success' => true,
-            'referral_code' => null,
-            'referral_link' => null,
-            'stats' => [
-                'total_referred' => 0,
-                'completed' => 0,
-                'pending' => 0,
-                'available_commission' => number_format(0, 2, '.', ''),
-                'claimed_commission' => number_format(0, 2, '.', ''),
-                'total_earned' => number_format(0, 2, '.', '')
-            ],
-            'referrals' => []
-        ]);
+        echo json_encode(['success' => false, 'error' => 'Sistema de referral não configurado']);
         exit;
     }
 
     // ============================================
     // 1. BUSCAR OU CRIAR CÓDIGO DE REFERRAL
     // ============================================
-    $stmt = $pdo->prepare("SELECT code FROM referral_codes WHERE wallet_address = ? LIMIT 1");
-    $stmt->execute([$wallet]);
+    $stmt = $pdo->prepare("
+        SELECT code FROM referral_codes 
+        WHERE google_uid = ? OR wallet_address = ? 
+        LIMIT 1
+    ");
+    $stmt->execute([$googleUid, $wallet]);
     $codeRow = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($codeRow && !empty($codeRow['code'])) {
         $referralCode = $codeRow['code'];
     } else {
         $referralCode = generateReferralCode($pdo);
-        $stmt = $pdo->prepare("INSERT INTO referral_codes (wallet_address, code, created_at) VALUES (?, ?, NOW())");
-        $stmt->execute([$wallet, $referralCode]);
+        
+        // Buscar wallet do player se só temos google_uid
+        if (empty($wallet) && !empty($googleUid)) {
+            $stmt = $pdo->prepare("SELECT wallet_address FROM players WHERE google_uid = ? LIMIT 1");
+            $stmt->execute([$googleUid]);
+            $player = $stmt->fetch();
+            $wallet = $player['wallet_address'] ?? '';
+        }
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO referral_codes (google_uid, wallet_address, code, created_at) 
+            VALUES (?, ?, ?, NOW())
+        ");
+        $stmt->execute([$googleUid ?: null, $wallet ?: null, $referralCode]);
     }
 
     // ============================================
-    // 2. BUSCAR ESTATÍSTICAS
+    // 2. BUSCAR ESTATÍSTICAS (se tabela referrals existe)
     // ============================================
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM referrals WHERE referrer_wallet = ?");
-    $stmt->execute([$wallet]);
-    $totalReferred = (int)$stmt->fetchColumn();
-
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM referrals WHERE referrer_wallet = ? AND status IN ('completed', 'claimed')");
-    $stmt->execute([$wallet]);
-    $completedReferred = (int)$stmt->fetchColumn();
-
-    $stmt = $pdo->prepare("SELECT COALESCE(SUM(commission_amount), 0) FROM referrals WHERE referrer_wallet = ? AND status = 'completed'");
-    $stmt->execute([$wallet]);
-    $availableCommission = (float)$stmt->fetchColumn();
-
-    $stmt = $pdo->prepare("SELECT COALESCE(SUM(commission_amount), 0) FROM referrals WHERE referrer_wallet = ? AND status = 'claimed'");
-    $stmt->execute([$wallet]);
-    $claimedCommission = (float)$stmt->fetchColumn();
-
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM referrals WHERE referrer_wallet = ? AND status = 'pending'");
-    $stmt->execute([$wallet]);
-    $pendingReferred = (int)$stmt->fetchColumn();
-
-    // ============================================
-    // 3. LISTA DE INDICADOS
-    // ============================================
-    $stmt = $pdo->prepare("
-        SELECT
-            id,
-            referred_wallet,
-            status,
-            missions_completed,
-            missions_required,
-            commission_amount,
-            completed_at,
-            claimed_at,
-            created_at
-        FROM referrals
-        WHERE referrer_wallet = ?
-        ORDER BY created_at DESC
-        LIMIT 50
-    ");
-    $stmt->execute([$wallet]);
-    $referrals = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+    $totalReferred = 0;
+    $completedReferred = 0;
+    $pendingReferred = 0;
+    $availableCommission = 0;
+    $claimedCommission = 0;
     $referralsList = [];
-    foreach ($referrals as $ref) {
-        $missionsRequired = (int)($ref['missions_required'] ?? 0);
-        $missionsCompleted = (int)($ref['missions_completed'] ?? 0);
 
-        $progress = 0;
-        if ($missionsRequired > 0) {
-            $progress = min(100, round(($missionsCompleted / $missionsRequired) * 100));
+    if ($referralsExists) {
+        // Total de indicados
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) FROM referrals 
+            WHERE referrer_google_uid = ? OR referrer_wallet = ?
+        ");
+        $stmt->execute([$googleUid, $wallet]);
+        $totalReferred = (int)$stmt->fetchColumn();
+
+        // Completados
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) FROM referrals 
+            WHERE (referrer_google_uid = ? OR referrer_wallet = ?) 
+            AND status IN ('completed', 'claimed')
+        ");
+        $stmt->execute([$googleUid, $wallet]);
+        $completedReferred = (int)$stmt->fetchColumn();
+
+        // Pendentes
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) FROM referrals 
+            WHERE (referrer_google_uid = ? OR referrer_wallet = ?) 
+            AND status = 'pending'
+        ");
+        $stmt->execute([$googleUid, $wallet]);
+        $pendingReferred = (int)$stmt->fetchColumn();
+
+        // Comissão disponível
+        $stmt = $pdo->prepare("
+            SELECT COALESCE(SUM(commission_amount), 0) FROM referrals 
+            WHERE (referrer_google_uid = ? OR referrer_wallet = ?) 
+            AND status = 'completed'
+        ");
+        $stmt->execute([$googleUid, $wallet]);
+        $availableCommission = (float)$stmt->fetchColumn();
+
+        // Comissão já resgatada
+        $stmt = $pdo->prepare("
+            SELECT COALESCE(SUM(commission_amount), 0) FROM referrals 
+            WHERE (referrer_google_uid = ? OR referrer_wallet = ?) 
+            AND status = 'claimed'
+        ");
+        $stmt->execute([$googleUid, $wallet]);
+        $claimedCommission = (float)$stmt->fetchColumn();
+
+        // ============================================
+        // 3. LISTA DE INDICADOS
+        // ============================================
+        $stmt = $pdo->prepare("
+            SELECT
+                id,
+                referred_google_uid,
+                referred_wallet,
+                status,
+                missions_completed,
+                missions_required,
+                commission_amount,
+                completed_at,
+                claimed_at,
+                created_at
+            FROM referrals
+            WHERE referrer_google_uid = ? OR referrer_wallet = ?
+            ORDER BY created_at DESC
+            LIMIT 50
+        ");
+        $stmt->execute([$googleUid, $wallet]);
+        $referrals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($referrals as $ref) {
+            $missionsRequired = (int)($ref['missions_required'] ?? 100);
+            $missionsCompleted = (int)($ref['missions_completed'] ?? 0);
+            $progress = $missionsRequired > 0 ? min(100, round(($missionsCompleted / $missionsRequired) * 100)) : 0;
+
+            // Identificador do indicado (preferir google_uid, fallback para wallet)
+            $referredId = $ref['referred_google_uid'] ?: $ref['referred_wallet'];
+            $referredShort = $ref['referred_google_uid'] 
+                ? substr($ref['referred_google_uid'], 0, 8) . '...'
+                : substr($ref['referred_wallet'], 0, 6) . '...' . substr($ref['referred_wallet'], -4);
+
+            $referralsList[] = [
+                'id' => (int)$ref['id'],
+                'referred_id' => $referredId,
+                'referred_short' => $referredShort,
+                'status' => $ref['status'],
+                'status_label' => getStatusLabel($ref['status']),
+                'missions_completed' => $missionsCompleted,
+                'missions_required' => $missionsRequired,
+                'progress_percent' => $progress,
+                'commission_brl' => number_format((float)$ref['commission_amount'], 2, '.', ''),
+                'completed_at' => $ref['completed_at'],
+                'claimed_at' => $ref['claimed_at'],
+                'created_at' => $ref['created_at'],
+                'created_at_formatted' => date('d/m/Y H:i', strtotime($ref['created_at']))
+            ];
         }
-
-        $referralsList[] = [
-            'id' => (int)$ref['id'],
-            'wallet' => $ref['referred_wallet'],
-            'wallet_short' => substr($ref['referred_wallet'], 0, 6) . '...' . substr($ref['referred_wallet'], -4),
-            'status' => $ref['status'],
-            'missions_completed' => $missionsCompleted,
-            'missions_required' => $missionsRequired,
-            'progress_percent' => $progress,
-            'commission' => number_format((float)$ref['commission_amount'], 2, '.', ''),
-            'completed_at' => $ref['completed_at'],
-            'claimed_at' => $ref['claimed_at'],
-            'created_at' => $ref['created_at'],
-        ];
     }
 
     echo json_encode([
@@ -180,15 +220,29 @@ try {
             'total_referred' => $totalReferred,
             'completed' => $completedReferred,
             'pending' => $pendingReferred,
-            'available_commission' => number_format($availableCommission, 2, '.', ''),
-            'claimed_commission' => number_format($claimedCommission, 2, '.', ''),
-            'total_earned' => number_format($availableCommission + $claimedCommission, 2, '.', '')
+            'available_commission_brl' => number_format($availableCommission, 2, '.', ''),
+            'claimed_commission_brl' => number_format($claimedCommission, 2, '.', ''),
+            'total_earned_brl' => number_format($availableCommission + $claimedCommission, 2, '.', '')
         ],
-        'referrals' => $referralsList
+        'referrals' => $referralsList,
+        'config' => [
+            'missions_required' => 100,
+            'commission_brl' => 1.00
+        ]
     ]);
 
 } catch (Exception $e) {
     error_log("Erro em referral-info.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Erro no servidor']);
+}
+
+function getStatusLabel($status) {
+    $labels = [
+        'pending' => 'Em progresso',
+        'completed' => 'Disponível para resgate',
+        'claimed' => 'Resgatado',
+        'cancelled' => 'Cancelado'
+    ];
+    return $labels[$status] ?? ucfirst($status);
 }
