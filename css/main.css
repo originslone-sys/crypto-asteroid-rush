@@ -1,24 +1,61 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Unified CSS v2.1
-   All pages in English - Optimized
+   UNOBIX - CSS Principal v4.0
+   Paleta baseada na logo (cyan → verde → lima)
+   Português BR - Google Auth - BRL
    ============================================ */
 
 :root {
-    --primary: #00f0ff;
-    --primary-glow: rgba(0, 240, 255, 0.5);
-    --secondary: #92fe9d;
-    --secondary-glow: rgba(146, 254, 157, 0.5);
-    --deep-space: #0a0819;
-    --nebula-purple: #1a0b2e;
-    --danger: #ff2a6d;
-    --warning: #ffd166;
-    --success: #05ffa1;
-    --text-light: #e6f7ff;
-    --text-dim: #8a9ba8;
-    --card-bg: rgba(10, 8, 25, 0.8);
-    --border-color: rgba(0, 240, 255, 0.2);
+    /* === CORES PRINCIPAIS (extraídas da logo) === */
+    --primary: #00E5CC;           /* Cyan-verde (base da logo) */
+    --primary-light: #00F0FF;     /* Cyan claro */
+    --primary-dark: #00C9B7;      /* Cyan escuro */
+    --primary-glow: rgba(0, 229, 204, 0.5);
+    
+    --secondary: #7BF542;         /* Verde-lima (topo da logo) */
+    --secondary-light: #92FE9D;   /* Lima claro */
+    --secondary-glow: rgba(123, 245, 66, 0.5);
+    
+    --accent: #B8FF00;            /* Amarelo-verde vibrante */
+    --accent-glow: rgba(184, 255, 0, 0.5);
+    
+    /* === GRADIENTES DA LOGO === */
+    --gradient-logo: linear-gradient(135deg, #00F0FF, #00E5CC, #7BF542, #B8FF00);
+    --gradient-primary: linear-gradient(135deg, var(--primary), var(--secondary));
+    --gradient-accent: linear-gradient(135deg, var(--secondary), var(--accent));
+    
+    /* === CORES DE FUNDO === */
+    --deep-space: #0a0a0f;        /* Preto azulado profundo */
+    --space-dark: #0d0d14;
+    --space-medium: #12121a;
+    --nebula-green: rgba(0, 229, 204, 0.03);
+    
+    /* === CORES DE STATUS === */
+    --success: #00FF88;           /* Verde sucesso (combina com logo) */
+    --warning: #FFD166;           /* Amarelo aviso */
+    --danger: #FF4757;            /* Vermelho erro */
+    --info: #00E5CC;              /* Info = primary */
+    
+    /* === CORES DE TEXTO === */
+    --text-light: #E8F5F0;        /* Branco com toque verde */
+    --text-dim: #7A8B8A;          /* Cinza esverdeado */
+    --text-muted: #4A5A58;        /* Mais escuro */
+    
+    /* === CORES DE COMPONENTES === */
+    --card-bg: rgba(10, 15, 15, 0.85);
+    --card-bg-hover: rgba(15, 20, 20, 0.9);
+    --border-color: rgba(0, 229, 204, 0.15);
+    --border-hover: rgba(0, 229, 204, 0.4);
+    
+    /* === OUTRAS === */
     --telegram: #0088cc;
+    --whatsapp: #25D366;
+    --google: #4285F4;
+    --pix: #32BCAD;
 }
+
+/* ============================================
+   RESET & BASE
+   ============================================ */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
@@ -33,7 +70,7 @@ body {
 }
 
 /* ============================================
-   COSMIC BACKGROUND WITH ANIMATION
+   COSMIC BACKGROUND - Tons verdes
    ============================================ */
 
 .cosmic-bg {
@@ -42,21 +79,22 @@ body {
     width: 100%; height: 100%;
     z-index: -1;
     background: 
-        radial-gradient(ellipse at 20% 20%, rgba(26, 11, 46, 0.6) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 80%, rgba(12, 11, 26, 0.7) 0%, transparent 50%),
+        radial-gradient(ellipse at 20% 20%, rgba(0, 229, 204, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 70%, rgba(123, 245, 66, 0.05) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(10, 10, 15, 0.9) 0%, transparent 80%),
         var(--deep-space);
 }
 
 .star {
     position: absolute;
-    background: white;
+    background: var(--primary-light);
     border-radius: 50%;
     animation: twinkle ease-in-out infinite;
 }
 
 .star.small { width: 1px; height: 1px; }
 .star.medium { width: 2px; height: 2px; }
-.star.large { width: 3px; height: 3px; }
+.star.large { width: 3px; height: 3px; background: var(--secondary); }
 
 @keyframes twinkle {
     0%, 100% { opacity: 0.3; transform: scale(1); }
@@ -83,25 +121,45 @@ body {
     border-bottom: 1px solid var(--border-color);
 }
 
+/* === LOGO === */
 .logo {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     text-decoration: none;
 }
 
-.logo-icon { font-size: 1.8rem; }
+.logo-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.logo-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Fallback se não tiver imagem */
+.logo-icon-emoji {
+    font-size: 1.8rem;
+    filter: drop-shadow(0 0 8px var(--primary-glow));
+}
 
 .logo-text {
     font-family: 'Orbitron', sans-serif;
     font-weight: 800;
-    font-size: 1.2rem;
-    background: linear-gradient(to right, var(--primary), var(--secondary));
+    font-size: 1.4rem;
+    letter-spacing: 1px;
+    background: var(--gradient-logo);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
 }
 
+/* === NAVIGATION === */
 .nav {
     display: flex;
     gap: 25px;
@@ -125,14 +183,17 @@ body {
     position: absolute;
     bottom: 0; left: 0;
     width: 100%; height: 2px;
-    background: var(--primary);
+    background: var(--gradient-primary);
+    border-radius: 2px;
 }
 
-.wallet-btn {
+/* === USER BUTTON (antigo wallet-btn) === */
+.wallet-btn,
+.user-btn {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    background: var(--gradient-primary);
     color: var(--deep-space);
     padding: 10px 18px;
     border-radius: 25px;
@@ -144,15 +205,24 @@ body {
     transition: transform 0.3s, box-shadow 0.3s;
 }
 
-.wallet-btn:hover {
+.wallet-btn:hover,
+.user-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 20px var(--primary-glow);
+    box-shadow: 0 5px 25px var(--primary-glow);
 }
 
-.wallet-btn.connected {
-    background: rgba(5, 255, 161, 0.15);
+.wallet-btn.connected,
+.user-btn.logged-in {
+    background: rgba(0, 255, 136, 0.15);
     border: 1px solid var(--success);
     color: var(--success);
+}
+
+.wallet-btn img,
+.user-btn img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
 }
 
 .mobile-menu-btn {
@@ -177,11 +247,12 @@ body {
     font-family: 'Orbitron', sans-serif;
     font-weight: 900;
     font-size: 2.2rem;
-    background: linear-gradient(to right, var(--primary), var(--secondary));
+    background: var(--gradient-logo);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
     margin-bottom: 10px;
+    text-shadow: 0 0 40px var(--primary-glow);
 }
 
 .page-subtitle {
@@ -208,6 +279,13 @@ body {
     padding: 20px;
     border: 1px solid var(--border-color);
     text-align: center;
+    transition: all 0.3s;
+}
+
+.stat-card:hover {
+    border-color: var(--border-hover);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(0, 229, 204, 0.1);
 }
 
 .stat-icon {
@@ -218,12 +296,14 @@ body {
 
 .stat-card.success .stat-icon { color: var(--success); }
 .stat-card.warning .stat-icon { color: var(--warning); }
+.stat-card.danger .stat-icon { color: var(--danger); }
 
 .stat-value {
     font-family: 'Orbitron', sans-serif;
     font-size: 1.5rem;
     font-weight: 700;
     margin-bottom: 5px;
+    color: var(--text-light);
 }
 
 .stat-label {
@@ -231,6 +311,7 @@ body {
     font-size: 0.85rem;
 }
 
+/* === ACTION CARDS === */
 .action-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -246,13 +327,28 @@ body {
     text-decoration: none;
     color: inherit;
     display: block;
-    transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+}
+
+.action-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 229, 204, 0.1), transparent);
+    transition: 0.5s;
+}
+
+.action-card:hover::before {
+    left: 100%;
 }
 
 .action-card:hover {
     transform: translateY(-5px);
     border-color: var(--primary);
-    box-shadow: 0 10px 30px rgba(0, 240, 255, 0.1);
+    box-shadow: 0 15px 40px rgba(0, 229, 204, 0.15);
 }
 
 .action-icon {
@@ -266,17 +362,22 @@ body {
 }
 
 .action-card.play .action-icon {
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    background: var(--gradient-primary);
     color: var(--deep-space);
 }
 
 .action-card.wallet .action-icon {
-    background: rgba(255, 209, 102, 0.2);
-    color: var(--warning);
+    background: rgba(0, 229, 204, 0.15);
+    color: var(--primary);
 }
 
 .action-card.staking .action-icon {
-    background: rgba(5, 255, 161, 0.2);
+    background: rgba(123, 245, 66, 0.15);
+    color: var(--secondary);
+}
+
+.action-card.affiliate .action-icon {
+    background: rgba(0, 255, 136, 0.15);
     color: var(--success);
 }
 
@@ -284,6 +385,7 @@ body {
     font-family: 'Orbitron', sans-serif;
     font-size: 1.1rem;
     margin-bottom: 8px;
+    color: var(--text-light);
 }
 
 .action-desc {
@@ -335,9 +437,11 @@ body {
     align-items: center;
     padding: 15px 20px;
     border-bottom: 1px solid var(--border-color);
+    transition: background 0.3s;
 }
 
 .activity-item:last-child { border-bottom: none; }
+.activity-item:hover { background: var(--nebula-green); }
 
 .activity-info {
     display: flex;
@@ -354,9 +458,10 @@ body {
     font-size: 1rem;
 }
 
-.activity-icon.game { background: rgba(0, 240, 255, 0.15); color: var(--primary); }
-.activity-icon.reward { background: rgba(5, 255, 161, 0.15); color: var(--success); }
+.activity-icon.game { background: rgba(0, 229, 204, 0.15); color: var(--primary); }
+.activity-icon.reward { background: rgba(0, 255, 136, 0.15); color: var(--success); }
 .activity-icon.withdraw { background: rgba(255, 209, 102, 0.15); color: var(--warning); }
+.activity-icon.positive { background: rgba(0, 255, 136, 0.15); color: var(--success); }
 
 .activity-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 2px; }
 .activity-date { font-size: 0.8rem; color: var(--text-dim); }
@@ -398,13 +503,23 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    background: var(--gradient-primary);
     color: var(--deep-space);
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 20px var(--primary-glow);
+    box-shadow: 0 8px 25px var(--primary-glow);
+}
+
+.btn-secondary {
+    background: transparent;
+    border: 2px solid var(--secondary);
+    color: var(--secondary);
+}
+
+.btn-secondary:hover {
+    background: rgba(123, 245, 66, 0.1);
 }
 
 .btn-outline {
@@ -413,26 +528,55 @@ body {
     color: var(--primary);
 }
 
-.btn-outline:hover { background: rgba(0, 240, 255, 0.1); }
+.btn-outline:hover { background: rgba(0, 229, 204, 0.1); }
 
 .btn-success {
     background: linear-gradient(135deg, var(--success), var(--secondary));
     color: var(--deep-space);
 }
 
+.btn-success:hover {
+    box-shadow: 0 8px 25px rgba(0, 255, 136, 0.4);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, var(--danger), #ff6b6b);
+    color: white;
+}
+
 .btn-lg { padding: 15px 35px; font-size: 1.1rem; }
+.btn-sm { padding: 8px 16px; font-size: 0.85rem; }
 
-/* ============================================
-   TELEGRAM BUTTON - ANIMATED IN FOOTER
-   ============================================ */
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
 
+/* === GOOGLE BUTTON === */
+.btn-google {
+    background: white;
+    color: #333;
+    border: 1px solid #ddd;
+}
+
+.btn-google:hover {
+    background: #f5f5f5;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.btn-google i {
+    color: var(--google);
+}
+
+/* === TELEGRAM BUTTON === */
 .btn-telegram {
     background: linear-gradient(135deg, var(--telegram), #00aced);
     color: white;
     position: relative;
     overflow: hidden;
     border: 2px solid rgba(255, 255, 255, 0.3);
-    animation: telegram-float 3s ease-in-out infinite, telegram-pulse 2s ease-in-out infinite;
+    animation: telegram-float 3s ease-in-out infinite;
     box-shadow: 0 0 20px rgba(0, 136, 204, 0.4);
 }
 
@@ -448,7 +592,6 @@ body {
 .btn-telegram:hover {
     transform: translateY(-5px) scale(1.05);
     box-shadow: 0 10px 30px rgba(0, 136, 204, 0.6);
-    border-color: rgba(255, 255, 255, 0.6);
 }
 
 @keyframes telegram-float {
@@ -456,32 +599,19 @@ body {
     50% { transform: translateY(-5px); }
 }
 
-@keyframes telegram-pulse {
-    0%, 100% { box-shadow: 0 0 15px rgba(0, 136, 204, 0.4), 0 0 30px rgba(0, 136, 204, 0.2); }
-    50% { box-shadow: 0 0 25px rgba(0, 136, 204, 0.6), 0 0 50px rgba(0, 136, 204, 0.3); }
-}
-
 @keyframes telegram-shine {
     0% { left: -100%; }
     50%, 100% { left: 100%; }
 }
 
-/* Footer Telegram special styling */
-.footer .btn-telegram {
-    display: inline-flex;
-    padding: 12px 25px;
-    font-size: 1rem;
-    margin-bottom: 15px;
-}
-
 /* ============================================
-   CONNECT OVERLAY
+   CONNECT OVERLAY (Login)
    ============================================ */
 
 .connect-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(10, 8, 25, 0.95);
+    background: rgba(10, 10, 15, 0.97);
     z-index: 1000;
     display: flex;
     align-items: center;
@@ -497,13 +627,36 @@ body {
     padding: 40px;
     border: 1px solid var(--border-color);
     text-align: center;
-    max-width: 400px;
+    max-width: 420px;
     width: 100%;
+    box-shadow: 0 20px 60px rgba(0, 229, 204, 0.1);
 }
 
-.connect-icon { font-size: 3rem; margin-bottom: 20px; color: var(--primary); }
-.connect-title { font-family: 'Orbitron', sans-serif; font-size: 1.5rem; margin-bottom: 12px; }
-.connect-desc { color: var(--text-dim); margin-bottom: 25px; font-size: 0.95rem; line-height: 1.6; }
+.connect-icon { 
+    font-size: 3.5rem; 
+    margin-bottom: 20px; 
+    background: var(--gradient-logo);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.connect-title { 
+    font-family: 'Orbitron', sans-serif; 
+    font-size: 1.5rem; 
+    margin-bottom: 12px;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.connect-desc { 
+    color: var(--text-dim); 
+    margin-bottom: 25px; 
+    font-size: 0.95rem; 
+    line-height: 1.6; 
+}
 
 /* ============================================
    FAQ & CONTENT PAGES
@@ -529,7 +682,7 @@ body {
     transition: background 0.3s;
 }
 
-.faq-question:hover { background: rgba(0, 240, 255, 0.05); }
+.faq-question:hover { background: var(--nebula-green); }
 .faq-question i { color: var(--primary); transition: transform 0.3s; }
 .faq-item.open .faq-question i { transform: rotate(180deg); }
 
@@ -574,10 +727,13 @@ body {
     text-decoration: none;
     font-size: 0.9rem;
     transition: color 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .footer-link:hover { color: var(--primary); }
-.footer-copy { color: var(--text-dim); font-size: 0.8rem; }
+.footer-copy { color: var(--text-dim); font-size: 0.8rem; margin-top: 15px; }
 
 /* ============================================
    RESPONSIVE
@@ -593,6 +749,7 @@ body {
         padding: 20px;
         border-bottom: 1px solid var(--border-color);
         gap: 15px;
+        z-index: 999;
     }
     
     .nav.open { display: flex; }
@@ -602,7 +759,6 @@ body {
     .action-grid { grid-template-columns: 1fr; }
     .stat-value { font-size: 1.3rem; }
     .connect-box { padding: 30px 20px; }
-    .telegram-float { bottom: 15px; right: 15px; padding: 12px 20px; font-size: 0.9rem; }
     
     .activity-item {
         flex-direction: column;
@@ -616,7 +772,8 @@ body {
 @media (max-width: 480px) {
     .container { padding: 0 15px; }
     .header { padding: 15px 0; }
-    .logo-text { font-size: 1rem; }
+    .logo-text { font-size: 1.1rem; }
+    .logo-icon { width: 36px; height: 36px; }
     .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
     .stat-card { padding: 15px 10px; }
     .stat-value { font-size: 1.1rem; }
@@ -626,13 +783,66 @@ body {
     .btn-lg { padding: 12px 25px; font-size: 1rem; }
 }
 
-/* Utilities */
+/* ============================================
+   UTILITIES
+   ============================================ */
+
 .text-center { text-align: center; }
-.text-primary { color: var(--primary); }
-.text-success { color: var(--success); }
-.text-warning { color: var(--warning); }
-.text-dim { color: var(--text-dim); }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+.text-primary { color: var(--primary) !important; }
+.text-secondary { color: var(--secondary) !important; }
+.text-success { color: var(--success) !important; }
+.text-warning { color: var(--warning) !important; }
+.text-danger { color: var(--danger) !important; }
+.text-dim { color: var(--text-dim) !important; }
+
+.bg-primary { background: var(--primary) !important; }
+.bg-success { background: var(--success) !important; }
+.bg-gradient { background: var(--gradient-primary) !important; }
+
 .mb-10 { margin-bottom: 10px; }
 .mb-20 { margin-bottom: 20px; }
 .mb-30 { margin-bottom: 30px; }
+.mt-10 { margin-top: 10px; }
 .mt-20 { margin-top: 20px; }
+.mt-30 { margin-top: 30px; }
+
+.hidden { display: none !important; }
+.visible { display: block !important; }
+
+/* ============================================
+   SCROLLBAR PERSONALIZADA
+   ============================================ */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--deep-space);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary);
+}
+
+/* ============================================
+   SELECTION
+   ============================================ */
+
+::selection {
+    background: var(--primary);
+    color: var(--deep-space);
+}
+
+::-moz-selection {
+    background: var(--primary);
+    color: var(--deep-space);
+}
