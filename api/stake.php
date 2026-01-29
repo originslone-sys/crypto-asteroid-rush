@@ -1,51 +1,69 @@
 <?php
-// api/stake.php — (Opção A) Mesma lógica do stake, apenas corrigido para Railway:
-// - require com __DIR__
-// - entrada híbrida JSON/POST/GET
-// - locks + transação (consistência)
-// - insert em stakes compatível com schema (total_earned, completed_at)
-// - transactions com schema variável (amount_usdt vs amount, created_at vs date)
-
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    echo json_encode(['success' => true]);
-    exit;
-}
+// ============================================
+// UNOBIX - Criar Stake
+// Arquivo: api/stake.php
+// v2.0 - APY 5% + BRL + Google Auth
+// ============================================
 
 require_once __DIR__ . '/config.php';
 
-// Entrada híbrida: JSON + POST + GET
+setCorsHeaders();
+
+// ============================================
+// LER INPUT (híbrido: JSON + POST + GET)
+// ============================================
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true);
 if (!is_array($input)) $input = [];
 
-$wallet =
-    (isset($input['wallet']) ? trim($input['wallet']) : '') ?:
-    (isset($_POST['wallet']) ? trim($_POST['wallet']) : '') ?:
-    (isset($_GET['wallet']) ? trim($_GET['wallet']) : '');
+$googleUid = 
+    $input['google_uid'] ?? 
+    $_POST['google_uid'] ?? 
+    $_GET['google_uid'] ?? '';
 
-$amountRaw =
-    $input['amount'] ??
-    $_POST['amount'] ??
-    $_GET['amount'] ??
-    0;
+$wallet = 
+    $input['wallet'] ?? 
+    $_POST['wallet'] ?? 
+    $_GET['wallet'] ?? '';
 
-$amount = floatval($amountRaw);
+$amountRaw = 
+    $input['amount'] ?? 
+    $_POST['amount'] ?? 
+    $_GET['amount'] ?? 0;
 
-// Normaliza wallet para bater com DB
-$wallet = strtolower($wallet);
+$googleUid = trim($googleUid);
+$wallet = trim(strtolower($wallet));
+$amount = (float)$amountRaw;
 
-// Validações (preservadas)
-if (empty($wallet) || !validateWallet($wallet)) {
-    echo json_encode(['success' => false, 'error' => 'Wallet inválida']);
+// Determinar identificador
+$identifier = '';
+$identifierType = '';
+
+if (!empty($googleUid) && validateGoogleUid($googleUid)) {
+    $identifier = $googleUid;
+    $identifierType = 'google_uid';
+} elseif (!empty($wallet) && validateWallet($wallet)) {
+    $identifier = $wallet;
+    $identifierType = 'wallet';
+} else {
+    echo json_encode(['success' => false, 'error' => 'Identificação inválida']);
     exit;
 }
-if ($amount < MIN_STAKE_AMOUNT) {
-    echo json_encode(['success' => false, 'error' => 'Valor mínimo: $' . MIN_STAKE_AMOUNT . ' USDT']);
+
+// Validar valor
+if ($amount < MIN_STAKE_BRL) {
+    echo json_encode([
+        'success' => false, 
+        'error' => "Valor mínimo para stake: R$ " . number_format(MIN_STAKE_BRL, 2, ',', '.')
+    ]);
+    exit;
+}
+
+if ($amount > MAX_STAKE_BRL) {
+    echo json_encode([
+        'success' => false, 
+        'error' => "Valor máximo para stake: R$ " . number_format(MAX_STAKE_BRL, 2, ',', '.')
+    ]);
     exit;
 }
 
@@ -55,35 +73,24 @@ if (!$pdo) {
     exit;
 }
 
-// Helper: detectar colunas dinamicamente (compat cPanel/Railway)
-function pickColumn(PDO $pdo, string $table, array $candidates): ?string {
-    $cols = [];
-    $stmt = $pdo->query("SHOW COLUMNS FROM `$table`");
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $cols[$row['Field']] = true;
-    }
-    foreach ($candidates as $c) {
-        if (isset($cols[$c])) return $c;
-    }
-    return null;
-}
-
 try {
-    // Schema variável (principalmente transactions)
-    $txAmountCol  = pickColumn($pdo, 'transactions', ['amount_usdt', 'amount']);
-    $txDateCol    = pickColumn($pdo, 'transactions', ['created_at', 'date']);
-
     $pdo->beginTransaction();
 
-    // 1) Lock do player e saldo
+    // ============================================
+    // 1. BUSCAR JOGADOR (com lock)
+    // ============================================
+    $wherePlayer = $identifierType === 'google_uid'
+        ? "google_uid = :id"
+        : "wallet_address = :id";
+
     $stmt = $pdo->prepare("
-        SELECT balance_usdt
+        SELECT id, google_uid, wallet_address, balance_brl, staked_balance_brl
         FROM players
-        WHERE wallet_address = :wallet
+        WHERE {$wherePlayer}
         FOR UPDATE
     ");
-    $stmt->execute([':wallet' => $wallet]);
-    $player = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt->execute([':id' => $identifier]);
+    $player = $stmt->fetch();
 
     if (!$player) {
         $pdo->rollBack();
@@ -91,110 +98,158 @@ try {
         exit;
     }
 
-    $currentBalanceUsdt = (float)$player['balance_usdt'];
-    if ($currentBalanceUsdt < $amount) {
+    $currentBalance = (float)($player['balance_brl'] ?? 0);
+    
+    if ($currentBalance < $amount) {
         $pdo->rollBack();
         echo json_encode([
-            'success' => false,
-            'error' => 'Saldo insuficiente. Disponível: $' . number_format($currentBalanceUsdt, 6)
+            'success' => false, 
+            'error' => 'Saldo insuficiente',
+            'current_balance' => $currentBalance
         ]);
         exit;
     }
 
-    // 2) Lock do stake ativo (se existir)
+    // ============================================
+    // 2. VERIFICAR LIMITE DE STAKES ATIVOS
+    // ============================================
+    $whereClause = $identifierType === 'google_uid'
+        ? "(google_uid = :id OR wallet_address = :id2)"
+        : "wallet_address = :id";
+    
+    $params = $identifierType === 'google_uid'
+        ? [':id' => $identifier, ':id2' => $identifier]
+        : [':id' => $identifier];
+
     $stmt = $pdo->prepare("
-        SELECT id, amount
+        SELECT COUNT(*) as count, COALESCE(SUM(amount_brl), 0) as total
         FROM stakes
-        WHERE wallet_address = :wallet AND status = 'active'
-        LIMIT 1
-        FOR UPDATE
+        WHERE {$whereClause} AND status = 'active'
     ");
-    $stmt->execute([':wallet' => $wallet]);
-    $existingStake = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt->execute($params);
+    $activeStakes = $stmt->fetch();
 
-    $currentDateTime = date('Y-m-d H:i:s');
-
-    // Unidades (8 casas) para stakes.amount
-    $amountInUnits = (int)round($amount * 100000000);
-
-    if ($existingStake) {
-        // Soma no stake existente (amount já em unidades)
-        $newAmountUnits = (int)$existingStake['amount'] + $amountInUnits;
-
-        $stmt = $pdo->prepare("
-            UPDATE stakes
-            SET amount = :amount,
-                updated_at = :updated_at
-            WHERE id = :id
-        ");
-        $stmt->execute([
-            ':amount' => $newAmountUnits,
-            ':updated_at' => $currentDateTime,
-            ':id' => (int)$existingStake['id']
+    $currentTotalStaked = (float)($activeStakes['total'] ?? 0);
+    
+    if (($currentTotalStaked + $amount) > MAX_STAKE_BRL) {
+        $pdo->rollBack();
+        echo json_encode([
+            'success' => false, 
+            'error' => "Limite total de stake: R$ " . number_format(MAX_STAKE_BRL, 2, ',', '.'),
+            'current_staked' => $currentTotalStaked
         ]);
-
-        $stakeId = (int)$existingStake['id'];
-        $totalStaked = $newAmountUnits / 100000000;
-        $message = 'Valor adicionado ao stake existente';
-    } else {
-        // ✅ Schema Railway confirmado (stakes tem total_earned e completed_at)
-        $stmt = $pdo->prepare("
-            INSERT INTO stakes (wallet_address, amount, apy, total_earned, status, created_at, updated_at, completed_at)
-            VALUES (:wallet, :amount, :apy, 0, 'active', :created_at, :updated_at, NULL)
-        ");
-        $stmt->execute([
-            ':wallet' => $wallet,
-            ':amount' => $amountInUnits,
-            ':apy' => STAKE_APY,
-            ':created_at' => $currentDateTime,
-            ':updated_at' => $currentDateTime
-        ]);
-
-        $stakeId = (int)$pdo->lastInsertId();
-        $totalStaked = $amount;
-        $message = 'Stake criado com sucesso!';
+        exit;
     }
 
-    // 3) Deduz saldo do player (USDT normal)
-    $newBalanceUsdt = $currentBalanceUsdt - $amount;
+    // ============================================
+    // 3. CRIAR STAKE
+    // ============================================
     $stmt = $pdo->prepare("
-        UPDATE players
-        SET balance_usdt = :balance
-        WHERE wallet_address = :wallet
+        INSERT INTO stakes (
+            google_uid,
+            wallet_address,
+            amount,
+            amount_brl,
+            apy,
+            total_earned,
+            total_earned_brl,
+            status,
+            created_at
+        ) VALUES (?, ?, ?, ?, ?, 0, 0, 'active', NOW())
     ");
+    
+    // amount em unidades antigas (para compatibilidade) = amount_brl * 100000000
+    $amountUnits = (int)round($amount * 100000000);
+    
     $stmt->execute([
-        ':balance' => $newBalanceUsdt,
-        ':wallet' => $wallet
+        $player['google_uid'],
+        $player['wallet_address'],
+        $amountUnits,
+        $amount,
+        STAKE_APY
     ]);
 
-    // 4) Registrar transação (schema variável)
-    if ($txAmountCol !== null && $txDateCol !== null) {
-        $stmt = $pdo->prepare("
-            INSERT INTO transactions (wallet_address, type, `$txAmountCol`, description, status, `$txDateCol`)
-            VALUES (:wallet, 'stake', :amount, 'Stake criado/atualizado', 'completed', NOW())
-        ");
-        $stmt->execute([
-            ':wallet' => $wallet,
-            ':amount' => $amount
-        ]);
-    }
+    $stakeId = $pdo->lastInsertId();
+
+    // ============================================
+    // 4. DEDUZIR SALDO DO JOGADOR
+    // ============================================
+    $newBalance = $currentBalance - $amount;
+    $newStakedBalance = (float)($player['staked_balance_brl'] ?? 0) + $amount;
+
+    $stmt = $pdo->prepare("
+        UPDATE players
+        SET balance_brl = :balance,
+            staked_balance_brl = :staked,
+            last_stake_update = NOW()
+        WHERE id = :id
+    ");
+    $stmt->execute([
+        ':balance' => $newBalance,
+        ':staked' => $newStakedBalance,
+        ':id' => (int)$player['id']
+    ]);
+
+    // ============================================
+    // 5. REGISTRAR TRANSAÇÃO
+    // ============================================
+    $pdo->prepare("
+        INSERT INTO transactions (
+            google_uid, wallet_address, type, amount, amount_brl, 
+            description, status, created_at
+        ) VALUES (?, ?, 'stake', ?, ?, ?, 'completed', NOW())
+    ")->execute([
+        $player['google_uid'],
+        $player['wallet_address'],
+        $amount,
+        $amount,
+        "Stake de R$ " . number_format($amount, 2, ',', '.') . " - APY " . (STAKE_APY * 100) . "%"
+    ]);
 
     $pdo->commit();
 
+    // Log
+    secureLog("STAKE_CREATED | ID: {$identifier} | Amount: R$ {$amount} | Stake: #{$stakeId}");
+
+    // ============================================
+    // CALCULAR PROJEÇÕES
+    // ============================================
+    $dailyRate = STAKE_APY / 365;
+    $monthlyRate = pow(1 + $dailyRate, 30) - 1;
+    $yearlyRate = STAKE_APY;
+
+    $projectedDaily = $amount * $dailyRate;
+    $projectedMonthly = $amount * $monthlyRate;
+    $projectedYearly = $amount * $yearlyRate;
+
+    // ============================================
+    // RESPOSTA
+    // ============================================
     echo json_encode([
         'success' => true,
-        'message' => $message,
-        'stake_id' => $stakeId,
-        'amount_staked' => $amount,
-        'total_staked' => $totalStaked,
-        'new_balance' => $newBalanceUsdt
+        'message' => 'Stake criado com sucesso!',
+        'stake_id' => (int)$stakeId,
+        'amount_brl' => round($amount, 2),
+        'apy_percent' => STAKE_APY * 100,
+        'new_balance_brl' => round($newBalance, 2),
+        'total_staked_brl' => round($newStakedBalance, 2),
+        'projections' => [
+            'daily_brl' => round($projectedDaily, 4),
+            'monthly_brl' => round($projectedMonthly, 4),
+            'yearly_brl' => round($projectedYearly, 2)
+        ],
+        'config' => [
+            'min_stake_brl' => MIN_STAKE_BRL,
+            'max_stake_brl' => MAX_STAKE_BRL,
+            'compound_frequency' => 'hourly'
+        ]
     ]);
 
 } catch (PDOException $e) {
     if ($pdo && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
+    secureLog("STAKE_ERROR | ID: {$identifier} | Error: " . $e->getMessage());
     error_log("Erro ao criar stake: " . $e->getMessage());
-    echo json_encode(['success' => false, 'error' => 'Erro ao processar stake']);
+    echo json_encode(['success' => false, 'error' => 'Erro ao criar stake']);
 }
-?>
