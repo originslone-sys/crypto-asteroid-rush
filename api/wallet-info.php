@@ -1,21 +1,13 @@
 <?php
 // ============================================
-// CRYPTO ASTEROID RUSH - Wallet Info (Dashboard/Wallet/Staking)
+// UNOBIX - Wallet Info (Dashboard/Wallet/Staking)
 // Arquivo: api/wallet-info.php
-// Opção A: preservar funcionalidades, apenas corrigir para Railway + schema variável
+// v2.0 - Google Auth + BRL
 // ============================================
 
 require_once __DIR__ . "/config.php";
 
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    echo json_encode(['success' => true]);
-    exit;
-}
+setCorsHeaders();
 
 // ----------------------------
 // Input (JSON + POST + GET)
@@ -24,16 +16,28 @@ $raw = file_get_contents('php://input');
 $input = json_decode($raw, true);
 if (!is_array($input)) $input = [];
 
+$googleUid = $input['google_uid'] ?? ($_POST['google_uid'] ?? ($_GET['google_uid'] ?? ''));
 $wallet = $input['wallet'] ?? ($_POST['wallet'] ?? ($_GET['wallet'] ?? ''));
+
+$googleUid = trim($googleUid);
 $wallet = trim(strtolower($wallet));
 
-if (!preg_match('/^0x[a-f0-9]{40}$/i', $wallet)) {
-    echo json_encode(['success' => false, 'error' => 'Carteira inválida']);
+// Determinar identificador
+$identifier = '';
+$identifierType = '';
+
+if (!empty($googleUid) && validateGoogleUid($googleUid)) {
+    $identifier = $googleUid;
+    $identifierType = 'google_uid';
+} elseif (!empty($wallet) && validateWallet($wallet)) {
+    $identifier = $wallet;
+    $identifierType = 'wallet';
+} else {
+    echo json_encode(['success' => false, 'error' => 'Identificação inválida']);
     exit;
 }
 
 function tableExists(PDO $pdo, string $table): bool {
-    // SHOW não aceita placeholder em prepares nativos
     $q = $pdo->quote($table);
     $stmt = $pdo->query("SHOW TABLES LIKE {$q}");
     return (bool)$stmt->fetchColumn();
@@ -59,180 +63,198 @@ try {
     $pdo = getDatabaseConnection();
     if (!$pdo) throw new Exception("Erro ao conectar ao banco");
 
-    $walletLower = $wallet;
-
     // Defaults
-    $balance = 0.0;
+    $balanceBrl = 0.0;
     $totalPlayed = 0;
-    $totalWithdrawn = 0.0;
-    $pendingWithdrawal = 0.0;
-    $totalEarned = 0.0;
+    $totalWithdrawnBrl = 0.0;
+    $pendingWithdrawalBrl = 0.0;
+    $totalEarnedBrl = 0.0;
+    $stakedBalanceBrl = 0.0;
+    $playerData = null;
 
     // ============================================
     // 1) Players (saldo + total_played)
     // ============================================
     if (tableExists($pdo, 'players')) {
+        $whereClause = $identifierType === 'google_uid'
+            ? "(google_uid = ? OR wallet_address = ?)"
+            : "wallet_address = ?";
+        $params = $identifierType === 'google_uid'
+            ? [$identifier, $identifier]
+            : [$identifier];
+
         $stmt = $pdo->prepare("
-            SELECT balance_usdt, total_played
+            SELECT id, google_uid, wallet_address, email, display_name,
+                   balance_brl, balance_usdt, total_played, 
+                   total_earned_brl, total_withdrawn_brl, staked_balance_brl
             FROM players
-            WHERE LOWER(wallet_address) = ?
+            WHERE {$whereClause}
             LIMIT 1
         ");
-        $stmt->execute([$walletLower]);
-        $player = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->execute($params);
+        $playerData = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($player) {
-            $balance = (float)($player['balance_usdt'] ?? 0);
-            $totalPlayed = (int)($player['total_played'] ?? 0);
+        if ($playerData) {
+            $balanceBrl = (float)($playerData['balance_brl'] ?? 0);
+            $totalPlayed = (int)($playerData['total_played'] ?? 0);
+            $totalEarnedBrl = (float)($playerData['total_earned_brl'] ?? 0);
+            $totalWithdrawnBrl = (float)($playerData['total_withdrawn_brl'] ?? 0);
+            $stakedBalanceBrl = (float)($playerData['staked_balance_brl'] ?? 0);
+            
+            // Pegar wallet e google_uid para usar nas próximas queries
+            $wallet = $playerData['wallet_address'] ?? '';
+            $googleUid = $playerData['google_uid'] ?? '';
         }
     }
 
     // ============================================
     // 2) Withdrawals (pending + total withdrawn)
     // ============================================
-    if (tableExists($pdo, 'withdrawals')) {
+    if (tableExists($pdo, 'withdrawals') && $playerData) {
         $wCols = getColumns($pdo, 'withdrawals');
-        $amountCol = pickFirstExisting($wCols, ['amount_usdt', 'amount']);
+        $amountCol = pickFirstExisting($wCols, ['amount_brl', 'amount_usdt', 'amount']);
         $statusCol = pickFirstExisting($wCols, ['status']);
-        $walletCol = pickFirstExisting($wCols, ['wallet_address', 'wallet']);
 
-        if ($amountCol && $statusCol && $walletCol) {
-            // Pending statuses (compatível com variações)
+        if ($amountCol && $statusCol) {
+            // Pending
             $pendingStatuses = ['pending', 'requested', 'processing', 'awaiting', 'waiting'];
-
             $inPending = implode(',', array_fill(0, count($pendingStatuses), '?'));
-            $params = array_merge([$walletLower], $pendingStatuses);
-
+            
+            $params = array_merge([$googleUid, $wallet], $pendingStatuses);
+            
             $stmt = $pdo->prepare("
                 SELECT COALESCE(SUM({$amountCol}), 0) as total
                 FROM withdrawals
-                WHERE LOWER({$walletCol}) = ?
+                WHERE (google_uid = ? OR LOWER(wallet_address) = ?)
                   AND {$statusCol} IN ({$inPending})
             ");
             $stmt->execute($params);
-            $pendingWithdrawal = (float)$stmt->fetchColumn();
+            $pendingWithdrawalBrl = (float)$stmt->fetchColumn();
 
-            // Completed/approved
-            $doneStatuses = ['approved', 'completed', 'paid', 'success'];
-            $inDone = implode(',', array_fill(0, count($doneStatuses), '?'));
-            $params2 = array_merge([$walletLower], $doneStatuses);
+            // Completed (se não tiver no players)
+            if ($totalWithdrawnBrl == 0) {
+                $doneStatuses = ['approved', 'completed', 'paid', 'success'];
+                $inDone = implode(',', array_fill(0, count($doneStatuses), '?'));
+                $params2 = array_merge([$googleUid, $wallet], $doneStatuses);
 
-            $stmt = $pdo->prepare("
-                SELECT COALESCE(SUM({$amountCol}), 0) as total
-                FROM withdrawals
-                WHERE LOWER({$walletCol}) = ?
-                  AND {$statusCol} IN ({$inDone})
-            ");
-            $stmt->execute($params2);
-            $totalWithdrawn = (float)$stmt->fetchColumn();
-        }
-    }
-
-    // ============================================
-    // 3) Total Earned (créditos, ignorando saídas)
-    //    Regra: somar créditos de missões + créditos de transactions
-    // ============================================
-
-    // 3a) Missões: game_sessions.earnings_usdt (se existir)
-    if (tableExists($pdo, 'game_sessions')) {
-        $gsCols = getColumns($pdo, 'game_sessions');
-        if (in_array('earnings_usdt', $gsCols, true)) {
-            $statusCol = pickFirstExisting($gsCols, ['status']);
-            $walletCol = pickFirstExisting($gsCols, ['wallet_address', 'wallet']);
-
-            if ($walletCol) {
-                if ($statusCol) {
-                    $stmt = $pdo->prepare("
-                        SELECT COALESCE(SUM(earnings_usdt), 0)
-                        FROM game_sessions
-                        WHERE LOWER({$walletCol}) = ?
-                          AND {$statusCol} = 'completed'
-                    ");
-                    $stmt->execute([$walletLower]);
-                } else {
-                    // Sem status: soma tudo do wallet (fallback)
-                    $stmt = $pdo->prepare("
-                        SELECT COALESCE(SUM(earnings_usdt), 0)
-                        FROM game_sessions
-                        WHERE LOWER({$walletCol}) = ?
-                    ");
-                    $stmt->execute([$walletLower]);
-                }
-
-                $totalEarned += (float)$stmt->fetchColumn();
-            }
-        }
-    }
-
-    // 3b) Transactions: somar créditos comuns (e fallback amount>0)
-    if (tableExists($pdo, 'transactions')) {
-        $txCols = getColumns($pdo, 'transactions');
-        $amountCol = pickFirstExisting($txCols, ['amount_usdt', 'amount']);
-        $walletCol = pickFirstExisting($txCols, ['wallet_address', 'wallet']);
-        $typeCol = pickFirstExisting($txCols, ['type']);
-        $statusCol = pickFirstExisting($txCols, ['status']);
-
-        if ($amountCol && $walletCol) {
-            // Tipos de crédito mais comuns nesse projeto
-            $creditTypes = ['game_reward', 'referral_commission', 'unstake', 'withdrawal_rejected'];
-
-            if ($typeCol) {
-                $inTypes = implode(',', array_fill(0, count($creditTypes), '?'));
-                $params = array_merge([$walletLower], $creditTypes);
-
-                // Se tiver status, preferir completed
-                if ($statusCol) {
-                    $stmt = $pdo->prepare("
-                        SELECT COALESCE(SUM({$amountCol}), 0)
-                        FROM transactions
-                        WHERE LOWER({$walletCol}) = ?
-                          AND {$typeCol} IN ({$inTypes})
-                          AND {$statusCol} IN ('completed','success','approved')
-                    ");
-                    $stmt->execute($params);
-                    $totalEarned += (float)$stmt->fetchColumn();
-                } else {
-                    $stmt = $pdo->prepare("
-                        SELECT COALESCE(SUM({$amountCol}), 0)
-                        FROM transactions
-                        WHERE LOWER({$walletCol}) = ?
-                          AND {$typeCol} IN ({$inTypes})
-                    ");
-                    $stmt->execute($params);
-                    $totalEarned += (float)$stmt->fetchColumn();
-                }
-            } else {
-                // Fallback: sem coluna type → soma tudo positivo
                 $stmt = $pdo->prepare("
-                    SELECT COALESCE(SUM(CASE WHEN {$amountCol} > 0 THEN {$amountCol} ELSE 0 END), 0)
-                    FROM transactions
-                    WHERE LOWER({$walletCol}) = ?
+                    SELECT COALESCE(SUM({$amountCol}), 0) as total
+                    FROM withdrawals
+                    WHERE (google_uid = ? OR LOWER(wallet_address) = ?)
+                      AND {$statusCol} IN ({$inDone})
                 ");
-                $stmt->execute([$walletLower]);
-                $totalEarned += (float)$stmt->fetchColumn();
+                $stmt->execute($params2);
+                $totalWithdrawnBrl = (float)$stmt->fetchColumn();
             }
         }
     }
 
     // ============================================
-    // Output (campos usados pelo main.js)
-    // main.js lê: balance, total_earned, total_played, total_withdrawn, pending_withdrawal
+    // 3) Total Earned (se não tiver no players)
     // ============================================
-    echo json_encode([
+    if ($totalEarnedBrl == 0 && $playerData) {
+        // 3a) Missões: game_sessions.earnings_brl
+        if (tableExists($pdo, 'game_sessions')) {
+            $gsCols = getColumns($pdo, 'game_sessions');
+            $earningsCol = pickFirstExisting($gsCols, ['earnings_brl', 'earnings_usdt']);
+            
+            if ($earningsCol) {
+                $stmt = $pdo->prepare("
+                    SELECT COALESCE(SUM({$earningsCol}), 0)
+                    FROM game_sessions
+                    WHERE (google_uid = ? OR LOWER(wallet_address) = ?)
+                      AND status = 'completed'
+                ");
+                $stmt->execute([$googleUid, $wallet]);
+                $totalEarnedBrl += (float)$stmt->fetchColumn();
+            }
+        }
+
+        // 3b) Transactions: créditos
+        if (tableExists($pdo, 'transactions')) {
+            $txCols = getColumns($pdo, 'transactions');
+            $amountCol = pickFirstExisting($txCols, ['amount_brl', 'amount_usdt', 'amount']);
+            $typeCol = pickFirstExisting($txCols, ['type']);
+            $statusCol = pickFirstExisting($txCols, ['status']);
+
+            if ($amountCol && $typeCol) {
+                $creditTypes = ['game_reward', 'referral_commission', 'unstake', 'withdrawal_rejected'];
+                $inTypes = implode(',', array_fill(0, count($creditTypes), '?'));
+                $params = array_merge([$googleUid, $wallet], $creditTypes);
+
+                $statusFilter = $statusCol ? "AND {$statusCol} IN ('completed','success','approved')" : "";
+                
+                $stmt = $pdo->prepare("
+                    SELECT COALESCE(SUM({$amountCol}), 0)
+                    FROM transactions
+                    WHERE (google_uid = ? OR LOWER(wallet_address) = ?)
+                      AND {$typeCol} IN ({$inTypes})
+                      {$statusFilter}
+                ");
+                $stmt->execute($params);
+                $totalEarnedBrl += (float)$stmt->fetchColumn();
+            }
+        }
+    }
+
+    // ============================================
+    // 4) Calcular rendimento pendente de stake
+    // ============================================
+    $pendingStakeReward = 0;
+    if ($playerData) {
+        try {
+            $stmt = $pdo->prepare("CALL sp_calculate_stake_reward(?)");
+            $stmt->execute([$identifier]);
+            $rewardCalc = $stmt->fetch();
+            $stmt->closeCursor();
+            
+            if ($rewardCalc) {
+                $pendingStakeReward = (float)($rewardCalc['reward'] ?? 0);
+            }
+        } catch (Exception $e) {
+            // SP pode não existir
+        }
+    }
+
+    // ============================================
+    // Output
+    // ============================================
+    $response = [
         'success' => true,
-        'wallet' => $walletLower,
+        'identifier' => $identifier,
+        'identifier_type' => $identifierType,
 
-        'balance' => number_format($balance, 8, '.', ''),
-        'balance_usdt' => number_format($balance, 8, '.', ''), // compatibilidade
+        // Valores em BRL (novo sistema)
+        'balance_brl' => round($balanceBrl, 2),
+        'total_earned_brl' => round($totalEarnedBrl, 2),
+        'total_withdrawn_brl' => round($totalWithdrawnBrl, 2),
+        'pending_withdrawal_brl' => round($pendingWithdrawalBrl, 2),
+        'staked_balance_brl' => round($stakedBalanceBrl, 2),
+        'pending_stake_reward_brl' => round($pendingStakeReward, 4),
+        'total_played' => $totalPlayed,
 
-        'total_earned' => number_format($totalEarned, 8, '.', ''),
-        'total_withdrawn' => number_format($totalWithdrawn, 8, '.', ''),
-        'pending_withdrawal' => number_format($pendingWithdrawal, 8, '.', ''),
-        'total_played' => (int)$totalPlayed
-    ]);
+        // Compatibilidade com sistema antigo (mesmos valores)
+        'balance' => number_format($balanceBrl, 8, '.', ''),
+        'balance_usdt' => number_format($balanceBrl, 8, '.', ''),
+        'total_earned' => number_format($totalEarnedBrl, 8, '.', ''),
+        'total_withdrawn' => number_format($totalWithdrawnBrl, 8, '.', ''),
+        'pending_withdrawal' => number_format($pendingWithdrawalBrl, 8, '.', ''),
+    ];
+
+    // Adicionar dados do player se existir
+    if ($playerData) {
+        $response['player'] = [
+            'id' => (int)$playerData['id'],
+            'google_uid' => $playerData['google_uid'],
+            'email' => $playerData['email'],
+            'display_name' => $playerData['display_name'],
+            'wallet_address' => $playerData['wallet_address']
+        ];
+    }
+
+    echo json_encode($response);
 
 } catch (Exception $e) {
     error_log("wallet-info.php error: " . $e->getMessage());
     echo json_encode(['success' => false, 'error' => 'Database error']);
 }
-?>
