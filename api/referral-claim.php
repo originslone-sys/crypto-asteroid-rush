@@ -1,19 +1,13 @@
 <?php
 // ============================================
-// CRYPTO ASTEROID RUSH - Resgatar Comissões
+// UNOBIX - Resgatar Comissões de Referral
 // Arquivo: api/referral-claim.php
+// v2.0 - Google Auth + BRL
 // ============================================
 
 require_once __DIR__ . "/config.php";
 
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
-}
+setCorsHeaders();
 
 // ===============================
 // Input (JSON + POST)
@@ -22,12 +16,24 @@ $raw = file_get_contents('php://input');
 $input = json_decode($raw, true);
 if (!is_array($input)) $input = [];
 
+$googleUid = $input['google_uid'] ?? ($_POST['google_uid'] ?? '');
 $wallet = $input['wallet'] ?? ($_POST['wallet'] ?? '');
+
+$googleUid = trim($googleUid);
 $wallet = trim(strtolower($wallet));
 
-// Validar wallet
-if (!preg_match('/^0x[a-f0-9]{40}$/', $wallet)) {
-    echo json_encode(['success' => false, 'error' => 'Carteira inválida']);
+// Determinar identificador
+$identifier = '';
+$identifierType = '';
+
+if (!empty($googleUid) && validateGoogleUid($googleUid)) {
+    $identifier = $googleUid;
+    $identifierType = 'google_uid';
+} elseif (!empty($wallet) && validateWallet($wallet)) {
+    $identifier = $wallet;
+    $identifierType = 'wallet';
+} else {
+    echo json_encode(['success' => false, 'error' => 'Identificação inválida']);
     exit;
 }
 
@@ -35,12 +41,12 @@ try {
     $pdo = getDatabaseConnection();
     if (!$pdo) throw new Exception('Erro ao conectar ao banco');
 
-    // Verificar tabelas essenciais
+    // Verificar tabelas
     $referralsExists = $pdo->query("SHOW TABLES LIKE 'referrals'")->fetch();
-    $playersExists   = $pdo->query("SHOW TABLES LIKE 'players'")->fetch();
+    $playersExists = $pdo->query("SHOW TABLES LIKE 'players'")->fetch();
 
     if (!$referralsExists || !$playersExists) {
-        echo json_encode(['success' => false, 'error' => 'Tabelas necessárias não encontradas']);
+        echo json_encode(['success' => false, 'error' => 'Sistema não configurado']);
         exit;
     }
 
@@ -52,11 +58,11 @@ try {
     $stmt = $pdo->prepare("
         SELECT id, commission_amount
         FROM referrals
-        WHERE referrer_wallet = ?
+        WHERE (referrer_google_uid = ? OR referrer_wallet = ?)
           AND status = 'completed'
         FOR UPDATE
     ");
-    $stmt->execute([$wallet]);
+    $stmt->execute([$googleUid, $wallet]);
     $pendingCommissions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     if (empty($pendingCommissions)) {
@@ -79,70 +85,79 @@ try {
     $placeholders = implode(',', array_fill(0, count($referralIds), '?'));
     $stmt = $pdo->prepare("
         UPDATE referrals
-        SET status = 'claimed',
-            claimed_at = NOW()
+        SET status = 'claimed', claimed_at = NOW()
         WHERE id IN ({$placeholders})
     ");
     $stmt->execute($referralIds);
 
     // ============================================
-    // 3. CREDITAR NO SALDO DO JOGADOR
+    // 3. CREDITAR NO SALDO DO JOGADOR (BRL)
     // ============================================
     $stmt = $pdo->prepare("
         UPDATE players
-        SET balance_usdt = balance_usdt + ?
-        WHERE wallet_address = ?
+        SET balance_brl = balance_brl + ?,
+            total_earned_brl = total_earned_brl + ?
+        WHERE google_uid = ? OR wallet_address = ?
     ");
-    $stmt->execute([$totalAmount, $wallet]);
+    $stmt->execute([$totalAmount, $totalAmount, $googleUid, $wallet]);
 
-    if ($stmt->rowCount() === 0) {
+    $rowsAffected = $stmt->rowCount();
+
+    if ($rowsAffected === 0) {
         // Jogador não existe, criar
+        // Gerar wallet temporária se necessário
+        $tempWallet = $wallet ?: '0x' . substr(hash('sha256', $googleUid . time()), 0, 40);
+        
         $stmt = $pdo->prepare("
-            INSERT INTO players (wallet_address, balance_usdt, total_played, created_at, updated_at)
-            VALUES (?, ?, 0, NOW(), NOW())
+            INSERT INTO players (google_uid, wallet_address, balance_brl, total_earned_brl, total_played, created_at)
+            VALUES (?, ?, ?, ?, 0, NOW())
         ");
-        $stmt->execute([$wallet, $totalAmount]);
+        $stmt->execute([$googleUid ?: null, $tempWallet, $totalAmount, $totalAmount]);
     }
 
     // ============================================
-    // 4. REGISTRAR TRANSAÇÃO (SE EXISTIR)
+    // 4. REGISTRAR TRANSAÇÃO
     // ============================================
     $txExists = $pdo->query("SHOW TABLES LIKE 'transactions'")->fetch();
     if ($txExists) {
-        $cols = $pdo->query("SHOW COLUMNS FROM transactions")->fetchAll(PDO::FETCH_COLUMN, 0);
+        $description = 'Comissão de afiliados (' . count($referralIds) . ' indicação(ões))';
 
-        $amountCol = in_array('amount_usdt', $cols, true) ? 'amount_usdt' : (in_array('amount', $cols, true) ? 'amount' : null);
-        $dateCol   = in_array('created_at', $cols, true) ? 'created_at' : (in_array('date', $cols, true) ? 'date' : null);
-
-        if ($amountCol && $dateCol) {
-            $description = 'Comissão de afiliados (' . count($referralIds) . ' indicações)';
-
-            // Monta insert respeitando schema real
-            $fields = ['wallet_address', 'type', $amountCol, 'description', 'status', $dateCol];
-            $sql = "INSERT INTO transactions (" . implode(',', $fields) . ") VALUES (?, 'referral_commission', ?, ?, 'completed', NOW())";
-
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([$wallet, $totalAmount, $description]);
-        }
+        $stmt = $pdo->prepare("
+            INSERT INTO transactions (
+                google_uid, wallet_address, type, amount, amount_brl, 
+                description, status, created_at
+            ) VALUES (?, ?, 'referral_commission', ?, ?, ?, 'completed', NOW())
+        ");
+        $stmt->execute([
+            $googleUid ?: null,
+            $wallet ?: null,
+            $totalAmount,
+            $totalAmount,
+            $description
+        ]);
     }
 
     // ============================================
     // 5. BUSCAR NOVO SALDO
     // ============================================
-    $stmt = $pdo->prepare("SELECT balance_usdt FROM players WHERE wallet_address = ? LIMIT 1");
-    $stmt->execute([$wallet]);
+    $stmt = $pdo->prepare("
+        SELECT balance_brl FROM players 
+        WHERE google_uid = ? OR wallet_address = ? 
+        LIMIT 1
+    ");
+    $stmt->execute([$googleUid, $wallet]);
     $newBalance = (float)$stmt->fetchColumn();
 
     $pdo->commit();
 
-    error_log("Comissão resgatada: Wallet={$wallet}, Amount={$totalAmount}, Referrals=" . implode(',', $referralIds));
+    secureLog("REFERRAL_CLAIMED | UID: {$googleUid} | Wallet: {$wallet} | Amount: R$ {$totalAmount} | Referrals: " . implode(',', $referralIds));
 
     echo json_encode([
         'success' => true,
         'message' => 'Comissões resgatadas com sucesso!',
-        'amount_claimed' => number_format($totalAmount, 2, '.', ''),
+        'amount_claimed_brl' => number_format($totalAmount, 2, '.', ''),
         'referrals_claimed' => count($referralIds),
-        'new_balance' => number_format($newBalance, 8, '.', '')
+        'new_balance_brl' => number_format($newBalance, 2, '.', '')
     ]);
 
 } catch (Exception $e) {
