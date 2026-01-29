@@ -1,585 +1,346 @@
 <?php
 // ============================================
-// CRYPTO ASTEROID RUSH - Finalizar Sessão de Jogo
+// UNOBIX - Finalizar Sessão de Jogo
 // Arquivo: api/game-end.php
-// v8.0 - CORREÇÃO: Validação server-side dos earnings
+// v2.0 - Google Auth + CAPTCHA + BRL
 // ============================================
 
-if (file_exists(__DIR__ . "/config.php")) {
-    require_once __DIR__ . "/config.php";
-} elseif (file_exists(__DIR__ . "/../config.php")) {
-    require_once __DIR__ . "/../config.php";
-}
+require_once __DIR__ . "/config.php";
 
-if (file_exists(__DIR__ . "/referral-helper.php")) {
-    require_once __DIR__ . "/referral-helper.php";
-}
-
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
-}
+setCorsHeaders();
 
 // ============================================
-// CONFIGURAÇÕES DE SEGURANÇA
+// LER INPUT
 // ============================================
-define('EARNINGS_ALERT_THRESHOLD', 0.06);    // Alerta se > $0.06
-define('EARNINGS_SUSPECT_THRESHOLD', 0.10);  // Suspeito se > $0.10
-define('EARNINGS_BLOCK_THRESHOLD', 0.20);    // Bloqueia se > $0.20
-define('AUTO_BAN_AFTER_ALERTS', 5);          // Ban automático após 5 alertas
-define('EARNINGS_TOLERANCE', 1.5);           // v8.0: Tolerância de 50% entre cliente e servidor
+$rawInput = file_get_contents('php://input');
+$input = json_decode($rawInput, true);
 
-// ============================================
-// RECOMPENSAS (fonte da verdade)
-// v7.0: COMMON = 0 (asteroides comuns não valem nada)
-// ============================================
-if (!defined('REWARD_COMMON')) define('REWARD_COMMON', 0);
-if (!defined('REWARD_RARE')) define('REWARD_RARE', 0.0003);
-if (!defined('REWARD_EPIC')) define('REWARD_EPIC', 0.0008);
-if (!defined('REWARD_LEGENDARY')) define('REWARD_LEGENDARY', 0.002);
-
-if (!function_exists('secureLog')) {
-    function secureLog($message, $file = 'game_security.log') {
-        $logEntry = date('Y-m-d H:i:s') . ' | ' . $message . "\n";
-        file_put_contents(__DIR__ . '/' . $file, $logEntry, FILE_APPEND);
-    }
-}
-
-if (!function_exists('validateWallet')) {
-    function validateWallet($wallet) {
-        return preg_match('/^0x[a-fA-F0-9]{40}$/', $wallet);
-    }
-}
-
-if (!function_exists('getClientIP')) {
-    function getClientIP() {
-        if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
-            return $_SERVER['HTTP_CF_CONNECTING_IP'];
-        }
-        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $ips = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-            return trim($ips[0]);
-        }
-        if (!empty($_SERVER['HTTP_X_REAL_IP'])) {
-            return $_SERVER['HTTP_X_REAL_IP'];
-        }
-        return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-    }
-}
-
-// ============================================
-// FUNÇÃO: Registrar atividade suspeita
-// ============================================
-function registerSuspiciousActivity($pdo, $wallet, $sessionId, $type, $data, $ipAddress = null) {
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS suspicious_activity (
-            id BIGINT AUTO_INCREMENT PRIMARY KEY,
-            wallet_address VARCHAR(42) NOT NULL,
-            session_id INT DEFAULT NULL,
-            activity_type VARCHAR(50) NOT NULL,
-            activity_data TEXT DEFAULT NULL,
-            ip_address VARCHAR(45) DEFAULT NULL,
-            user_agent VARCHAR(500) DEFAULT NULL,
-            screen_width INT DEFAULT NULL,
-            screen_height INT DEFAULT NULL,
-            devtools_detected TINYINT(1) DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            INDEX idx_wallet (wallet_address),
-            INDEX idx_type (activity_type),
-            INDEX idx_created (created_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
-    
-    $stmt = $pdo->prepare("
-        INSERT INTO suspicious_activity 
-        (wallet_address, session_id, activity_type, activity_data, ip_address)
-        VALUES (?, ?, ?, ?, ?)
-    ");
-    $stmt->execute([
-        $wallet,
-        $sessionId,
-        $type,
-        json_encode($data),
-        $ipAddress ?: getClientIP()
-    ]);
-    
-    return $pdo->lastInsertId();
-}
-
-// ============================================
-// FUNÇÃO: Verificar e aplicar penalidades
-// ============================================
-function checkAndApplyPenalties($pdo, $wallet) {
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) as count FROM suspicious_activity
-        WHERE wallet_address = ?
-        AND activity_type LIKE 'HIGH_EARNINGS%'
-        AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
-    ");
-    $stmt->execute([$wallet]);
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    $alertCount = (int)$result['count'];
-    
-    if ($alertCount >= AUTO_BAN_AFTER_ALERTS) {
-        $stmt = $pdo->prepare("SELECT is_banned FROM players WHERE wallet_address = ?");
-        $stmt->execute([$wallet]);
-        $player = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($player && !$player['is_banned']) {
-            $pdo->prepare("
-                UPDATE players 
-                SET is_banned = 1, ban_reason = ?
-                WHERE wallet_address = ?
-            ")->execute([
-                "Auto-ban: {$alertCount} alertas de earnings suspeitos em 24h",
-                $wallet
-            ]);
-            
-            secureLog("AUTO_BAN | Wallet: {$wallet} | Alertas: {$alertCount}");
-            return ['banned' => true, 'alert_count' => $alertCount];
-        }
-    }
-    
-    if ($alertCount >= 2) {
-        try {
-            $pdo->exec("ALTER TABLE players ADD COLUMN is_flagged TINYINT(1) DEFAULT 0");
-        } catch (Exception $e) {}
-        
-        $pdo->prepare("
-            UPDATE players SET is_flagged = 1
-            WHERE wallet_address = ? AND (is_flagged = 0 OR is_flagged IS NULL)
-        ")->execute([$wallet]);
-    }
-    
-    return ['banned' => false, 'alert_count' => $alertCount];
-}
-
-// ============================================
-// FUNÇÃO: Liberar lock de IP
-// ============================================
-function releaseIPLock($pdo, $sessionId) {
-    try {
-        $pdo->prepare("
-            UPDATE ip_sessions 
-            SET status = 'completed', ended_at = NOW()
-            WHERE session_id = ? AND status = 'active'
-        ")->execute([$sessionId]);
-        
-        return true;
-    } catch (Exception $e) {
-        secureLog("IP_LOCK_RELEASE_ERROR | Session: {$sessionId} | Error: " . $e->getMessage());
-        return false;
-    }
-}
-
-// ============================================
-// v8.0: FUNÇÃO - Obter earnings do servidor (game_events)
-// ============================================
-function getServerEarnings($pdo, $sessionId, $wallet) {
-    // Verificar se tabela game_events existe
-    $tableCheck = $pdo->query("SHOW TABLES LIKE 'game_events'")->fetch();
-    
-    if (!$tableCheck) {
-        // Tabela não existe, retornar null para usar valor do cliente
-        return null;
-    }
-    
-    $stmt = $pdo->prepare("
-        SELECT 
-            COUNT(*) as event_count,
-            COALESCE(SUM(CASE WHEN reward_type = 'common' THEN 1 ELSE 0 END), 0) as common_count,
-            COALESCE(SUM(CASE WHEN reward_type = 'rare' THEN 1 ELSE 0 END), 0) as rare_count,
-            COALESCE(SUM(CASE WHEN reward_type = 'epic' THEN 1 ELSE 0 END), 0) as epic_count,
-            COALESCE(SUM(CASE WHEN reward_type = 'legendary' THEN 1 ELSE 0 END), 0) as legendary_count,
-            COALESCE(SUM(reward_amount), 0) as total_earnings
-        FROM game_events 
-        WHERE session_id = ? AND wallet_address = ?
-    ");
-    $stmt->execute([$sessionId, $wallet]);
-    
-    return $stmt->fetch(PDO::FETCH_ASSOC);
-}
-
-// ============================================
-// INÍCIO DO PROCESSAMENTO
-// ============================================
-
-$input = json_decode(file_get_contents('php://input'), true);
-
-$sessionId = isset($input['session_id']) ? (int)$input['session_id'] : 0;
-$sessionToken = isset($input['session_token']) ? trim($input['session_token']) : '';
-$wallet = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
-$clientScore = isset($input['score']) ? (int)$input['score'] : 0;
-$clientEarnings = isset($input['earnings']) ? (float)$input['earnings'] : 0;
-
-$clientStats = ['common' => 0, 'rare' => 0, 'epic' => 0, 'legendary' => 0];
-if (isset($input['stats']) && is_array($input['stats'])) {
-    $clientStats['common'] = (int)($input['stats']['common'] ?? 0);
-    $clientStats['rare'] = (int)($input['stats']['rare'] ?? 0);
-    $clientStats['epic'] = (int)($input['stats']['epic'] ?? 0);
-    $clientStats['legendary'] = (int)($input['stats']['legendary'] ?? 0);
-}
-
-$destroyedAsteroids = isset($input['destroyed_asteroids']) ? $input['destroyed_asteroids'] : [];
-
-if (!$sessionId || !$sessionToken || !validateWallet($wallet)) {
-    echo json_encode(['success' => false, 'error' => 'Dados invalidos']);
+if (!$input || !is_array($input)) {
+    echo json_encode(['success' => false, 'error' => 'Dados inválidos']);
     exit;
 }
 
+$sessionId = isset($input['session_id']) ? (int)$input['session_id'] : 0;
+$sessionToken = isset($input['session_token']) ? trim($input['session_token']) : '';
+$googleUid = isset($input['google_uid']) ? trim($input['google_uid']) : '';
+$wallet = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
+$clientScore = isset($input['score']) ? (int)$input['score'] : 0;
+$clientEarnings = isset($input['earnings']) ? (float)$input['earnings'] : 0;
+$livesRemaining = isset($input['lives_remaining']) ? (int)$input['lives_remaining'] : 0;
+$captchaToken = isset($input['captcha_token']) ? trim($input['captcha_token']) : '';
+$isVictory = isset($input['victory']) ? (bool)$input['victory'] : ($livesRemaining > 0);
+
+// Validar dados obrigatórios
+if (!$sessionId || !$sessionToken) {
+    echo json_encode(['success' => false, 'error' => 'Dados de sessão ausentes']);
+    exit;
+}
+
+// Determinar identificador
+$identifier = '';
+if (!empty($googleUid) && validateGoogleUid($googleUid)) {
+    $identifier = $googleUid;
+} elseif (!empty($wallet) && validateWallet($wallet)) {
+    $identifier = $wallet;
+} else {
+    echo json_encode(['success' => false, 'error' => 'Identificação inválida']);
+    exit;
+}
+
+$clientIP = getClientIP();
+
 try {
-    $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4", DB_USER, DB_PASS);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-    
-    // ============================================
-    // VERIFICAR/CRIAR JOGADOR
-    // ============================================
-    $stmt = $pdo->prepare("SELECT id, balance_usdt, is_banned, ban_reason, total_played FROM players WHERE wallet_address = ?");
-    $stmt->execute([$wallet]);
-    $playerData = $stmt->fetch();
-    
-    // Se jogador não existe, criar
-    if (!$playerData) {
-        secureLog("CREATE_PLAYER | Wallet: {$wallet} | Creating new player in game-end");
-        
-        $pdo->prepare("
-            INSERT INTO players (wallet_address, balance_usdt, total_played, created_at)
-            VALUES (?, 0, 0, NOW())
-        ")->execute([$wallet]);
-        
-        $playerId = $pdo->lastInsertId();
-        $playerData = [
-            'id' => $playerId,
-            'balance_usdt' => 0,
-            'is_banned' => 0,
-            'ban_reason' => null,
-            'total_played' => 0
-        ];
-    }
-    
-    // Verificar ban
-    if ($playerData['is_banned']) {
-        // Liberar lock de IP mesmo se banido
-        releaseIPLock($pdo, $sessionId);
-        
-        echo json_encode([
-            'success' => false, 
-            'error' => 'Conta suspensa: ' . ($playerData['ban_reason'] ?? 'Violação dos termos'),
-            'banned' => true
-        ]);
+    $pdo = getDatabaseConnection();
+    if (!$pdo) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao conectar ao banco']);
         exit;
     }
-    
-    // Validar sessão
+
+    $pdo->beginTransaction();
+
+    // ============================================
+    // 1. BUSCAR SESSÃO (com lock)
+    // ============================================
     $stmt = $pdo->prepare("
         SELECT * FROM game_sessions 
-        WHERE id = ? AND wallet_address = ? AND status = 'active'
+        WHERE id = ? 
+        AND (google_uid = ? OR wallet_address = ?)
+        AND status = 'active'
+        FOR UPDATE
     ");
-    $stmt->execute([$sessionId, $wallet]);
+    $stmt->execute([$sessionId, $identifier, $identifier]);
     $session = $stmt->fetch();
     
     if (!$session) {
-        // Liberar lock de IP mesmo se sessão não encontrada
-        releaseIPLock($pdo, $sessionId);
-        
-        echo json_encode(['success' => false, 'error' => 'Sessao nao encontrada ou ja finalizada']);
+        $pdo->rollBack();
+        echo json_encode(['success' => false, 'error' => 'Sessão não encontrada ou já finalizada']);
         exit;
     }
     
     if ($session['session_token'] !== $sessionToken) {
-        releaseIPLock($pdo, $sessionId);
-        
-        echo json_encode(['success' => false, 'error' => 'Token invalido']);
+        $pdo->rollBack();
+        secureLog("GAME_END_TOKEN_MISMATCH | session_id: {$sessionId}");
+        echo json_encode(['success' => false, 'error' => 'Token inválido']);
         exit;
     }
-    
-    $sessionStart = strtotime($session['started_at']);
-    $sessionDuration = time() - $sessionStart;
-    
+
     // ============================================
-    // v8.0: VALIDAÇÃO SERVER-SIDE DOS EARNINGS
-    // Compara o que o cliente diz vs o que o servidor registrou
+    // 2. CALCULAR GANHOS REAIS DO SERVIDOR
     // ============================================
+    $stmt = $pdo->prepare("
+        SELECT 
+            COALESCE(SUM(reward_amount_brl), 0) as total_brl,
+            COUNT(*) as event_count,
+            SUM(CASE WHEN reward_type = 'legendary' THEN 1 ELSE 0 END) as legendary_count,
+            SUM(CASE WHEN reward_type = 'epic' THEN 1 ELSE 0 END) as epic_count,
+            SUM(CASE WHEN reward_type = 'rare' THEN 1 ELSE 0 END) as rare_count,
+            SUM(CASE WHEN reward_type = 'common' THEN 1 ELSE 0 END) as common_count
+        FROM game_events 
+        WHERE session_id = ?
+    ");
+    $stmt->execute([$sessionId]);
+    $serverEvents = $stmt->fetch();
     
-    $finalEarnings = $clientEarnings;
-    $finalScore = $clientScore;
-    $finalStats = $clientStats;
-    $earningsOverridden = false;
+    $serverEarningsBrl = (float)($serverEvents['total_brl'] ?? 0);
+    $eventCount = (int)($serverEvents['event_count'] ?? 0);
+
+    // ============================================
+    // 3. VERIFICAR CAPTCHA (apenas se vitória)
+    // ============================================
+    $captchaVerified = false;
+    $captchaRequired = ($session['captcha_required'] && $isVictory && CAPTCHA_REQUIRED_ON_VICTORY);
     
-    // Obter o que o servidor registrou em game_events
-    $serverData = getServerEarnings($pdo, $sessionId, $wallet);
-    
-    if ($serverData !== null && $serverData['event_count'] > 0) {
-        $serverEarnings = (float)$serverData['total_earnings'];
-        
-        // Calcular limite máximo aceitável (servidor + 50% de tolerância + margem mínima)
-        $maxAcceptableEarnings = ($serverEarnings * EARNINGS_TOLERANCE) + 0.001;
-        
-        // Se cliente alega mais do que o aceitável, usar valor do servidor
-        if ($clientEarnings > $maxAcceptableEarnings) {
-            $earningsOverridden = true;
-            $finalEarnings = $serverEarnings;
-            
-            // Usar stats do servidor também
-            $finalStats = [
-                'common' => (int)$serverData['common_count'],
-                'rare' => (int)$serverData['rare_count'],
-                'epic' => (int)$serverData['epic_count'],
-                'legendary' => (int)$serverData['legendary_count']
-            ];
-            $finalScore = array_sum($finalStats);
-            
-            // Registrar tentativa de manipulação
-            registerSuspiciousActivity($pdo, $wallet, $sessionId, 'EARNINGS_MANIPULATION', [
-                'client_claimed' => $clientEarnings,
-                'server_recorded' => $serverEarnings,
-                'max_acceptable' => $maxAcceptableEarnings,
-                'action' => 'Used server value',
-                'client_stats' => $clientStats,
-                'server_stats' => $finalStats
+    if ($captchaRequired) {
+        if (empty($captchaToken)) {
+            $pdo->rollBack();
+            echo json_encode([
+                'success' => false, 
+                'error' => 'Verificação CAPTCHA necessária',
+                'captcha_required' => true,
+                'session_id' => $sessionId
             ]);
+            exit;
+        }
+        
+        $captchaResult = verifyCaptcha($captchaToken, $clientIP);
+        
+        if (!$captchaResult['success']) {
+            // Logar tentativa falha
+            $pdo->prepare("
+                INSERT INTO captcha_log (session_id, google_uid, wallet_address, is_success, ip_address, created_at)
+                VALUES (?, ?, ?, 0, ?, NOW())
+            ")->execute([$sessionId, $session['google_uid'], $session['wallet_address'], $clientIP]);
             
-            secureLog("EARNINGS_OVERRIDE | Wallet: {$wallet} | Session: {$sessionId} | Client: \${$clientEarnings} | Server: \${$serverEarnings} | Using: \${$finalEarnings}");
+            $pdo->rollBack();
+            secureLog("CAPTCHA_FAILED | session_id: {$sessionId} | msg: {$captchaResult['message']}");
+            
+            echo json_encode([
+                'success' => false, 
+                'error' => 'Falha na verificação CAPTCHA. Tente novamente.',
+                'captcha_required' => true
+            ]);
+            exit;
+        }
+        
+        $captchaVerified = true;
+        
+        // Logar sucesso
+        $pdo->prepare("
+            INSERT INTO captcha_log (session_id, google_uid, wallet_address, is_success, ip_address, created_at)
+            VALUES (?, ?, ?, 1, ?, NOW())
+        ")->execute([$sessionId, $session['google_uid'], $session['wallet_address'], $clientIP]);
+    }
+
+    // ============================================
+    // 4. VALIDAR GANHOS (tolerância de 10%)
+    // ============================================
+    $validationErrors = [];
+    $alertLevel = null;
+    $finalEarningsBrl = $serverEarningsBrl;
+    
+    // Verificar discrepância cliente vs servidor
+    if ($clientEarnings > 0 && $serverEarningsBrl > 0) {
+        $discrepancy = abs($clientEarnings - $serverEarningsBrl);
+        $tolerance = $serverEarningsBrl * 0.10; // 10%
+        
+        if ($discrepancy > $tolerance && $discrepancy > 0.001) {
+            $validationErrors[] = "Discrepância cliente/servidor: R$ {$clientEarnings} vs R$ {$serverEarningsBrl}";
+            secureLog("EARNINGS_DISCREPANCY | session: {$sessionId} | client: {$clientEarnings} | server: {$serverEarningsBrl}");
         }
     }
-    // Se não há eventos no servidor (game_events vazio ou não existe), confia no cliente
-    // Isso mantém compatibilidade com sessões antigas
     
-    // ============================================
-    // CALCULAR EARNINGS PARA COMPARAÇÃO (método antigo)
-    // Usado apenas para o sistema de alertas
-    // ============================================
-    $calculatedEarnings = 0;
-    if (!empty($destroyedAsteroids)) {
-        foreach ($destroyedAsteroids as $asteroid) {
-            if (!isset($asteroid['type'])) continue;
-            $type = strtoupper(trim($asteroid['type']));
-            switch ($type) {
-                case 'LEGENDARY': $calculatedEarnings += REWARD_LEGENDARY; break;
-                case 'EPIC': $calculatedEarnings += REWARD_EPIC; break;
-                case 'RARE': $calculatedEarnings += REWARD_RARE; break;
-                case 'COMMON': $calculatedEarnings += REWARD_COMMON; break;
-            }
-        }
-    } else {
-        $calculatedEarnings = 
-            ($clientStats['common'] * REWARD_COMMON) +
-            ($clientStats['rare'] * REWARD_RARE) +
-            ($clientStats['epic'] * REWARD_EPIC) +
-            ($clientStats['legendary'] * REWARD_LEGENDARY);
+    // SEMPRE usar valor do servidor
+    $finalEarningsBrl = $serverEarningsBrl;
+    
+    // Verificar limites de alerta
+    if ($finalEarningsBrl > EARNINGS_BLOCK_BRL) {
+        $alertLevel = 'BLOCK';
+        $validationErrors[] = "Ganhos acima do limite: R$ {$finalEarningsBrl}";
+        $finalEarningsBrl = 0; // Zerar ganhos suspeitos
+        secureLog("EARNINGS_BLOCKED | session: {$sessionId} | amount: {$serverEarningsBrl}");
+    } elseif ($finalEarningsBrl > EARNINGS_SUSPECT_BRL) {
+        $alertLevel = 'SUSPECT';
+        secureLog("EARNINGS_SUSPECT | session: {$sessionId} | amount: {$finalEarningsBrl}");
+    } elseif ($finalEarningsBrl > EARNINGS_ALERT_BRL) {
+        $alertLevel = 'ALERT';
+        secureLog("EARNINGS_ALERT | session: {$sessionId} | amount: {$finalEarningsBrl}");
     }
-    
+
     // ============================================
-    // SISTEMA DE ALERTAS
+    // 5. ATUALIZAR SESSÃO
     // ============================================
-    $alertLevel = 'normal';
-    $blockEarnings = false;
+    $sessionDuration = time() - strtotime($session['started_at']);
     
-    // Usar finalEarnings (já corrigido) para alertas
-    if ($finalEarnings > EARNINGS_BLOCK_THRESHOLD) {
-        $alertLevel = 'critical';
-        $blockEarnings = true;
-        
-        registerSuspiciousActivity($pdo, $wallet, $sessionId, 'HIGH_EARNINGS_CRITICAL', [
-            'client_earnings' => $clientEarnings,
-            'final_earnings' => $finalEarnings,
-            'calculated_earnings' => $calculatedEarnings,
-            'stats' => $finalStats,
-            'duration' => $sessionDuration
-        ]);
-        
-        secureLog("CRITICAL_EARNINGS | Wallet: {$wallet} | \${$finalEarnings}");
-        
-    } elseif ($finalEarnings > EARNINGS_SUSPECT_THRESHOLD) {
-        $alertLevel = 'suspect';
-        
-        registerSuspiciousActivity($pdo, $wallet, $sessionId, 'HIGH_EARNINGS_SUSPECT', [
-            'client_earnings' => $clientEarnings,
-            'final_earnings' => $finalEarnings,
-            'calculated_earnings' => $calculatedEarnings,
-            'stats' => $finalStats
-        ]);
-        
-        secureLog("SUSPECT_EARNINGS | Wallet: {$wallet} | \${$finalEarnings}");
-        
-    } elseif ($finalEarnings > EARNINGS_ALERT_THRESHOLD) {
-        $alertLevel = 'alert';
-        
-        registerSuspiciousActivity($pdo, $wallet, $sessionId, 'HIGH_EARNINGS_ALERT', [
-            'client_earnings' => $clientEarnings,
-            'final_earnings' => $finalEarnings,
-            'calculated_earnings' => $calculatedEarnings,
-            'stats' => $finalStats
-        ]);
-        
-        secureLog("ALERT_EARNINGS | Wallet: {$wallet} | \${$finalEarnings}");
-    }
-    
-    // Verificar discrepância cliente vs calculado (sistema antigo - mantido para logs)
-    if ($calculatedEarnings > 0 && $clientEarnings > $calculatedEarnings * 1.5) {
-        registerSuspiciousActivity($pdo, $wallet, $sessionId, 'EARNINGS_MISMATCH', [
-            'client_earnings' => $clientEarnings,
-            'calculated_earnings' => $calculatedEarnings,
-            'difference' => $clientEarnings - $calculatedEarnings
-        ]);
-        secureLog("MISMATCH | Wallet: {$wallet} | Client: \${$clientEarnings} | Calc: \${$calculatedEarnings}");
-    }
-    
-    // Aplicar penalidades
-    $penaltyResult = checkAndApplyPenalties($pdo, $wallet);
-    
-    if ($penaltyResult['banned']) {
-        releaseIPLock($pdo, $sessionId);
-        
-        echo json_encode([
-            'success' => false,
-            'error' => 'Conta suspensa por atividade suspeita',
-            'banned' => true
-        ]);
-        exit;
-    }
-    
-    // Se bloqueado, zerar earnings
-    if ($blockEarnings) {
-        $finalEarnings = 0;
-    }
-    
-    // ============================================
-    // ATUALIZAR SALDO
-    // ============================================
-    $currentBalance = (float)($playerData['balance_usdt'] ?? 0);
-    $newBalance = $currentBalance + $finalEarnings;
-    
-    $pdo->prepare("
-        UPDATE players SET 
-            balance_usdt = ?,
-            total_played = total_played + 1
-        WHERE id = ?
-    ")->execute([$newBalance, $playerData['id']]);
-    
-    secureLog("BALANCE_UPDATE | Wallet: {$wallet} | Old: \${$currentBalance} | Earnings: \${$finalEarnings} | New: \${$newBalance}");
-    
-    // ============================================
-    // COLUNAS EXTRAS (garantir que existem)
-    // ============================================
-    try { $pdo->exec("ALTER TABLE game_sessions ADD COLUMN legendary_asteroids INT DEFAULT 0 AFTER epic_asteroids"); } catch (Exception $e) {}
-    try { $pdo->exec("ALTER TABLE game_sessions ADD COLUMN common_asteroids INT DEFAULT 0 AFTER legendary_asteroids"); } catch (Exception $e) {}
-    try { $pdo->exec("ALTER TABLE game_sessions ADD COLUMN alert_level VARCHAR(20) DEFAULT NULL"); } catch (Exception $e) {}
-    try { $pdo->exec("ALTER TABLE game_sessions ADD COLUMN ip_address VARCHAR(45) DEFAULT NULL"); } catch (Exception $e) {}
-    
-    // ============================================
-    // FINALIZAR SESSÃO
-    // ============================================
-    $finalStatus = ($alertLevel === 'critical') ? 'flagged' : 'completed';
-    
-    $pdo->prepare("
-        UPDATE game_sessions SET 
-            status = ?,
-            asteroids_destroyed = ?,
+    $stmt = $pdo->prepare("
+        UPDATE game_sessions SET
+            status = 'completed',
+            earnings_brl = ?,
             earnings_usdt = ?,
-            common_asteroids = ?,
-            rare_asteroids = ?,
-            epic_asteroids = ?,
-            legendary_asteroids = ?,
             client_score = ?,
             client_earnings = ?,
+            captcha_verified = ?,
+            captcha_verified_at = ?,
             session_duration = ?,
+            validation_errors = ?,
             alert_level = ?,
             ended_at = NOW()
         WHERE id = ?
-    ")->execute([
-        $finalStatus,
-        $finalScore,
-        $finalEarnings,
-        $finalStats['common'],
-        $finalStats['rare'],
-        $finalStats['epic'],
-        $finalStats['legendary'],
+    ");
+    
+    $stmt->execute([
+        $finalEarningsBrl,
+        $finalEarningsBrl, // Compatibilidade
         $clientScore,
         $clientEarnings,
+        $captchaVerified ? 1 : 0,
+        $captchaVerified ? date('Y-m-d H:i:s') : null,
         $sessionDuration,
-        $alertLevel !== 'normal' ? $alertLevel : null,
+        !empty($validationErrors) ? json_encode($validationErrors) : null,
+        $alertLevel,
         $sessionId
     ]);
-    
+
     // ============================================
-    // LIBERAR LOCK DE IP
+    // 6. CREDITAR JOGADOR (se sem bloqueio)
     // ============================================
-    releaseIPLock($pdo, $sessionId);
+    $credited = false;
     
-    // Referral
-    $referralCompleted = false;
-    if (function_exists('updateReferralProgress') && $finalEarnings > 0) {
-        $referralResult = updateReferralProgress($pdo, $wallet);
-        $referralCompleted = isset($referralResult['completed']) ? $referralResult['completed'] : false;
+    if ($finalEarningsBrl > 0 && $alertLevel !== 'BLOCK') {
+        $stmt = $pdo->prepare("
+            UPDATE players SET
+                balance_brl = balance_brl + ?,
+                total_earned_brl = total_earned_brl + ?,
+                total_played = total_played + 1
+            WHERE (google_uid = ? OR wallet_address = ?)
+        ");
+        $stmt->execute([
+            $finalEarningsBrl, 
+            $finalEarningsBrl,
+            $session['google_uid'],
+            $session['wallet_address']
+        ]);
+        
+        $credited = true;
+        
+        // Registrar transação
+        $pdo->prepare("
+            INSERT INTO transactions (
+                google_uid, wallet_address, type, amount, amount_brl, 
+                description, status, created_at
+            ) VALUES (?, ?, 'game_reward', ?, ?, ?, 'completed', NOW())
+        ")->execute([
+            $session['google_uid'],
+            $session['wallet_address'],
+            $finalEarningsBrl,
+            $finalEarningsBrl,
+            "Missão #{$session['mission_number']}" . ($session['is_hard_mode'] ? ' (Hard)' : '')
+        ]);
+    } else {
+        // Apenas incrementar total_played
+        $pdo->prepare("
+            UPDATE players SET total_played = total_played + 1
+            WHERE (google_uid = ? OR wallet_address = ?)
+        ")->execute([$session['google_uid'], $session['wallet_address']]);
     }
-    
+
     // ============================================
-    // REGISTRAR TRANSAÇÃO
+    // 7. ATUALIZAR IP_SESSIONS
     // ============================================
-    if ($finalEarnings > 0) {
-        try {
-            $pdo->prepare("
-                INSERT INTO transactions (wallet_address, type, amount, description, created_at)
-                VALUES (?, 'mission', ?, ?, NOW())
-            ")->execute([
-                $wallet,
-                $finalEarnings,
-                "Mission #{$session['mission_number']} reward"
-            ]);
-        } catch (Exception $e) {
-            // Tabela pode não existir ou ter estrutura diferente
-            secureLog("TX_INSERT_ERROR | " . $e->getMessage());
-        }
-    }
-    
+    $pdo->prepare("
+        UPDATE ip_sessions SET status = 'completed', ended_at = NOW()
+        WHERE session_id = ?
+    ")->execute([$sessionId]);
+
+    // ============================================
+    // 8. ATUALIZAR REFERRAL (se houver)
+    // ============================================
+    $stmt = $pdo->prepare("
+        UPDATE referrals SET missions_completed = missions_completed + 1
+        WHERE (referred_google_uid = ? OR referred_wallet = ?)
+        AND status = 'pending'
+    ");
+    $stmt->execute([$session['google_uid'], $session['wallet_address']]);
+
+    // Verificar se completou 100 missões
+    $pdo->exec("
+        UPDATE referrals 
+        SET status = 'completed', completed_at = NOW()
+        WHERE missions_completed >= missions_required
+        AND status = 'pending'
+    ");
+
+    $pdo->commit();
+
+    // ============================================
+    // 9. BUSCAR SALDO ATUALIZADO
+    // ============================================
+    $stmt = $pdo->prepare("
+        SELECT balance_brl, total_earned_brl, total_played 
+        FROM players 
+        WHERE (google_uid = ? OR wallet_address = ?)
+    ");
+    $stmt->execute([$session['google_uid'], $session['wallet_address']]);
+    $player = $stmt->fetch();
+
+    // Log de sucesso
+    secureLog("GAME_END | session: {$sessionId} | earnings: R$ {$finalEarningsBrl} | credited: " . ($credited ? 'YES' : 'NO') . " | victory: " . ($isVictory ? 'YES' : 'NO'));
+
     // ============================================
     // RESPOSTA
     // ============================================
-    $response = [
+    echo json_encode([
         'success' => true,
-        'final_score' => $finalScore,
-        'final_earnings' => number_format($finalEarnings, 8, '.', ''),
-        'new_balance' => number_format($newBalance, 8, '.', ''),
-        'common_destroyed' => $finalStats['common'],
-        'rare_destroyed' => $finalStats['rare'],
-        'epic_destroyed' => $finalStats['epic'],
-        'legendary_destroyed' => $finalStats['legendary'],
-        'session_duration' => $sessionDuration,
+        'session_id' => $sessionId,
         'mission_number' => $session['mission_number'],
-        'status' => $finalStatus
-    ];
-    
-    if ($blockEarnings) {
-        $response['warning'] = 'Sessão bloqueada por atividade suspeita';
-    }
-    
-    // v8.0: Informar se earnings foram corrigidos
-    if ($earningsOverridden) {
-        $response['earnings_adjusted'] = true;
-        $response['original_claim'] = $clientEarnings;
-    }
-    
-    if ($referralCompleted) {
-        $response['referral_bonus_unlocked'] = true;
-    }
-    
-    secureLog("SESSION_END | Session: {$sessionId} | Earnings: \${$finalEarnings} | NewBalance: \${$newBalance} | Alert: {$alertLevel}" . ($earningsOverridden ? " | OVERRIDDEN" : ""));
-    
-    echo json_encode($response);
-    
+        'is_hard_mode' => (bool)$session['is_hard_mode'],
+        'victory' => $isVictory,
+        'earnings_brl' => $finalEarningsBrl,
+        'events_recorded' => $eventCount,
+        'stats' => [
+            'asteroids_destroyed' => (int)$session['asteroids_destroyed'] + $eventCount,
+            'legendary' => (int)($serverEvents['legendary_count'] ?? 0),
+            'epic' => (int)($serverEvents['epic_count'] ?? 0),
+            'rare' => (int)($serverEvents['rare_count'] ?? 0),
+            'common' => (int)($serverEvents['common_count'] ?? 0)
+        ],
+        'player' => [
+            'balance_brl' => (float)($player['balance_brl'] ?? 0),
+            'total_earned_brl' => (float)($player['total_earned_brl'] ?? 0),
+            'total_played' => (int)($player['total_played'] ?? 0)
+        ],
+        'credited' => $credited,
+        'captcha_verified' => $captchaVerified,
+        'session_duration' => $sessionDuration,
+        'validation_warnings' => count($validationErrors) > 0 ? count($validationErrors) : null
+    ]);
+
 } catch (Exception $e) {
-    // Tentar liberar lock mesmo em caso de erro
-    if (isset($pdo) && $sessionId) {
-        releaseIPLock($pdo, $sessionId);
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
     }
-    
-    secureLog("END_ERROR | Session: {$sessionId} | Error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'error' => 'Erro ao finalizar sessao: ' . $e->getMessage()]);
+    secureLog("GAME_END_ERROR | session: {$sessionId} | Error: " . $e->getMessage());
+    error_log("Erro em game-end.php: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Erro interno']);
 }
-?>
