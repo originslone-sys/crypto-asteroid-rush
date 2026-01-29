@@ -1,50 +1,13 @@
 <?php
 // ============================================
-// CRYPTO ASTEROID RUSH - Registrar Evento de Jogo
+// UNOBIX - Registrar Evento de Jogo
 // Arquivo: api/game-event.php
-// v3.0 - CORREÇÃO: Não aceita reward_amount do cliente
-//        CORREÇÃO: REWARD_COMMON = 0
+// v2.0 - Google Auth + BRL + Valores servidor
 // ============================================
 
-if (file_exists(__DIR__ . "/config.php")) {
-    require_once __DIR__ . "/config.php";
-} elseif (file_exists(__DIR__ . "/../config.php")) {
-    require_once __DIR__ . "/../config.php";
-}
+require_once __DIR__ . "/config.php";
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
-}
-
-// Constantes - RATE LIMIT MAIS PERMISSIVO
-if (!defined('GAME_DURATION')) define('GAME_DURATION', 180);
-if (!defined('GAME_TOLERANCE')) define('GAME_TOLERANCE', 300); // 5 minutos de tolerância
-if (!defined('MAX_EVENTS_PER_SECOND')) define('MAX_EVENTS_PER_SECOND', 10);
-
-// v3.0: CORREÇÃO - REWARD_COMMON = 0 (era 0.0001)
-if (!defined('REWARD_NONE')) define('REWARD_NONE', 0);
-if (!defined('REWARD_COMMON')) define('REWARD_COMMON', 0);      // CORRIGIDO!
-if (!defined('REWARD_RARE')) define('REWARD_RARE', 0.0003);
-if (!defined('REWARD_EPIC')) define('REWARD_EPIC', 0.0008);
-if (!defined('REWARD_LEGENDARY')) define('REWARD_LEGENDARY', 0.002);
-
-if (!function_exists('secureLog')) {
-    function secureLog($message, $file = 'game_security.log') {
-        $logEntry = date('Y-m-d H:i:s') . ' | ' . $message . "\n";
-        file_put_contents(__DIR__ . '/' . $file, $logEntry, FILE_APPEND);
-    }
-}
-
-if (!function_exists('validateWallet')) {
-    function validateWallet($wallet) {
-        return preg_match('/^0x[a-fA-F0-9]{40}$/', $wallet);
-    }
-}
+setCorsHeaders();
 
 // ============================================
 // LER INPUT
@@ -52,63 +15,64 @@ if (!function_exists('validateWallet')) {
 $rawInput = file_get_contents('php://input');
 $input = json_decode($rawInput, true);
 
-// FIX: Log para debug se input estiver vazio ou malformado
 if (!$input || !is_array($input)) {
     secureLog("EVENT_INVALID_INPUT | Raw: " . substr($rawInput, 0, 500));
-    echo json_encode([
-        'success' => false, 
-        'error' => 'Dados inválidos',
-        'debug' => 'Input não é JSON válido'
-    ]);
+    echo json_encode(['success' => false, 'error' => 'Dados inválidos']);
     exit;
 }
 
 $sessionId = isset($input['session_id']) ? (int)$input['session_id'] : 0;
 $sessionToken = isset($input['session_token']) ? trim($input['session_token']) : '';
+$googleUid = isset($input['google_uid']) ? trim($input['google_uid']) : '';
 $wallet = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
 $asteroidId = isset($input['asteroid_id']) ? (int)$input['asteroid_id'] : 0;
 $rewardType = isset($input['reward_type']) ? trim(strtolower($input['reward_type'])) : 'none';
-// v3.0: NÃO usamos mais $rewardAmount do cliente
 $timestamp = isset($input['timestamp']) ? (int)$input['timestamp'] : time();
-
-// FIX: Log detalhado do que foi recebido
-if (!$sessionId || !$sessionToken || !$wallet) {
-    secureLog("EVENT_MISSING_DATA | session_id: {$sessionId} | token: " . ($sessionToken ? 'present' : 'missing') . " | wallet: {$wallet}");
-}
 
 // Validar dados obrigatórios
 if (!$sessionId) {
-    echo json_encode(['success' => false, 'error' => 'Dados inválidos', 'debug' => 'session_id missing']);
+    echo json_encode(['success' => false, 'error' => 'session_id ausente']);
     exit;
 }
 
 if (!$sessionToken) {
-    echo json_encode(['success' => false, 'error' => 'Dados inválidos', 'debug' => 'session_token missing']);
+    echo json_encode(['success' => false, 'error' => 'session_token ausente']);
     exit;
 }
 
-if (!$wallet || !validateWallet($wallet)) {
-    echo json_encode(['success' => false, 'error' => 'Dados inválidos', 'debug' => 'wallet invalid: ' . $wallet]);
+// Determinar identificador
+$identifier = '';
+if (!empty($googleUid) && validateGoogleUid($googleUid)) {
+    $identifier = $googleUid;
+} elseif (!empty($wallet) && validateWallet($wallet)) {
+    $identifier = $wallet;
+} else {
+    echo json_encode(['success' => false, 'error' => 'Identificação inválida']);
     exit;
 }
 
 try {
-    $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4", DB_USER, DB_PASS);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-    
+    $pdo = getDatabaseConnection();
+    if (!$pdo) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao conectar ao banco']);
+        exit;
+    }
+
     // ============================================
-    // 1. VALIDAR SESSÃO (permite completed também para eventos atrasados)
+    // 1. VALIDAR SESSÃO
     // ============================================
     $stmt = $pdo->prepare("
         SELECT * FROM game_sessions 
-        WHERE id = ? AND wallet_address = ? AND status IN ('active', 'completed')
+        WHERE id = ? 
+        AND (google_uid = ? OR wallet_address = ?)
+        AND status IN ('active', 'completed')
     ");
-    $stmt->execute([$sessionId, $wallet]);
+    $stmt->execute([$sessionId, $identifier, $identifier]);
     $session = $stmt->fetch();
     
     if (!$session) {
-        secureLog("EVENT_SESSION_NOT_FOUND | session_id: {$sessionId} | wallet: {$wallet}");
+        secureLog("EVENT_SESSION_NOT_FOUND | session_id: {$sessionId} | ID: {$identifier}");
         echo json_encode(['success' => false, 'error' => 'Sessão inválida ou expirada']);
         exit;
     }
@@ -119,7 +83,7 @@ try {
         exit;
     }
     
-    // Verificar tempo da sessão (com tolerância)
+    // Verificar tempo da sessão
     $sessionStart = strtotime($session['started_at']);
     $elapsed = time() - $sessionStart;
     
@@ -129,30 +93,7 @@ try {
     }
     
     // ============================================
-    // 2. VERIFICAR SE TABELA game_events EXISTE
-    // ============================================
-    $tableExists = $pdo->query("SHOW TABLES LIKE 'game_events'")->fetch();
-    
-    if (!$tableExists) {
-        $pdo->exec("
-            CREATE TABLE game_events (
-                id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                session_id INT NOT NULL,
-                wallet_address VARCHAR(42) NOT NULL,
-                asteroid_id INT NOT NULL,
-                reward_type ENUM('none', 'common', 'rare', 'epic', 'legendary') DEFAULT 'none',
-                reward_amount DECIMAL(20,8) DEFAULT 0.00000000,
-                client_timestamp DATETIME DEFAULT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_session (session_id),
-                INDEX idx_wallet (wallet_address),
-                INDEX idx_created (created_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        ");
-    }
-    
-    // ============================================
-    // 3. VERIFICAR RATE LIMIT (mais permissivo)
+    // 2. VERIFICAR RATE LIMIT DE EVENTOS
     // ============================================
     $stmt = $pdo->prepare("
         SELECT COUNT(*) as count FROM game_events 
@@ -162,88 +103,75 @@ try {
     $recentEvents = $stmt->fetch();
     
     if ($recentEvents['count'] >= MAX_EVENTS_PER_SECOND) {
-        // Em vez de rejeitar, apenas logamos (para não perder eventos)
-        // O game-end.php vai validar os totais de qualquer forma
+        // Apenas logar, não bloquear (game-end validará)
+        secureLog("EVENT_RATE_LIMIT | session_id: {$sessionId} | count: {$recentEvents['count']}");
     }
     
     // ============================================
-    // 4. DETERMINAR RECOMPENSA - APENAS DO SERVIDOR
-    // v3.0: NUNCA aceitar reward_amount do cliente!
+    // 3. DETERMINAR RECOMPENSA - SOMENTE DO SERVIDOR!
+    // NUNCA aceitar reward_amount do cliente!
     // ============================================
-    $validReward = 0;
-    $validRewardType = 'none';
-    
-    // Aceitar o tipo enviado pelo cliente se for válido
     $validTypes = ['none', 'common', 'rare', 'epic', 'legendary'];
-    if (in_array($rewardType, $validTypes)) {
-        $validRewardType = $rewardType;
-        
-        // v3.0: Usar APENAS valores definidos no servidor
-        switch ($rewardType) {
-            case 'legendary':
-                $validReward = REWARD_LEGENDARY;
-                break;
-            case 'epic':
-                $validReward = REWARD_EPIC;
-                break;
-            case 'rare':
-                $validReward = REWARD_RARE;
-                break;
-            case 'common':
-                $validReward = REWARD_COMMON;  // = 0
-                break;
-            default:
-                $validReward = 0;
-        }
-    }
+    $validRewardType = in_array($rewardType, $validTypes) ? $rewardType : 'none';
+    
+    // Buscar valor do servidor baseado no tipo
+    $validRewardBrl = getRewardByType($validRewardType);
     
     // ============================================
-    // v3.0: REMOVIDO - Não aceitar reward_amount do cliente
-    // Código anterior (VULNERÁVEL):
-    // if ($rewardAmount > 0 && $rewardAmount <= 0.01) {
-    //     $validReward = $rewardAmount;
-    // }
-    // ============================================
-    
-    // ============================================
-    // 5. REGISTRAR EVENTO
+    // 4. REGISTRAR EVENTO
     // ============================================
     $stmt = $pdo->prepare("
         INSERT INTO game_events (
             session_id, 
+            google_uid,
             wallet_address, 
             asteroid_id, 
             reward_type,
             reward_amount,
+            reward_amount_brl,
             client_timestamp,
             created_at
-        ) VALUES (?, ?, ?, ?, ?, FROM_UNIXTIME(?), NOW())
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), NOW())
     ");
     
     $stmt->execute([
         $sessionId,
-        $wallet,
+        $session['google_uid'],
+        $session['wallet_address'],
         $asteroidId,
         $validRewardType,
-        $validReward,
+        $validRewardBrl,  // Também salva em reward_amount para compatibilidade
+        $validRewardBrl,
         $timestamp
     ]);
     
+    $eventId = $pdo->lastInsertId();
+    
     // ============================================
-    // 6. ATUALIZAR CONTADORES DA SESSÃO (opcional)
+    // 5. ATUALIZAR CONTADORES DA SESSÃO (se ativa)
     // ============================================
     if ($session['status'] === 'active') {
-        $updateFields = ['asteroids_destroyed = asteroids_destroyed + 1'];
-        $updateFields[] = "earnings_usdt = earnings_usdt + {$validReward}";
+        $updateFields = [
+            'asteroids_destroyed = asteroids_destroyed + 1',
+            "earnings_brl = earnings_brl + {$validRewardBrl}"
+        ];
         
-        if ($validRewardType === 'legendary') {
-            $updateFields[] = 'legendary_asteroids = COALESCE(legendary_asteroids, 0) + 1';
-        } elseif ($validRewardType === 'epic') {
-            $updateFields[] = 'epic_asteroids = COALESCE(epic_asteroids, 0) + 1';
-        } elseif ($validRewardType === 'rare') {
-            $updateFields[] = 'rare_asteroids = COALESCE(rare_asteroids, 0) + 1';
-        } elseif ($validRewardType === 'common') {
-            $updateFields[] = 'common_asteroids = COALESCE(common_asteroids, 0) + 1';
+        // Também atualiza earnings_usdt para compatibilidade (mesmo valor)
+        $updateFields[] = "earnings_usdt = earnings_usdt + {$validRewardBrl}";
+        
+        switch ($validRewardType) {
+            case 'legendary':
+                $updateFields[] = 'legendary_asteroids = COALESCE(legendary_asteroids, 0) + 1';
+                break;
+            case 'epic':
+                $updateFields[] = 'epic_asteroids = COALESCE(epic_asteroids, 0) + 1';
+                break;
+            case 'rare':
+                $updateFields[] = 'rare_asteroids = COALESCE(rare_asteroids, 0) + 1';
+                break;
+            case 'common':
+                $updateFields[] = 'common_asteroids = COALESCE(common_asteroids, 0) + 1';
+                break;
         }
         
         $pdo->prepare("UPDATE game_sessions SET " . implode(', ', $updateFields) . " WHERE id = ?")
@@ -253,12 +181,11 @@ try {
     echo json_encode([
         'success' => true,
         'reward_type' => $validRewardType,
-        'reward_amount' => $validReward,
-        'event_id' => $pdo->lastInsertId()
+        'reward_brl' => $validRewardBrl,
+        'event_id' => $eventId
     ]);
     
 } catch (Exception $e) {
     secureLog("EVENT_ERROR | Session: {$sessionId} | Error: " . $e->getMessage());
     echo json_encode(['success' => false, 'error' => 'Erro ao registrar evento']);
 }
-?>
