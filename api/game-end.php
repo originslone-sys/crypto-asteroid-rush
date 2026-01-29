@@ -2,7 +2,7 @@
 // ============================================
 // CRYPTO ASTEROID RUSH - Finalizar Sessão de Jogo
 // Arquivo: api/game-end.php
-// v7.0 - Libera lock de IP + COMMON = $0
+// v8.0 - CORREÇÃO: Validação server-side dos earnings
 // ============================================
 
 if (file_exists(__DIR__ . "/config.php")) {
@@ -31,6 +31,7 @@ define('EARNINGS_ALERT_THRESHOLD', 0.06);    // Alerta se > $0.06
 define('EARNINGS_SUSPECT_THRESHOLD', 0.10);  // Suspeito se > $0.10
 define('EARNINGS_BLOCK_THRESHOLD', 0.20);    // Bloqueia se > $0.20
 define('AUTO_BAN_AFTER_ALERTS', 5);          // Ban automático após 5 alertas
+define('EARNINGS_TOLERANCE', 1.5);           // v8.0: Tolerância de 50% entre cliente e servidor
 
 // ============================================
 // RECOMPENSAS (fonte da verdade)
@@ -176,6 +177,34 @@ function releaseIPLock($pdo, $sessionId) {
 }
 
 // ============================================
+// v8.0: FUNÇÃO - Obter earnings do servidor (game_events)
+// ============================================
+function getServerEarnings($pdo, $sessionId, $wallet) {
+    // Verificar se tabela game_events existe
+    $tableCheck = $pdo->query("SHOW TABLES LIKE 'game_events'")->fetch();
+    
+    if (!$tableCheck) {
+        // Tabela não existe, retornar null para usar valor do cliente
+        return null;
+    }
+    
+    $stmt = $pdo->prepare("
+        SELECT 
+            COUNT(*) as event_count,
+            COALESCE(SUM(CASE WHEN reward_type = 'common' THEN 1 ELSE 0 END), 0) as common_count,
+            COALESCE(SUM(CASE WHEN reward_type = 'rare' THEN 1 ELSE 0 END), 0) as rare_count,
+            COALESCE(SUM(CASE WHEN reward_type = 'epic' THEN 1 ELSE 0 END), 0) as epic_count,
+            COALESCE(SUM(CASE WHEN reward_type = 'legendary' THEN 1 ELSE 0 END), 0) as legendary_count,
+            COALESCE(SUM(reward_amount), 0) as total_earnings
+        FROM game_events 
+        WHERE session_id = ? AND wallet_address = ?
+    ");
+    $stmt->execute([$sessionId, $wallet]);
+    
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+// ============================================
 // INÍCIO DO PROCESSAMENTO
 // ============================================
 
@@ -273,15 +302,58 @@ try {
     $sessionDuration = time() - $sessionStart;
     
     // ============================================
-    // CALCULAR EARNINGS - USAR VALORES DO CLIENTE
-    // (Confiamos no cliente, mas monitoramos)
+    // v8.0: VALIDAÇÃO SERVER-SIDE DOS EARNINGS
+    // Compara o que o cliente diz vs o que o servidor registrou
     // ============================================
+    
     $finalEarnings = $clientEarnings;
     $finalScore = $clientScore;
     $finalStats = $clientStats;
+    $earningsOverridden = false;
     
-    // Se enviou lista de asteroides, recalcular para comparação
-    // NOTA: COMMON agora vale $0
+    // Obter o que o servidor registrou em game_events
+    $serverData = getServerEarnings($pdo, $sessionId, $wallet);
+    
+    if ($serverData !== null && $serverData['event_count'] > 0) {
+        $serverEarnings = (float)$serverData['total_earnings'];
+        
+        // Calcular limite máximo aceitável (servidor + 50% de tolerância + margem mínima)
+        $maxAcceptableEarnings = ($serverEarnings * EARNINGS_TOLERANCE) + 0.001;
+        
+        // Se cliente alega mais do que o aceitável, usar valor do servidor
+        if ($clientEarnings > $maxAcceptableEarnings) {
+            $earningsOverridden = true;
+            $finalEarnings = $serverEarnings;
+            
+            // Usar stats do servidor também
+            $finalStats = [
+                'common' => (int)$serverData['common_count'],
+                'rare' => (int)$serverData['rare_count'],
+                'epic' => (int)$serverData['epic_count'],
+                'legendary' => (int)$serverData['legendary_count']
+            ];
+            $finalScore = array_sum($finalStats);
+            
+            // Registrar tentativa de manipulação
+            registerSuspiciousActivity($pdo, $wallet, $sessionId, 'EARNINGS_MANIPULATION', [
+                'client_claimed' => $clientEarnings,
+                'server_recorded' => $serverEarnings,
+                'max_acceptable' => $maxAcceptableEarnings,
+                'action' => 'Used server value',
+                'client_stats' => $clientStats,
+                'server_stats' => $finalStats
+            ]);
+            
+            secureLog("EARNINGS_OVERRIDE | Wallet: {$wallet} | Session: {$sessionId} | Client: \${$clientEarnings} | Server: \${$serverEarnings} | Using: \${$finalEarnings}");
+        }
+    }
+    // Se não há eventos no servidor (game_events vazio ou não existe), confia no cliente
+    // Isso mantém compatibilidade com sessões antigas
+    
+    // ============================================
+    // CALCULAR EARNINGS PARA COMPARAÇÃO (método antigo)
+    // Usado apenas para o sistema de alertas
+    // ============================================
     $calculatedEarnings = 0;
     if (!empty($destroyedAsteroids)) {
         foreach ($destroyedAsteroids as $asteroid) {
@@ -291,12 +363,10 @@ try {
                 case 'LEGENDARY': $calculatedEarnings += REWARD_LEGENDARY; break;
                 case 'EPIC': $calculatedEarnings += REWARD_EPIC; break;
                 case 'RARE': $calculatedEarnings += REWARD_RARE; break;
-                case 'COMMON': $calculatedEarnings += REWARD_COMMON; break; // = 0
+                case 'COMMON': $calculatedEarnings += REWARD_COMMON; break;
             }
         }
     } else {
-        // Calcular baseado nos stats
-        // NOTA: COMMON * 0 = 0
         $calculatedEarnings = 
             ($clientStats['common'] * REWARD_COMMON) +
             ($clientStats['rare'] * REWARD_RARE) +
@@ -310,43 +380,47 @@ try {
     $alertLevel = 'normal';
     $blockEarnings = false;
     
-    if ($clientEarnings > EARNINGS_BLOCK_THRESHOLD) {
+    // Usar finalEarnings (já corrigido) para alertas
+    if ($finalEarnings > EARNINGS_BLOCK_THRESHOLD) {
         $alertLevel = 'critical';
         $blockEarnings = true;
         
         registerSuspiciousActivity($pdo, $wallet, $sessionId, 'HIGH_EARNINGS_CRITICAL', [
             'client_earnings' => $clientEarnings,
+            'final_earnings' => $finalEarnings,
             'calculated_earnings' => $calculatedEarnings,
-            'stats' => $clientStats,
+            'stats' => $finalStats,
             'duration' => $sessionDuration
         ]);
         
-        secureLog("CRITICAL_EARNINGS | Wallet: {$wallet} | \${$clientEarnings}");
+        secureLog("CRITICAL_EARNINGS | Wallet: {$wallet} | \${$finalEarnings}");
         
-    } elseif ($clientEarnings > EARNINGS_SUSPECT_THRESHOLD) {
+    } elseif ($finalEarnings > EARNINGS_SUSPECT_THRESHOLD) {
         $alertLevel = 'suspect';
         
         registerSuspiciousActivity($pdo, $wallet, $sessionId, 'HIGH_EARNINGS_SUSPECT', [
             'client_earnings' => $clientEarnings,
+            'final_earnings' => $finalEarnings,
             'calculated_earnings' => $calculatedEarnings,
-            'stats' => $clientStats
+            'stats' => $finalStats
         ]);
         
-        secureLog("SUSPECT_EARNINGS | Wallet: {$wallet} | \${$clientEarnings}");
+        secureLog("SUSPECT_EARNINGS | Wallet: {$wallet} | \${$finalEarnings}");
         
-    } elseif ($clientEarnings > EARNINGS_ALERT_THRESHOLD) {
+    } elseif ($finalEarnings > EARNINGS_ALERT_THRESHOLD) {
         $alertLevel = 'alert';
         
         registerSuspiciousActivity($pdo, $wallet, $sessionId, 'HIGH_EARNINGS_ALERT', [
             'client_earnings' => $clientEarnings,
+            'final_earnings' => $finalEarnings,
             'calculated_earnings' => $calculatedEarnings,
-            'stats' => $clientStats
+            'stats' => $finalStats
         ]);
         
-        secureLog("ALERT_EARNINGS | Wallet: {$wallet} | \${$clientEarnings}");
+        secureLog("ALERT_EARNINGS | Wallet: {$wallet} | \${$finalEarnings}");
     }
     
-    // Verificar discrepância cliente vs calculado
+    // Verificar discrepância cliente vs calculado (sistema antigo - mantido para logs)
     if ($calculatedEarnings > 0 && $clientEarnings > $calculatedEarnings * 1.5) {
         registerSuspiciousActivity($pdo, $wallet, $sessionId, 'EARNINGS_MISMATCH', [
             'client_earnings' => $clientEarnings,
@@ -485,11 +559,17 @@ try {
         $response['warning'] = 'Sessão bloqueada por atividade suspeita';
     }
     
+    // v8.0: Informar se earnings foram corrigidos
+    if ($earningsOverridden) {
+        $response['earnings_adjusted'] = true;
+        $response['original_claim'] = $clientEarnings;
+    }
+    
     if ($referralCompleted) {
         $response['referral_bonus_unlocked'] = true;
     }
     
-    secureLog("SESSION_END | Session: {$sessionId} | Earnings: \${$finalEarnings} | NewBalance: \${$newBalance} | Alert: {$alertLevel}");
+    secureLog("SESSION_END | Session: {$sessionId} | Earnings: \${$finalEarnings} | NewBalance: \${$newBalance} | Alert: {$alertLevel}" . ($earningsOverridden ? " | OVERRIDDEN" : ""));
     
     echo json_encode($response);
     
