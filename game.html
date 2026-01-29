@@ -1,45 +1,54 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="pt-BR" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CRYPTO ASTEROID RUSH | BSC SPACE MISSION</title>
+    <title>UNOBIX | MISSÃO ESPACIAL</title>
+    <meta name="description" content="Destrua asteroides e ganhe R$ de verdade! Jogo espacial gratuito.">
     
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&family=Audiowide&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    
+    <!-- hCaptcha -->
+    <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
     
     <!-- Game Styles -->
     <link rel="stylesheet" href="css/game.css">
 </head>
 <body>
 
-<!-- Initial Loading Screen -->
+<!-- Tela de Carregamento Inicial -->
 <div id="loadingScreen">
     <div class="loading-content">
         <div class="loading-logo">
-            <i class="fas fa-rocket"></i>
+            <img src="img/logo-unobix.png" alt="Unobix">
         </div>
-        <div class="loading-title">CRYPTO ASTEROID RUSH</div>
+        <div class="loading-title">UNOBIX</div>
         <div class="loading-spinner"></div>
-        <div class="loading-text">INITIALIZING SYSTEMS...</div>
+        <div class="loading-text">INICIALIZANDO SISTEMAS...</div>
     </div>
 </div>
 
-<!-- Pre-Game Loading Screen (for ads) -->
+<!-- Tela Pré-Jogo (para anúncios) -->
 <div id="preGameScreen" class="modal-overlay">
     <div class="pregame-container">
         <div class="pregame-header">
             <i class="fas fa-satellite-dish"></i>
-            <span>MISSION BRIEFING</span>
+            <span>BRIEFING DA MISSÃO</span>
         </div>
         
-        <!-- Ad Container - rotates ads here -->
+        <!-- Container de Anúncio -->
         <div id="adContainer" class="ad-container">
             <div class="ad-placeholder">
                 <i class="fas fa-ad"></i>
-                <span>Advertisement Space</span>
+                <span>Espaço para Anúncio</span>
             </div>
+            <div class="ad-timer" id="adTimer">5s</div>
         </div>
         
         <div class="pregame-loading">
@@ -47,41 +56,41 @@
                 <div id="loadingBar" class="loading-bar"></div>
             </div>
             <div id="loadingPercent" class="loading-percent">0%</div>
-            <div id="loadingStatus" class="loading-status">Loading assets...</div>
+            <div id="loadingStatus" class="loading-status">Carregando recursos...</div>
         </div>
         
         <div class="pregame-tips">
             <i class="fas fa-lightbulb"></i>
-            <span id="gameTip">TIP: Destroy valuable asteroids to earn USDT!</span>
+            <span id="gameTip">DICA: Destrua asteroides raros para ganhar mais R$!</span>
         </div>
     </div>
 </div>
 
-<!-- Game Container -->
+<!-- Container do Jogo -->
 <div id="gameContainer">
     
-    <!-- Game Header -->
+    <!-- Header do Jogo -->
     <div id="gameHeader">
         <div class="header-content">
-            <div class="game-title">CRYPTO ASTEROID RUSH</div>
-            <div class="game-subtitle">BSC MISSION • EARN USDT</div>
+            <div class="game-title">UNOBIX</div>
+            <div class="game-subtitle">MISSÃO ESPACIAL • GANHE R$</div>
         </div>
     </div>
     
-    <!-- Game Stats -->
+    <!-- Stats do Jogo -->
     <div id="gameStats">
         <div class="stats-container">
             <div class="stat-item">
                 <div class="stat-icon"><i class="fas fa-clock"></i></div>
                 <div class="stat-content">
-                    <div class="stat-label">TIME</div>
+                    <div class="stat-label">TEMPO</div>
                     <div id="countdown" class="stat-value">180</div>
                 </div>
             </div>
             <div class="stat-item lives-stat">
                 <div class="stat-icon"><i class="fas fa-heart"></i></div>
                 <div class="stat-content">
-                    <div class="stat-label">LIVES</div>
+                    <div class="stat-label">VIDAS</div>
                     <div id="lives" class="stat-value lives-display">
                         <span class="life active"></span>
                         <span class="life active"></span>
@@ -95,24 +104,24 @@
             <div class="stat-item">
                 <div class="stat-icon"><i class="fas fa-crosshairs"></i></div>
                 <div class="stat-content">
-                    <div class="stat-label">DESTROYED</div>
+                    <div class="stat-label">DESTRUÍDOS</div>
                     <div id="score" class="stat-value">0</div>
                 </div>
             </div>
             <div class="stat-item earnings-stat">
                 <div class="stat-icon"><i class="fas fa-coins"></i></div>
                 <div class="stat-content">
-                    <div class="stat-label">EARNINGS</div>
-                    <div id="earned" class="stat-value">$0.0000</div>
+                    <div class="stat-label">GANHOS</div>
+                    <div id="earned" class="stat-value">R$ 0,00</div>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Canvas -->
+    <!-- Canvas do Jogo -->
     <canvas id="gameCanvas"></canvas>
     
-    <!-- Mobile Controls -->
+    <!-- Controles Mobile -->
     <div id="mobileControls">
         <div class="control-left">
             <div class="control-btn" id="leftBtn" data-direction="left">
@@ -125,18 +134,18 @@
         <div class="control-right">
             <div class="control-btn fire-btn" id="fireBtn">
                 <i class="fas fa-bolt"></i>
-                <span>FIRE</span>
+                <span>FOGO</span>
             </div>
         </div>
     </div>
     
-    <!-- Audio Toggle -->
+    <!-- Toggle de Áudio -->
     <div id="audioToggle">
         <i id="audioIcon" class="fas fa-volume-up"></i>
     </div>
 </div>
 
-<!-- Modal: Connect Wallet -->
+<!-- Modal: Login com Google -->
 <div id="connectModal" class="modal-overlay active">
     <div class="modal-container connect-modal">
         <div class="modal-glow"></div>
@@ -144,26 +153,26 @@
             <div class="modal-icon">
                 <i class="fas fa-rocket"></i>
             </div>
-            <div class="modal-title">WELCOME COMMANDER</div>
+            <div class="modal-title">BEM-VINDO COMANDANTE</div>
             <div class="modal-subtitle">
-                Connect your MetaMask wallet on Binance Smart Chain (BSC)
-                to start your asteroid destruction mission and earn USDT!
+                Entre com sua conta Google para iniciar sua missão de destruição
+                de asteroides e ganhar R$ de verdade!
             </div>
         </div>
         <div class="btn-group">
-            <button id="connectBtn" class="btn btn-primary btn-glow">
-                <i class="fas fa-plug"></i>
-                <span>Connect MetaMask</span>
+            <button id="connectBtn" class="btn btn-primary btn-glow btn-large">
+                <i class="fab fa-google"></i>
+                <span>Entrar com Google</span>
             </button>
         </div>
         <div class="modal-footer">
             <i class="fas fa-info-circle"></i>
-            <span>Mission fee: 0.00001 BNB</span>
+            <span>100% Gratuito • Sem taxas de entrada</span>
         </div>
     </div>
 </div>
 
-<!-- Modal: Game Menu (Ship Selection) -->
+<!-- Modal: Menu do Jogo (Seleção de Nave) -->
 <div id="gameMenuModal" class="modal-overlay">
     <div class="modal-container menu-modal">
         <div class="modal-glow"></div>
@@ -171,60 +180,66 @@
             <div class="modal-icon">
                 <i class="fas fa-satellite"></i>
             </div>
-            <div class="modal-title">MISSION CONTROL</div>
+            <div class="modal-title">CONTROLE DA MISSÃO</div>
             <div class="modal-subtitle">
-                Prepare for 3 minutes of intense action.
-                Destroy asteroids to collect USDT. Rare asteroids are worth more!
+                Prepare-se para 3 minutos de ação intensa.
+                Destrua asteroides para coletar R$. Asteroides raros valem mais!
             </div>
         </div>
         
-        <div class="wallet-info" id="connectedWalletInfo">
-            <i class="fas fa-wallet"></i>
-            <span>Connected:</span>
-            <span id="connectedWalletText" class="wallet-address">0x...</span>
+        <!-- Info do Usuário -->
+        <div class="user-info" id="connectedUserInfo">
+            <img id="userPhoto" src="" alt="">
+            <span id="userName">Usuário</span>
         </div>
         
-        <!-- Ship Selector -->
+        <!-- Badge de Hard Mode (40% das missões) -->
+        <div id="hardModeBadge" class="hard-mode-badge" style="display: none;">
+            <i class="fas fa-fire"></i>
+            <span>MODO DIFÍCIL</span>
+        </div>
+        
+        <!-- Seletor de Nave -->
         <div id="shipSelectorContainer">
             <div class="section-title">
                 <i class="fas fa-space-shuttle"></i>
-                <span>SELECT YOUR SHIP</span>
+                <span>SELECIONE SUA NAVE</span>
             </div>
             <div id="shipSelection" class="ship-grid">
-                <!-- Ships generated dynamically -->
+                <!-- Naves geradas dinamicamente -->
             </div>
             <div id="selectedShipInfo" class="selected-ship-info">
-                <span class="ship-name">Select a ship for this mission</span>
+                <span class="ship-name">Selecione uma nave para a missão</span>
             </div>
         </div>
         
-        <!-- Mission Info -->
+        <!-- Info da Missão -->
         <div class="mission-info">
             <div class="info-item">
                 <i class="fas fa-heart"></i>
-                <span>6 Lives</span>
+                <span>6 Vidas</span>
             </div>
             <div class="info-item">
                 <i class="fas fa-clock"></i>
-                <span>180 Seconds</span>
+                <span>180 Segundos</span>
             </div>
             <div class="info-item">
                 <i class="fas fa-coins"></i>
-                <span>Earn USDT</span>
+                <span>Ganhe R$</span>
             </div>
         </div>
         
         <div class="btn-group">
             <button id="startGameBtn" class="btn btn-primary btn-glow btn-large">
                 <i class="fas fa-play"></i>
-                <span>START MISSION</span>
-                <small>0.00001 BNB</small>
+                <span>INICIAR MISSÃO</span>
+                <small>GRÁTIS</small>
             </button>
         </div>
     </div>
 </div>
 
-<!-- Modal: End Game -->
+<!-- Modal: Fim de Jogo (Vitória) -->
 <div id="endGameModal" class="modal-overlay">
     <div class="modal-container end-modal">
         <div class="modal-glow"></div>
@@ -232,47 +247,74 @@
             <div class="modal-icon success">
                 <i class="fas fa-trophy"></i>
             </div>
-            <div id="endGameTitle" class="modal-title">MISSION COMPLETE!</div>
+            <div id="endGameTitle" class="modal-title">MISSÃO COMPLETA!</div>
             <div id="endGameSubtitle" class="modal-subtitle">
-                Great work, Commander! Check your results below.
+                Excelente trabalho, Comandante! Confira seus resultados abaixo.
             </div>
         </div>
         
+        <!-- Resultados -->
         <div class="result-stats">
             <div class="result-item">
                 <div class="result-icon"><i class="fas fa-crosshairs"></i></div>
                 <div class="result-content">
-                    <div class="result-label">Asteroids Destroyed</div>
+                    <div class="result-label">Asteroides Destruídos</div>
                     <div id="finalScore" class="result-value">0</div>
                 </div>
             </div>
             <div class="result-item highlight">
                 <div class="result-icon"><i class="fas fa-coins"></i></div>
                 <div class="result-content">
-                    <div class="result-label">Total Earnings</div>
-                    <div id="finalReward" class="result-value">$0.0000</div>
+                    <div class="result-label">Ganhos Totais</div>
+                    <div id="finalReward" class="result-value">R$ 0,00</div>
                 </div>
             </div>
         </div>
         
+        <!-- Breakdown de Asteroides -->
         <div id="asteroidsBreakdown" class="asteroids-breakdown">
-            <!-- Breakdown generated dynamically -->
+            <!-- Breakdown gerado dinamicamente -->
+        </div>
+        
+        <!-- CAPTCHA (obrigatório na vitória) -->
+        <div id="captchaContainer" class="captcha-container">
+            <div class="captcha-title">
+                <i class="fas fa-shield-alt"></i>
+                <span>Verificação de Segurança</span>
+            </div>
+            <div id="captchaWidget">
+                <!-- hCaptcha widget será inserido aqui -->
+            </div>
+            <div id="captchaStatus" class="captcha-status"></div>
+        </div>
+        
+        <!-- Saldo Atualizado -->
+        <div class="balance-update" id="balanceUpdate" style="display: none;">
+            <div class="balance-icon"><i class="fas fa-wallet"></i></div>
+            <div class="balance-info">
+                <div class="balance-label">Novo Saldo</div>
+                <div class="balance-value" id="newBalance">R$ 0,00</div>
+            </div>
         </div>
         
         <div class="btn-group">
-            <button id="playAgainBtn" class="btn btn-primary btn-glow">
-                <i class="fas fa-redo"></i>
-                <span>NEW MISSION</span>
+            <button id="claimRewardBtn" class="btn btn-primary btn-glow" disabled>
+                <i class="fas fa-check"></i>
+                <span>RESGATAR GANHOS</span>
             </button>
-            <button id="walletBtn" class="btn btn-secondary">
+            <button id="playAgainBtn" class="btn btn-secondary" style="display: none;">
+                <i class="fas fa-redo"></i>
+                <span>NOVA MISSÃO</span>
+            </button>
+            <button id="walletBtn" class="btn btn-secondary" style="display: none;">
                 <i class="fas fa-wallet"></i>
-                <span>VIEW WALLET</span>
+                <span>VER CARTEIRA</span>
             </button>
         </div>
     </div>
 </div>
 
-<!-- Modal: Game Over (Lost all lives) -->
+<!-- Modal: Game Over (Perdeu todas as vidas) -->
 <div id="gameOverModal" class="modal-overlay">
     <div class="modal-container gameover-modal">
         <div class="modal-glow danger"></div>
@@ -280,106 +322,101 @@
             <div class="modal-icon danger">
                 <i class="fas fa-skull-crossbones"></i>
             </div>
-            <div class="modal-title danger">MISSION FAILED</div>
+            <div class="modal-title danger">MISSÃO FALHOU</div>
             <div class="modal-subtitle">
-                Your ship was destroyed! You lost all your lives and earnings.
+                Sua nave foi destruída! Você perdeu todas as vidas e ganhos.
             </div>
         </div>
         
         <div class="gameover-stats">
             <div class="stat-lost">
                 <i class="fas fa-times-circle"></i>
-                <span>Earnings Lost: <strong id="lostEarnings">$0.0000</strong></span>
+                <span>Ganhos Perdidos: <strong id="lostEarnings">R$ 0,00</strong></span>
             </div>
         </div>
         
         <div class="btn-group">
             <button id="retryBtn" class="btn btn-primary btn-glow">
                 <i class="fas fa-redo"></i>
-                <span>TRY AGAIN</span>
+                <span>TENTAR NOVAMENTE</span>
             </button>
             <button id="exitBtn" class="btn btn-secondary">
                 <i class="fas fa-home"></i>
-                <span>EXIT</span>
+                <span>SAIR</span>
             </button>
         </div>
     </div>
 </div>
 
-<!-- Transaction Popup -->
+<!-- Popup de Processamento -->
 <div id="transactionPopup" class="transaction-popup">
     <div class="transaction-content">
         <div class="transaction-icon">
             <i class="fas fa-sync-alt fa-spin"></i>
         </div>
-        <h3>PROCESSING PAYMENT</h3>
-        <p>Please wait while we process the blockchain transaction...</p>
+        <h3>PROCESSANDO</h3>
+        <p>Aguarde enquanto registramos seus resultados...</p>
         <div class="transaction-details">
             <div class="transaction-detail">
-                <span class="label">Entry Fee:</span>
-                <span class="value">0.00001 BNB</span>
-            </div>
-            <div class="transaction-detail">
-                <span class="label">Network:</span>
-                <span class="value">Binance Smart Chain</span>
-            </div>
-            <div class="transaction-detail">
                 <span class="label">Status:</span>
-                <span class="value" id="txStatus">Awaiting confirmation...</span>
+                <span class="value" id="txStatus">Verificando CAPTCHA...</span>
             </div>
         </div>
         <div class="transaction-warning">
             <i class="fas fa-exclamation-triangle"></i>
-            <span>Do not close this window until confirmed.</span>
+            <span>Não feche esta janela.</span>
         </div>
     </div>
 </div>
 
-<!-- In-Game Notification -->
+<!-- Notificação In-Game -->
 <div id="notification" class="notification">
     <div class="notification-icon"><i class="fas fa-star"></i></div>
     <div class="notification-content">
-        <div class="notification-title" id="notificationTitle">ASTEROID DESTROYED!</div>
-        <div class="notification-message" id="notificationMessage">+$0.0001 USDT</div>
+        <div class="notification-title" id="notificationTitle">ASTEROIDE DESTRUÍDO!</div>
+        <div class="notification-message" id="notificationMessage">+R$ 0,001</div>
     </div>
 </div>
 
-<!-- Custom Alert Modal -->
+<!-- Modal de Alerta Customizado -->
 <div id="customAlert" class="modal-overlay custom-alert">
     <div class="alert-container">
         <div class="alert-icon" id="alertIcon">
             <i class="fas fa-info-circle"></i>
         </div>
-        <div class="alert-title" id="alertTitle">Notice</div>
-        <div class="alert-message" id="alertMessage">Message here</div>
+        <div class="alert-title" id="alertTitle">Aviso</div>
+        <div class="alert-message" id="alertMessage">Mensagem aqui</div>
         <button id="alertOkBtn" class="btn btn-primary">OK</button>
     </div>
 </div>
 
-<!-- Custom Confirm Modal -->
+<!-- Modal de Confirmação Customizado -->
 <div id="customConfirm" class="modal-overlay custom-confirm">
     <div class="confirm-container">
         <div class="confirm-icon" id="confirmIcon">
             <i class="fas fa-question-circle"></i>
         </div>
-        <div class="confirm-title" id="confirmTitle">Confirm</div>
-        <div class="confirm-message" id="confirmMessage">Are you sure?</div>
+        <div class="confirm-title" id="confirmTitle">Confirmar</div>
+        <div class="confirm-message" id="confirmMessage">Tem certeza?</div>
         <div class="confirm-buttons">
-            <button id="confirmYesBtn" class="btn btn-primary">YES</button>
-            <button id="confirmNoBtn" class="btn btn-secondary">NO</button>
+            <button id="confirmYesBtn" class="btn btn-primary">SIM</button>
+            <button id="confirmNoBtn" class="btn btn-secondary">NÃO</button>
         </div>
     </div>
 </div>
 
 <!-- JavaScript Modules -->
+<script src="js/firebase-config.js"></script>
+<script src="js/auth-manager.js"></script>
 <script src="js/game-config.js"></script>
 <script src="js/game-anticheat.js"></script>
 <script src="js/game-ships.js"></script>
 <script src="js/game-audio.js"></script>
 <script src="js/game-ui.js"></script>
-<script src="js/game-session-manager.js"></script> 
+<script src="js/game-session-manager.js"></script>
 <script src="js/game-session.js"></script>
-<script src="js/game-wallet.js"></script>
+<script src="js/captcha-manager.js"></script>
+<script src="js/ads-manager.js"></script>
 <script src="js/game-engine.js"></script>
 <script src="js/ship-renderer.js"></script>
 <script src="js/game-renderer.js"></script>
