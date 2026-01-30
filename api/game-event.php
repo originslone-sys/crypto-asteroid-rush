@@ -60,15 +60,31 @@ try {
     }
 
     // ============================================
-    // 1. VALIDAR SESSÃO
+    // 1. VALIDAR SESSÃO (Google UID tem prioridade)
     // ============================================
-    $stmt = $pdo->prepare("
-        SELECT * FROM game_sessions 
-        WHERE id = ? 
-        AND (google_uid = ? OR wallet_address = ?)
-        AND status IN ('active', 'completed')
-    ");
-    $stmt->execute([$sessionId, $identifier, $identifier]);
+    if (!empty($googleUid) && validateGoogleUid($googleUid)) {
+        // Buscar por Google UID
+        $stmt = $pdo->prepare("
+            SELECT * FROM game_sessions 
+            WHERE id = ? 
+            AND google_uid = ?
+            AND status IN ('active', 'completed')
+        ");
+        $stmt->execute([$sessionId, $googleUid]);
+    } elseif (!empty($wallet) && validateWallet($wallet)) {
+        // Fallback para wallet (legacy)
+        $stmt = $pdo->prepare("
+            SELECT * FROM game_sessions 
+            WHERE id = ? 
+            AND wallet_address = ?
+            AND status IN ('active', 'completed')
+        ");
+        $stmt->execute([$sessionId, $wallet]);
+    } else {
+        echo json_encode(['success' => false, 'error' => 'Identificação inválida']);
+        exit;
+    }
+    
     $session = $stmt->fetch();
     
     if (!$session) {
@@ -118,7 +134,7 @@ try {
     $validRewardBrl = getRewardByType($validRewardType);
     
     // ============================================
-    // 4. REGISTRAR EVENTO
+    // 4. REGISTRAR EVENTO (wallet_address pode ser NULL)
     // ============================================
     $stmt = $pdo->prepare("
         INSERT INTO game_events (
@@ -137,10 +153,10 @@ try {
     $stmt->execute([
         $sessionId,
         $session['google_uid'],
-        $session['wallet_address'],
+        $session['wallet_address'],  // Pode ser NULL para Google users
         $asteroidId,
         $validRewardType,
-        $validRewardBrl,  // Também salva em reward_amount para compatibilidade
+        $validRewardBrl,
         $validRewardBrl,
         $timestamp
     ]);
