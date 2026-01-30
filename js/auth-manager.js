@@ -1,80 +1,201 @@
 /* ============================================
-   UNOBIX - Auth Manager
-   Gerenciador de autenticação com Google
+   UNOBIX - Authentication Manager v2.0
+   File: js/auth-manager.js
+   Google OAuth via Firebase
+   Fix: Melhor tratamento de popup e redirect fallback
    ============================================ */
 
 class AuthManager {
     constructor() {
         this.currentUser = null;
-        this.sessionToken = null;
+        this.auth = null;
+        this.provider = null;
+        this.onAuthStateChangedCallbacks = [];
         this.isInitialized = false;
-        this.listeners = [];
         
-        this.init();
+        // Aguardar DOM antes de inicializar
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.init());
+        } else {
+            this.init();
+        }
     }
-
-    async init() {
-        // Observar mudanças no estado de autenticação
-        auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                this.currentUser = user;
-                await this.handleUserLogin(user);
-            } else {
-                this.currentUser = null;
-                this.sessionToken = null;
-                this.handleUserLogout();
-            }
+    
+    // Initialize auth
+    init() {
+        if (this.isInitialized) return;
+        
+        if (typeof firebase === 'undefined') {
+            console.error('❌ Firebase não carregado');
+            setTimeout(() => this.init(), 500);
+            return;
+        }
+        
+        try {
+            this.auth = firebase.auth();
+            this.provider = new firebase.auth.GoogleAuthProvider();
+            
+            // Configurar provider
+            this.provider.addScope('profile');
+            this.provider.addScope('email');
+            this.provider.setCustomParameters({
+                prompt: 'select_account'
+            });
+            
+            // Listener de estado de autenticação
+            this.auth.onAuthStateChanged((user) => {
+                this.handleAuthStateChange(user);
+            });
             
             this.isInitialized = true;
-            this.notifyListeners();
-        });
-    }
-
-    // Login com Google
-    async loginWithGoogle() {
-        try {
-            const result = await auth.signInWithPopup(googleProvider);
-            return { success: true, user: result.user };
+            console.log('🔐 AuthManager inicializado');
+            
         } catch (error) {
-            console.error('Erro no login:', error);
+            console.error('❌ Erro ao inicializar AuthManager:', error);
+        }
+    }
+    
+    // Handle auth state changes
+    handleAuthStateChange(user) {
+        const previousUser = this.currentUser;
+        this.currentUser = user;
+        
+        if (user) {
+            console.log('✅ Usuário autenticado:', user.displayName || user.email);
             
-            // Tratar erros específicos
-            let message = 'Erro ao fazer login. Tente novamente.';
+            // Salvar no localStorage
+            localStorage.setItem('googleUid', user.uid);
+            localStorage.setItem('userDisplayName', user.displayName || '');
+            localStorage.setItem('userEmail', user.email || '');
+            localStorage.setItem('userPhotoURL', user.photoURL || '');
             
-            switch (error.code) {
-                case 'auth/popup-closed-by-user':
-                    message = 'Login cancelado.';
-                    break;
-                case 'auth/popup-blocked':
-                    message = 'Popup bloqueado. Permita popups e tente novamente.';
-                    break;
-                case 'auth/network-request-failed':
-                    message = 'Erro de conexão. Verifique sua internet.';
-                    break;
-                case 'auth/cancelled-popup-request':
-                    message = 'Requisição cancelada.';
-                    break;
+            // Atualizar gameState se existir
+            if (typeof gameState !== 'undefined') {
+                gameState.user = user;
+                gameState.googleUid = user.uid;
+                gameState.isConnected = true;
             }
             
-            return { success: false, error: message };
+            // Sincronizar com backend (apenas se é novo login)
+            if (!previousUser) {
+                this.syncUserWithBackend(user);
+            }
+        } else {
+            console.log('👋 Usuário deslogado');
+            
+            // Limpar localStorage
+            localStorage.removeItem('googleUid');
+            localStorage.removeItem('userDisplayName');
+            localStorage.removeItem('userEmail');
+            localStorage.removeItem('userPhotoURL');
+            
+            // Limpar gameState
+            if (typeof gameState !== 'undefined') {
+                gameState.user = null;
+                gameState.googleUid = null;
+                gameState.isConnected = false;
+            }
         }
+        
+        // Disparar evento
+        this.dispatchAuthEvent(user);
     }
-
-    // Login com redirect (alternativa para mobile)
-    async loginWithRedirect() {
+    
+    // Sign in with Google - tenta popup, fallback para redirect
+    async signIn() {
+        if (!this.auth || !this.provider) {
+            await this.init();
+            if (!this.auth) {
+                throw new Error('Firebase não inicializado');
+            }
+        }
+        
         try {
-            await auth.signInWithRedirect(googleProvider);
+            // Tentar popup primeiro
+            console.log('🔐 Tentando login com popup...');
+            const result = await this.auth.signInWithPopup(this.provider);
+            return result.user;
+            
         } catch (error) {
-            console.error('Erro no redirect:', error);
-            return { success: false, error: 'Erro ao redirecionar para login.' };
+            console.warn('⚠️ Popup falhou:', error.code);
+            
+            // Se popup foi bloqueado ou fechado, tentar redirect
+            if (error.code === 'auth/popup-blocked' || 
+                error.code === 'auth/popup-closed-by-user' ||
+                error.code === 'auth/cancelled-popup-request') {
+                
+                console.log('🔄 Usando redirect como fallback...');
+                
+                // Salvar estado para recuperar após redirect
+                sessionStorage.setItem('authRedirectPending', 'true');
+                
+                // Usar redirect
+                await this.auth.signInWithRedirect(this.provider);
+                return null; // Página vai recarregar
+            }
+            
+            throw error;
         }
     }
-
-    // Processar login do usuário
-    async handleUserLogin(user) {
+    
+    // Verificar resultado de redirect (chamar no início da página)
+    async checkRedirectResult() {
+        if (!this.auth) return null;
+        
         try {
-            // Registrar/verificar usuário no backend
-            const response = await fetch('/api/auth-google.php', {
+            const result = await this.auth.getRedirectResult();
+            
+            if (result && result.user) {
+                console.log('✅ Login via redirect bem-sucedido');
+                sessionStorage.removeItem('authRedirectPending');
+                return result.user;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('❌ Erro no redirect result:', error);
+            sessionStorage.removeItem('authRedirectPending');
+            return null;
+        }
+    }
+    
+    // Sign out
+    async signOut() {
+        if (!this.auth) {
+            throw new Error('Auth não inicializado');
+        }
+        
+        try {
+            await this.auth.signOut();
+            this.currentUser = null;
+            return true;
+        } catch (error) {
+            console.error('❌ Erro ao fazer logout:', error);
+            throw error;
+        }
+    }
+    
+    // Get current user
+    getUser() {
+        return this.currentUser;
+    }
+    
+    // Check if logged in
+    isLoggedIn() {
+        return this.currentUser !== null;
+    }
+    
+    // Get user ID
+    getUserId() {
+        return this.currentUser?.uid || localStorage.getItem('googleUid') || null;
+    }
+    
+    // Sync user with backend
+    async syncUserWithBackend(user) {
+        if (!user) return;
+        
+        try {
+            const response = await fetch('api/auth-google.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -85,32 +206,30 @@ class AuthManager {
                     photo_url: user.photoURL
                 })
             });
-
-            const data = await response.json();
-
-            if (data.success) {
-                this.sessionToken = data.session_token;
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log('✅ Usuário sincronizado com backend');
                 
-                // Verificar código de referral na URL
-                this.checkReferralCode(user.uid);
-                
-                console.log('✅ Usuário autenticado:', user.displayName);
+                // Verificar referral
+                this.checkReferral(user.uid);
             } else {
-                console.error('Erro ao registrar no backend:', data.error);
+                console.warn('⚠️ Aviso do backend:', result.error);
             }
         } catch (error) {
-            console.error('Erro ao processar login:', error);
+            console.error('❌ Erro ao sincronizar com backend:', error);
         }
     }
-
-    // Verificar código de referral
-    async checkReferralCode(googleUid) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const refCode = urlParams.get('ref');
+    
+    // Check and apply referral code
+    async checkReferral(googleUid) {
+        const params = new URLSearchParams(window.location.search);
+        const refCode = params.get('ref');
         
         if (refCode) {
             try {
-                await fetch('/api/referral-register.php', {
+                const response = await fetch('api/apply-referral.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -119,147 +238,59 @@ class AuthManager {
                     })
                 });
                 
-                // Limpar URL
-                window.history.replaceState({}, document.title, window.location.pathname);
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('✅ Código de indicação aplicado:', refCode);
+                }
+                
+                // Limpar código da URL
+                window.history.replaceState({}, '', window.location.pathname);
             } catch (error) {
-                console.error('Erro ao registrar referral:', error);
+                console.error('Erro ao aplicar referral:', error);
             }
         }
     }
-
-    // Processar logout
-    handleUserLogout() {
-        this.sessionToken = null;
-        console.log('👋 Usuário deslogado');
-    }
-
-    // Logout
-    async logout() {
-        try {
-            // Notificar backend
-            if (this.currentUser) {
-                await fetch('/api/auth-google.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'logout',
-                        google_uid: this.currentUser.uid,
-                        session_token: this.sessionToken
-                    })
-                });
-            }
-            
-            await auth.signOut();
-            return { success: true };
-        } catch (error) {
-            console.error('Erro no logout:', error);
-            return { success: false, error: 'Erro ao fazer logout.' };
-        }
-    }
-
-    // Verificar se está logado
-    isLoggedIn() {
-        return this.currentUser !== null;
-    }
-
-    // Obter dados do usuário
-    getUserData() {
-        if (!this.currentUser) return null;
-        
-        return {
-            uid: this.currentUser.uid,
-            email: this.currentUser.email,
-            displayName: this.currentUser.displayName,
-            photoURL: this.currentUser.photoURL
-        };
-    }
-
-    // Obter UID do Google
-    getGoogleUid() {
-        return this.currentUser?.uid || null;
-    }
-
-    // Obter token de sessão
-    getSessionToken() {
-        return this.sessionToken;
-    }
-
-    // Adicionar listener para mudanças de auth
-    addListener(callback) {
-        this.listeners.push(callback);
-        
-        // Se já inicializado, chamar imediatamente
-        if (this.isInitialized) {
-            callback(this.currentUser);
-        }
-    }
-
-    // Remover listener
-    removeListener(callback) {
-        this.listeners = this.listeners.filter(l => l !== callback);
-    }
-
-    // Notificar listeners
-    notifyListeners() {
-        // Disparar evento customizado
+    
+    // Dispatch auth state changed event
+    dispatchAuthEvent(user) {
         const event = new CustomEvent('authStateChanged', {
-            detail: { user: this.currentUser }
+            detail: { user: user }
         });
         document.dispatchEvent(event);
         
-        // Chamar listeners registrados
-        this.listeners.forEach(callback => {
+        // Chamar callbacks registrados
+        this.onAuthStateChangedCallbacks.forEach(callback => {
             try {
-                callback(this.currentUser);
-            } catch (error) {
-                console.error('Erro em listener de auth:', error);
+                callback(user);
+            } catch (e) {
+                console.error('Erro em callback de auth:', e);
             }
         });
     }
-
-    // Verificar sessão válida no backend
-    async verifySession() {
-        if (!this.currentUser || !this.sessionToken) {
-            return false;
-        }
-
-        try {
-            const response = await fetch('/api/auth-google.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'check_session',
-                    google_uid: this.currentUser.uid,
-                    session_token: this.sessionToken
-                })
-            });
-
-            const data = await response.json();
-            return data.success && data.valid;
-        } catch (error) {
-            console.error('Erro ao verificar sessão:', error);
-            return false;
+    
+    // Register auth state change callback
+    onAuthStateChanged(callback) {
+        if (typeof callback === 'function') {
+            this.onAuthStateChangedCallbacks.push(callback);
+            
+            // Chamar imediatamente com estado atual
+            if (this.currentUser !== undefined) {
+                callback(this.currentUser);
+            }
         }
     }
-
-    // Obter perfil completo do backend
-    async getProfile() {
-        if (!this.currentUser) return null;
-
+    
+    // Get ID token for API calls
+    async getIdToken() {
+        if (!this.currentUser) {
+            return null;
+        }
+        
         try {
-            const response = await fetch('/api/auth-google.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'profile',
-                    google_uid: this.currentUser.uid
-                })
-            });
-
-            const data = await response.json();
-            return data.success ? data.player : null;
+            return await this.currentUser.getIdToken();
         } catch (error) {
-            console.error('Erro ao obter perfil:', error);
+            console.error('Erro ao obter ID token:', error);
             return null;
         }
     }
@@ -268,4 +299,13 @@ class AuthManager {
 // Criar instância global
 window.authManager = new AuthManager();
 
-console.log('🔐 AuthManager inicializado');
+// Verificar redirect result ao carregar
+document.addEventListener('DOMContentLoaded', async () => {
+    if (sessionStorage.getItem('authRedirectPending') === 'true') {
+        console.log('🔄 Verificando resultado de redirect...');
+        await window.authManager.checkRedirectResult();
+    }
+});
+
+// Alias para compatibilidade
+window.AuthManager = AuthManager;
