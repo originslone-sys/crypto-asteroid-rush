@@ -382,50 +382,69 @@ if (!function_exists('getPlayerByIdentifier')) {
 }
 
 /**
- * Cria ou atualiza jogador
+ * Cria ou atualiza jogador (VERSÃO CORRIGIDA - SEM WALLET TEMPORÁRIA)
  */
 function getOrCreatePlayer($pdo, $input) {
+    error_log("DEBUG getOrCreatePlayer: " . json_encode($input));
     $googleUid = isset($input['google_uid']) ? trim($input['google_uid']) : '';
     $email = isset($input['email']) ? trim($input['email']) : '';
     $displayName = isset($input['display_name']) ? trim($input['display_name']) : '';
     $photoUrl = isset($input['photo_url']) ? trim($input['photo_url']) : '';
     $wallet = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
 
-    // Primeiro, buscar por google_uid
+    // Google UID tem prioridade
     if (!empty($googleUid) && validateGoogleUid($googleUid)) {
-        $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
-        $stmt->execute([$googleUid]);
-        $player = $stmt->fetch();
+        error_log("DEBUG: Processando Google UID: $googleUid");
+        
+        try {
+            // Buscar por Google UID
+            $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
+            $stmt->execute([$googleUid]);
+            $player = $stmt->fetch();
 
-        if ($player) {
-            // Atualizar informações se necessário
+            if ($player) {
+                // Atualizar informações
+                $updateStmt = $pdo->prepare("
+                    UPDATE players SET 
+                        email = COALESCE(NULLIF(?, ''), email),
+                        display_name = COALESCE(NULLIF(?, ''), display_name),
+                        photo_url = COALESCE(NULLIF(?, ''), photo_url),
+                        updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $updateStmt->execute([$email, $displayName, $photoUrl, $player['id']]);
+                
+                return findPlayer($pdo, $input);
+            }
+
+            // Criar novo jogador (wallet_address pode ser NULL)
             $stmt = $pdo->prepare("
-                UPDATE players SET 
-                    email = COALESCE(NULLIF(?, ''), email),
-                    display_name = COALESCE(NULLIF(?, ''), display_name),
-                    photo_url = COALESCE(NULLIF(?, ''), photo_url)
-                WHERE google_uid = ?
+                INSERT INTO players (
+                    google_uid, 
+                    email, 
+                    display_name, 
+                    photo_url, 
+                    wallet_address,
+                    balance_brl, 
+                    total_played,
+                    created_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, NULL, 0, 0, NOW(), NOW())
             ");
-            $stmt->execute([$email, $displayName, $photoUrl, $googleUid]);
-
+            
+            $stmt->execute([$googleUid, $email, $displayName, $photoUrl]);
             return findPlayer($pdo, $input);
+            
+        } catch (PDOException $e) {
+            error_log("ERROR getOrCreatePlayer: " . $e->getMessage());
+            throw $e;
         }
-
-        // Criar novo jogador com Google UID
-        // Gerar wallet temporária para compatibilidade
-        $tempWallet = '0x' . substr(hash('sha256', $googleUid . time()), 0, 40);
-
-        $stmt = $pdo->prepare("
-            INSERT INTO players (google_uid, email, display_name, photo_url, wallet_address, balance_brl, total_played)
-            VALUES (?, ?, ?, ?, ?, 0, 0)
-        ");
-        $stmt->execute([$googleUid, $email, $displayName, $photoUrl, $tempWallet]);
-
-        return findPlayer($pdo, $input);
     }
 
-    // Fallback: buscar por wallet (compatibilidade com sistema antigo)
-    if (!empty($wallet) && validateWallet($wallet)) {
+    // Fallback para wallet (sistema antigo) - APENAS se não tiver Google UID
+    if (empty($googleUid) && !empty($wallet) && validateWallet($wallet)) {
+        error_log("DEBUG: Processando wallet (legacy): $wallet");
+        
         $stmt = $pdo->prepare("SELECT * FROM players WHERE wallet_address = ? LIMIT 1");
         $stmt->execute([$wallet]);
         $player = $stmt->fetch();
@@ -441,6 +460,7 @@ function getOrCreatePlayer($pdo, $input) {
         return findPlayer($pdo, $input);
     }
 
+    error_log("ERROR getOrCreatePlayer: Nenhum identificador válido fornecido");
     return null;
 }
 
