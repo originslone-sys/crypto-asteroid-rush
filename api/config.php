@@ -203,6 +203,36 @@ function generateSessionToken($identifier, $sessionId) {
     $data = $identifier . '|' . $sessionId . '|' . time() . '|' . GAME_SECRET_KEY;
     return hash('sha256', $data);
 }
+/**
+ * Lê input da request (JSON + POST + GET) de forma compatível
+ */
+function getRequestInput() {
+    $input = [];
+
+    // JSON body
+    $raw = file_get_contents('php://input');
+    if ($raw !== false && $raw !== '') {
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            $input = $decoded;
+        }
+    }
+
+    // Merge POST e GET (sem sobrescrever JSON quando já existe)
+    if (!empty($_POST) && is_array($_POST)) {
+        foreach ($_POST as $k => $v) {
+            if (!array_key_exists($k, $input)) $input[$k] = $v;
+        }
+    }
+    if (!empty($_GET) && is_array($_GET)) {
+        foreach ($_GET as $k => $v) {
+            if (!array_key_exists($k, $input)) $input[$k] = $v;
+        }
+    }
+
+    return $input;
+}
+
 
 /**
  * Obtém IP real do cliente
