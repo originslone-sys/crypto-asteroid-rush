@@ -5,12 +5,12 @@
 
 // Configuração do Firebase (substituir pelos valores reais)
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "unobix-app.firebaseapp.com",
-    projectId: "unobix-app",
-    storageBucket: "unobix-app.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U",
+  authDomain: "unobix-oauth-a69cd.firebaseapp.com",
+  projectId: "unobix-oauth-a69cd",
+  storageBucket: "unobix-oauth-a69cd.firebasestorage.app",
+  messagingSenderId: "1067767347117",
+  appId: "1:1067767347117:web:26e1193bdef8e264409324"
 };
 
 // Inicializar Firebase
