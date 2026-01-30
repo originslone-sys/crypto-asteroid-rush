@@ -1,7 +1,8 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Main Entry Point v3.0
+   UNOBIX - Main Entry Point v4.1
    File: js/game-main.js
-   Improved controls for desktop and mobile
+   Google Auth, Portuguese, Free-to-Play
+   Fix: Removidas referências a MetaMask
    ============================================ */
 
 // Keyboard controls
@@ -46,7 +47,7 @@ function handleKeyUp(e) {
     }
 }
 
-// Touch controls - continuous movement
+// Touch controls
 let touchIntervals = {
     left: null,
     right: null
@@ -59,19 +60,16 @@ function startTouchMove(direction) {
     const minX = 50;
     const maxX = canvas.width - 50;
     
-    // Clear existing interval
     if (touchIntervals[direction]) {
         clearInterval(touchIntervals[direction]);
     }
     
-    // Move immediately
     if (direction === 'left') {
         gameState.ship.x = Math.max(minX, gameState.ship.x - speed);
     } else if (direction === 'right') {
         gameState.ship.x = Math.min(maxX, gameState.ship.x + speed);
     }
     
-    // Continue moving while held
     touchIntervals[direction] = setInterval(() => {
         if (!gameState.gameActive || !gameState.ship) {
             clearInterval(touchIntervals[direction]);
@@ -93,17 +91,15 @@ function stopTouchMove(direction) {
     }
 }
 
-// Setup mobile control buttons
 function setupMobileControls() {
     const leftBtn = document.getElementById('leftBtn');
     const rightBtn = document.getElementById('rightBtn');
     const fireBtn = document.getElementById('fireBtn');
     
     if (leftBtn) {
-        // Touch events
         leftBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            unlockAudio();
+            if (typeof unlockAudio === 'function') unlockAudio();
             startTouchMove('left');
         }, { passive: false });
         
@@ -114,7 +110,6 @@ function setupMobileControls() {
         
         leftBtn.addEventListener('touchcancel', () => stopTouchMove('left'));
         
-        // Mouse events (for desktop testing)
         leftBtn.addEventListener('mousedown', (e) => {
             e.preventDefault();
             startTouchMove('left');
@@ -127,7 +122,7 @@ function setupMobileControls() {
     if (rightBtn) {
         rightBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            unlockAudio();
+            if (typeof unlockAudio === 'function') unlockAudio();
             startTouchMove('right');
         }, { passive: false });
         
@@ -151,11 +146,11 @@ function setupMobileControls() {
         let fireInterval = null;
         
         const startFiring = () => {
-            unlockAudio();
-            fireBullet();
+            if (typeof unlockAudio === 'function') unlockAudio();
+            if (typeof fireBullet === 'function') fireBullet();
             
             fireInterval = setInterval(() => {
-                if (gameState.gameActive) {
+                if (gameState.gameActive && typeof fireBullet === 'function') {
                     fireBullet();
                 } else {
                     clearInterval(fireInterval);
@@ -192,13 +187,79 @@ function setupMobileControls() {
     }
 }
 
+// Start game session (Google Auth - no payment needed)
+async function startGameSession() {
+    const user = window.authManager?.currentUser;
+    const googleUid = user?.uid || gameState.googleUid;
+    
+    if (!googleUid) {
+        await gameAlert('Você precisa estar logado!', 'error', 'ERRO');
+        showModal('connectModal');
+        return;
+    }
+    
+    const startBtn = document.getElementById('startGameBtn');
+    if (!startBtn) return;
+    
+    const originalText = startBtn.innerHTML;
+    startBtn.disabled = true;
+    startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Preparando...</span>';
+    
+    try {
+        // Show pre-game loading (with ads)
+        if (typeof showPreGameLoading === 'function') {
+            showPreGameLoading(true);
+        } else {
+            // Fallback: iniciar jogo diretamente
+            if (typeof startGameWithLoading === 'function') {
+                startGameWithLoading();
+            }
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro:', error);
+        startBtn.disabled = false;
+        startBtn.innerHTML = originalText;
+        await gameAlert(error.message || 'Erro ao iniciar missão', 'error', 'ERRO');
+    }
+}
+
+// Update user UI
+function updateUserUI(user) {
+    const userPhoto = document.getElementById('userPhoto');
+    const userName = document.getElementById('userName');
+    const userInfo = document.getElementById('connectedUserInfo');
+    
+    if (user) {
+        if (userPhoto) {
+            userPhoto.src = user.photoURL || '';
+            userPhoto.style.display = user.photoURL ? 'block' : 'none';
+        }
+        if (userName) {
+            userName.textContent = user.displayName || user.email?.split('@')[0] || 'Comandante';
+        }
+        if (userInfo) {
+            userInfo.style.display = 'flex';
+        }
+    } else {
+        if (userInfo) {
+            userInfo.style.display = 'none';
+        }
+    }
+}
+
 // Main initialization
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🎮 Crypto Asteroid Rush v3.0 - Initializing...');
+    console.log('🎮 Unobix v4.1 - Inicializando...');
     
     // Initialize UI elements
-    initUIElements();
-    initCanvas();
+    if (typeof initUIElements === 'function') {
+        initUIElements();
+    }
+    
+    if (typeof initCanvas === 'function') {
+        initCanvas();
+    }
     
     // Load audio preference
     const savedAudio = localStorage.getItem('audioEnabled');
@@ -210,140 +271,219 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Main button event listeners
-    document.getElementById('connectBtn')?.addEventListener('click', connectWallet);
-    document.getElementById('audioToggle')?.addEventListener('click', toggleAudio);
+    // Connect button (Google Auth)
+    const connectBtn = document.getElementById('connectBtn');
+    if (connectBtn) {
+        connectBtn.addEventListener('click', async () => {
+            if (typeof unlockAudio === 'function') unlockAudio();
+            
+            if (window.authManager) {
+                try {
+                    if (typeof showLoading === 'function') showLoading(true);
+                    
+                    const user = await window.authManager.signIn();
+                    
+                    if (user) {
+                        gameState.user = user;
+                        gameState.googleUid = user.uid;
+                        gameState.isConnected = true;
+                        
+                        updateUserUI(user);
+                        showModal('gameMenuModal');
+                        
+                        if (typeof showNotification === 'function') {
+                            showNotification('CONECTADO', 'Bem-vindo, ' + (user.displayName || 'Comandante') + '!');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erro no login:', error);
+                    if (typeof gameAlert === 'function') {
+                        await gameAlert('Erro ao fazer login: ' + error.message, 'error', 'ERRO');
+                    }
+                } finally {
+                    if (typeof showLoading === 'function') showLoading(false);
+                }
+            } else {
+                console.error('AuthManager não disponível');
+            }
+        });
+    }
+    
+    // Audio toggle
+    const audioToggle = document.getElementById('audioToggle');
+    if (audioToggle && typeof toggleAudio === 'function') {
+        audioToggle.addEventListener('click', toggleAudio);
+    }
     
     // Add ship selection UI
-    addShipSelectionUI();
+    if (typeof addShipSelectionUI === 'function') {
+        addShipSelectionUI();
+    }
     
     // Start game button
-    document.getElementById('startGameBtn')?.addEventListener('click', async function() {
-        console.log('🎯 "Start Mission" button clicked');
-        unlockAudio();
-        
-        if (typeof window.ethereum === 'undefined') {
-            await gameAlert('MetaMask not found! Please install the app.', 'error', 'ERROR');
-            return;
-        }
-        
-        // Check if ship selected
-        if (!gameState.selectedShipDesign) {
-            const useRandom = await gameConfirm(
-                'You haven\'t selected a ship for this mission.\nWould you like to use a random ship?',
-                'NO SHIP SELECTED'
-            );
+    const startGameBtn = document.getElementById('startGameBtn');
+    if (startGameBtn) {
+        startGameBtn.addEventListener('click', async function() {
+            console.log('🎯 Botão "Iniciar Missão" clicado');
+            if (typeof unlockAudio === 'function') unlockAudio();
             
-            if (!useRandom) {
-                showNotification('NOTICE', 'Please select a ship first!', true);
+            // Check if user is logged in
+            if (!gameState.user && !gameState.googleUid) {
+                await gameAlert('Você precisa fazer login primeiro!', 'warning', 'LOGIN NECESSÁRIO');
+                showModal('connectModal');
                 return;
             }
-        }
-        
-        await startGameSession();
-    });
+            
+            // Check if ship selected
+            if (!gameState.selectedShipDesign) {
+                const useRandom = await gameConfirm(
+                    'Você não selecionou uma nave.\nDeseja usar uma nave aleatória?',
+                    'NENHUMA NAVE SELECIONADA'
+                );
+                
+                if (!useRandom) {
+                    if (typeof showNotification === 'function') {
+                        showNotification('AVISO', 'Selecione uma nave primeiro!', true);
+                    }
+                    return;
+                }
+            }
+            
+            await startGameSession();
+        });
+    }
     
     // Play again button
-    document.getElementById('playAgainBtn')?.addEventListener('click', () => {
-        unlockAudio();
-        showModal('gameMenuModal');
-        addShipSelectionUI();
-    });
+    const playAgainBtn = document.getElementById('playAgainBtn');
+    if (playAgainBtn) {
+        playAgainBtn.addEventListener('click', () => {
+            if (typeof unlockAudio === 'function') unlockAudio();
+            showModal('gameMenuModal');
+            if (typeof addShipSelectionUI === 'function') addShipSelectionUI();
+        });
+    }
     
     // Retry button (game over)
-    document.getElementById('retryBtn')?.addEventListener('click', () => {
-        unlockAudio();
-        showModal('gameMenuModal');
-        addShipSelectionUI();
-    });
+    const retryBtn = document.getElementById('retryBtn');
+    if (retryBtn) {
+        retryBtn.addEventListener('click', () => {
+            if (typeof unlockAudio === 'function') unlockAudio();
+            showModal('gameMenuModal');
+            if (typeof addShipSelectionUI === 'function') addShipSelectionUI();
+        });
+    }
     
-    // Exit button (game over)
-    document.getElementById('exitBtn')?.addEventListener('click', () => {
-        window.location.href = 'index.html';
-    });
+    // Exit button
+    const exitBtn = document.getElementById('exitBtn');
+    if (exitBtn) {
+        exitBtn.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+    }
     
     // Wallet button
-    document.getElementById('walletBtn')?.addEventListener('click', () => {
-        window.location.href = 'wallet.html';
-    });
+    const walletBtn = document.getElementById('walletBtn');
+    if (walletBtn) {
+        walletBtn.addEventListener('click', () => {
+            window.location.href = 'wallet.html';
+        });
+    }
+    
+    // Claim reward button (end game modal)
+    const claimRewardBtn = document.getElementById('claimRewardBtn');
+    if (claimRewardBtn) {
+        claimRewardBtn.addEventListener('click', async () => {
+            const btn = claimRewardBtn;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+            
+            // Show success after brief delay
+            setTimeout(() => {
+                btn.style.display = 'none';
+                const playAgain = document.getElementById('playAgainBtn');
+                const wallet = document.getElementById('walletBtn');
+                if (playAgain) playAgain.style.display = 'inline-flex';
+                if (wallet) wallet.style.display = 'inline-flex';
+                
+                if (typeof showNotification === 'function') {
+                    showNotification('✅ RESGATADO', 'Ganhos adicionados ao saldo!');
+                }
+            }, 1500);
+        });
+    }
     
     // Keyboard controls
     window.addEventListener('keydown', (e) => {
-        unlockAudio();
+        if (typeof unlockAudio === 'function') unlockAudio();
         handleKeyDown(e);
     });
     
     window.addEventListener('keyup', handleKeyUp);
     
     // Canvas click to fire
-    canvas?.addEventListener('click', () => {
-        unlockAudio();
-        if (gameState.gameActive) fireBullet();
-    });
+    const gameCanvas = document.getElementById('gameCanvas');
+    if (gameCanvas) {
+        gameCanvas.addEventListener('click', () => {
+            if (typeof unlockAudio === 'function') unlockAudio();
+            if (gameState.gameActive && typeof fireBullet === 'function') {
+                fireBullet();
+            }
+        });
+    }
     
     // Setup mobile controls
     setupMobileControls();
     
-    // Check for saved wallet
-    if (gameState.wallet) {
-        gameState.isConnected = true;
-        updateWalletUI(gameState.wallet);
+    // Listen for auth state changes
+    document.addEventListener('authStateChanged', (e) => {
+        const user = e.detail.user;
         
-        // Check if coming from loading page (auto-start game)
-        const params = new URLSearchParams(window.location.search);
-        const shouldStart = params.get('start') === 'true';
-        const loadingComplete = sessionStorage.getItem('loadingComplete') === 'true';
-        
-        if (shouldStart && loadingComplete) {
-            // Clear the flag
-            sessionStorage.removeItem('loadingComplete');
-            // Remove URL params
-            window.history.replaceState({}, '', 'game.html');
-            // Start game directly
-            console.log('🎮 Auto-starting game after loading screen');
-            setTimeout(() => {
-                startGameWithLoading();
-            }, 500);
-        } else {
-            showModal('gameMenuModal');
-        }
-    }
-    
-    // MetaMask listeners
-    if (window.ethereum) {
-        window.ethereum.on('accountsChanged', (accounts) => {
-            if (accounts.length === 0) {
-                gameState.isConnected = false;
-                gameState.wallet = null;
-                localStorage.removeItem('connectedWallet');
-                showNotification('DISCONNECTED', 'Wallet disconnected', true);
-                showModal('connectModal');
+        if (user) {
+            gameState.user = user;
+            gameState.googleUid = user.uid;
+            gameState.isConnected = true;
+            
+            updateUserUI(user);
+            
+            // Check if should auto-start
+            const params = new URLSearchParams(window.location.search);
+            const shouldStart = params.get('start') === 'true';
+            const loadingComplete = sessionStorage.getItem('loadingComplete') === 'true';
+            
+            if (shouldStart && loadingComplete) {
+                sessionStorage.removeItem('loadingComplete');
+                window.history.replaceState({}, '', 'game.html');
+                console.log('🎮 Auto-starting game');
+                setTimeout(() => {
+                    if (typeof startGameWithLoading === 'function') {
+                        startGameWithLoading();
+                    }
+                }, 500);
             } else {
-                gameState.wallet = accounts[0].toLowerCase();
-                localStorage.setItem('connectedWallet', gameState.wallet);
-                updateWalletUI(gameState.wallet);
-                showNotification('CONNECTED', 'Wallet changed successfully');
+                showModal('gameMenuModal');
             }
-        });
-        
-        window.ethereum.on('chainChanged', () => {
-            window.location.reload();
-        });
-    }
+        } else {
+            // Not logged in, show connect modal
+            showModal('connectModal');
+        }
+    });
     
     // Unlock audio on any interaction
     const unlockOnInteraction = () => {
-        if (!isAudioUnlocked) unlockAudio();
+        if (typeof unlockAudio === 'function' && typeof isAudioUnlocked !== 'undefined' && !isAudioUnlocked) {
+            unlockAudio();
+        }
     };
     
     document.addEventListener('click', unlockOnInteraction);
     document.addEventListener('touchstart', unlockOnInteraction);
-    document.addEventListener('keydown', unlockOnInteraction);
     
     // Remove loading screen
     setTimeout(() => {
-        showLoading(false);
-        console.log('✅ Game initialized successfully');
+        if (typeof showLoading === 'function') {
+            showLoading(false);
+        }
+        console.log('✅ Jogo inicializado com sucesso');
     }, 1500);
 });
 
@@ -354,12 +494,17 @@ document.addEventListener('contextmenu', (e) => {
     }
 });
 
-// Handle visibility change (pause when tab hidden)
+// Handle visibility change
 document.addEventListener('visibilitychange', () => {
     if (document.hidden && gameState.gameActive) {
-        // Could pause game here if needed
         gameState.keys = { left: false, right: false, fire: false };
         stopTouchMove('left');
         stopTouchMove('right');
     }
 });
+
+// Export functions
+window.startGameSession = startGameSession;
+window.updateUserUI = updateUserUI;
+window.handleKeyDown = handleKeyDown;
+window.handleKeyUp = handleKeyUp;
