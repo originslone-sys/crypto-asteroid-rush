@@ -2,116 +2,118 @@
 // ============================================
 // UNOBIX - Configuração Principal
 // Arquivo: api/config.php
-// v4.0 - Google Auth + BRL + Novos Sistemas
+// v2.0 - Google Auth + BRL + hCaptcha
 // ============================================
 
 // ============================================
-// CONFIGURAÇÕES DO BANCO DE DADOS
-// Railway usa variáveis de ambiente
-// cPanel usa valores hardcoded como fallback
+// CONFIGURAÇÕES DE BANCO DE DADOS (Railway)
 // ============================================
-
-if (getenv('MYSQLHOST') || getenv('DB_HOST')) {
-    // Railway environment
-    define('DB_HOST', getenv('MYSQLHOST') ?: getenv('DB_HOST'));
-    define('DB_NAME', getenv('MYSQLDATABASE') ?: getenv('DB_NAME'));
-    define('DB_USER', getenv('MYSQLUSER') ?: getenv('DB_USER'));
-    define('DB_PASS', getenv('MYSQLPASSWORD') ?: getenv('DB_PASS'));
-    define('DB_PORT', getenv('MYSQLPORT') ?: '3306');
-} else {
-    // cPanel fallback - ALTERE PARA SEUS DADOS
-    define('DB_HOST', 'localhost');
-    define('DB_NAME', 'seu_banco');
-    define('DB_USER', 'seu_usuario');
-    define('DB_PASS', 'sua_senha');
-    define('DB_PORT', '3306');
-}
+define('DB_HOST', getenv('MYSQLHOST') ?: 'mysql.railway.internal');
+define('DB_NAME', getenv('MYSQLDATABASE') ?: 'railway');
+define('DB_USER', getenv('MYSQLUSER') ?: 'root');
+define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'AiaWPNyMBtRFnUWtFjJtkMVtNzDnflta');
+define('DB_PORT', getenv('MYSQLPORT') ?: 3306);
 
 // ============================================
-// CONFIGURAÇÕES FIREBASE (Google Auth)
+// CONFIGURAÇÕES DE SEGURANÇA
 // ============================================
-define('FIREBASE_PROJECT_ID', getenv('FIREBASE_PROJECT_ID') ?: '
-unobix-oauth-a69cd');
+define('GAME_SECRET_KEY', getenv('GAME_SECRET_KEY') ?: 'UNOBIX_2026_S3CR3T_K3Y_X9Z2M4');
+define('ADMIN_PASSWORD', getenv('ADMIN_PASSWORD') ?: 'admin_muito_seguro_2026');
+
+// ============================================
+// FIREBASE / GOOGLE AUTH
+// ============================================
+define('FIREBASE_PROJECT_ID', getenv('FIREBASE_PROJECT_ID') ?: 'unobix-oauth-a69cd');
 define('FIREBASE_API_KEY', getenv('FIREBASE_API_KEY') ?: 'AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U');
 
 // ============================================
-// CONFIGURAÇÕES DE SEGURANÇA DO JOGO
+// hCAPTCHA
 // ============================================
-define('GAME_SECRET_KEY', getenv('GAME_SECRET_KEY') ?: 'UNOBIX_2026_S3CR3T_K3Y_X9Z2M4');
-define('GAME_DURATION', 180); // Duração do jogo em segundos
-define('GAME_TOLERANCE', 15); // Tolerância em segundos (para lag de rede)
-define('MAX_ASTEROIDS_PER_SECOND', 3); // Máximo de asteroides destruídos por segundo
-
-// ============================================
-// CONFIGURAÇÕES DE STAKE (5% APY)
-// ============================================
-define('STAKE_APY', 0.05); // 5% ao ano
-define('MIN_STAKE_AMOUNT_BRL', 0.01); // Mínimo R$ 0,01
-define('MAX_STAKE_AMOUNT_BRL', 10000.00); // Máximo R$ 10.000
-
-// ============================================
-// RECOMPENSAS EM BRL
-// COMUM = R$ 0 (asteroides comuns não valem nada)
-// ============================================
-define('REWARD_NONE', 0);
-define('REWARD_COMMON_BRL', 0);       // R$ 0,00 - Sem valor!
-define('REWARD_RARE_BRL', 0.001);     // R$ 0,001
-define('REWARD_EPIC_BRL', 0.005);     // R$ 0,005
-define('REWARD_LEGENDARY_BRL', 0.02); // R$ 0,02
-
-// ============================================
-// HARD MODE (40% das missões) - SECRETO
-// Não expor no frontend!
-// ============================================
-define('HARD_MODE_PERCENTAGE', 40); // 40% das missões serão hard
-define('HARD_MODE_SPEED_MULTIPLIER', 1.4);
-define('HARD_MODE_SPAWN_MULTIPLIER', 0.7);
-
-// ============================================
-// SPAWN RATES - SECRETO
-// Não expor no frontend!
-// ============================================
-define('SPAWN_RATE_COMMON', 0.95);    // 95%
-define('SPAWN_RATE_RARE', 0.03);      // 3%
-define('SPAWN_RATE_EPIC', 0.015);     // 1.5%
-define('SPAWN_RATE_LEGENDARY', 0.005); // 0.5%
-
-// ============================================
-// CONFIGURAÇÕES DE SAQUE
-// ============================================
-define('MIN_WITHDRAW_BRL', 1.00);     // Mínimo R$ 1,00
-define('MAX_WITHDRAW_BRL', 10000.00); // Máximo R$ 10.000
-define('WITHDRAW_WEEKLY_LIMIT', 1);   // 1 saque por semana
-define('WITHDRAW_PROCESSING_START', 20); // Dia 20
-define('WITHDRAW_PROCESSING_END', 25);   // Dia 25
-
-// ============================================
-// LIMITES DE IP (Anti-abuse)
-// ============================================
-define('MAX_MISSIONS_PER_HOUR', 5);    // Máximo 5 missões por hora por IP
-define('MAX_CONCURRENT_MISSIONS', 1);  // Apenas 1 missão simultânea por IP
-
-// ============================================
-// CAPTCHA (hCaptcha)
-// ============================================
-define('HCAPTCHA_SITE_KEY', getenv('HCAPTCHA_SITE_KEY') ?: '6bc4cc76-b924-4d92-9c76-0648a9000436');
-define('HCAPTCHA_SECRET_KEY', getenv('HCAPTCHA_SECRET_KEY') ?: 'ES_6d5ff3999fb84de99004187ea2f74512');
+define('HCAPTCHA_SITE_KEY', getenv('HCAPTCHA_SITE_KEY') ?: '');
+define('HCAPTCHA_SECRET_KEY', getenv('HCAPTCHA_SECRET_KEY') ?: '');
+define('CAPTCHA_ENABLED', true);
 define('CAPTCHA_REQUIRED_ON_VICTORY', true);
 define('CAPTCHA_REQUIRED_ON_GAMEOVER', false);
 
 // ============================================
-// THRESHOLDS DE SEGURANÇA (Anti-fraude)
+// CONFIGURAÇÕES DO JOGO
 // ============================================
-define('EARNINGS_ALERT_BRL', 0.30);   // Alerta se ganhar mais que R$ 0,30
-define('EARNINGS_SUSPECT_BRL', 0.50); // Suspeito se ganhar mais que R$ 0,50
-define('EARNINGS_BLOCK_BRL', 1.00);   // Bloqueia se ganhar mais que R$ 1,00
+define('GAME_DURATION', 180);           // 3 minutos
+define('GAME_TOLERANCE', 300);          // 5 minutos de tolerância
+define('INITIAL_LIVES', 6);
+define('MAX_MISSIONS_PER_HOUR', 5);
+define('MAX_CONCURRENT_MISSIONS', 1);
+define('COOLDOWN_MINUTES', 3);
 
 // ============================================
-// FUNÇÕES UTILITÁRIAS
+// HARD MODE (40% das missões) - SECRETO!
+// ============================================
+define('HARD_MODE_PERCENTAGE', 40);
+define('HARD_MODE_SPEED_MULTIPLIER', 1.4);
+define('HARD_MODE_SPAWN_MULTIPLIER', 0.7);
+
+// ============================================
+// VALORES DE RECOMPENSA (BRL) - SECRETO!
+// ============================================
+define('REWARD_NONE', 0);
+define('REWARD_COMMON', 0);             // R$ 0,00
+define('REWARD_RARE', 0.001);           // R$ 0,001
+define('REWARD_EPIC', 0.005);           // R$ 0,005
+define('REWARD_LEGENDARY', 0.02);       // R$ 0,02
+
+// Mapeamento de recompensas (usado internamente)
+define('ASTEROID_REWARDS_BRL', [
+    'none' => 0,
+    'common' => 0,
+    'rare' => 0.001,
+    'epic' => 0.005,
+    'legendary' => 0.02
+]);
+
+// ============================================
+// SPAWN RATES - SECRETO! (nunca expor)
+// ============================================
+define('SPAWN_RATE_COMMON', 0.95);      // 95%
+define('SPAWN_RATE_RARE', 0.03);        // 3%
+define('SPAWN_RATE_EPIC', 0.015);       // 1.5%
+define('SPAWN_RATE_LEGENDARY', 0.005);  // 0.5%
+
+// ============================================
+// STAKING (5% APY)
+// ============================================
+define('STAKE_APY', 0.05);              // 5% ao ano
+define('MIN_STAKE_BRL', 0.01);
+define('MAX_STAKE_BRL', 10000.00);
+
+// ============================================
+// SAQUES
+// ============================================
+define('MIN_WITHDRAW_BRL', 1.00);
+define('MAX_WITHDRAW_BRL', 10000.00);
+define('WEEKLY_WITHDRAW_LIMIT', 1);
+define('PROCESSING_START_DAY', 20);
+define('PROCESSING_END_DAY', 25);
+
+// Métodos de saque disponíveis
+define('WITHDRAW_METHODS', ['pix', 'paypal', 'usdt_bep20']);
+
+// ============================================
+// SEGURANÇA / ANTI-FRAUDE
+// ============================================
+define('EARNINGS_ALERT_BRL', 0.30);     // Alerta se > R$ 0.30 por missão
+define('EARNINGS_BLOCK_BRL', 1.00);     // Bloquear se > R$ 1.00 por missão
+define('EARNINGS_SUSPECT_BRL', 0.50);   // Suspeito se > R$ 0.50 por missão
+define('AUTO_BAN_AFTER_ALERTS', 5);
+
+// Rate limit de eventos por segundo
+define('MAX_EVENTS_PER_SECOND', 10);
+
+// ============================================
+// FUNÇÕES AUXILIARES
 // ============================================
 
 /**
- * Conexão com o banco de dados
+ * Obtém conexão com o banco de dados
  */
 function getDatabaseConnection() {
     static $pdo = null;
@@ -124,10 +126,8 @@ function getDatabaseConnection() {
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false
             ]);
-            // Timezone Brasil
-            $pdo->exec("SET time_zone = '-03:00'");
-        } catch(PDOException $e) {
-            error_log("Database connection failed: " . $e->getMessage());
+        } catch (PDOException $e) {
+            error_log("Erro de conexão DB: " . $e->getMessage());
             return null;
         }
     }
@@ -136,22 +136,47 @@ function getDatabaseConnection() {
 }
 
 /**
- * Validar endereço de carteira (legacy - manter para compatibilidade)
+ * Valida wallet Ethereum (para compatibilidade)
  */
 function validateWallet($wallet) {
     return preg_match('/^0x[a-fA-F0-9]{40}$/', $wallet);
 }
 
 /**
- * Validar Google UID
+ * Valida Google UID
+ * Firebase UIDs podem ter entre 20-128 caracteres alfanuméricos
  */
+function validateGoogleUid($uid) {
+    if (empty($uid)) return false;
+    // Google/Firebase UIDs são strings alfanuméricas, geralmente 28 chars mas podem variar
+    return preg_match('/^[a-zA-Z0-9_-]{10,128}$/', $uid);
+}
+
+// Alias para compatibilidade (algumas partes usam UID maiúsculo)
 function validateGoogleUID($uid) {
-    // Google UID é uma string de 28 caracteres alfanuméricos
-    return preg_match('/^[a-zA-Z0-9_-]{20,128}$/', $uid);
+    return validateGoogleUid($uid);
 }
 
 /**
- * Gerar token de sessão seguro
+ * Obtém identificador do usuário (google_uid ou wallet)
+ */
+function getUserIdentifier($input) {
+    $googleUid = isset($input['google_uid']) ? trim($input['google_uid']) : '';
+    $wallet = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
+    
+    if (!empty($googleUid) && validateGoogleUid($googleUid)) {
+        return ['type' => 'google_uid', 'value' => $googleUid];
+    }
+    
+    if (!empty($wallet) && validateWallet($wallet)) {
+        return ['type' => 'wallet', 'value' => $wallet];
+    }
+    
+    return null;
+}
+
+/**
+ * Gera token de sessão seguro
  */
 function generateSessionToken($identifier, $sessionId) {
     $data = $identifier . '|' . $sessionId . '|' . time() . '|' . GAME_SECRET_KEY;
@@ -159,174 +184,214 @@ function generateSessionToken($identifier, $sessionId) {
 }
 
 /**
- * Validar token de sessão
- */
-function validateSessionToken($token, $identifier, $sessionId, $createdAt) {
-    $data = $identifier . '|' . $sessionId . '|' . strtotime($createdAt) . '|' . GAME_SECRET_KEY;
-    $expectedToken = hash('sha256', $data);
-    return hash_equals($expectedToken, $token);
-}
-
-/**
- * Obter IP real do cliente
+ * Obtém IP real do cliente
  */
 function getClientIP() {
-    // Cloudflare
-    if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
-        return $_SERVER['HTTP_CF_CONNECTING_IP'];
+    $headers = [
+        'HTTP_CF_CONNECTING_IP',
+        'HTTP_X_FORWARDED_FOR',
+        'HTTP_X_REAL_IP',
+        'REMOTE_ADDR'
+    ];
+    
+    foreach ($headers as $header) {
+        if (!empty($_SERVER[$header])) {
+            $ip = $_SERVER[$header];
+            if (strpos($ip, ',') !== false) {
+                $ip = trim(explode(',', $ip)[0]);
+            }
+            if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                return $ip;
+            }
+        }
     }
-    // Proxy
-    if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-        $ips = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-        return trim($ips[0]);
-    }
-    // Real IP header
-    if (!empty($_SERVER['HTTP_X_REAL_IP'])) {
-        return $_SERVER['HTTP_X_REAL_IP'];
-    }
-    // Direct connection
-    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    
+    return '0.0.0.0';
 }
 
 /**
- * Log seguro
+ * Log seguro para eventos do jogo
  */
 function secureLog($message, $file = 'game_security.log') {
     $logDir = __DIR__ . '/logs';
     if (!is_dir($logDir)) {
-        mkdir($logDir, 0755, true);
+        @mkdir($logDir, 0755, true);
     }
-    $logEntry = date('Y-m-d H:i:s') . ' | ' . getClientIP() . ' | ' . $message . "\n";
-    file_put_contents($logDir . '/' . $file, $logEntry, FILE_APPEND);
+    
+    $logEntry = date('Y-m-d H:i:s') . ' | ' . $message . "\n";
+    @file_put_contents($logDir . '/' . $file, $logEntry, FILE_APPEND | LOCK_EX);
 }
 
 /**
- * Resposta JSON padronizada
+ * Busca configuração do banco (system_config)
  */
-function jsonResponse($success, $data = [], $httpCode = 200) {
-    http_response_code($httpCode);
-    header('Content-Type: application/json; charset=utf-8');
+function getSystemConfig($key, $default = null) {
+    $pdo = getDatabaseConnection();
+    if (!$pdo) return $default;
     
-    $response = ['success' => $success];
-    
-    if ($success) {
-        $response = array_merge($response, $data);
-    } else {
-        $response['error'] = $data['error'] ?? 'Erro desconhecido';
-        if (isset($data['message'])) {
-            $response['message'] = $data['message'];
-        }
-    }
-    
-    echo json_encode($response, JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-/**
- * Obter identificador do usuário (Google UID ou Wallet)
- */
-function getUserIdentifier($input) {
-    // Prioridade: google_uid > wallet_address
-    $googleUid = $input['google_uid'] ?? $input['googleUid'] ?? null;
-    $wallet = $input['wallet'] ?? $input['wallet_address'] ?? $input['walletAddress'] ?? null;
-    
-    if ($googleUid && validateGoogleUID($googleUid)) {
-        return ['type' => 'google', 'value' => $googleUid];
-    }
-    
-    if ($wallet && validateWallet(strtolower($wallet))) {
-        return ['type' => 'wallet', 'value' => strtolower($wallet)];
-    }
-    
-    return null;
-}
-
-/**
- * Buscar jogador por identificador
- */
-function getPlayerByIdentifier($pdo, $identifier) {
-    if ($identifier['type'] === 'google') {
-        $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
-        $stmt->execute([$identifier['value']]);
-    } else {
-        $stmt = $pdo->prepare("SELECT * FROM players WHERE wallet_address = ? LIMIT 1");
-        $stmt->execute([$identifier['value']]);
-    }
-    
-    return $stmt->fetch();
-}
-
-/**
- * Determinar dificuldade da missão (40% hard mode)
- */
-function getMissionDifficulty() {
-    $random = mt_rand(1, 100);
-    return $random <= HARD_MODE_PERCENTAGE;
-}
-
-/**
- * Calcular valor do asteroide baseado no tipo
- */
-function getAsteroidValue($type) {
-    switch (strtolower($type)) {
-        case 'legendary':
-            return REWARD_LEGENDARY_BRL;
-        case 'epic':
-            return REWARD_EPIC_BRL;
-        case 'rare':
-            return REWARD_RARE_BRL;
-        case 'common':
-        case 'none':
-        default:
-            return 0;
-    }
-}
-
-/**
- * Obter configuração do system_config
- */
-function getSystemConfig($pdo, $key, $default = null) {
     try {
         $stmt = $pdo->prepare("SELECT config_value, is_public FROM system_config WHERE config_key = ?");
         $stmt->execute([$key]);
-        $row = $stmt->fetch();
+        $result = $stmt->fetch();
         
-        if ($row) {
-            return json_decode($row['config_value'], true);
+        if ($result) {
+            return json_decode($result['config_value'], true);
         }
     } catch (Exception $e) {
-        error_log("getSystemConfig error: " . $e->getMessage());
+        error_log("Erro ao buscar config: " . $e->getMessage());
     }
     
     return $default;
 }
 
 /**
- * Headers CORS padrão
+ * Determina se a missão será hard mode (40%)
  */
-function setCORSHeaders() {
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
-    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-        http_response_code(200);
-        exit;
-    }
+function isHardModeMission() {
+    return mt_rand(1, 100) <= HARD_MODE_PERCENTAGE;
 }
 
 /**
- * Obter input da requisição (JSON, POST, GET)
+ * Calcula recompensa baseada no tipo (BRL)
  */
-function getRequestInput() {
-    $raw = file_get_contents('php://input');
-    $input = json_decode($raw, true);
-    
-    if (!is_array($input)) {
-        $input = [];
+function getRewardByType($type) {
+    $rewards = ASTEROID_REWARDS_BRL;
+    return isset($rewards[$type]) ? $rewards[$type] : 0;
+}
+
+/**
+ * Verifica CAPTCHA via hCaptcha
+ */
+function verifyCaptcha($token, $ip = null) {
+    if (!CAPTCHA_ENABLED || empty(HCAPTCHA_SECRET_KEY)) {
+        return ['success' => true, 'message' => 'CAPTCHA desabilitado'];
     }
     
-    // Merge com POST e GET (prioridade: JSON > POST > GET)
-    return array_merge($_GET, $_POST, $input);
+    if (empty($token)) {
+        return ['success' => false, 'message' => 'Token CAPTCHA ausente'];
+    }
+    
+    $data = [
+        'secret' => HCAPTCHA_SECRET_KEY,
+        'response' => $token,
+        'remoteip' => $ip ?: getClientIP()
+    ];
+    
+    $ch = curl_init('https://hcaptcha.com/siteverify');
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => http_build_query($data),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 10
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200 || !$response) {
+        return ['success' => false, 'message' => 'Erro ao verificar CAPTCHA'];
+    }
+    
+    $result = json_decode($response, true);
+    
+    return [
+        'success' => isset($result['success']) && $result['success'] === true,
+        'message' => isset($result['error-codes']) ? implode(', ', $result['error-codes']) : 'OK'
+    ];
 }
-?>
+
+/**
+ * Busca jogador por google_uid ou wallet
+ */
+function findPlayer($pdo, $identifier) {
+    $userInfo = getUserIdentifier($identifier);
+    if (!$userInfo) return null;
+    
+    if ($userInfo['type'] === 'google_uid') {
+        $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
+    } else {
+        $stmt = $pdo->prepare("SELECT * FROM players WHERE wallet_address = ? LIMIT 1");
+    }
+    
+    $stmt->execute([$userInfo['value']]);
+    return $stmt->fetch();
+}
+
+/**
+ * Cria ou atualiza jogador
+ */
+function getOrCreatePlayer($pdo, $input) {
+    $googleUid = isset($input['google_uid']) ? trim($input['google_uid']) : '';
+    $email = isset($input['email']) ? trim($input['email']) : '';
+    $displayName = isset($input['display_name']) ? trim($input['display_name']) : '';
+    $photoUrl = isset($input['photo_url']) ? trim($input['photo_url']) : '';
+    $wallet = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
+    
+    // Primeiro, buscar por google_uid
+    if (!empty($googleUid) && validateGoogleUid($googleUid)) {
+        $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
+        $stmt->execute([$googleUid]);
+        $player = $stmt->fetch();
+        
+        if ($player) {
+            // Atualizar informações se necessário
+            $stmt = $pdo->prepare("
+                UPDATE players SET 
+                    email = COALESCE(NULLIF(?, ''), email),
+                    display_name = COALESCE(NULLIF(?, ''), display_name),
+                    photo_url = COALESCE(NULLIF(?, ''), photo_url)
+                WHERE google_uid = ?
+            ");
+            $stmt->execute([$email, $displayName, $photoUrl, $googleUid]);
+            
+            return findPlayer($pdo, $input);
+        }
+        
+        // Criar novo jogador com Google UID
+        // Gerar wallet temporária para compatibilidade
+        $tempWallet = '0x' . substr(hash('sha256', $googleUid . time()), 0, 40);
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO players (google_uid, email, display_name, photo_url, wallet_address, balance_brl, total_played)
+            VALUES (?, ?, ?, ?, ?, 0, 0)
+        ");
+        $stmt->execute([$googleUid, $email, $displayName, $photoUrl, $tempWallet]);
+        
+        return findPlayer($pdo, $input);
+    }
+    
+    // Fallback: buscar por wallet (compatibilidade com sistema antigo)
+    if (!empty($wallet) && validateWallet($wallet)) {
+        $stmt = $pdo->prepare("SELECT * FROM players WHERE wallet_address = ? LIMIT 1");
+        $stmt->execute([$wallet]);
+        $player = $stmt->fetch();
+        
+        if (!$player) {
+            $stmt = $pdo->prepare("
+                INSERT INTO players (wallet_address, balance_brl, total_played)
+                VALUES (?, 0, 0)
+            ");
+            $stmt->execute([$wallet]);
+        }
+        
+        return findPlayer($pdo, $input);
+    }
+    
+    return null;
+}
+
+// ============================================
+// HEADERS PADRÃO (CORS)
+// ============================================
+function setCorsHeaders() {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
+    
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        http_response_code(204);
+        exit(0);
+    }
+}
