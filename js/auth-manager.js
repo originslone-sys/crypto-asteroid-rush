@@ -69,11 +69,17 @@ class AuthManager {
             localStorage.setItem('userEmail', user.email || '');
             localStorage.setItem('userPhotoURL', user.photoURL || '');
             
-            // Atualizar gameState se existir
-            if (typeof gameState !== 'undefined') {
+            // Atualizar gameState - criar se não existir
+            if (typeof gameState !== 'undefined' && gameState !== null) {
                 gameState.user = user;
                 gameState.googleUid = user.uid;
                 gameState.isConnected = true;
+            } else if (typeof window !== 'undefined') {
+                // Criar gameState global se não existir
+                window.gameState = window.gameState || {};
+                window.gameState.user = user;
+                window.gameState.googleUid = user.uid;
+                window.gameState.isConnected = true;
             }
             
             // Sincronizar com backend (apenas se é novo login)
@@ -90,7 +96,7 @@ class AuthManager {
             localStorage.removeItem('userPhotoURL');
             
             // Limpar gameState
-            if (typeof gameState !== 'undefined') {
+            if (typeof gameState !== 'undefined' && gameState !== null) {
                 gameState.user = null;
                 gameState.googleUid = null;
                 gameState.isConnected = false;
