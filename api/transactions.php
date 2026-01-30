@@ -5,6 +5,45 @@
 // v2.0 - Google Auth + BRL
 // ============================================
 
+// ============================================================
+// JSON Guard (Railway): impedir HTML/Warnings de quebrar JSON
+// (Precisa vir ANTES de qualquer require/include que possa emitir output)
+// ============================================================
+if (!headers_sent()) {
+    header('Content-Type: application/json; charset=utf-8');
+}
+ini_set('display_errors', '0');
+ini_set('html_errors', '0');
+error_reporting(E_ALL);
+
+// Captura qualquer output acidental (BOM, echo, warnings impressos, etc.)
+if (!ob_get_level()) {
+    ob_start();
+}
+
+// Converte warnings/notices em exceção (para cair no catch e responder JSON)
+set_error_handler(function($severity, $message, $file, $line) {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
+// Captura fatal/parse (não pega em try/catch)
+register_shutdown_function(function () {
+    $err = error_get_last();
+    if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        if (ob_get_length()) { ob_clean(); }
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+        }
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Erro no servidor',
+            'debug_error' => $err['message'],
+        ]);
+    }
+});
+// ============================================================
+
 require_once __DIR__ . "/config.php";
 
 setCorsHeaders();
@@ -38,6 +77,7 @@ if (!empty($googleUid) && validateGoogleUid($googleUid)) {
     $identifier = $wallet;
     $identifierType = 'wallet';
 } else {
+    if (ob_get_length()) { ob_clean(); }
     echo json_encode(['success' => false, 'error' => 'Identificação inválida']);
     exit;
 }
@@ -49,6 +89,7 @@ try {
     // Verificar se tabela existe
     $tableExists = $pdo->query("SHOW TABLES LIKE 'transactions'")->fetch();
     if (!$tableExists) {
+        if (ob_get_length()) { ob_clean(); }
         echo json_encode([
             'success' => true,
             'transactions' => [],
@@ -145,6 +186,7 @@ try {
         ];
     }
 
+    if (ob_get_length()) { ob_clean(); }
     echo json_encode([
         'success' => true,
         'transactions' => $formattedTransactions,
@@ -156,6 +198,7 @@ try {
 
 } catch (Exception $e) {
     error_log("transactions.php error: " . $e->getMessage());
+    if (ob_get_length()) { ob_clean(); }
     echo json_encode(['success' => false, 'error' => 'Erro ao buscar transações']);
 }
 
