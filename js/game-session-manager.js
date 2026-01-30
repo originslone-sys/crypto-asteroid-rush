@@ -70,7 +70,8 @@ const SessionManager = {
     google_uid: localStorage.getItem('googleUid'),
     session_token: localStorage.getItem('sessionToken')
 })
-;
+});
+
             
             const result = await response.json();
             
@@ -257,4 +258,5 @@ const SessionManager = {
 
 // Export for use in other files
 window.SessionManager = SessionManager;
+
 
