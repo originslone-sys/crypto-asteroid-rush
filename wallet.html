@@ -564,10 +564,15 @@ async function loadWalletData() {
     if (!user) return;
 
     try {
-        const response = await fetch('/api/balance.php', {
+        const sessionToken = localStorage.getItem('sessionToken');
+
+        const response = await fetch('api/balance.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ google_uid: user.uid })
+            body: JSON.stringify({ 
+                google_uid: user.uid,
+                session_token: sessionToken
+            })
         });
         
         const data = await response.json();
@@ -589,11 +594,14 @@ async function loadTransactionHistory() {
     if (!user) return;
 
     try {
-        const response = await fetch('/api/transactions.php', {
+        const sessionToken = localStorage.getItem('sessionToken');
+
+        const response = await fetch('api/transactions.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 google_uid: user.uid,
+                session_token: sessionToken,
                 limit: 20
             })
         });
@@ -665,11 +673,14 @@ async function requestWithdraw() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
 
     try {
-        const response = await fetch('/api/withdraw.php', {
+        const sessionToken = localStorage.getItem('sessionToken');
+
+        const response = await fetch('api/withdraw.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 google_uid: user.uid,
+                session_token: sessionToken,
                 amount_brl: amount,
                 payment_method: selectedPaymentMethod,
                 payment_details: paymentDetails
@@ -764,6 +775,14 @@ document.addEventListener('authStateChanged', (e) => {
         document.getElementById('connectOverlay').classList.add('active');
     }
 });
+
+// (Fix pontual) Se o authStateChanged já tiver disparado antes do listener, inicializa manualmente
+if (window.authManager?.currentUser) {
+    document.getElementById('connectOverlay').classList.remove('active');
+    loadWalletData();
+    loadTransactionHistory();
+    selectPaymentMethod('pix'); // Default
+}
 </script>
 </body>
 </html>
