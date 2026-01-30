@@ -294,6 +294,19 @@ class AuthManager {
             return null;
         }
     }
+    
+    // Aliases para compatibilidade
+    async loginWithGoogle() {
+        return this.signIn();
+    }
+    
+    async login() {
+        return this.signIn();
+    }
+    
+    async logout() {
+        return this.signOut();
+    }
 }
 
 // Criar instância global
