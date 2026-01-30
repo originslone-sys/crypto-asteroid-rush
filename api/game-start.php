@@ -183,6 +183,7 @@ try {
         json_encode($rareIds),
         $epicId,
         $clientIP
+        // ✅ CORRETO: 9 valores para 9 placeholders (NULL e 'active' são literais)
     ]);
 
     $sessionId = (int)$pdo->lastInsertId();
