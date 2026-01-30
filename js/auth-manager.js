@@ -217,6 +217,15 @@ class AuthManager {
             
             if (result.success) {
                 console.log('✅ Usuário sincronizado com backend');
+               
+               if (result.session_token) {
+  localStorage.setItem('sessionToken', result.session_token);
+
+  // manter gameState em sincronia
+  window.gameState = window.gameState || {};
+  window.gameState.sessionToken = result.session_token;
+}
+
                 
                 // Verificar referral
                 this.checkReferral(user.uid);
