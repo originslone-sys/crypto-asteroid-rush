@@ -6,6 +6,13 @@
 // ============================================
 
 // ============================================
+// AJUSTES TÉCNICOS (Railway) - evitar HTML em endpoints JSON
+// ============================================
+ini_set('display_errors', '0');
+ini_set('html_errors', '0');
+error_reporting(E_ALL);
+
+// ============================================
 // CONFIGURAÇÕES DE BANCO DE DADOS (Railway)
 // ============================================
 define('DB_HOST', getenv('MYSQLHOST') ?: 'mysql.railway.internal');
@@ -407,5 +414,23 @@ function setCorsHeaders() {
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         http_response_code(204);
         exit(0);
+    }
+}
+
+// ============================================
+// ALIASES / COMPATIBILIDADE (nomes antigos / variações)
+// ============================================
+
+// Alguns endpoints chamam setCORSHeaders() (nome legado). Mantemos compatibilidade.
+if (!function_exists('setCORSHeaders')) {
+    function setCORSHeaders() {
+        return setCorsHeaders();
+    }
+}
+
+// Compatibilidade extra para variações antigas (se existir em algum arquivo legado)
+if (!function_exists('setCORSHeader')) {
+    function setCORSHeader() {
+        return setCorsHeaders();
     }
 }
