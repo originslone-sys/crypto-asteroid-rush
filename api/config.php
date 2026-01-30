@@ -94,8 +94,8 @@ define('MAX_CONCURRENT_MISSIONS', 1);  // Apenas 1 missão simultânea por IP
 // ============================================
 // CAPTCHA (hCaptcha)
 // ============================================
-define('HCAPTCHA_SITE_KEY', getenv('HCAPTCHA_SITE_KEY') ?: '');
-define('HCAPTCHA_SECRET_KEY', getenv('HCAPTCHA_SECRET_KEY') ?: '');
+define('HCAPTCHA_SITE_KEY', getenv('HCAPTCHA_SITE_KEY') ?: '6bc4cc76-b924-4d92-9c76-0648a9000436');
+define('HCAPTCHA_SECRET_KEY', getenv('HCAPTCHA_SECRET_KEY') ?: 'ES_6d5ff3999fb84de99004187ea2f74512');
 define('CAPTCHA_REQUIRED_ON_VICTORY', true);
 define('CAPTCHA_REQUIRED_ON_GAMEOVER', false);
 
