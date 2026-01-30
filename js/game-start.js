@@ -1,50 +1,69 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Game Start v3.1
+   UNOBIX - Game Start v4.0
    File: js/game-start.js
-   Pre-game loading screen with ads support
-   FIX: Não limpa seleção de nave no início do jogo
+   Google Auth, BRL currency
    ============================================ */
 
-// Start game with loading screen (skip if auto-start)
+// Start game with loading screen
 function startGameWithLoading() {
     console.log('🎮 Starting game...');
     
-    // Determine if this is a hard mode mission (house edge)
+    // Determine if this mission is hard mode (hidden from user)
     determineHardMode();
     
-    // Go directly to game (loading was already shown)
+    // Go to actual start
     actualStartGame();
 }
 
 // Actually start the game
 async function actualStartGame() {
     console.log('🚀 Starting mission', missionStats.totalMissions + 1);
-    console.log('🎰 Hard Mode:', missionStats.isHardMode);
     
-    // ============================================
-    // CRITICAL: Start server session FIRST
-    // ============================================
+    // Start server session
     try {
-        showNotification('PREPARING', 'Creating mission session...', true);
+        showNotification('PREPARANDO', 'Criando sessão da missão...', true);
         
-        const sessionResult = await SessionManager.startSession(gameState.wallet);
+        // Buscar googleUid de várias fontes
+        const googleUid = gameState.googleUid 
+            || gameState.user?.uid 
+            || window.authManager?.currentUser?.uid
+            || window.authManager?.getUserId()
+            || localStorage.getItem('googleUid');
+        
+        console.log('🔑 Google UID encontrado:', googleUid ? googleUid.substring(0, 10) + '...' : 'NENHUM');
+        
+        if (!googleUid) {
+            throw new Error('Usuário não autenticado');
+        }
+        
+        // Garantir que gameState tem o googleUid
+        gameState.googleUid = googleUid;
+        
+        const sessionResult = await SessionManager.startSession(googleUid);
         
         if (!sessionResult || !sessionResult.success) {
-            throw new Error(sessionResult?.error || 'Failed to create session');
+            throw new Error(sessionResult?.error || 'Falha ao criar sessão');
         }
         
         console.log('✅ Server session created:', sessionResult.session_id);
         
-        // Update mission stats with server data
+        // Update mission stats
         missionStats.totalMissions = sessionResult.mission_number;
         localStorage.setItem('totalMissions', missionStats.totalMissions.toString());
         
+        // Check if server says this is hard mode
+        if (sessionResult.is_hard_mode !== undefined) {
+            missionStats.isHardMode = sessionResult.is_hard_mode;
+        }
+        
     } catch (error) {
         console.error('❌ Failed to start session:', error);
-        await gameAlert('Failed to start mission: ' + error.message, 'error', 'ERROR');
+        await gameAlert('Falha ao iniciar missão: ' + error.message, 'error', 'ERRO');
+        showModal('gameMenuModal');
         return;
     }
     
+    // Reset mission stats
     missionStats.rareCount = 0;
     missionStats.epicCount = 0;
     missionStats.legendaryCount = 0;
@@ -71,13 +90,11 @@ async function actualStartGame() {
     gameState.lastFireTime = 0;
     gameState.keys = { left: false, right: false, fire: false };
     
-    // ============================================
-    // FIX: Obter nave ANTES de limpar seleção
-    // ============================================
+    // Get ship for this mission
     const shipDesign = getShipForGame();
     gameState.currentSessionShip = shipDesign;
     
-    console.log('🚀 Using ship for this mission:', shipDesign.name);
+    console.log('🚀 Using ship:', shipDesign.name);
     
     gameState.ship = {
         x: canvas.width / 2,
@@ -89,7 +106,7 @@ async function actualStartGame() {
     };
     gameState.lastX = gameState.ship.x;
     
-    showNotification('SHIP READY', shipDesign.name, true);
+    showNotification('NAVE PRONTA', shipDesign.name, true);
     showModal('');
     
     // Update lives display
@@ -117,13 +134,6 @@ async function actualStartGame() {
         }, 500);
     }
     
-    // ============================================
-    // FIX: NÃO limpar seleção aqui!
-    // A seleção só deve ser limpa se o jogador quiser trocar de nave
-    // ============================================
-    // REMOVIDO: gameState.selectedShipDesign = null;
-    // REMOVIDO: updateShipSelectionUI(null);
-    
     // Show mission info
     showMissionStartInfo();
 }
@@ -141,17 +151,13 @@ function resetLivesDisplay() {
     }
 }
 
-// Show mission start info (non-blocking notification)
+// Show mission start info
 function showMissionStartInfo() {
-    const modeText = missionStats.isHardMode ? 'HARD MODE' : 'NORMAL MODE';
-    
-    // Show notification instead of blocking alert
-    showNotification(`MISSION #${missionStats.totalMissions}`, modeText, true);
+    showNotification(`MISSÃO #${missionStats.totalMissions}`, 'Boa sorte, Comandante!', true);
     
     console.log('📊 Mission started:', { 
         number: missionStats.totalMissions,
-        hardMode: missionStats.isHardMode,
-        rewards: CONFIG.REWARDS
+        hardMode: missionStats.isHardMode
     });
 }
 
