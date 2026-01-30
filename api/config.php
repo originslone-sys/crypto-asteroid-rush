@@ -144,17 +144,25 @@ function validateWallet($wallet) {
 
 /**
  * Valida Google UID
- * Firebase UIDs podem ter entre 20-128 caracteres alfanuméricos
+ * Firebase/Google UIDs podem conter letras, números, _ e -
+ * Tamanho típico: 20–128 caracteres
  */
-function validateGoogleUid($uid) {
-    if (empty($uid)) return false;
-    // Google/Firebase UIDs são strings alfanuméricas, geralmente 28 chars mas podem variar
-    return preg_match('/^[a-zA-Z0-9_-]{10,128}$/', $uid);
+if (!function_exists('validateGoogleUid')) {
+    function validateGoogleUid($uid) {
+        if (empty($uid)) return false;
+        return preg_match('/^[a-zA-Z0-9_-]{20,128}$/', $uid);
+    }
 }
 
-// Alias para compatibilidade (algumas partes usam UID maiúsculo)
-function validateGoogleUID($uid) {
-    return validateGoogleUid($uid);
+/**
+ * Alias para compatibilidade
+ * OBS: PHP trata nomes de função como case-insensitive,
+ * então ESTE alias só pode existir se a função ainda não existir.
+ */
+if (!function_exists('validateGoogleUID')) {
+    function validateGoogleUID($uid) {
+        return validateGoogleUid($uid);
+    }
 }
 
 /**
@@ -162,14 +170,20 @@ function validateGoogleUID($uid) {
  */
 function getUserIdentifier($input) {
     $googleUid = isset($input['google_uid']) ? trim($input['google_uid']) : '';
-    $wallet = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
+    $wallet    = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
     
-    if (!empty($googleUid) && validateGoogleUid($googleUid)) {
-        return ['type' => 'google_uid', 'value' => $googleUid];
+    if ($googleUid !== '' && validateGoogleUid($googleUid)) {
+        return [
+            'type'  => 'google_uid',
+            'value' => $googleUid
+        ];
     }
     
-    if (!empty($wallet) && validateWallet($wallet)) {
-        return ['type' => 'wallet', 'value' => $wallet];
+    if ($wallet !== '' && validateWallet($wallet)) {
+        return [
+            'type'  => 'wallet',
+            'value' => $wallet
+        ];
     }
     
     return null;
