@@ -316,6 +316,8 @@ try {
         'is_hard_mode' => (bool)$session['is_hard_mode'],
         'victory' => $isVictory,
         'earnings_brl' => $finalEarningsBrl,
+        'final_earnings' => $finalEarningsBrl,  // Alias para frontend
+        'new_balance' => (float)($player['balance_brl'] ?? 0),  // Alias para frontend
         'events_recorded' => $eventCount,
         'stats' => [
             'asteroids_destroyed' => (int)$session['asteroids_destroyed'] + $eventCount,
