@@ -124,7 +124,7 @@ define('MAX_EVENTS_PER_SECOND', 10);
  */
 function getDatabaseConnection() {
     static $pdo = null;
-    
+
     if ($pdo === null) {
         try {
             $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
@@ -138,7 +138,7 @@ function getDatabaseConnection() {
             return null;
         }
     }
-    
+
     return $pdo;
 }
 
@@ -173,26 +173,59 @@ if (!function_exists('validateGoogleUID')) {
 }
 
 /**
+ * Lê input da request (JSON + POST + GET) de forma compatível
+ * (necessário para endpoints que chamam getRequestInput())
+ */
+if (!function_exists('getRequestInput')) {
+    function getRequestInput() {
+        $input = [];
+
+        // JSON body
+        $raw = file_get_contents('php://input');
+        if ($raw !== false && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $input = $decoded;
+            }
+        }
+
+        // Merge POST e GET (sem sobrescrever JSON quando já existe)
+        if (!empty($_POST) && is_array($_POST)) {
+            foreach ($_POST as $k => $v) {
+                if (!array_key_exists($k, $input)) $input[$k] = $v;
+            }
+        }
+        if (!empty($_GET) && is_array($_GET)) {
+            foreach ($_GET as $k => $v) {
+                if (!array_key_exists($k, $input)) $input[$k] = $v;
+            }
+        }
+
+        return $input;
+    }
+}
+
+/**
  * Obtém identificador do usuário (google_uid ou wallet)
  */
 function getUserIdentifier($input) {
     $googleUid = isset($input['google_uid']) ? trim($input['google_uid']) : '';
     $wallet    = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
-    
+
     if ($googleUid !== '' && validateGoogleUid($googleUid)) {
         return [
             'type'  => 'google_uid',
             'value' => $googleUid
         ];
     }
-    
+
     if ($wallet !== '' && validateWallet($wallet)) {
         return [
             'type'  => 'wallet',
             'value' => $wallet
         ];
     }
-    
+
     return null;
 }
 
@@ -203,36 +236,6 @@ function generateSessionToken($identifier, $sessionId) {
     $data = $identifier . '|' . $sessionId . '|' . time() . '|' . GAME_SECRET_KEY;
     return hash('sha256', $data);
 }
-/**
- * Lê input da request (JSON + POST + GET) de forma compatível
- */
-function getRequestInput() {
-    $input = [];
-
-    // JSON body
-    $raw = file_get_contents('php://input');
-    if ($raw !== false && $raw !== '') {
-        $decoded = json_decode($raw, true);
-        if (is_array($decoded)) {
-            $input = $decoded;
-        }
-    }
-
-    // Merge POST e GET (sem sobrescrever JSON quando já existe)
-    if (!empty($_POST) && is_array($_POST)) {
-        foreach ($_POST as $k => $v) {
-            if (!array_key_exists($k, $input)) $input[$k] = $v;
-        }
-    }
-    if (!empty($_GET) && is_array($_GET)) {
-        foreach ($_GET as $k => $v) {
-            if (!array_key_exists($k, $input)) $input[$k] = $v;
-        }
-    }
-
-    return $input;
-}
-
 
 /**
  * Obtém IP real do cliente
@@ -244,7 +247,7 @@ function getClientIP() {
         'HTTP_X_REAL_IP',
         'REMOTE_ADDR'
     ];
-    
+
     foreach ($headers as $header) {
         if (!empty($_SERVER[$header])) {
             $ip = $_SERVER[$header];
@@ -256,7 +259,7 @@ function getClientIP() {
             }
         }
     }
-    
+
     return '0.0.0.0';
 }
 
@@ -268,7 +271,7 @@ function secureLog($message, $file = 'game_security.log') {
     if (!is_dir($logDir)) {
         @mkdir($logDir, 0755, true);
     }
-    
+
     $logEntry = date('Y-m-d H:i:s') . ' | ' . $message . "\n";
     @file_put_contents($logDir . '/' . $file, $logEntry, FILE_APPEND | LOCK_EX);
 }
@@ -279,19 +282,19 @@ function secureLog($message, $file = 'game_security.log') {
 function getSystemConfig($key, $default = null) {
     $pdo = getDatabaseConnection();
     if (!$pdo) return $default;
-    
+
     try {
         $stmt = $pdo->prepare("SELECT config_value, is_public FROM system_config WHERE config_key = ?");
         $stmt->execute([$key]);
         $result = $stmt->fetch();
-        
+
         if ($result) {
             return json_decode($result['config_value'], true);
         }
     } catch (Exception $e) {
         error_log("Erro ao buscar config: " . $e->getMessage());
     }
-    
+
     return $default;
 }
 
@@ -317,17 +320,17 @@ function verifyCaptcha($token, $ip = null) {
     if (!CAPTCHA_ENABLED || empty(HCAPTCHA_SECRET_KEY)) {
         return ['success' => true, 'message' => 'CAPTCHA desabilitado'];
     }
-    
+
     if (empty($token)) {
         return ['success' => false, 'message' => 'Token CAPTCHA ausente'];
     }
-    
+
     $data = [
         'secret' => HCAPTCHA_SECRET_KEY,
         'response' => $token,
         'remoteip' => $ip ?: getClientIP()
     ];
-    
+
     $ch = curl_init('https://hcaptcha.com/siteverify');
     curl_setopt_array($ch, [
         CURLOPT_POST => true,
@@ -335,17 +338,17 @@ function verifyCaptcha($token, $ip = null) {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 10
     ]);
-    
+
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    
+
     if ($httpCode !== 200 || !$response) {
         return ['success' => false, 'message' => 'Erro ao verificar CAPTCHA'];
     }
-    
+
     $result = json_decode($response, true);
-    
+
     return [
         'success' => isset($result['success']) && $result['success'] === true,
         'message' => isset($result['error-codes']) ? implode(', ', $result['error-codes']) : 'OK'
@@ -358,15 +361,24 @@ function verifyCaptcha($token, $ip = null) {
 function findPlayer($pdo, $identifier) {
     $userInfo = getUserIdentifier($identifier);
     if (!$userInfo) return null;
-    
+
     if ($userInfo['type'] === 'google_uid') {
         $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
     } else {
         $stmt = $pdo->prepare("SELECT * FROM players WHERE wallet_address = ? LIMIT 1");
     }
-    
+
     $stmt->execute([$userInfo['value']]);
     return $stmt->fetch();
+}
+
+/**
+ * Alias de compatibilidade: alguns endpoints chamam getPlayerByIdentifier()
+ */
+if (!function_exists('getPlayerByIdentifier')) {
+    function getPlayerByIdentifier($pdo, $identifier) {
+        return findPlayer($pdo, $identifier);
+    }
 }
 
 /**
@@ -378,13 +390,13 @@ function getOrCreatePlayer($pdo, $input) {
     $displayName = isset($input['display_name']) ? trim($input['display_name']) : '';
     $photoUrl = isset($input['photo_url']) ? trim($input['photo_url']) : '';
     $wallet = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
-    
+
     // Primeiro, buscar por google_uid
     if (!empty($googleUid) && validateGoogleUid($googleUid)) {
         $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
         $stmt->execute([$googleUid]);
         $player = $stmt->fetch();
-        
+
         if ($player) {
             // Atualizar informações se necessário
             $stmt = $pdo->prepare("
@@ -395,29 +407,29 @@ function getOrCreatePlayer($pdo, $input) {
                 WHERE google_uid = ?
             ");
             $stmt->execute([$email, $displayName, $photoUrl, $googleUid]);
-            
+
             return findPlayer($pdo, $input);
         }
-        
+
         // Criar novo jogador com Google UID
         // Gerar wallet temporária para compatibilidade
         $tempWallet = '0x' . substr(hash('sha256', $googleUid . time()), 0, 40);
-        
+
         $stmt = $pdo->prepare("
             INSERT INTO players (google_uid, email, display_name, photo_url, wallet_address, balance_brl, total_played)
             VALUES (?, ?, ?, ?, ?, 0, 0)
         ");
         $stmt->execute([$googleUid, $email, $displayName, $photoUrl, $tempWallet]);
-        
+
         return findPlayer($pdo, $input);
     }
-    
+
     // Fallback: buscar por wallet (compatibilidade com sistema antigo)
     if (!empty($wallet) && validateWallet($wallet)) {
         $stmt = $pdo->prepare("SELECT * FROM players WHERE wallet_address = ? LIMIT 1");
         $stmt->execute([$wallet]);
         $player = $stmt->fetch();
-        
+
         if (!$player) {
             $stmt = $pdo->prepare("
                 INSERT INTO players (wallet_address, balance_brl, total_played)
@@ -425,10 +437,10 @@ function getOrCreatePlayer($pdo, $input) {
             ");
             $stmt->execute([$wallet]);
         }
-        
+
         return findPlayer($pdo, $input);
     }
-    
+
     return null;
 }
 
@@ -440,7 +452,7 @@ function setCorsHeaders() {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Authorization');
-    
+
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         http_response_code(204);
         exit(0);
