@@ -1,59 +1,129 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Main JavaScript v3.3
-   Dashboard, Wallet, Staking functionality
-   UPDATED: Transaction history with asteroid details
+   UNOBIX - Main JavaScript v4.0
+   Dashboard, Carteira, Staking - Google Auth + BRL
    ============================================ */
 
 // ============================================
-// GLOBAL STATE
+// ESTADO GLOBAL
 // ============================================
 
-let currentWallet = null;
 let userStats = {
-    balance: 0,
-    totalEarned: 0,
-    gamesPlayed: 0,
-    staked: 0,
-    totalWithdrawn: 0,
-    pendingWithdrawal: 0
+    balance_brl: 0,
+    total_earned_brl: 0,
+    games_played: 0,
+    staked_balance_brl: 0,
+    total_withdrawn_brl: 0,
+    pending_withdrawal_brl: 0
 };
 
 // ============================================
-// INITIALIZATION
+// UTILITÁRIOS
+// ============================================
+
+// Formatar valor em BRL
+function formatBRL(value) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(value || 0);
+}
+
+// Formatar valor com mais casas decimais
+function formatBRLPrecise(value) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4
+    }).format(value || 0);
+}
+
+// Formatar data
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// Formatar data curta
+function formatDateShort(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit'
+    });
+}
+
+// ============================================
+// INICIALIZAÇÃO
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
     createStars();
     captureReferralCode();
-    initWalletState();
     setupEventListeners();
     
-    const page = document.body.dataset.page;
-    if (page === 'dashboard') {
-        loadDashboardData();
-    } else if (page === 'wallet') {
-        loadWalletData();
-    } else if (page === 'staking') {
-        loadStakingData();
-    } else if (page === 'affiliates') {
-        loadAffiliateData();
-    }
+    // Aguardar autenticação
+    document.addEventListener('authStateChanged', (e) => {
+        if (e.detail.user) {
+            onUserLoggedIn(e.detail.user);
+        } else {
+            onUserLoggedOut();
+        }
+    });
 });
 
+// Quando usuário faz login
+function onUserLoggedIn(user) {
+    hideConnectOverlay();
+    updateUserUI(user);
+    
+    const page = document.body.dataset.page;
+    
+    switch (page) {
+        case 'dashboard':
+            loadDashboardData();
+            break;
+        case 'wallet':
+            loadWalletData();
+            break;
+        case 'staking':
+            loadStakingData();
+            break;
+        case 'affiliates':
+            loadAffiliateData();
+            break;
+    }
+}
+
+// Quando usuário faz logout
+function onUserLoggedOut() {
+    showConnectOverlay();
+    resetUI();
+}
+
 // ============================================
-// REFERRAL SYSTEM
+// SISTEMA DE REFERRAL
 // ============================================
 
 function captureReferralCode() {
     const urlParams = new URLSearchParams(window.location.search);
     const refCode = urlParams.get('ref');
     
-    if (refCode && /^[A-Z0-9]{6}$/i.test(refCode)) {
-        localStorage.setItem('referralCode', refCode.toUpperCase());
-        localStorage.setItem('referralTimestamp', Date.now().toString());
+    if (refCode && /^[A-Z0-9]{6,8}$/i.test(refCode)) {
+        localStorage.setItem('unobix_referral', refCode.toUpperCase());
+        localStorage.setItem('unobix_referral_time', Date.now().toString());
         
-        console.log('Referral code captured:', refCode.toUpperCase());
+        console.log('📋 Código de indicação capturado:', refCode.toUpperCase());
         
+        // Limpar URL
         if (window.history.replaceState) {
             const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
             window.history.replaceState({}, document.title, cleanUrl);
@@ -62,15 +132,15 @@ function captureReferralCode() {
 }
 
 function getSavedReferralCode() {
-    const code = localStorage.getItem('referralCode');
-    const timestamp = localStorage.getItem('referralTimestamp');
+    const code = localStorage.getItem('unobix_referral');
+    const timestamp = localStorage.getItem('unobix_referral_time');
     
     if (!code || !timestamp) return null;
     
+    // Expira em 7 dias
     const sevenDays = 7 * 24 * 60 * 60 * 1000;
     if (Date.now() - parseInt(timestamp) > sevenDays) {
-        localStorage.removeItem('referralCode');
-        localStorage.removeItem('referralTimestamp');
+        clearReferralCode();
         return null;
     }
     
@@ -78,12 +148,12 @@ function getSavedReferralCode() {
 }
 
 function clearReferralCode() {
-    localStorage.removeItem('referralCode');
-    localStorage.removeItem('referralTimestamp');
+    localStorage.removeItem('unobix_referral');
+    localStorage.removeItem('unobix_referral_time');
 }
 
 // ============================================
-// STARS BACKGROUND
+// BACKGROUND DE ESTRELAS
 // ============================================
 
 function createStars() {
@@ -111,255 +181,192 @@ function createStars() {
 }
 
 // ============================================
-// WALLET - PERSISTENCE
+// UI - OVERLAY E HEADER
 // ============================================
-
-function initWalletState() {
-    const savedWallet = localStorage.getItem('connectedWallet');
-    
-    if (savedWallet) {
-        currentWallet = savedWallet;
-        updateWalletUI();
-        hideConnectOverlay();
-        verifyWalletAsync();
-    } else {
-        showConnectOverlay();
-    }
-}
-
-async function verifyWalletAsync() {
-    if (typeof window.ethereum === 'undefined') return;
-    
-    try {
-        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        if (accounts.length > 0 && accounts[0].toLowerCase() !== currentWallet) {
-            currentWallet = accounts[0].toLowerCase();
-            localStorage.setItem('connectedWallet', currentWallet);
-            updateWalletUI();
-        }
-    } catch (error) {
-        console.log('Wallet verification:', error);
-    }
-    
-    if (window.ethereum) {
-        window.ethereum.on('accountsChanged', handleAccountsChanged);
-    }
-}
-
-function handleAccountsChanged(accounts) {
-    if (accounts.length === 0) {
-        console.log('MetaMask disconnected, keeping session');
-    } else {
-        currentWallet = accounts[0].toLowerCase();
-        localStorage.setItem('connectedWallet', currentWallet);
-        location.reload();
-    }
-}
-
-async function connectWallet() {
-    if (typeof window.ethereum === 'undefined') {
-        showNotification('MetaMask not detected! Please install the extension.', 'error');
-        window.open('https://metamask.io/download/', '_blank');
-        return;
-    }
-    
-    try {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        currentWallet = accounts[0].toLowerCase();
-        
-        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-        if (chainId !== '0x38') {
-            try {
-                await window.ethereum.request({
-                    method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: '0x38' }]
-                });
-            } catch (switchError) {
-                if (switchError.code === 4902) {
-                    await window.ethereum.request({
-                        method: 'wallet_addEthereumChain',
-                        params: [{
-                            chainId: '0x38',
-                            chainName: 'BNB Smart Chain',
-                            nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
-                            rpcUrls: ['https://bsc-dataseed.binance.org/'],
-                            blockExplorerUrls: ['https://bscscan.com/']
-                        }]
-                    });
-                }
-            }
-        }
-        
-        localStorage.setItem('connectedWallet', currentWallet);
-        
-        // Login with referral code
-        try {
-            const referralCode = getSavedReferralCode();
-            const loginData = { wallet: currentWallet };
-            
-            if (referralCode) {
-                loginData.referral_code = referralCode;
-            }
-            
-            const response = await fetch('api/login.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(loginData)
-            });
-            
-            const result = await response.json();
-            
-            if (result.referral_registered) {
-                clearReferralCode();
-                showNotification(`Welcome! You were referred by ${result.referrer}`, 'success');
-            }
-            
-        } catch (e) {
-            console.log('Login error:', e);
-        }
-        
-        hideConnectOverlay();
-        updateWalletUI();
-        
-        const page = document.body.dataset.page;
-        if (page === 'dashboard') loadDashboardData();
-        else if (page === 'wallet') loadWalletData();
-        else if (page === 'staking') loadStakingData();
-        else if (page === 'affiliates') loadAffiliateData();
-        
-        showNotification('Wallet connected successfully!', 'success');
-        
-    } catch (error) {
-        if (error.code !== 4001) {
-            showNotification('Connection error. Try again.', 'error');
-        }
-    }
-}
-
-function disconnectWallet() {
-    currentWallet = null;
-    localStorage.removeItem('connectedWallet');
-    showConnectOverlay();
-    updateWalletUI();
-}
-
-function updateWalletUI() {
-    const walletBtn = document.getElementById('walletBtn');
-    if (!walletBtn) return;
-    
-    if (currentWallet) {
-        const short = currentWallet.substring(0, 6) + '...' + currentWallet.substring(38);
-        walletBtn.innerHTML = `<i class="fas fa-check-circle"></i> ${short}`;
-        walletBtn.classList.add('connected');
-    } else {
-        walletBtn.innerHTML = `<i class="fas fa-wallet"></i> Connect`;
-        walletBtn.classList.remove('connected');
-    }
-}
 
 function showConnectOverlay() {
     const overlay = document.getElementById('connectOverlay');
-    if (overlay) overlay.classList.remove('hidden');
+    if (overlay) {
+        overlay.classList.remove('hidden');
+        overlay.classList.add('active');
+    }
 }
 
 function hideConnectOverlay() {
     const overlay = document.getElementById('connectOverlay');
-    if (overlay) overlay.classList.add('hidden');
-}
-
-// ============================================
-// DASHBOARD DATA
-// ============================================
-
-async function loadDashboardData() {
-    if (!currentWallet) return;
-    
-    try {
-        const walletRes = await fetch(`api/wallet-info.php?wallet=${encodeURIComponent(currentWallet)}`);
-        const walletData = await walletRes.json();
-        
-        if (walletData.success) {
-            userStats.balance = parseFloat(walletData.balance) || 0;
-            userStats.totalEarned = parseFloat(walletData.total_earned) || 0;
-            userStats.gamesPlayed = parseInt(walletData.total_played) || 0;
-            userStats.totalWithdrawn = parseFloat(walletData.total_withdrawn) || 0;
-            userStats.pendingWithdrawal = parseFloat(walletData.pending_withdrawal) || 0;
-        }
-        
-        const stakingRes = await fetch('api/get-stakes.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet: currentWallet })
-        });
-        const stakingData = await stakingRes.json();
-        
-        if (stakingData.success) {
-            userStats.staked = parseFloat(stakingData.total_staked) || 0;
-        }
-        
-        updateDashboardUI();
-        loadRecentActivity();
-        
-    } catch (error) {
-        console.error('Error loading dashboard:', error);
+    if (overlay) {
+        overlay.classList.add('hidden');
+        overlay.classList.remove('active');
     }
 }
 
-function updateDashboardUI() {
-    const el = (id) => document.getElementById(id);
+function updateUserUI(user) {
+    const walletBtn = document.getElementById('walletBtn');
+    const userDisplayName = document.getElementById('userDisplayName');
     
-    if (el('statBalance')) el('statBalance').textContent = `$${userStats.balance.toFixed(4)}`;
-    if (el('statEarned')) el('statEarned').textContent = `$${userStats.totalEarned.toFixed(4)}`;
-    if (el('statGames')) el('statGames').textContent = userStats.gamesPlayed;
-    if (el('statStaked')) el('statStaked').textContent = `$${userStats.staked.toFixed(4)}`;
+    if (walletBtn) {
+        walletBtn.classList.add('connected');
+        
+        // Adicionar foto se tiver
+        if (user.photoURL) {
+            walletBtn.innerHTML = `
+                <img src="${user.photoURL}" alt="${user.displayName}">
+                <span>${user.displayName?.split(' ')[0] || 'Usuário'}</span>
+            `;
+        } else {
+            walletBtn.innerHTML = `
+                <i class="fas fa-user-circle"></i>
+                <span>${user.displayName?.split(' ')[0] || 'Usuário'}</span>
+            `;
+        }
+    }
+    
+    if (userDisplayName) {
+        userDisplayName.textContent = user.displayName?.split(' ')[0] || 'Usuário';
+    }
+}
+
+function resetUI() {
+    const walletBtn = document.getElementById('walletBtn');
+    
+    if (walletBtn) {
+        walletBtn.classList.remove('connected');
+        walletBtn.innerHTML = `
+            <i class="fas fa-user-circle"></i>
+            <span>Entrar</span>
+        `;
+    }
+    
+    // Resetar valores
+    userStats = {
+        balance_brl: 0,
+        total_earned_brl: 0,
+        games_played: 0,
+        staked_balance_brl: 0,
+        total_withdrawn_brl: 0,
+        pending_withdrawal_brl: 0
+    };
+}
+
+// ============================================
+// LOGIN COM GOOGLE
+// ============================================
+
+async function connectWithGoogle() {
+    const result = await window.authManager.loginWithGoogle();
+    
+    if (!result.success) {
+        showNotification(result.error, 'error');
+    }
+}
+
+async function logout() {
+    const result = await window.authManager.logout();
+    
+    if (result.success) {
+        showNotification('Você saiu da conta.', 'info');
+    } else {
+        showNotification(result.error, 'error');
+    }
+}
+
+// ============================================
+// DASHBOARD
+// ============================================
+
+async function loadDashboardData() {
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    try {
+        const response = await fetch('/api/balance.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            userStats = {
+                balance_brl: parseFloat(data.balance_brl) || 0,
+                total_earned_brl: parseFloat(data.total_earned_brl) || 0,
+                games_played: parseInt(data.total_played) || 0,
+                staked_balance_brl: parseFloat(data.staked_balance_brl) || 0
+            };
+            
+            // Atualizar UI
+            const el = (id) => document.getElementById(id);
+            
+            if (el('statBalance')) el('statBalance').textContent = formatBRL(userStats.balance_brl);
+            if (el('statEarned')) el('statEarned').textContent = formatBRL(userStats.total_earned_brl);
+            if (el('statGames')) el('statGames').textContent = userStats.games_played;
+            if (el('statStaked')) el('statStaked').textContent = formatBRL(userStats.staked_balance_brl);
+        }
+        
+        // Carregar atividade recente
+        loadRecentActivity();
+        
+    } catch (error) {
+        console.error('Erro ao carregar dashboard:', error);
+    }
 }
 
 async function loadRecentActivity() {
-    if (!currentWallet) return;
-    
-    const activityList = document.getElementById('activityList');
-    if (!activityList) return;
-    
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    const container = document.getElementById('activityList');
+    if (!container) return;
+
     try {
-        const res = await fetch(`api/transactions.php?wallet=${encodeURIComponent(currentWallet)}&limit=5`);
-        const data = await res.json();
+        const response = await fetch('/api/transactions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                google_uid: user.uid,
+                limit: 5
+            })
+        });
         
-        if (data.success && data.transactions && data.transactions.length > 0) {
-            let html = '';
-            data.transactions.forEach(tx => {
-                const icon = getActivityIcon(tx.type);
-                const isNegative = tx.amount < 0 || tx.type.includes('withdraw') || tx.type === 'stake';
-                const color = isNegative ? 'var(--danger)' : 'var(--success)';
-                const sign = isNegative ? '' : '+';
-                const amount = Math.abs(parseFloat(tx.amount));
-                const date = new Date(tx.created_at).toLocaleDateString();
+        const data = await response.json();
+        
+        if (data.success && data.transactions?.length > 0) {
+            container.innerHTML = data.transactions.map(tx => {
+                const isPositive = !tx.type.includes('withdrawal') && !tx.type.includes('stake');
+                const iconClass = getActivityIconClass(tx.type);
                 
-                html += `
+                return `
                     <div class="activity-item">
-                        <div class="activity-icon" style="color: ${color}">${icon}</div>
                         <div class="activity-info">
-                            <div class="activity-title">${formatActivityType(tx.type)}</div>
-                            <div class="activity-desc">${tx.description || ''}</div>
+                            <div class="activity-icon ${iconClass}">
+                                <i class="fas fa-${getActivityIcon(tx.type)}"></i>
+                            </div>
+                            <div>
+                                <div class="activity-title">${getActivityTitle(tx.type)}</div>
+                                <div class="activity-date">${formatDateShort(tx.created_at)}</div>
+                            </div>
                         </div>
-                        <div class="activity-amount" style="color: ${color}">${sign}$${amount.toFixed(4)}</div>
-                        <div class="activity-date">${date}</div>
+                        <div class="activity-amount ${isPositive ? 'positive' : ''}">
+                            ${isPositive ? '+' : ''}${formatBRL(tx.amount_brl)}
+                        </div>
                     </div>
                 `;
-            });
-            activityList.innerHTML = html;
+            }).join('');
         } else {
-            activityList.innerHTML = `
+            container.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-inbox"></i>
-                    <p>No activity yet</p>
+                    <p>Nenhuma atividade ainda</p>
                 </div>
             `;
         }
     } catch (error) {
-        activityList.innerHTML = `
+        console.error('Erro ao carregar atividade:', error);
+        container.innerHTML = `
             <div class="empty-state">
-                <i class="fas fa-exclamation-circle"></i>
-                <p>Error loading activity</p>
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Erro ao carregar</p>
             </div>
         `;
     }
@@ -367,383 +374,426 @@ async function loadRecentActivity() {
 
 function getActivityIcon(type) {
     const icons = {
-        'game_win': '<i class="fas fa-gamepad"></i>',
-        'mission': '<i class="fas fa-rocket"></i>',
-        'withdrawal': '<i class="fas fa-arrow-up"></i>',
-        'withdrawal_request': '<i class="fas fa-clock"></i>',
-        'stake': '<i class="fas fa-lock"></i>',
-        'unstake': '<i class="fas fa-unlock"></i>',
-        'staking_reward': '<i class="fas fa-gift"></i>',
-        'referral_commission': '<i class="fas fa-users"></i>',
-        'referral': '<i class="fas fa-users"></i>',
-        'deposit': '<i class="fas fa-arrow-down"></i>'
+        'game_earning': 'gamepad',
+        'stake_reward': 'chart-line',
+        'referral_bonus': 'users',
+        'withdrawal': 'arrow-up',
+        'withdrawal_approved': 'check-circle',
+        'withdrawal_rejected': 'times-circle',
+        'stake': 'lock',
+        'unstake': 'unlock'
     };
-    return icons[type] || '<i class="fas fa-circle"></i>';
+    return icons[type] || 'circle';
 }
 
-function formatActivityType(type) {
-    const names = {
-        'game_win': 'Mission Reward',
-        'mission': 'Mission Reward',
-        'withdrawal': 'Withdrawal',
-        'withdrawal_request': 'Withdrawal Request',
-        'stake': 'Staked',
-        'unstake': 'Unstaked',
-        'staking_reward': 'Staking Reward',
-        'referral_commission': 'Referral Commission',
-        'referral': 'Referral Commission',
-        'deposit': 'Deposit'
+function getActivityIconClass(type) {
+    if (type.includes('game') || type.includes('reward') || type.includes('bonus')) {
+        return 'reward';
+    } else if (type.includes('withdrawal')) {
+        return 'withdraw';
+    } else if (type.includes('stake')) {
+        return 'game';
+    }
+    return '';
+}
+
+function getActivityTitle(type) {
+    const titles = {
+        'game_earning': 'Ganhos da Missão',
+        'stake_reward': 'Rendimento Staking',
+        'referral_bonus': 'Bônus de Indicação',
+        'withdrawal': 'Saque Solicitado',
+        'withdrawal_approved': 'Saque Aprovado',
+        'withdrawal_rejected': 'Saque Rejeitado',
+        'stake': 'Stake Realizado',
+        'unstake': 'Unstake Realizado'
     };
-    return names[type] || type;
+    return titles[type] || type;
 }
 
 // ============================================
-// WALLET DATA
+// CARTEIRA
 // ============================================
 
 async function loadWalletData() {
-    if (!currentWallet) return;
-    
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
     try {
-        const res = await fetch(`api/wallet-info.php?wallet=${encodeURIComponent(currentWallet)}`);
-        const data = await res.json();
+        const response = await fetch('/api/balance.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid })
+        });
+        
+        const data = await response.json();
         
         if (data.success) {
             const el = (id) => document.getElementById(id);
             
-            if (el('walletBalance')) el('walletBalance').textContent = `$${parseFloat(data.balance).toFixed(6)}`;
-            if (el('walletEarned')) el('walletEarned').textContent = `$${parseFloat(data.total_earned).toFixed(6)}`;
-            if (el('walletWithdrawn')) el('walletWithdrawn').textContent = `$${parseFloat(data.total_withdrawn).toFixed(6)}`;
-            if (el('walletPending')) el('walletPending').textContent = `$${parseFloat(data.pending_withdrawal).toFixed(6)}`;
-            if (el('walletAddress')) el('walletAddress').textContent = currentWallet;
+            if (el('walletBalance')) el('walletBalance').textContent = formatBRL(data.balance_brl);
+            if (el('walletEarned')) el('walletEarned').textContent = formatBRL(data.total_earned_brl);
+            if (el('walletWithdrawn')) el('walletWithdrawn').textContent = formatBRL(data.total_withdrawn_brl);
+            if (el('walletPending')) el('walletPending').textContent = formatBRL(data.pending_withdrawal_brl || 0);
         }
         
+        // Carregar histórico
         loadTransactionHistory();
         
     } catch (error) {
-        console.error('Error loading wallet:', error);
+        console.error('Erro ao carregar carteira:', error);
     }
 }
 
-// ============================================
-// TRANSACTION HISTORY - IMPROVED v2.0
-// Shows asteroid breakdown for missions
-// ============================================
-
 async function loadTransactionHistory() {
-    if (!currentWallet) return;
-    
-    const historyList = document.getElementById('transactionHistory');
-    if (!historyList) return;
-    
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    const container = document.getElementById('transactionHistory');
+    if (!container) return;
+
     try {
-        const res = await fetch(`api/transactions.php?wallet=${encodeURIComponent(currentWallet)}&limit=30`);
-        const data = await res.json();
+        const response = await fetch('/api/transactions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                google_uid: user.uid,
+                limit: 20
+            })
+        });
         
-        if (data.success && data.transactions && data.transactions.length > 0) {
-            let html = '';
-            data.transactions.forEach(tx => {
-                const icon = getActivityIcon(tx.type);
-                const isNegative = tx.amount < 0 || tx.type.includes('withdraw') || tx.type === 'stake';
-                const iconClass = isNegative ? 'negative' : 'positive';
-                const amountColor = isNegative ? 'var(--danger)' : 'var(--success)';
-                const sign = isNegative ? '' : '+';
-                const amount = Math.abs(parseFloat(tx.amount));
-                const date = new Date(tx.created_at);
-                const dateStr = date.toLocaleDateString();
-                const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const data = await response.json();
+        
+        if (data.success && data.transactions?.length > 0) {
+            container.innerHTML = data.transactions.map(tx => {
+                const isPositive = !tx.type.includes('withdrawal') && !tx.type.includes('stake');
                 
-                // Description
-                let description = tx.description || '';
-                let asteroidDetails = '';
-                
-                // If mission, show asteroid breakdown
-                if (tx.type === 'mission' && tx.details) {
-                    const d = tx.details;
-                    if (d.legendary_asteroids > 0) {
-                        asteroidDetails += `<span class="asteroid-badge legendary">★ ${d.legendary_asteroids}</span>`;
-                    }
-                    if (d.epic_asteroids > 0) {
-                        asteroidDetails += `<span class="asteroid-badge epic">◆ ${d.epic_asteroids}</span>`;
-                    }
-                    if (d.rare_asteroids > 0) {
-                        asteroidDetails += `<span class="asteroid-badge rare">● ${d.rare_asteroids}</span>`;
-                    }
-                    if (d.common_asteroids > 0) {
-                        asteroidDetails += `<span class="asteroid-badge common">○ ${d.common_asteroids}</span>`;
-                    }
-                }
-                
-                // Status class
-                let statusClass = tx.status || 'completed';
-                if (statusClass === 'approved') statusClass = 'completed';
-                
-                html += `
+                return `
                     <div class="transaction-item">
-                        <div class="tx-icon ${iconClass}">${icon}</div>
-                        <div class="tx-info">
-                            <div class="tx-type">${formatActivityType(tx.type)}</div>
-                            <div class="tx-desc">${description}</div>
-                            ${asteroidDetails ? `<div class="asteroid-details">${asteroidDetails}</div>` : ''}
+                        <div class="tx-icon ${isPositive ? 'positive' : 'negative'}">
+                            <i class="fas fa-${getActivityIcon(tx.type)}"></i>
                         </div>
-                        <div class="tx-amount" style="color: ${amountColor}">${sign}$${amount.toFixed(6)}</div>
+                        <div class="tx-info">
+                            <div class="tx-type">${getActivityTitle(tx.type)}</div>
+                            <div class="tx-desc">${tx.description || ''}</div>
+                        </div>
+                        <div class="tx-amount ${isPositive ? 'positive' : ''}">
+                            ${isPositive ? '+' : ''}${formatBRL(tx.amount_brl)}
+                        </div>
                         <div class="tx-meta">
-                            <div class="tx-date">${dateStr} ${timeStr}</div>
-                            <span class="tx-status ${statusClass}">${tx.status}</span>
+                            <div class="tx-date">${formatDate(tx.created_at)}</div>
+                            ${tx.status ? `<span class="tx-status ${tx.status}">${getStatusText(tx.status)}</span>` : ''}
                         </div>
                     </div>
                 `;
-            });
-            historyList.innerHTML = html;
+            }).join('');
         } else {
-            historyList.innerHTML = `
+            container.innerHTML = `
                 <div class="empty-state">
-                    <i class="fas fa-receipt"></i>
-                    <p>No transactions yet</p>
-                    <p style="font-size: 0.85rem; margin-top: 10px;">Play missions to start earning!</p>
+                    <i class="fas fa-inbox"></i>
+                    <p>Nenhuma transação ainda</p>
                 </div>
             `;
         }
     } catch (error) {
-        console.error('Error loading transactions:', error);
-        historyList.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-exclamation-circle"></i>
-                <p>Error loading transactions</p>
-                <p style="font-size: 0.85rem; margin-top: 10px;">Please try again later</p>
-            </div>
-        `;
+        console.error('Erro ao carregar transações:', error);
     }
 }
 
-// ============================================
-// WITHDRAWAL
-// ============================================
+function getStatusText(status) {
+    const texts = {
+        'completed': 'Concluído',
+        'pending': 'Pendente',
+        'approved': 'Aprovado',
+        'rejected': 'Rejeitado',
+        'failed': 'Falhou'
+    };
+    return texts[status] || status;
+}
 
 async function requestWithdraw() {
-    const amountInput = document.getElementById('withdrawAmount');
-    const addressInput = document.getElementById('withdrawAddress');
+    const user = window.authManager?.currentUser;
+    if (!user) {
+        showNotification('Faça login primeiro!', 'warning');
+        return;
+    }
+
+    const amount = parseFloat(document.getElementById('withdrawAmount')?.value);
+    const paymentMethod = document.querySelector('.payment-method.selected')?.dataset?.method || 'pix';
+    const paymentDetails = document.getElementById('paymentDetails')?.value?.trim();
     
-    const amount = parseFloat(amountInput?.value);
-    const address = addressInput?.value?.trim() || currentWallet;
-    
-    if (!amount || amount < 0.01) {
-        showNotification('Minimum withdrawal: $0.01', 'warning');
+    if (!amount || amount < 1) {
+        showNotification('Valor mínimo: R$ 1,00', 'warning');
         return;
     }
     
-    const btn = document.querySelector('.withdraw-btn');
+    if (!paymentDetails) {
+        showNotification('Preencha os dados de pagamento', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('withdrawBtn');
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
     }
-    
+
     try {
-        const res = await fetch('api/withdraw.php', {
+        const response = await fetch('/api/withdraw.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                wallet: currentWallet,
-                amount: amount,
-                withdraw_address: address
+                google_uid: user.uid,
+                amount_brl: amount,
+                payment_method: paymentMethod,
+                payment_details: paymentDetails
             })
         });
-        const data = await res.json();
+        
+        const data = await response.json();
         
         if (data.success) {
-            showNotification('Withdrawal requested successfully!', 'success');
-            amountInput.value = '';
-            setTimeout(loadWalletData, 1000);
+            showNotification('✅ Saque solicitado! Processamento: dias 20-25', 'success');
+            document.getElementById('withdrawAmount').value = '';
+            document.getElementById('paymentDetails').value = '';
+            loadWalletData();
         } else {
-            showNotification(data.error || 'Error requesting withdrawal', 'error');
+            showNotification(data.error || 'Erro ao solicitar saque', 'error');
         }
     } catch (error) {
-        showNotification('Connection error', 'error');
+        console.error('Erro:', error);
+        showNotification('Erro de conexão', 'error');
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Request Withdrawal';
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Solicitar Saque';
         }
     }
 }
 
 // ============================================
-// STAKING DATA
+// STAKING
 // ============================================
 
-let availableBalance = 0;
+const STAKING_APY = 0.05; // 5% ao ano
+let stakingBalance = 0;
+let stakedAmount = 0;
 
 async function loadStakingData() {
-    if (!currentWallet) return;
-    
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
     try {
-        const balanceRes = await fetch(`api/wallet-info.php?wallet=${encodeURIComponent(currentWallet)}`);
+        // Carregar saldo
+        const balanceRes = await fetch('/api/balance.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid })
+        });
         const balanceData = await balanceRes.json();
         
         if (balanceData.success) {
-            availableBalance = parseFloat(balanceData.balance) || 0;
-            const el = document.getElementById('stakingBalance');
-            if (el) el.textContent = `$${availableBalance.toFixed(6)}`;
-        }
-        
-        const stakingRes = await fetch('api/get-stakes.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet: currentWallet })
-        });
-        const stakingData = await stakingRes.json();
-        
-        if (stakingData.success) {
-            const totalStaked = parseFloat(stakingData.total_staked) || 0;
-            const totalEarned = parseFloat(stakingData.total_earned) || 0;
-            const todayEarnings = parseFloat(stakingData.today_earnings) || 0;
+            stakingBalance = parseFloat(balanceData.balance_brl) || 0;
+            stakedAmount = parseFloat(balanceData.staked_balance_brl) || 0;
             
             const el = (id) => document.getElementById(id);
-            if (el('totalStaked')) el('totalStaked').textContent = `$${totalStaked.toFixed(6)}`;
-            if (el('stakingEarned')) el('stakingEarned').textContent = `$${totalEarned.toFixed(6)}`;
-            if (el('todayEarnings')) el('todayEarnings').textContent = `+$${todayEarnings.toFixed(6)}`;
             
+            if (el('stakingBalance')) el('stakingBalance').textContent = formatBRL(stakingBalance);
+            if (el('totalStaked')) el('totalStaked').textContent = formatBRL(stakedAmount);
+            
+            // Habilitar/desabilitar botão unstake
             const unstakeBtn = document.getElementById('unstakeBtn');
-            if (unstakeBtn) unstakeBtn.disabled = totalStaked === 0;
+            if (unstakeBtn) unstakeBtn.disabled = stakedAmount <= 0;
+        }
+
+        // Carregar dados de stake
+        const stakeRes = await fetch('/api/get-stakes.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid })
+        });
+        const stakeData = await stakeRes.json();
+        
+        if (stakeData.success) {
+            const el = (id) => document.getElementById(id);
+            
+            const totalEarned = parseFloat(stakeData.total_earned_brl) || 0;
+            const pendingReward = parseFloat(stakeData.pending_reward_brl) || 0;
+            
+            if (el('stakingEarned')) el('stakingEarned').textContent = formatBRL(totalEarned);
+            if (el('pendingReward')) el('pendingReward').textContent = '+' + formatBRL(pendingReward);
+            if (el('todayEarnings')) el('todayEarnings').textContent = '+' + formatBRL(pendingReward);
+            
+            // Seção de rendimento pendente
+            const pendingSection = document.getElementById('pendingRewardSection');
+            if (pendingSection) {
+                if (pendingReward > 0.001) {
+                    pendingSection.style.display = 'flex';
+                    const pendingValue = document.getElementById('pendingRewardValue');
+                    if (pendingValue) pendingValue.textContent = '+' + formatBRL(pendingReward);
+                } else {
+                    pendingSection.style.display = 'none';
+                }
+            }
         }
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Erro ao carregar staking:', error);
     }
 }
 
+function updateProjection() {
+    const amount = parseFloat(document.getElementById('projectionAmount')?.value) || 0;
+    const dailyRate = STAKING_APY / 365;
+    
+    // Juros compostos
+    const projections = {
+        projDay: amount * (Math.pow(1 + dailyRate, 1) - 1),
+        projWeek: amount * (Math.pow(1 + dailyRate, 7) - 1),
+        projMonth: amount * (Math.pow(1 + dailyRate, 30) - 1),
+        proj6Month: amount * (Math.pow(1 + dailyRate, 180) - 1),
+        projYear: amount * (Math.pow(1 + dailyRate, 365) - 1)
+    };
+    
+    Object.entries(projections).forEach(([id, value]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = formatBRL(value);
+    });
+}
+
+function setStakeAmount(amount) {
+    const input = document.getElementById('stakeAmount');
+    if (input) input.value = amount.toFixed(2);
+}
+
+function setMaxAmount() {
+    const input = document.getElementById('stakeAmount');
+    if (input) input.value = stakingBalance.toFixed(2);
+}
+
 async function stakeFunds() {
-    const amountInput = document.getElementById('stakeAmount');
-    const amount = parseFloat(amountInput?.value);
+    const user = window.authManager?.currentUser;
+    if (!user) {
+        showNotification('Faça login primeiro!', 'warning');
+        return;
+    }
+
+    const amount = parseFloat(document.getElementById('stakeAmount')?.value);
     
-    if (!amount || amount < 0.0001) {
-        showNotification('Minimum amount: $0.0001', 'warning');
+    if (!amount || amount < 0.01) {
+        showNotification('Valor mínimo: R$ 0,01', 'warning');
         return;
     }
     
-    if (amount > availableBalance) {
-        showNotification('Insufficient balance', 'warning');
+    if (amount > stakingBalance) {
+        showNotification('Saldo insuficiente!', 'warning');
         return;
     }
-    
+
     const btn = document.getElementById('stakeBtn');
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
     }
-    
+
     try {
-        const res = await fetch('api/stake.php', {
+        const response = await fetch('/api/stake.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet: currentWallet, amount })
+            body: JSON.stringify({
+                google_uid: user.uid,
+                amount_brl: amount
+            })
         });
-        const data = await res.json();
+        
+        const data = await response.json();
         
         if (data.success) {
-            showNotification('Stake created successfully!', 'success');
-            amountInput.value = '';
-            setTimeout(loadStakingData, 1000);
+            showNotification('✅ Stake realizado! Rendimento: 5% ao ano', 'success');
+            document.getElementById('stakeAmount').value = '';
+            loadStakingData();
         } else {
-            showNotification(data.error || 'Error', 'error');
+            showNotification(data.error || 'Erro ao fazer stake', 'error');
         }
     } catch (error) {
-        showNotification('Error', 'error');
+        console.error('Erro:', error);
+        showNotification('Erro de conexão', 'error');
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-rocket"></i> STAKE NOW';
+            btn.innerHTML = '<i class="fas fa-rocket"></i> FAZER STAKE';
         }
     }
 }
 
 async function unstakeFunds() {
-    if (!confirm('Are you sure you want to unstake all funds?')) return;
-    
+    const user = window.authManager?.currentUser;
+    if (!user) {
+        showNotification('Faça login primeiro!', 'warning');
+        return;
+    }
+
+    if (stakedAmount <= 0) {
+        showNotification('Você não tem nada em stake!', 'warning');
+        return;
+    }
+
+    if (!confirm('Deseja resgatar todo o seu stake?\n\nO rendimento acumulado será creditado junto.')) {
+        return;
+    }
+
     const btn = document.getElementById('unstakeBtn');
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
     }
-    
+
     try {
-        const res = await fetch('api/unstake.php', {
+        const response = await fetch('/api/unstake.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet: currentWallet })
+            body: JSON.stringify({ google_uid: user.uid })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification(`✅ Resgatado! Rendimento: ${formatBRL(data.reward_brl)}`, 'success');
+            loadStakingData();
+        } else {
+            showNotification(data.error || 'Erro ao fazer unstake', 'error');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showNotification('Erro de conexão', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-wallet"></i> RESGATAR TUDO';
+        }
+    }
+}
+
+// ============================================
+// AFILIADOS
+// ============================================
+
+async function loadAffiliateData() {
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    try {
+        const res = await fetch('/api/referral-info.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid })
         });
         const data = await res.json();
         
         if (data.success) {
-            showNotification('Unstake requested!', 'success');
-            setTimeout(loadStakingData, 1000);
-        } else {
-            showNotification(data.error || 'Error', 'error');
-        }
-    } catch (error) {
-        showNotification('Error', 'error');
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-wallet"></i> UNSTAKE ALL';
-        }
-    }
-}
-
-function setStakeAmount(amount) {
-    const input = document.getElementById('stakeAmount');
-    if (input) input.value = amount;
-    updateProjection();
-}
-
-function setMaxAmount() {
-    const input = document.getElementById('stakeAmount');
-    if (input && availableBalance > 0) {
-        input.value = availableBalance.toFixed(6);
-        updateProjection();
-    }
-}
-
-// ============================================
-// PROJECTION CALCULATOR
-// ============================================
-
-const APY = 0.12;
-
-function updateProjection() {
-    const amount = parseFloat(document.getElementById('projectionAmount')?.value) || 100;
-    const hourlyRate = APY / (365 * 24);
-    
-    const calcEarnings = (hours) => (amount * Math.exp(hourlyRate * hours) - amount).toFixed(6);
-    
-    const el = (id) => document.getElementById(id);
-    if (el('projHour')) el('projHour').textContent = `$${calcEarnings(1)}`;
-    if (el('projDay')) el('projDay').textContent = `$${calcEarnings(24)}`;
-    if (el('projWeek')) el('projWeek').textContent = `$${calcEarnings(24 * 7)}`;
-    if (el('projMonth')) el('projMonth').textContent = `$${calcEarnings(24 * 30)}`;
-    if (el('projYear')) el('projYear').textContent = `$${calcEarnings(24 * 365)}`;
-}
-
-// ============================================
-// AFFILIATE SYSTEM
-// ============================================
-
-let affiliateData = null;
-
-async function loadAffiliateData() {
-    if (!currentWallet) return;
-    
-    try {
-        const res = await fetch(`api/referral-info.php?wallet=${encodeURIComponent(currentWallet)}`);
-        const data = await res.json();
-        
-        if (data.success) {
-            affiliateData = data;
             updateAffiliateUI(data);
-        } else {
-            console.error('Error loading affiliate data:', data.error);
         }
     } catch (error) {
-        console.error('Error loading affiliate data:', error);
+        console.error('Erro ao carregar afiliados:', error);
     }
 }
 
@@ -751,28 +801,25 @@ function updateAffiliateUI(data) {
     const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
     const fullLink = baseUrl + '?ref=' + data.referral_code;
     
-    const linkInput = document.getElementById('referralLink');
-    const codeSpan = document.getElementById('referralCode');
-    
-    if (linkInput) linkInput.value = fullLink;
-    if (codeSpan) codeSpan.textContent = data.referral_code;
-    
-    const stats = data.stats;
     const el = (id) => document.getElementById(id);
     
-    if (el('statTotalReferred')) el('statTotalReferred').textContent = stats.total_referred;
-    if (el('statPending')) el('statPending').textContent = stats.pending;
-    if (el('statCompleted')) el('statCompleted').textContent = parseInt(stats.completed) + parseInt(stats.claimed || 0);
-    if (el('statTotalEarned')) el('statTotalEarned').textContent = '$' + stats.total_earned;
+    if (el('referralLink')) el('referralLink').value = fullLink;
+    if (el('referralCode')) el('referralCode').textContent = data.referral_code;
     
-    const availableCommission = parseFloat(stats.available_commission);
+    const stats = data.stats;
+    
+    if (el('statTotalReferred')) el('statTotalReferred').textContent = stats.total_referred || 0;
+    if (el('statPending')) el('statPending').textContent = stats.pending || 0;
+    if (el('statCompleted')) el('statCompleted').textContent = (parseInt(stats.completed) || 0) + (parseInt(stats.claimed) || 0);
+    if (el('statTotalEarned')) el('statTotalEarned').textContent = formatBRL(stats.total_earned_brl);
+    
+    const availableCommission = parseFloat(stats.available_commission_brl) || 0;
     const claimSection = document.getElementById('claimSection');
-    const claimAmount = document.getElementById('claimAmount');
     
     if (claimSection) {
         if (availableCommission > 0) {
             claimSection.style.display = 'flex';
-            if (claimAmount) claimAmount.textContent = '$' + stats.available_commission;
+            if (el('claimAmount')) el('claimAmount').textContent = formatBRL(availableCommission);
         } else {
             claimSection.style.display = 'none';
         }
@@ -791,8 +838,8 @@ function updateReferralsTable(referrals) {
                 <td colspan="5">
                     <div class="empty-state">
                         <i class="fas fa-user-friends"></i>
-                        <h3>No referrals yet</h3>
-                        <p>Share your link to start earning!</p>
+                        <h3>Nenhum indicado ainda</h3>
+                        <p>Compartilhe seu link para começar a ganhar!</p>
                     </div>
                 </td>
             </tr>
@@ -800,31 +847,25 @@ function updateReferralsTable(referrals) {
         return;
     }
     
-    let html = '';
-    referrals.forEach(ref => {
-        const statusClass = 'status-' + ref.status;
-        const statusText = ref.status.charAt(0).toUpperCase() + ref.status.slice(1);
-        const progressPercent = ref.progress_percent;
-        const progressText = ref.missions_completed + '/' + ref.missions_required;
-        const date = new Date(ref.created_at).toLocaleDateString();
+    tbody.innerHTML = referrals.map(ref => {
+        const statusTexts = { 'pending': 'Em Progresso', 'completed': 'Completado', 'claimed': 'Resgatado' };
+        const userDisplay = ref.display_name || ref.email?.split('@')[0] || 'Usuário';
         
-        html += `
+        return `
             <tr>
-                <td class="wallet-cell">${ref.wallet_short}</td>
+                <td class="user-cell">${userDisplay}</td>
                 <td>
-                    <div>${progressText} missions</div>
+                    <div>${ref.missions_completed || 0}/100 missões</div>
                     <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                        <div class="progress-fill" style="width: ${ref.progress_percent || 0}%"></div>
                     </div>
                 </td>
-                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                <td style="color: var(--success);">$${ref.commission}</td>
-                <td style="color: var(--text-dim);">${date}</td>
+                <td><span class="status-badge status-${ref.status}">${statusTexts[ref.status] || ref.status}</span></td>
+                <td style="color: var(--success);">${formatBRL(ref.commission_brl)}</td>
+                <td style="color: var(--text-dim);">${formatDateShort(ref.created_at)}</td>
             </tr>
         `;
-    });
-    
-    tbody.innerHTML = html;
+    }).join('');
 }
 
 function copyReferralLink() {
@@ -838,55 +879,56 @@ function copyReferralLink() {
     
     navigator.clipboard.writeText(linkInput.value).then(() => {
         if (copyBtn) {
-            copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            copyBtn.innerHTML = '<i class="fas fa-check"></i> Copiado!';
             copyBtn.classList.add('copied');
             
             setTimeout(() => {
-                copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copiar';
                 copyBtn.classList.remove('copied');
             }, 2000);
         }
         
-        showNotification('Link copied to clipboard!', 'success');
+        showNotification('Link copiado!', 'success');
     }).catch(() => {
         document.execCommand('copy');
-        showNotification('Link copied!', 'success');
+        showNotification('Link copiado!', 'success');
     });
 }
 
 async function claimCommissions() {
-    if (!currentWallet) {
-        showNotification('Please connect your wallet', 'warning');
+    const user = window.authManager?.currentUser;
+    if (!user) {
+        showNotification('Faça login primeiro!', 'warning');
         return;
     }
     
     const claimBtn = document.getElementById('claimBtn');
     if (claimBtn) {
         claimBtn.disabled = true;
-        claimBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        claimBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
     }
     
     try {
-        const res = await fetch('api/referral-claim.php', {
+        const res = await fetch('/api/referral-claim.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet: currentWallet })
+            body: JSON.stringify({ google_uid: user.uid })
         });
         const data = await res.json();
         
         if (data.success) {
-            showNotification(`Successfully claimed $${data.amount_claimed}!`, 'success');
+            showNotification(`✅ Resgatado: ${formatBRL(data.amount_claimed_brl)}`, 'success');
             setTimeout(loadAffiliateData, 1000);
         } else {
-            showNotification(data.error || 'Error claiming commissions', 'error');
+            showNotification(data.error || 'Erro ao resgatar', 'error');
         }
     } catch (error) {
-        console.error('Error claiming:', error);
-        showNotification('Connection error', 'error');
+        console.error('Erro:', error);
+        showNotification('Erro de conexão', 'error');
     } finally {
         if (claimBtn) {
             claimBtn.disabled = false;
-            claimBtn.innerHTML = '<i class="fas fa-download"></i> CLAIM TO BALANCE';
+            claimBtn.innerHTML = '<i class="fas fa-download"></i> RESGATAR';
         }
     }
 }
@@ -896,38 +938,34 @@ async function claimCommissions() {
 // ============================================
 
 function setupEventListeners() {
-    // Connect button
-    document.getElementById('connectBtn')?.addEventListener('click', connectWallet);
+    // Botão de conectar (Google)
+    document.getElementById('connectBtn')?.addEventListener('click', connectWithGoogle);
     
-    // Wallet button in header
+    // Botão do header
     document.getElementById('walletBtn')?.addEventListener('click', (e) => {
         e.preventDefault();
-        if (currentWallet) {
+        if (window.authManager?.isLoggedIn()) {
             window.location.href = 'wallet.html';
         } else {
-            connectWallet();
+            connectWithGoogle();
         }
     });
     
-    // Mobile menu
+    // Menu mobile
     document.getElementById('mobileMenuBtn')?.addEventListener('click', () => {
         document.getElementById('nav')?.classList.toggle('open');
     });
     
-    // Staking buttons
+    // Staking
     document.getElementById('stakeBtn')?.addEventListener('click', stakeFunds);
     document.getElementById('unstakeBtn')?.addEventListener('click', unstakeFunds);
-    
-    // Projection calculator
     document.getElementById('projectionAmount')?.addEventListener('input', updateProjection);
     
-    // FAQ toggles
+    // FAQ
     document.querySelectorAll('.faq-question').forEach(q => {
         q.addEventListener('click', () => {
             document.querySelectorAll('.faq-item.open').forEach(item => {
-                if (item !== q.parentElement) {
-                    item.classList.remove('open');
-                }
+                if (item !== q.parentElement) item.classList.remove('open');
             });
             q.parentElement.classList.toggle('open');
         });
@@ -935,16 +973,55 @@ function setupEventListeners() {
 }
 
 // ============================================
-// NOTIFICATIONS
+// NOTIFICAÇÕES
 // ============================================
 
 function showNotification(message, type = 'info') {
-    document.querySelector('.notification')?.remove();
+    // Remover notificação existente
+    document.querySelector('.notification-toast')?.remove();
     
     const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.innerHTML = message;
+    notification.className = `notification-toast ${type}`;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+        <span>${message}</span>
+    `;
+    
+    // Estilos inline
+    Object.assign(notification.style, {
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        padding: '15px 25px',
+        borderRadius: '10px',
+        background: type === 'success' ? 'rgba(0, 255, 136, 0.9)' : 
+                    type === 'error' ? 'rgba(255, 71, 87, 0.9)' : 
+                    type === 'warning' ? 'rgba(255, 209, 102, 0.9)' : 
+                    'rgba(0, 229, 204, 0.9)',
+        color: type === 'warning' ? '#333' : '#fff',
+        fontWeight: '600',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        zIndex: '9999',
+        animation: 'slideIn 0.3s ease',
+        boxShadow: '0 5px 20px rgba(0, 0, 0, 0.3)'
+    });
+    
     document.body.appendChild(notification);
+    
+    // Adicionar keyframes se não existir
+    if (!document.getElementById('notification-styles')) {
+        const style = document.createElement('style');
+        style.id = 'notification-styles';
+        style.textContent = `
+            @keyframes slideIn {
+                from { opacity: 0; transform: translateX(100px); }
+                to { opacity: 1; transform: translateX(0); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
     
     setTimeout(() => {
         notification.style.animation = 'slideIn 0.3s ease reverse';
@@ -953,11 +1030,11 @@ function showNotification(message, type = 'info') {
 }
 
 // ============================================
-// GLOBAL EXPORTS
+// EXPORTS GLOBAIS
 // ============================================
 
-window.connectWallet = connectWallet;
-window.disconnectWallet = disconnectWallet;
+window.connectWithGoogle = connectWithGoogle;
+window.logout = logout;
 window.requestWithdraw = requestWithdraw;
 window.stakeFunds = stakeFunds;
 window.unstakeFunds = unstakeFunds;
@@ -968,3 +1045,6 @@ window.showNotification = showNotification;
 window.copyReferralLink = copyReferralLink;
 window.claimCommissions = claimCommissions;
 window.loadAffiliateData = loadAffiliateData;
+window.formatBRL = formatBRL;
+
+console.log('🚀 Unobix Main.js carregado');
