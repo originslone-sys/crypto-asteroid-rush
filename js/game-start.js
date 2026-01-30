@@ -39,7 +39,7 @@ async function actualStartGame() {
         // Garantir que gameState tem o googleUid
         gameState.googleUid = googleUid;
         
-        const sessionResult = await SessionManager.startSession(googleUid);
+        const sessionResult = await SessionManager.startSession(gameState.wallet || localStorage.getItem('wallet') || '');
         
         if (!sessionResult || !sessionResult.success) {
             throw new Error(sessionResult?.error || 'Falha ao criar sessão');
@@ -166,3 +166,4 @@ window.startGameWithLoading = startGameWithLoading;
 window.actualStartGame = actualStartGame;
 window.resetLivesDisplay = resetLivesDisplay;
 window.showMissionStartInfo = showMissionStartInfo;
+
