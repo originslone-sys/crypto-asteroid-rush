@@ -1,27 +1,26 @@
 <?php
 // ============================================
-// CRYPTO ASTEROID RUSH - Painel Administrativo
+// UNOBIX - Painel Administrativo
 // Arquivo: admin/index.php
-// ATUALIZADO: Adicionado pagina referrals
+// ATUALIZADO: Google Auth, BRL, Ads Manager
 // ============================================
 
 session_start();
 
-// Base URL do admin (corrige paths e redirects em diferentes DocumentRoots)
+// Base URL do admin
 $__scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
 $__scriptDir  = rtrim(str_replace('\\', '/', dirname($__scriptName)), '/');
 if ($__scriptDir === '/') $__scriptDir = '';
-// Se estiver acessando algo dentro de /pages ou /includes diretamente, subir 1 nível
 if (preg_match('~/(pages|includes)$~', $__scriptDir)) {
     $__scriptDir = rtrim(str_replace('\\', '/', dirname($__scriptDir)), '/');
     if ($__scriptDir === '/') $__scriptDir = '';
 }
-$ADMIN_BASE_URL  = $__scriptDir;            // ex: '' ou '/admin'
+$ADMIN_BASE_URL  = $__scriptDir;
 $ADMIN_INDEX_URL = $ADMIN_BASE_URL . '/index.php';
 
-// Configuracao de autenticacao
+// Configuração de autenticação
 define('ADMIN_USER', 'admin');
-define('ADMIN_PASS', 'admin123'); // ALTERE ESTA SENHA!
+define('ADMIN_PASS', 'unobix2026'); // ALTERE ESTA SENHA!
 
 // Logout
 if (isset($_GET['logout'])) {
@@ -43,21 +42,22 @@ if (!isset($_SESSION['admin'])) {
         if ($username === ADMIN_USER && $password === ADMIN_PASS) {
             $_SESSION['admin'] = true;
             $_SESSION['admin_name'] = $username;
+            $_SESSION['admin_logged_in'] = true;
             header('Location: ' . $ADMIN_INDEX_URL);
             exit;
         } else {
-            $error = 'Credenciais invalidas!';
+            $error = 'Credenciais inválidas!';
         }
     }
     
-    // Exibir formulario de login
+    // Exibir formulário de login
     ?>
     <!DOCTYPE html>
     <html lang="pt-BR">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Admin Login | Crypto Asteroid Rush</title>
+        <title>Admin Login | UNOBIX</title>
         <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <link rel="stylesheet" href="<?php echo $ADMIN_BASE_URL; ?>/css/admin.css">
@@ -66,8 +66,8 @@ if (!isset($_SESSION['admin'])) {
         <div class="login-wrapper">
             <div class="login-container">
                 <div class="login-logo">
-                    <span class="icon">&#9732;&#65039;</span>
-                    <span class="text">CRYPTO ASTEROID RUSH</span>
+                    <img src="../img/logo-unobix.png" alt="Unobix" style="width: 60px; height: 60px;">
+                    <span class="text">UNOBIX</span>
                 </div>
                 <h1 class="login-title">Painel Administrativo</h1>
                 
@@ -77,7 +77,7 @@ if (!isset($_SESSION['admin'])) {
                 
                 <form method="POST">
                     <div class="form-group">
-                        <label class="form-label">Usuario</label>
+                        <label class="form-label">Usuário</label>
                         <input type="text" name="username" class="form-control" required autofocus>
                     </div>
                     
@@ -92,7 +92,7 @@ if (!isset($_SESSION['admin'])) {
                 </form>
                 
                 <div class="login-footer">
-                    <p>Crypto Asteroid Rush &copy; <?php echo date('Y'); ?></p>
+                    <p>UNOBIX &copy; <?php echo date('Y'); ?></p>
                 </div>
             </div>
         </div>
@@ -103,36 +103,29 @@ if (!isset($_SESSION['admin'])) {
 }
 
 // ============================================
-// CONFIGURACOES GERAIS
+// CONFIGURAÇÕES GERAIS
 // ============================================
 
-// Incluir config (do projeto)
-require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../api/config.php';
 
-// Configuracao do modo debug
-$debugMode = false; // ATIVE APENAS PARA TESTES
+$debugMode = false;
 
 // Conectar ao banco
 try {
-    $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
-    $pdo = new PDO($dsn, DB_USER, DB_PASS);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
-    // Set timezone
+    $pdo = getDBConnection();
     $pdo->exec("SET time_zone = '-03:00'");
-} catch (PDOException $e) {
-    die('<div style="background:#0a0819;color:#ff2a6d;padding:50px;text-align:center;font-family:Arial;">
-        <h1>ERRO DE CONEXAO</h1>
+} catch (Exception $e) {
+    die('<div style="background:#0a0a0f;color:#ff4757;padding:50px;text-align:center;font-family:Arial;">
+        <h1>ERRO DE CONEXÃO</h1>
         <p>' . htmlspecialchars($e->getMessage()) . '</p>
-        <p style="color:#888;">Host: ' . DB_HOST . ' | DB: ' . DB_NAME . '</p>
     </div>');
 }
 
-// Determinar pagina atual
+// Determinar página atual
 $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
 
 // ============================================
-// LISTA DE PAGINAS PERMITIDAS - REFERRALS ADICIONADO
+// LISTA DE PÁGINAS PERMITIDAS - ATUALIZADO
 // ============================================
 $allowedPages = [
     'dashboard', 
@@ -144,7 +137,8 @@ $allowedPages = [
     'security', 
     'logs', 
     'settings',
-    'referrals'  // <-- ADICIONADO
+    'referrals',
+    'ads'  // NOVA PÁGINA DE ANÚNCIOS
 ];
 
 if (!in_array($page, $allowedPages)) {
@@ -153,7 +147,6 @@ if (!in_array($page, $allowedPages)) {
 
 $currentPage = $page;
 
-// Habilitar exibicao de erros em modo debug
 if ($debugMode) {
     ini_set('display_errors', 1);
     ini_set('display_startup_errors', 1);
@@ -166,23 +159,23 @@ include __DIR__ . '/includes/header.php';
 // Incluir sidebar
 include __DIR__ . '/includes/sidebar.php';
 
-// Incluir pagina
+// Incluir página
 $pageFile = __DIR__ . "/pages/{$page}.php";
 
 if ($debugMode) {
-    echo '<div style="background:orange;color:black;padding:10px;margin:10px;">Tentando incluir: ' . $pageFile . ' - ' . (file_exists($pageFile) ? 'EXISTE' : 'NAO EXISTE') . '</div>';
+    echo '<div style="background:orange;color:black;padding:10px;margin:10px;">Tentando incluir: ' . $pageFile . '</div>';
 }
 
 if (file_exists($pageFile)) {
     try {
         include $pageFile;
     } catch (Error $e) {
-        echo '<div class="main-content"><div class="alert alert-danger">Erro PHP: ' . htmlspecialchars($e->getMessage()) . '<br>Arquivo: ' . $e->getFile() . ':' . $e->getLine() . '</div></div>';
+        echo '<div class="main-content"><div class="alert alert-danger">Erro PHP: ' . htmlspecialchars($e->getMessage()) . '</div></div>';
     } catch (Exception $e) {
-        echo '<div class="main-content"><div class="alert alert-danger">Excecao: ' . htmlspecialchars($e->getMessage()) . '</div></div>';
+        echo '<div class="main-content"><div class="alert alert-danger">Exceção: ' . htmlspecialchars($e->getMessage()) . '</div></div>';
     }
 } else {
-    echo '<div class="main-content"><div class="alert alert-danger">Pagina nao encontrada: ' . htmlspecialchars($pageFile) . '</div></div>';
+    echo '<div class="main-content"><div class="alert alert-danger">Página não encontrada: ' . htmlspecialchars($page) . '</div></div>';
 }
 
 // Incluir footer
