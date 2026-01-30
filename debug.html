@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug UNOBIX</title>
+    <style>
+        body { font-family: monospace; background: #0a0a0f; color: #00f5d4; padding: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #00f5d4; }
+        .success { color: #00e676; }
+        .error { color: #ff5252; }
+        button { background: #00f5d4; color: #0a0a0f; border: none; padding: 10px 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Debug UNOBIX</h1>
+    
+    <div class="test">
+        <h3>1. Firebase Config</h3>
+        <div id="firebase-status">Testando...</div>
+    </div>
+    
+    <div class="test">
+        <h3>2. Google Auth</h3>
+        <button onclick="testAuth()">Testar Login Google</button>
+        <div id="auth-status"></div>
+    </div>
+    
+    <div class="test">
+        <h3>3. API Endpoints</h3>
+        <button onclick="testAPI('config.php')">Testar config.php</button>
+        <button onclick="testAPI('auth-google.php')">Testar auth-google.php</button>
+        <div id="api-status"></div>
+    </div>
+    
+    <div class="test">
+        <h3>4. Console Log</h3>
+        <div id="console-log"></div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
+    
+    <script>
+        // Firebase config do seu projeto
+        const firebaseConfig = {
+            apiKey: "AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U",
+            authDomain: "unobix-oauth-a69cd.firebaseapp.com",
+            projectId: "unobix-oauth-a69cd",
+            storageBucket: "unobix-oauth-a69cd.firebasestorage.app",
+            messagingSenderId: "1067767347117",
+            appId: "1:1067767347117:web:26e1193bdef8e264409324"
+        };
+
+        let auth = null;
+        
+        // Testar Firebase
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            auth = firebase.auth();
+            document.getElementById('firebase-status').innerHTML = 
+                '<span class="success">✅ Firebase inicializado</span>';
+        } catch (error) {
+            document.getElementById('firebase-status').innerHTML = 
+                `<span class="error">❌ Firebase error: ${error.message}</span>`;
+        }
+
+        // Testar Auth
+        async function testAuth() {
+            const status = document.getElementById('auth-status');
+            status.innerHTML = 'Iniciando login...';
+            
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                const result = await auth.signInWithPopup(provider);
+                
+                status.innerHTML = `
+                    <span class="success">✅ Login bem-sucedido!</span><br>
+                    Usuário: ${result.user.email}<br>
+                    UID: ${result.user.uid}
+                `;
+                
+                // Testar API
+                testBackendAuth(result.user.uid, result.user.email);
+                
+            } catch (error) {
+                status.innerHTML = `<span class="error">❌ Auth error: ${error.message}</span>`;
+            }
+        }
+
+        // Testar API
+        async function testAPI(endpoint) {
+            const status = document.getElementById('api-status');
+            status.innerHTML = `Testando ${endpoint}...`;
+            
+            try {
+                const response = await fetch(`api/${endpoint}`);
+                const text = await response.text();
+                
+                status.innerHTML = `
+                    <span class="success">✅ ${endpoint} respondeu (${response.status})</span><br>
+                    <pre>${text.substring(0, 500)}...</pre>
+                `;
+            } catch (error) {
+                status.innerHTML = `<span class="error">❌ ${endpoint} error: ${error.message}</span>`;
+            }
+        }
+
+        // Testar backend auth
+        async function testBackendAuth(uid, email) {
+            const status = document.getElementById('api-status');
+            
+            try {
+                const response = await fetch('api/auth-google.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'login',
+                        google_uid: uid,
+                        email: email
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    status.innerHTML = `
+                        <span class="success">✅ Backend auth OK!</span><br>
+                        Session token: ${result.session_token.substring(0, 20)}...
+                    `;
+                } else {
+                    status.innerHTML = `<span class="error">❌ Backend auth failed: ${result.error}</span>`;
+                }
+            } catch (error) {
+                status.innerHTML = `<span class="error">❌ Backend error: ${error.message}</span>`;
+            }
+        }
+
+        // Capturar logs do console
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            logToScreen('LOG', args.join(' '));
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            logToScreen('ERROR', args.join(' '));
+        };
+        
+        function logToScreen(type, message) {
+            const logDiv = document.getElementById('console-log');
+            const entry = document.createElement('div');
+            entry.className = type === 'ERROR' ? 'error' : '';
+            entry.textContent = `[${type}] ${message}`;
+            logDiv.appendChild(entry);
+        }
+    </script>
+</body>
+</html>

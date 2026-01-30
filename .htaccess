@@ -1,0 +1,23 @@
+Options -Indexes
+
+# Permitir acesso a todos os arquivos HTML
+<Files ~ "\.html$">
+    Order allow,deny
+    Allow from all
+</Files>
+
+# Bloquear arquivos sensíveis
+<Files ~ "\.(env|json|log|sql|config|key)$">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Redirecionar para index.html se arquivo não encontrado
+ErrorDocument 404 /index.html
+
+# Permitir CORS para API
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+</IfModule>
