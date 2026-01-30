@@ -5,6 +5,47 @@
 // v4.0 - Suporta Google UID + Wallet + BRL
 // ============================================
 
+// ============================================================
+// JSON Guard (Railway): impedir HTML/Warnings de quebrar JSON
+// (Precisa vir ANTES de qualquer require/include que possa emitir output)
+// ============================================================
+if (!headers_sent()) {
+    header('Content-Type: application/json; charset=utf-8');
+}
+ini_set('display_errors', '0');
+ini_set('html_errors', '0');
+error_reporting(E_ALL);
+
+// Captura qualquer output acidental (BOM, echo, warnings impressos, etc.)
+if (!ob_get_level()) {
+    ob_start();
+}
+
+// Converte warnings/notices em exceção (para cair no catch e responder JSON)
+set_error_handler(function($severity, $message, $file, $line) {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
+// Captura fatal/parse (não pega em try/catch)
+register_shutdown_function(function () {
+    $err = error_get_last();
+    if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        if (ob_get_length()) { ob_clean(); }
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+        }
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'balance_brl' => '0.00',
+            'balance' => '0.00000000',
+            'error' => 'Erro no servidor',
+            'debug_error' => $err['message'],
+        ]);
+    }
+});
+// ============================================================
+
 require_once __DIR__ . "/config.php";
 
 setCORSHeaders();
@@ -33,6 +74,7 @@ if (!$identifier) {
         ];
     }
     
+    if (ob_get_length()) { ob_clean(); }
     echo json_encode($resp);
     exit;
 }
@@ -45,6 +87,7 @@ try {
 
     if (!$player) {
         // Jogador não existe ainda - retornar saldo zero
+        if (ob_get_length()) { ob_clean(); }
         echo json_encode([
             'success' => true,
             'balance_brl' => '0.00',
@@ -66,6 +109,7 @@ try {
         $stakeReward = $player['staked_balance_brl'] * (pow(1 + $dailyRate, $daysElapsed) - 1);
     }
 
+    if (ob_get_length()) { ob_clean(); }
     echo json_encode([
         'success' => true,
         'balance_brl' => number_format((float)$player['balance_brl'], 2, '.', ''),
@@ -83,6 +127,8 @@ try {
 
 } catch (Exception $e) {
     error_log("balance.php error: " . $e->getMessage());
+
+    if (ob_get_length()) { ob_clean(); }
     echo json_encode([
         'success' => false,
         'balance_brl' => '0.00',
