@@ -1,655 +1,643 @@
 <?php
-/**
- * UNOBIX - Admin Ads Management API
- * Gerenciamento completo de anúncios
- * 
- * Ações:
- * - get_config: Obter configuração atual
- * - save_config: Salvar configuração geral
- * - list_slots: Listar slots de anúncios
- * - add_slot: Adicionar slot de anúncio
- * - update_slot: Atualizar slot
- * - delete_slot: Remover slot
- * - reorder_slots: Reordenar slots
- * - get_stats: Estatísticas de visualizações
- * - toggle_slot: Ativar/desativar slot
- */
-
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
-}
-
-require_once __DIR__ . '/../config.php';
-
-// Verificar autenticação admin
-session_start();
-$isAdmin = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
-
-// Para requisições GET públicas (get_public_config), não precisa de admin
-$input = json_decode(file_get_contents('php://input'), true) ?? $_GET;
-$action = $input['action'] ?? $_GET['action'] ?? '';
-
-// Ações públicas (não precisam de admin)
-$publicActions = ['get_public_config'];
-
-if (!in_array($action, $publicActions) && !$isAdmin) {
-    // Verificar senha de admin no request
-    $adminPassword = $input['admin_password'] ?? '';
-    if ($adminPassword !== getenv('ADMIN_PASSWORD') && $adminPassword !== 'UNOBIX_ADMIN_2026') {
-        echo json_encode(['success' => false, 'error' => 'Acesso não autorizado']);
-        exit;
-    }
-}
-
-try {
-    $pdo = getDBConnection();
-    
-    switch ($action) {
-        case 'get_config':
-            getAdsConfig($pdo);
-            break;
-            
-        case 'get_public_config':
-            getPublicAdsConfig($pdo);
-            break;
-            
-        case 'save_config':
-            saveAdsConfig($pdo, $input);
-            break;
-            
-        case 'list_slots':
-            listAdSlots($pdo, $input);
-            break;
-            
-        case 'add_slot':
-            addAdSlot($pdo, $input);
-            break;
-            
-        case 'update_slot':
-            updateAdSlot($pdo, $input);
-            break;
-            
-        case 'delete_slot':
-            deleteAdSlot($pdo, $input);
-            break;
-            
-        case 'toggle_slot':
-            toggleAdSlot($pdo, $input);
-            break;
-            
-        case 'reorder_slots':
-            reorderAdSlots($pdo, $input);
-            break;
-            
-        case 'get_stats':
-            getAdStats($pdo, $input);
-            break;
-            
-        case 'log_impression':
-            logAdImpression($pdo, $input);
-            break;
-            
-        case 'log_click':
-            logAdClick($pdo, $input);
-            break;
-            
-        default:
-            echo json_encode(['success' => false, 'error' => 'Ação inválida']);
-    }
-    
-} catch (Exception $e) {
-    error_log("Admin Ads Error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'error' => 'Erro interno do servidor']);
-}
-
 // ============================================
-// FUNÇÕES
+// UNOBIX - Gerenciamento de Anúncios
+// Arquivo: admin/pages/ads.php
 // ============================================
 
-/**
- * Obter configuração completa de ads (admin)
- */
-function getAdsConfig($pdo) {
-    // Buscar configuração do banco
-    $stmt = $pdo->prepare("SELECT config_key, config_value FROM system_config WHERE config_key LIKE 'ads_%'");
-    $stmt->execute();
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    $config = [
-        // Configurações gerais
-        'ads_enabled' => true,
-        'ads_debug_mode' => false,
-        
-        // Tela de carregamento (pré-jogo)
-        'pregame_enabled' => true,
-        'pregame_total_duration' => 10,        // Duração total em segundos
-        'pregame_min_duration' => 5,           // Duração mínima (não pode pular antes)
-        'pregame_skip_enabled' => false,       // Permitir pular após min_duration
-        'pregame_skip_after' => 5,             // Segundos até poder pular
-        'pregame_rotation_interval' => 5,      // Intervalo de rotação entre ads
-        'pregame_max_slots' => 3,              // Máximo de slots ativos
-        
-        // Tela final (pós-jogo)
-        'endgame_enabled' => true,
-        'endgame_display_mode' => 'grid',      // grid, carousel, stacked
-        'endgame_max_slots' => 4,              // Máximo de slots
-        'endgame_auto_rotate' => true,         // Rotação automática
-        'endgame_rotation_interval' => 8,      // Intervalo de rotação
-        'endgame_show_on_gameover' => true,    // Mostrar também no game over
-        
-        // Intersticial (entre ações)
-        'interstitial_enabled' => false,
-        'interstitial_frequency' => 3,         // A cada X jogos
-        'interstitial_duration' => 5,          // Duração em segundos
-        'interstitial_skip_after' => 3,        // Pode pular após X segundos
-        
-        // Banner fixo
-        'banner_enabled' => false,
-        'banner_position' => 'bottom',         // top, bottom
-        'banner_pages' => ['dashboard', 'wallet', 'staking'],
-        
-        // Configurações avançadas
-        'cache_duration' => 300,               // Cache de config em segundos
-        'fallback_enabled' => true,            // Mostrar placeholder se sem ads
-        'tracking_enabled' => true,            // Rastrear impressões/cliques
-    ];
-    
-    // Sobrescrever com valores do banco
-    foreach ($rows as $row) {
-        $key = str_replace('ads_', '', $row['config_key']);
-        $value = $row['config_value'];
-        
-        // Converter tipos
-        if ($value === 'true') $value = true;
-        elseif ($value === 'false') $value = false;
-        elseif (is_numeric($value)) $value = strpos($value, '.') !== false ? (float)$value : (int)$value;
-        elseif (substr($value, 0, 1) === '[' || substr($value, 0, 1) === '{') {
-            $value = json_decode($value, true) ?? $value;
-        }
-        
-        $config[$key] = $value;
-    }
-    
-    echo json_encode([
-        'success' => true,
-        'config' => $config
-    ]);
-}
+$pageTitle = 'Anúncios';
 
-/**
- * Obter configuração pública (sem dados sensíveis)
- */
-function getPublicAdsConfig($pdo) {
-    $stmt = $pdo->prepare("SELECT config_key, config_value FROM system_config WHERE config_key LIKE 'ads_%'");
-    $stmt->execute();
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    $config = [];
-    foreach ($rows as $row) {
-        $key = str_replace('ads_', '', $row['config_key']);
-        $value = $row['config_value'];
-        
-        if ($value === 'true') $value = true;
-        elseif ($value === 'false') $value = false;
-        elseif (is_numeric($value)) $value = strpos($value, '.') !== false ? (float)$value : (int)$value;
-        
-        $config[$key] = $value;
-    }
-    
-    // Buscar slots ativos
-    $stmt = $pdo->prepare("
-        SELECT id, slot_name, slot_type, position, script_code, width, height, 
-               display_order, custom_css
-        FROM ad_slots 
-        WHERE is_active = 1 
-        ORDER BY slot_type, display_order
-    ");
-    $stmt->execute();
-    $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Agrupar por tipo
-    $slotsByType = [
-        'pregame' => [],
-        'endgame' => [],
-        'interstitial' => [],
-        'banner' => []
-    ];
-    
-    foreach ($slots as $slot) {
-        $type = $slot['slot_type'];
-        if (isset($slotsByType[$type])) {
-            $slotsByType[$type][] = $slot;
-        }
-    }
-    
-    echo json_encode([
-        'success' => true,
-        'config' => $config,
-        'slots' => $slotsByType
-    ]);
-}
+$message = '';
+$error = '';
 
-/**
- * Salvar configuração de ads
- */
-function saveAdsConfig($pdo, $input) {
-    $config = $input['config'] ?? [];
-    
-    if (empty($config)) {
-        echo json_encode(['success' => false, 'error' => 'Configuração vazia']);
-        return;
-    }
-    
-    $pdo->beginTransaction();
+// Processar ações
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
     
     try {
-        foreach ($config as $key => $value) {
-            $configKey = 'ads_' . $key;
-            
-            // Converter valor para string
-            if (is_bool($value)) {
-                $value = $value ? 'true' : 'false';
-            } elseif (is_array($value)) {
-                $value = json_encode($value);
-            } else {
-                $value = (string)$value;
-            }
-            
-            // Upsert
-            $stmt = $pdo->prepare("
-                INSERT INTO system_config (config_key, config_value, is_public, updated_at)
-                VALUES (?, ?, 1, NOW())
-                ON DUPLICATE KEY UPDATE config_value = VALUES(config_value), updated_at = NOW()
-            ");
-            $stmt->execute([$configKey, $value]);
+        switch ($action) {
+            case 'save_config':
+                $configs = [
+                    'ads_enabled' => isset($_POST['ads_enabled']) ? 'true' : 'false',
+                    'ads_debug_mode' => isset($_POST['ads_debug_mode']) ? 'true' : 'false',
+                    'ads_tracking_enabled' => isset($_POST['ads_tracking_enabled']) ? 'true' : 'false',
+                    'ads_pregame_enabled' => isset($_POST['pregame_enabled']) ? 'true' : 'false',
+                    'ads_pregame_total_duration' => (int)$_POST['pregame_total_duration'],
+                    'ads_pregame_min_duration' => (int)$_POST['pregame_min_duration'],
+                    'ads_pregame_rotation_interval' => (int)$_POST['pregame_rotation_interval'],
+                    'ads_pregame_max_slots' => (int)$_POST['pregame_max_slots'],
+                    'ads_pregame_skip_enabled' => isset($_POST['pregame_skip_enabled']) ? 'true' : 'false',
+                    'ads_pregame_skip_after' => (int)$_POST['pregame_skip_after'],
+                    'ads_endgame_enabled' => isset($_POST['endgame_enabled']) ? 'true' : 'false',
+                    'ads_endgame_display_mode' => $_POST['endgame_display_mode'],
+                    'ads_endgame_max_slots' => (int)$_POST['endgame_max_slots'],
+                    'ads_endgame_rotation_interval' => (int)$_POST['endgame_rotation_interval'],
+                    'ads_endgame_auto_rotate' => isset($_POST['endgame_auto_rotate']) ? 'true' : 'false',
+                    'ads_endgame_show_on_gameover' => isset($_POST['endgame_show_on_gameover']) ? 'true' : 'false',
+                ];
+                
+                $stmt = $pdo->prepare("INSERT INTO system_config (config_key, config_value, is_public, updated_at) 
+                                       VALUES (?, ?, 1, NOW()) 
+                                       ON DUPLICATE KEY UPDATE config_value = VALUES(config_value), updated_at = NOW()");
+                
+                foreach ($configs as $key => $value) {
+                    $stmt->execute([$key, $value]);
+                }
+                
+                $message = "Configurações salvas com sucesso!";
+                break;
+                
+            case 'add_slot':
+                $stmt = $pdo->prepare("SELECT COALESCE(MAX(display_order), 0) + 1 FROM ad_slots WHERE slot_type = ?");
+                $stmt->execute([$_POST['slot_type']]);
+                $nextOrder = $stmt->fetchColumn();
+                
+                $stmt = $pdo->prepare("INSERT INTO ad_slots (slot_name, slot_type, position, script_code, width, height, 
+                                       duration_seconds, display_order, custom_css, notes, provider, is_active, created_at) 
+                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+                $stmt->execute([
+                    $_POST['slot_name'],
+                    $_POST['slot_type'],
+                    $_POST['position'] ?? 'center',
+                    $_POST['script_code'],
+                    $_POST['width'] ?: null,
+                    $_POST['height'] ?: null,
+                    (int)$_POST['duration_seconds'] ?: 5,
+                    $nextOrder,
+                    $_POST['custom_css'] ?: null,
+                    $_POST['notes'] ?: null,
+                    $_POST['provider'] ?: null,
+                    isset($_POST['is_active']) ? 1 : 0
+                ]);
+                
+                $message = "Slot criado com sucesso!";
+                break;
+                
+            case 'update_slot':
+                $stmt = $pdo->prepare("UPDATE ad_slots SET 
+                                       slot_name = ?, slot_type = ?, position = ?, script_code = ?,
+                                       width = ?, height = ?, duration_seconds = ?, custom_css = ?,
+                                       notes = ?, provider = ?, is_active = ?, updated_at = NOW()
+                                       WHERE id = ?");
+                $stmt->execute([
+                    $_POST['slot_name'],
+                    $_POST['slot_type'],
+                    $_POST['position'] ?? 'center',
+                    $_POST['script_code'],
+                    $_POST['width'] ?: null,
+                    $_POST['height'] ?: null,
+                    (int)$_POST['duration_seconds'] ?: 5,
+                    $_POST['custom_css'] ?: null,
+                    $_POST['notes'] ?: null,
+                    $_POST['provider'] ?: null,
+                    isset($_POST['is_active']) ? 1 : 0,
+                    (int)$_POST['slot_id']
+                ]);
+                
+                $message = "Slot atualizado com sucesso!";
+                break;
+                
+            case 'delete_slot':
+                $stmt = $pdo->prepare("DELETE FROM ad_slots WHERE id = ?");
+                $stmt->execute([(int)$_POST['slot_id']]);
+                $message = "Slot removido!";
+                break;
+                
+            case 'toggle_slot':
+                $stmt = $pdo->prepare("UPDATE ad_slots SET is_active = NOT is_active, updated_at = NOW() WHERE id = ?");
+                $stmt->execute([(int)$_POST['slot_id']]);
+                $message = "Status alterado!";
+                break;
         }
-        
-        $pdo->commit();
-        
-        echo json_encode([
-            'success' => true,
-            'message' => 'Configurações salvas com sucesso'
-        ]);
-        
     } catch (Exception $e) {
-        $pdo->rollBack();
-        throw $e;
+        $error = $e->getMessage();
     }
 }
 
-/**
- * Listar slots de anúncios
- */
-function listAdSlots($pdo, $input) {
-    $type = $input['type'] ?? null;
-    
-    $sql = "
+// Carregar configurações
+$config = [];
+try {
+    $stmt = $pdo->query("SELECT config_key, config_value FROM system_config WHERE config_key LIKE 'ads_%'");
+    while ($row = $stmt->fetch()) {
+        $key = str_replace('ads_', '', $row['config_key']);
+        $value = $row['config_value'];
+        if ($value === 'true') $value = true;
+        elseif ($value === 'false') $value = false;
+        elseif (is_numeric($value)) $value = strpos($value, '.') !== false ? (float)$value : (int)$value;
+        $config[$key] = $value;
+    }
+} catch (Exception $e) {}
+
+// Valores padrão
+$config = array_merge([
+    'enabled' => true,
+    'debug_mode' => false,
+    'tracking_enabled' => true,
+    'pregame_enabled' => true,
+    'pregame_total_duration' => 10,
+    'pregame_min_duration' => 5,
+    'pregame_rotation_interval' => 5,
+    'pregame_max_slots' => 3,
+    'pregame_skip_enabled' => false,
+    'pregame_skip_after' => 5,
+    'endgame_enabled' => true,
+    'endgame_display_mode' => 'grid',
+    'endgame_max_slots' => 4,
+    'endgame_rotation_interval' => 8,
+    'endgame_auto_rotate' => true,
+    'endgame_show_on_gameover' => true,
+], $config);
+
+// Carregar slots
+$slots = [];
+try {
+    $slots = $pdo->query("
         SELECT s.*, 
-               COUNT(DISTINCT i.id) as total_impressions,
-               COUNT(DISTINCT c.id) as total_clicks
+               COUNT(DISTINCT i.id) as impressions_30d,
+               COUNT(DISTINCT c.id) as clicks_30d
         FROM ad_slots s
         LEFT JOIN ad_impressions i ON s.id = i.slot_id AND i.created_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
         LEFT JOIN ad_clicks c ON s.id = c.slot_id AND c.created_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
-    ";
-    
-    $params = [];
-    if ($type) {
-        $sql .= " WHERE s.slot_type = ?";
-        $params[] = $type;
-    }
-    
-    $sql .= " GROUP BY s.id ORDER BY s.slot_type, s.display_order";
-    
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Calcular CTR
-    foreach ($slots as &$slot) {
-        $impressions = (int)$slot['total_impressions'];
-        $clicks = (int)$slot['total_clicks'];
-        $slot['ctr'] = $impressions > 0 ? round(($clicks / $impressions) * 100, 2) : 0;
-    }
-    
-    echo json_encode([
-        'success' => true,
-        'slots' => $slots
-    ]);
-}
-
-/**
- * Adicionar slot de anúncio
- */
-function addAdSlot($pdo, $input) {
-    $required = ['slot_name', 'slot_type', 'script_code'];
-    foreach ($required as $field) {
-        if (empty($input[$field])) {
-            echo json_encode(['success' => false, 'error' => "Campo obrigatório: $field"]);
-            return;
-        }
-    }
-    
-    // Validar tipo
-    $validTypes = ['pregame', 'endgame', 'interstitial', 'banner'];
-    if (!in_array($input['slot_type'], $validTypes)) {
-        echo json_encode(['success' => false, 'error' => 'Tipo de slot inválido']);
-        return;
-    }
-    
-    // Obter próxima ordem
-    $stmt = $pdo->prepare("SELECT COALESCE(MAX(display_order), 0) + 1 as next_order FROM ad_slots WHERE slot_type = ?");
-    $stmt->execute([$input['slot_type']]);
-    $nextOrder = $stmt->fetchColumn();
-    
-    $stmt = $pdo->prepare("
-        INSERT INTO ad_slots (
-            slot_name, slot_type, position, script_code, 
-            width, height, display_order, duration_seconds,
-            custom_css, custom_js, is_active, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-    ");
-    
-    $stmt->execute([
-        $input['slot_name'],
-        $input['slot_type'],
-        $input['position'] ?? 'center',
-        $input['script_code'],
-        $input['width'] ?? null,
-        $input['height'] ?? null,
-        $nextOrder,
-        $input['duration_seconds'] ?? 5,
-        $input['custom_css'] ?? null,
-        $input['custom_js'] ?? null,
-        $input['is_active'] ?? 1
-    ]);
-    
-    $slotId = $pdo->lastInsertId();
-    
-    echo json_encode([
-        'success' => true,
-        'message' => 'Slot criado com sucesso',
-        'slot_id' => $slotId
-    ]);
-}
-
-/**
- * Atualizar slot de anúncio
- */
-function updateAdSlot($pdo, $input) {
-    $slotId = $input['slot_id'] ?? 0;
-    
-    if (!$slotId) {
-        echo json_encode(['success' => false, 'error' => 'ID do slot não informado']);
-        return;
-    }
-    
-    $fields = [];
-    $params = [];
-    
-    $allowedFields = [
-        'slot_name', 'slot_type', 'position', 'script_code',
-        'width', 'height', 'display_order', 'duration_seconds',
-        'custom_css', 'custom_js', 'is_active'
-    ];
-    
-    foreach ($allowedFields as $field) {
-        if (isset($input[$field])) {
-            $fields[] = "$field = ?";
-            $params[] = $input[$field];
-        }
-    }
-    
-    if (empty($fields)) {
-        echo json_encode(['success' => false, 'error' => 'Nenhum campo para atualizar']);
-        return;
-    }
-    
-    $fields[] = "updated_at = NOW()";
-    $params[] = $slotId;
-    
-    $sql = "UPDATE ad_slots SET " . implode(', ', $fields) . " WHERE id = ?";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    
-    echo json_encode([
-        'success' => true,
-        'message' => 'Slot atualizado com sucesso'
-    ]);
-}
-
-/**
- * Deletar slot de anúncio
- */
-function deleteAdSlot($pdo, $input) {
-    $slotId = $input['slot_id'] ?? 0;
-    
-    if (!$slotId) {
-        echo json_encode(['success' => false, 'error' => 'ID do slot não informado']);
-        return;
-    }
-    
-    $stmt = $pdo->prepare("DELETE FROM ad_slots WHERE id = ?");
-    $stmt->execute([$slotId]);
-    
-    echo json_encode([
-        'success' => true,
-        'message' => 'Slot removido com sucesso'
-    ]);
-}
-
-/**
- * Ativar/desativar slot
- */
-function toggleAdSlot($pdo, $input) {
-    $slotId = $input['slot_id'] ?? 0;
-    
-    if (!$slotId) {
-        echo json_encode(['success' => false, 'error' => 'ID do slot não informado']);
-        return;
-    }
-    
-    $stmt = $pdo->prepare("UPDATE ad_slots SET is_active = NOT is_active, updated_at = NOW() WHERE id = ?");
-    $stmt->execute([$slotId]);
-    
-    // Obter novo status
-    $stmt = $pdo->prepare("SELECT is_active FROM ad_slots WHERE id = ?");
-    $stmt->execute([$slotId]);
-    $isActive = $stmt->fetchColumn();
-    
-    echo json_encode([
-        'success' => true,
-        'is_active' => (bool)$isActive,
-        'message' => $isActive ? 'Slot ativado' : 'Slot desativado'
-    ]);
-}
-
-/**
- * Reordenar slots
- */
-function reorderAdSlots($pdo, $input) {
-    $order = $input['order'] ?? [];
-    
-    if (empty($order)) {
-        echo json_encode(['success' => false, 'error' => 'Ordem não informada']);
-        return;
-    }
-    
-    $pdo->beginTransaction();
-    
-    try {
-        $stmt = $pdo->prepare("UPDATE ad_slots SET display_order = ? WHERE id = ?");
-        
-        foreach ($order as $position => $slotId) {
-            $stmt->execute([$position + 1, $slotId]);
-        }
-        
-        $pdo->commit();
-        
-        echo json_encode([
-            'success' => true,
-            'message' => 'Ordem atualizada'
-        ]);
-        
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        throw $e;
-    }
-}
-
-/**
- * Estatísticas de anúncios
- */
-function getAdStats($pdo, $input) {
-    $period = $input['period'] ?? 30; // dias
-    $slotId = $input['slot_id'] ?? null;
-    
-    // Stats gerais
-    $sql = "
-        SELECT 
-            COUNT(DISTINCT i.id) as total_impressions,
-            COUNT(DISTINCT c.id) as total_clicks,
-            COUNT(DISTINCT i.session_id) as unique_sessions,
-            COUNT(DISTINCT DATE(i.created_at)) as active_days
-        FROM ad_impressions i
-        LEFT JOIN ad_clicks c ON i.slot_id = c.slot_id AND i.session_id = c.session_id
-        WHERE i.created_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-    ";
-    
-    $params = [$period];
-    
-    if ($slotId) {
-        $sql .= " AND i.slot_id = ?";
-        $params[] = $slotId;
-    }
-    
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    $general = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    // Stats por dia
-    $sql = "
-        SELECT 
-            DATE(i.created_at) as date,
-            COUNT(DISTINCT i.id) as impressions,
-            COUNT(DISTINCT c.id) as clicks
-        FROM ad_impressions i
-        LEFT JOIN ad_clicks c ON i.slot_id = c.slot_id 
-            AND DATE(i.created_at) = DATE(c.created_at)
-        WHERE i.created_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-    ";
-    
-    $params = [$period];
-    if ($slotId) {
-        $sql .= " AND i.slot_id = ?";
-        $params[] = $slotId;
-    }
-    
-    $sql .= " GROUP BY DATE(i.created_at) ORDER BY date DESC";
-    
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    $daily = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Stats por slot
-    $sql = "
-        SELECT 
-            s.id, s.slot_name, s.slot_type,
-            COUNT(DISTINCT i.id) as impressions,
-            COUNT(DISTINCT c.id) as clicks
-        FROM ad_slots s
-        LEFT JOIN ad_impressions i ON s.id = i.slot_id 
-            AND i.created_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-        LEFT JOIN ad_clicks c ON s.id = c.slot_id 
-            AND c.created_at > DATE_SUB(NOW(), INTERVAL ? DAY)
         GROUP BY s.id
-        ORDER BY impressions DESC
-    ";
-    
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$period, $period]);
-    $bySlot = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Calcular CTRs
-    $general['ctr'] = $general['total_impressions'] > 0 
-        ? round(($general['total_clicks'] / $general['total_impressions']) * 100, 2) 
-        : 0;
-    
-    foreach ($bySlot as &$slot) {
-        $slot['ctr'] = $slot['impressions'] > 0 
-            ? round(($slot['clicks'] / $slot['impressions']) * 100, 2) 
-            : 0;
+        ORDER BY s.slot_type, s.display_order
+    ")->fetchAll();
+} catch (Exception $e) {}
+
+// Estatísticas
+$stats = ['impressions' => 0, 'clicks' => 0, 'ctr' => 0];
+try {
+    $stats = $pdo->query("
+        SELECT 
+            COUNT(DISTINCT i.id) as impressions,
+            COUNT(DISTINCT c.id) as clicks
+        FROM ad_impressions i
+        LEFT JOIN ad_clicks c ON DATE(i.created_at) = DATE(c.created_at)
+        WHERE i.created_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
+    ")->fetch();
+    $stats['ctr'] = $stats['impressions'] > 0 ? round(($stats['clicks'] / $stats['impressions']) * 100, 2) : 0;
+} catch (Exception $e) {}
+
+// Slot para edição
+$editSlot = null;
+if (isset($_GET['edit'])) {
+    foreach ($slots as $s) {
+        if ($s['id'] == $_GET['edit']) {
+            $editSlot = $s;
+            break;
+        }
     }
+}
+?>
+
+<div class="main-content">
+    <div class="page-header">
+        <h1 class="page-title"><i class="fas fa-ad"></i> Gerenciamento de Anúncios</h1>
+        <p class="page-subtitle">Configure os anúncios do jogo para gerar receita</p>
+    </div>
     
-    echo json_encode([
-        'success' => true,
-        'period' => $period,
-        'general' => $general,
-        'daily' => $daily,
-        'by_slot' => $bySlot
-    ]);
+    <?php if ($message): ?>
+        <div class="alert alert-success"><i class="fas fa-check-circle"></i> <?php echo $message; ?></div>
+    <?php endif; ?>
+    
+    <?php if ($error): ?>
+        <div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> <?php echo $error; ?></div>
+    <?php endif; ?>
+    
+    <!-- Estatísticas -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="icon primary"><i class="fas fa-eye"></i></div>
+            <div class="value"><?php echo number_format($stats['impressions']); ?></div>
+            <div class="label">Impressões (30d)</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon success"><i class="fas fa-mouse-pointer"></i></div>
+            <div class="value"><?php echo number_format($stats['clicks']); ?></div>
+            <div class="label">Cliques (30d)</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon warning"><i class="fas fa-percentage"></i></div>
+            <div class="value"><?php echo $stats['ctr']; ?>%</div>
+            <div class="label">CTR</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon danger"><i class="fas fa-th-large"></i></div>
+            <div class="value"><?php echo count($slots); ?></div>
+            <div class="label">Slots Ativos</div>
+        </div>
+    </div>
+    
+    <!-- Tabs -->
+    <div class="panel" style="margin-top: 30px;">
+        <div class="panel-body">
+            <div class="tabs">
+                <a href="#config" class="tab active" onclick="showTab('config')">
+                    <i class="fas fa-cog"></i> Configurações
+                </a>
+                <a href="#slots" class="tab" onclick="showTab('slots')">
+                    <i class="fas fa-th-large"></i> Slots (<?php echo count($slots); ?>)
+                </a>
+                <a href="#new-slot" class="tab" onclick="showTab('new-slot')">
+                    <i class="fas fa-plus"></i> Novo Slot
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tab: Configurações -->
+    <div id="tab-config" class="tab-content">
+        <form method="POST">
+            <input type="hidden" name="action" value="save_config">
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <!-- Configurações Gerais -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3 class="panel-title"><i class="fas fa-sliders-h"></i> Configurações Gerais</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label class="toggle-label">
+                                <input type="checkbox" name="ads_enabled" <?php echo $config['enabled'] ? 'checked' : ''; ?>>
+                                <span>Sistema de Anúncios Habilitado</span>
+                            </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="toggle-label">
+                                <input type="checkbox" name="ads_tracking_enabled" <?php echo $config['tracking_enabled'] ? 'checked' : ''; ?>>
+                                <span>Rastrear Impressões e Cliques</span>
+                            </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="toggle-label">
+                                <input type="checkbox" name="ads_debug_mode" <?php echo $config['debug_mode'] ? 'checked' : ''; ?>>
+                                <span>Modo Debug (Console)</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Pré-Jogo -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3 class="panel-title"><i class="fas fa-hourglass-start"></i> Tela de Carregamento</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label class="toggle-label">
+                                <input type="checkbox" name="pregame_enabled" <?php echo $config['pregame_enabled'] ? 'checked' : ''; ?>>
+                                <span>Anúncios Pré-Jogo</span>
+                            </label>
+                        </div>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Duração Total (s)</label>
+                                <input type="number" name="pregame_total_duration" class="form-control" 
+                                       value="<?php echo $config['pregame_total_duration']; ?>" min="3" max="60">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Duração Mínima (s)</label>
+                                <input type="number" name="pregame_min_duration" class="form-control" 
+                                       value="<?php echo $config['pregame_min_duration']; ?>" min="1" max="30">
+                            </div>
+                        </div>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Rotação Entre Ads (s)</label>
+                                <input type="number" name="pregame_rotation_interval" class="form-control" 
+                                       value="<?php echo $config['pregame_rotation_interval']; ?>" min="2" max="30">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Máx. Slots</label>
+                                <input type="number" name="pregame_max_slots" class="form-control" 
+                                       value="<?php echo $config['pregame_max_slots']; ?>" min="1" max="10">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="toggle-label">
+                                <input type="checkbox" name="pregame_skip_enabled" <?php echo $config['pregame_skip_enabled'] ? 'checked' : ''; ?>>
+                                <span>Permitir Pular</span>
+                            </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Pular Após (s)</label>
+                            <input type="number" name="pregame_skip_after" class="form-control" 
+                                   value="<?php echo $config['pregame_skip_after']; ?>" min="1" max="30">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pós-Jogo -->
+            <div class="panel" style="margin-top: 30px;">
+                <div class="panel-header">
+                    <h3 class="panel-title"><i class="fas fa-flag-checkered"></i> Tela Final (Pós-Jogo)</h3>
+                </div>
+                <div class="panel-body">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="toggle-label">
+                                <input type="checkbox" name="endgame_enabled" <?php echo $config['endgame_enabled'] ? 'checked' : ''; ?>>
+                                <span>Anúncios Pós-Jogo</span>
+                            </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="toggle-label">
+                                <input type="checkbox" name="endgame_auto_rotate" <?php echo $config['endgame_auto_rotate'] ? 'checked' : ''; ?>>
+                                <span>Rotação Automática</span>
+                            </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="toggle-label">
+                                <input type="checkbox" name="endgame_show_on_gameover" <?php echo $config['endgame_show_on_gameover'] ? 'checked' : ''; ?>>
+                                <span>Mostrar no Game Over</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 15px;">
+                        <div class="form-group">
+                            <label class="form-label">Modo de Exibição</label>
+                            <select name="endgame_display_mode" class="form-control">
+                                <option value="grid" <?php echo $config['endgame_display_mode'] === 'grid' ? 'selected' : ''; ?>>Grid (Grade)</option>
+                                <option value="carousel" <?php echo $config['endgame_display_mode'] === 'carousel' ? 'selected' : ''; ?>>Carousel (Rotativo)</option>
+                                <option value="stacked" <?php echo $config['endgame_display_mode'] === 'stacked' ? 'selected' : ''; ?>>Stacked (Empilhado)</option>
+                                <option value="single" <?php echo $config['endgame_display_mode'] === 'single' ? 'selected' : ''; ?>>Single (Um por vez)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Máx. Slots</label>
+                            <input type="number" name="endgame_max_slots" class="form-control" 
+                                   value="<?php echo $config['endgame_max_slots']; ?>" min="1" max="10">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Intervalo Rotação (s)</label>
+                            <input type="number" name="endgame_rotation_interval" class="form-control" 
+                                   value="<?php echo $config['endgame_rotation_interval']; ?>" min="3" max="60">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; text-align: right;">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save"></i> Salvar Configurações
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Tab: Slots -->
+    <div id="tab-slots" class="tab-content" style="display: none;">
+        <div class="panel">
+            <div class="panel-header">
+                <h3 class="panel-title"><i class="fas fa-th-large"></i> Slots de Anúncios</h3>
+            </div>
+            <div class="panel-body">
+                <?php if (empty($slots)): ?>
+                    <div class="empty-state">
+                        <i class="fas fa-ad"></i>
+                        <h3>Nenhum slot cadastrado</h3>
+                        <p>Crie seu primeiro slot de anúncio</p>
+                        <button onclick="showTab('new-slot')" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Criar Slot
+                        </button>
+                    </div>
+                <?php else: ?>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Tipo</th>
+                                    <th>Dimensões</th>
+                                    <th>Duração</th>
+                                    <th>Impressões</th>
+                                    <th>Cliques</th>
+                                    <th>CTR</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($slots as $s): ?>
+                            <?php $ctr = $s['impressions_30d'] > 0 ? round(($s['clicks_30d'] / $s['impressions_30d']) * 100, 2) : 0; ?>
+                            <tr>
+                                <td>
+                                    <strong><?php echo htmlspecialchars($s['slot_name']); ?></strong>
+                                    <?php if ($s['provider']): ?>
+                                        <div style="font-size: 0.75rem; color: var(--text-dim);"><?php echo htmlspecialchars($s['provider']); ?></div>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php
+                                    $typeColors = ['pregame' => 'primary', 'endgame' => 'success', 'interstitial' => 'warning', 'banner' => 'danger'];
+                                    ?>
+                                    <span class="badge badge-<?php echo $typeColors[$s['slot_type']] ?? 'primary'; ?>">
+                                        <?php echo $s['slot_type']; ?>
+                                    </span>
+                                </td>
+                                <td><?php echo ($s['width'] ?: '-') . ' x ' . ($s['height'] ?: '-'); ?></td>
+                                <td><?php echo $s['duration_seconds']; ?>s</td>
+                                <td><?php echo number_format($s['impressions_30d']); ?></td>
+                                <td><?php echo number_format($s['clicks_30d']); ?></td>
+                                <td><?php echo $ctr; ?>%</td>
+                                <td>
+                                    <?php if ($s['is_active']): ?>
+                                        <span class="badge badge-success"><i class="fas fa-check"></i> Ativo</span>
+                                    <?php else: ?>
+                                        <span class="badge badge-danger"><i class="fas fa-times"></i> Inativo</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="?page=ads&edit=<?php echo $s['id']; ?>" class="btn btn-outline btn-sm">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form method="POST" style="display: inline;">
+                                            <input type="hidden" name="action" value="toggle_slot">
+                                            <input type="hidden" name="slot_id" value="<?php echo $s['id']; ?>">
+                                            <button type="submit" class="btn btn-<?php echo $s['is_active'] ? 'warning' : 'success'; ?> btn-sm">
+                                                <i class="fas fa-power-off"></i>
+                                            </button>
+                                        </form>
+                                        <form method="POST" style="display: inline;" onsubmit="return confirm('Excluir este slot?');">
+                                            <input type="hidden" name="action" value="delete_slot">
+                                            <input type="hidden" name="slot_id" value="<?php echo $s['id']; ?>">
+                                            <button type="submit" class="btn btn-danger btn-sm">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tab: Novo/Editar Slot -->
+    <div id="tab-new-slot" class="tab-content" style="display: none;">
+        <div class="panel">
+            <div class="panel-header">
+                <h3 class="panel-title">
+                    <i class="fas fa-<?php echo $editSlot ? 'edit' : 'plus'; ?>"></i> 
+                    <?php echo $editSlot ? 'Editar Slot' : 'Novo Slot de Anúncio'; ?>
+                </h3>
+            </div>
+            <div class="panel-body">
+                <form method="POST">
+                    <input type="hidden" name="action" value="<?php echo $editSlot ? 'update_slot' : 'add_slot'; ?>">
+                    <?php if ($editSlot): ?>
+                        <input type="hidden" name="slot_id" value="<?php echo $editSlot['id']; ?>">
+                    <?php endif; ?>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="form-label">Nome do Slot *</label>
+                            <input type="text" name="slot_name" class="form-control" required
+                                   value="<?php echo htmlspecialchars($editSlot['slot_name'] ?? ''); ?>"
+                                   placeholder="Ex: Banner Principal Pré-Jogo">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Tipo *</label>
+                            <select name="slot_type" class="form-control" required>
+                                <option value="pregame" <?php echo ($editSlot['slot_type'] ?? '') === 'pregame' ? 'selected' : ''; ?>>Pré-Jogo (Carregamento)</option>
+                                <option value="endgame" <?php echo ($editSlot['slot_type'] ?? '') === 'endgame' ? 'selected' : ''; ?>>Pós-Jogo (Resultado)</option>
+                                <option value="interstitial" <?php echo ($editSlot['slot_type'] ?? '') === 'interstitial' ? 'selected' : ''; ?>>Intersticial</option>
+                                <option value="banner" <?php echo ($editSlot['slot_type'] ?? '') === 'banner' ? 'selected' : ''; ?>>Banner Fixo</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="form-label">Largura</label>
+                            <input type="text" name="width" class="form-control"
+                                   value="<?php echo htmlspecialchars($editSlot['width'] ?? ''); ?>"
+                                   placeholder="300 ou 100%">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Altura</label>
+                            <input type="text" name="height" class="form-control"
+                                   value="<?php echo htmlspecialchars($editSlot['height'] ?? ''); ?>"
+                                   placeholder="250 ou auto">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Duração (segundos)</label>
+                            <input type="number" name="duration_seconds" class="form-control"
+                                   value="<?php echo $editSlot['duration_seconds'] ?? 5; ?>" min="0" max="120">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Código do Anúncio (HTML/JavaScript) *</label>
+                        <textarea name="script_code" class="form-control" rows="8" required
+                                  placeholder="Cole aqui o código fornecido pelo seu provedor de anúncios..."><?php echo htmlspecialchars($editSlot['script_code'] ?? ''); ?></textarea>
+                        <small style="color: var(--text-dim);">Aceita HTML, JavaScript e tags de terceiros</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">CSS Personalizado (opcional)</label>
+                        <textarea name="custom_css" class="form-control" rows="3"
+                                  placeholder=".ad-container { ... }"><?php echo htmlspecialchars($editSlot['custom_css'] ?? ''); ?></textarea>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="form-label">Provedor</label>
+                            <input type="text" name="provider" class="form-control"
+                                   value="<?php echo htmlspecialchars($editSlot['provider'] ?? ''); ?>"
+                                   placeholder="Ex: PropellerAds, Adsterra">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Notas/Observações</label>
+                            <input type="text" name="notes" class="form-control"
+                                   value="<?php echo htmlspecialchars($editSlot['notes'] ?? ''); ?>"
+                                   placeholder="Ex: Campanha Janeiro 2026">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="toggle-label">
+                            <input type="checkbox" name="is_active" <?php echo ($editSlot['is_active'] ?? 1) ? 'checked' : ''; ?>>
+                            <span>Slot Ativo</span>
+                        </label>
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> <?php echo $editSlot ? 'Atualizar Slot' : 'Criar Slot'; ?>
+                        </button>
+                        <?php if ($editSlot): ?>
+                            <a href="?page=ads" class="btn btn-outline">Cancelar</a>
+                        <?php endif; ?>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showTab(tab) {
+    // Esconder todas as tabs
+    document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    
+    // Mostrar tab selecionada
+    document.getElementById('tab-' + tab).style.display = 'block';
+    event.target.classList.add('active');
 }
 
-/**
- * Registrar impressão de anúncio
- */
-function logAdImpression($pdo, $input) {
-    $slotId = $input['slot_id'] ?? 0;
-    $sessionId = $input['session_id'] ?? null;
-    $googleUid = $input['google_uid'] ?? null;
-    $page = $input['page'] ?? null;
-    
-    if (!$slotId) {
-        echo json_encode(['success' => false, 'error' => 'Slot não informado']);
-        return;
-    }
-    
-    $stmt = $pdo->prepare("
-        INSERT INTO ad_impressions (slot_id, session_id, google_uid, page, ip_address, user_agent, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, NOW())
-    ");
-    
-    $stmt->execute([
-        $slotId,
-        $sessionId,
-        $googleUid,
-        $page,
-        $_SERVER['REMOTE_ADDR'] ?? null,
-        $_SERVER['HTTP_USER_AGENT'] ?? null
-    ]);
-    
-    echo json_encode(['success' => true]);
+// Se tem slot para editar, mostrar tab de edição
+<?php if ($editSlot): ?>
+document.addEventListener('DOMContentLoaded', function() {
+    showTab('new-slot');
+});
+<?php endif; ?>
+</script>
+
+<style>
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
 }
 
-/**
- * Registrar clique em anúncio
- */
-function logAdClick($pdo, $input) {
-    $slotId = $input['slot_id'] ?? 0;
-    $sessionId = $input['session_id'] ?? null;
-    $googleUid = $input['google_uid'] ?? null;
-    
-    if (!$slotId) {
-        echo json_encode(['success' => false, 'error' => 'Slot não informado']);
-        return;
-    }
-    
-    $stmt = $pdo->prepare("
-        INSERT INTO ad_clicks (slot_id, session_id, google_uid, ip_address, user_agent, created_at)
-        VALUES (?, ?, ?, ?, ?, NOW())
-    ");
-    
-    $stmt->execute([
-        $slotId,
-        $sessionId,
-        $googleUid,
-        $_SERVER['REMOTE_ADDR'] ?? null,
-        $_SERVER['HTTP_USER_AGENT'] ?? null
-    ]);
-    
-    echo json_encode(['success' => true]);
+.toggle-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--primary);
 }
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.tab-content {
+    margin-top: 20px;
+}
+</style>
