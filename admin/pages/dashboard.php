@@ -1,291 +1,218 @@
 <?php
 // ============================================
-// CRYPTO ASTEROID RUSH - Dashboard
+// UNOBIX - Dashboard
 // Arquivo: admin/pages/dashboard.php
+// ATUALIZADO: Google Auth, BRL, sem BNB
 // ============================================
 
 $pageTitle = 'Dashboard';
 
-// Inicializar variáveis com valores padrão
-$totalPlayers = 0;
-$playersToday = 0;
-$totalBalance = 0;
-$totalGames = 0;
-$gamesToday = 0;
-$earningsToday = 0;
-$pendingWithdrawals = 0;
-$pendingAmount = 0;
-$flaggedSessions = 0;
-$bannedWallets = 0;
-$recentActivities = [];
-$error = null;
+try {
+    // Estatísticas de jogadores
+    $playerStats = $pdo->query("
+        SELECT 
+            COUNT(*) as total_players,
+            COUNT(CASE WHEN created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 1 END) as new_today,
+            COUNT(CASE WHEN created_at > DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 END) as new_week,
+            SUM(balance_brl) as total_balance,
+            SUM(total_earned_brl) as total_earned,
+            SUM(total_played) as total_games,
+            COUNT(CASE WHEN is_banned = 1 THEN 1 END) as banned
+        FROM players
+    ")->fetch();
 
-// Taxas BNB
-$feesToday = 0;
-$fees7Days = 0;
-$fees30Days = 0;
-$feesTotal = 0;
+    // Estatísticas de saques
+    $withdrawStats = $pdo->query("
+        SELECT 
+            COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
+            SUM(CASE WHEN status = 'pending' THEN amount_brl ELSE 0 END) as pending_amount,
+            COUNT(CASE WHEN status = 'approved' AND created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as approved_month,
+            SUM(CASE WHEN status = 'approved' AND created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) THEN amount_brl ELSE 0 END) as approved_amount_month
+        FROM withdrawals
+    ")->fetch();
 
-// Verificar se PDO existe
-if (!isset($pdo)) {
-    $error = "Variável PDO não está definida!";
-} else {
-    // Estatísticas gerais
-    try {
-        // Datas para consultas
-        $today = date('Y-m-d');
-        $weekAgo = date('Y-m-d', strtotime('-7 days'));
-        $monthAgo = date('Y-m-d', strtotime('-30 days'));
-        
-        // Total de jogadores
-        $result = $pdo->query("SELECT COUNT(*) as c FROM players");
-        $totalPlayers = $result ? $result->fetchColumn() : 0;
-        
-        // Jogadores hoje
-        $result = $pdo->query("SELECT COUNT(*) as c FROM players WHERE DATE(created_at) = CURDATE()");
-        $playersToday = $result ? $result->fetchColumn() : 0;
-        
-        // Total em saldos
-        $result = $pdo->query("SELECT COALESCE(SUM(balance_usdt), 0) as s FROM players");
-        $totalBalance = $result ? $result->fetchColumn() : 0;
-        
-        // Total de partidas
-        $result = $pdo->query("SELECT COUNT(*) as c FROM game_sessions");
-        $totalGames = $result ? $result->fetchColumn() : 0;
-        
-        // Partidas hoje
-        $result = $pdo->query("SELECT COUNT(*) as c FROM game_sessions WHERE DATE(created_at) = CURDATE()");
-        $gamesToday = $result ? $result->fetchColumn() : 0;
-        
-        // Ganhos distribuídos hoje
-        $result = $pdo->query("SELECT COALESCE(SUM(earnings_usdt), 0) as s FROM game_sessions WHERE DATE(created_at) = CURDATE() AND status = 'completed'");
-        $earningsToday = $result ? $result->fetchColumn() : 0;
-        
-        // Saques pendentes
-        $result = $pdo->query("SELECT COUNT(*) as c FROM withdrawals WHERE status = 'pending'");
-        $pendingWithdrawals = $result ? $result->fetchColumn() : 0;
-        
-        $result = $pdo->query("SELECT COALESCE(SUM(amount_usdt), 0) as s FROM withdrawals WHERE status = 'pending'");
-        $pendingAmount = $result ? $result->fetchColumn() : 0;
-        
-        // Sessões flagged
-        $result = $pdo->query("SELECT COUNT(*) as c FROM game_sessions WHERE status = 'flagged'");
-        $flaggedSessions = $result ? $result->fetchColumn() : 0;
-        
-        // Wallets banidas
-        $result = $pdo->query("SELECT COUNT(*) as c FROM players WHERE is_banned = 1");
-        $bannedWallets = $result ? $result->fetchColumn() : 0;
-        
-        // ============================================
-        // ESTATÍSTICAS DE TAXAS BNB
-        // ============================================
-        
-        // Primeiro tenta buscar da tabela transactions (fee_bnb)
-        $hasFeeColumn = false;
-        try {
-            $check = $pdo->query("SHOW COLUMNS FROM transactions LIKE 'fee_bnb'");
-            $hasFeeColumn = $check && $check->fetch();
-        } catch (Exception $e) {}
-        
-        if ($hasFeeColumn) {
-            // Taxas hoje
-            $result = $pdo->query("SELECT COALESCE(SUM(fee_bnb), 0) as total FROM transactions WHERE DATE(created_at) = '$today' AND fee_bnb > 0");
-            $feesToday = $result ? (float)$result->fetchColumn() : 0;
-            
-            // Taxas 7 dias
-            $result = $pdo->query("SELECT COALESCE(SUM(fee_bnb), 0) as total FROM transactions WHERE created_at >= '$weekAgo' AND fee_bnb > 0");
-            $fees7Days = $result ? (float)$result->fetchColumn() : 0;
-            
-            // Taxas 30 dias
-            $result = $pdo->query("SELECT COALESCE(SUM(fee_bnb), 0) as total FROM transactions WHERE created_at >= '$monthAgo' AND fee_bnb > 0");
-            $fees30Days = $result ? (float)$result->fetchColumn() : 0;
-            
-            // Taxas total
-            $result = $pdo->query("SELECT COALESCE(SUM(fee_bnb), 0) as total FROM transactions WHERE fee_bnb > 0");
-            $feesTotal = $result ? (float)$result->fetchColumn() : 0;
-        }
-        
-        // Se não encontrou na transactions, busca de game_sessions (entry_fee_bnb)
-        $hasEntryFeeColumn = false;
-        try {
-            $check = $pdo->query("SHOW COLUMNS FROM game_sessions LIKE 'entry_fee_bnb'");
-            $hasEntryFeeColumn = $check && $check->fetch();
-        } catch (Exception $e) {}
-        
-        if ($hasEntryFeeColumn) {
-            if ($feesToday == 0) {
-                $result = $pdo->query("SELECT COALESCE(SUM(entry_fee_bnb), 0) as total FROM game_sessions WHERE DATE(created_at) = '$today'");
-                $feesToday = $result ? (float)$result->fetchColumn() : 0;
-            }
-            if ($fees7Days == 0) {
-                $result = $pdo->query("SELECT COALESCE(SUM(entry_fee_bnb), 0) as total FROM game_sessions WHERE created_at >= '$weekAgo'");
-                $fees7Days = $result ? (float)$result->fetchColumn() : 0;
-            }
-            if ($fees30Days == 0) {
-                $result = $pdo->query("SELECT COALESCE(SUM(entry_fee_bnb), 0) as total FROM game_sessions WHERE created_at >= '$monthAgo'");
-                $fees30Days = $result ? (float)$result->fetchColumn() : 0;
-            }
-            if ($feesTotal == 0) {
-                $result = $pdo->query("SELECT COALESCE(SUM(entry_fee_bnb), 0) as total FROM game_sessions");
-                $feesTotal = $result ? (float)$result->fetchColumn() : 0;
-            }
-        }
-        
-        // Últimas atividades
-        $recentActivities = $pdo->query("
-            SELECT * FROM (
-                SELECT 'withdrawal' as type, wallet_address, amount_usdt as amount, status, created_at 
-                FROM withdrawals ORDER BY created_at DESC LIMIT 5
-            ) w
-            UNION ALL
-            SELECT * FROM (
-                SELECT 'game' as type, wallet_address, earnings_usdt as amount, status, created_at 
-                FROM game_sessions ORDER BY created_at DESC LIMIT 5
-            ) g
-            ORDER BY created_at DESC LIMIT 10
-        ")->fetchAll();
-        
-    } catch (Exception $e) {
-        $error = $e->getMessage();
-    }
-} // Fecha o else do if (!isset($pdo))
+    // Estatísticas de staking
+    $stakeStats = $pdo->query("
+        SELECT 
+            COUNT(CASE WHEN status = 'active' THEN 1 END) as active_stakes,
+            SUM(CASE WHEN status = 'active' THEN amount_brl ELSE 0 END) as total_staked,
+            SUM(total_earned_brl) as total_rewards
+        FROM stakes
+    ")->fetch();
+
+    // Estatísticas de sessões (hoje)
+    $sessionStats = $pdo->query("
+        SELECT 
+            COUNT(*) as total_today,
+            COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+            COUNT(CASE WHEN status = 'flagged' THEN 1 END) as flagged,
+            SUM(earnings_brl) as earnings_today,
+            SUM(asteroids_destroyed) as asteroids_today
+        FROM game_sessions 
+        WHERE DATE(created_at) = CURDATE()
+    ")->fetch();
+
+    // Estatísticas de referrals
+    $referralStats = $pdo->query("
+        SELECT 
+            COUNT(*) as total,
+            COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+            SUM(CASE WHEN status = 'claimed' THEN commission_brl ELSE 0 END) as total_paid
+        FROM referrals
+    ")->fetch();
+
+    // Estatísticas de anúncios (últimos 7 dias)
+    $adStats = $pdo->query("
+        SELECT 
+            COUNT(DISTINCT i.id) as impressions,
+            COUNT(DISTINCT c.id) as clicks
+        FROM ad_impressions i
+        LEFT JOIN ad_clicks c ON DATE(i.created_at) = DATE(c.created_at)
+        WHERE i.created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
+    ")->fetch();
+
+    // Últimas transações
+    $recentTransactions = $pdo->query("
+        SELECT t.*, p.display_name 
+        FROM transactions t 
+        LEFT JOIN players p ON t.google_uid = p.google_uid 
+        ORDER BY t.created_at DESC 
+        LIMIT 10
+    ")->fetchAll();
+
+    // Últimos jogadores
+    $recentPlayers = $pdo->query("
+        SELECT * FROM players ORDER BY created_at DESC LIMIT 5
+    ")->fetchAll();
+
+} catch (Exception $e) {
+    $error = $e->getMessage();
+}
+
+function formatBRL($value) {
+    return 'R$ ' . number_format($value ?? 0, 2, ',', '.');
+}
 ?>
 
 <div class="main-content">
     <div class="page-header">
         <h1 class="page-title"><i class="fas fa-chart-line"></i> Dashboard</h1>
-        <p class="page-subtitle">Visão geral do sistema</p>
+        <p class="page-subtitle">Visão geral do UNOBIX</p>
     </div>
     
-    <?php if ($error): ?>
-        <div class="alert alert-danger">
-            <i class="fas fa-exclamation-circle"></i> 
-            <strong>Erro ao carregar dados:</strong> <?php echo htmlspecialchars($error); ?>
-        </div>
+    <?php if (isset($error)): ?>
+        <div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?></div>
     <?php endif; ?>
     
-    <!-- Estatísticas principais -->
+    <!-- Estatísticas Principais -->
     <div class="stats-grid">
         <div class="stat-card">
             <div class="icon primary"><i class="fas fa-users"></i></div>
-            <div class="value"><?php echo number_format($totalPlayers ?? 0); ?></div>
-            <div class="label">Total de Jogadores</div>
-            <div class="change positive">+<?php echo $playersToday ?? 0; ?> hoje</div>
+            <div class="value"><?php echo number_format($playerStats['total_players'] ?? 0); ?></div>
+            <div class="label">Jogadores</div>
+            <div class="change positive">+<?php echo $playerStats['new_today'] ?? 0; ?> hoje</div>
         </div>
         
         <div class="stat-card">
             <div class="icon success"><i class="fas fa-gamepad"></i></div>
-            <div class="value"><?php echo number_format($totalGames ?? 0); ?></div>
-            <div class="label">Partidas Jogadas</div>
-            <div class="change positive">+<?php echo $gamesToday ?? 0; ?> hoje</div>
+            <div class="value"><?php echo number_format($sessionStats['total_today'] ?? 0); ?></div>
+            <div class="label">Partidas Hoje</div>
+            <div class="change"><?php echo $sessionStats['completed'] ?? 0; ?> completadas</div>
         </div>
         
         <div class="stat-card">
-            <div class="icon warning"><i class="fas fa-dollar-sign"></i></div>
-            <div class="value">$<?php echo number_format($totalBalance ?? 0, 2); ?></div>
-            <div class="label">Total em Saldos</div>
-            <div class="change">-$<?php echo number_format($earningsToday ?? 0, 4); ?> pago hoje</div>
+            <div class="icon warning"><i class="fas fa-wallet"></i></div>
+            <div class="value"><?php echo formatBRL($playerStats['total_balance']); ?></div>
+            <div class="label">Saldo Total Jogadores</div>
         </div>
         
         <div class="stat-card">
             <div class="icon danger"><i class="fas fa-clock"></i></div>
-            <div class="value"><?php echo $pendingWithdrawals ?? 0; ?></div>
+            <div class="value"><?php echo $withdrawStats['pending_count'] ?? 0; ?></div>
             <div class="label">Saques Pendentes</div>
-            <div class="change">$<?php echo number_format($pendingAmount ?? 0, 2); ?> total</div>
+            <div class="change"><?php echo formatBRL($withdrawStats['pending_amount']); ?></div>
         </div>
     </div>
     
-    <!-- Estatísticas de Taxas BNB -->
-    <h3 style="color: var(--primary); margin: 30px 0 15px 0; font-family: 'Orbitron', sans-serif;">
-        <i class="fas fa-coins"></i> Taxas BNB Coletadas
-    </h3>
-    <div class="stats-grid">
+    <!-- Segunda linha de stats -->
+    <div class="stats-grid" style="margin-top: 20px;">
         <div class="stat-card">
-            <div class="icon success"><i class="fab fa-bitcoin"></i></div>
-            <div class="value"><?php echo number_format($feesToday, 6); ?></div>
-            <div class="label">BNB Hoje</div>
-            <div class="change"><?php echo $gamesToday; ?> sessões</div>
+            <div class="icon primary"><i class="fas fa-coins"></i></div>
+            <div class="value"><?php echo formatBRL($stakeStats['total_staked']); ?></div>
+            <div class="label">Em Staking</div>
+            <div class="change"><?php echo $stakeStats['active_stakes'] ?? 0; ?> ativos</div>
         </div>
         
         <div class="stat-card">
-            <div class="icon primary"><i class="fab fa-bitcoin"></i></div>
-            <div class="value"><?php echo number_format($fees7Days, 6); ?></div>
-            <div class="label">BNB 7 Dias</div>
+            <div class="icon success"><i class="fas fa-user-friends"></i></div>
+            <div class="value"><?php echo $referralStats['total'] ?? 0; ?></div>
+            <div class="label">Indicações</div>
+            <div class="change"><?php echo $referralStats['completed'] ?? 0; ?> completadas</div>
         </div>
         
         <div class="stat-card">
-            <div class="icon warning"><i class="fab fa-bitcoin"></i></div>
-            <div class="value"><?php echo number_format($fees30Days, 6); ?></div>
-            <div class="label">BNB 30 Dias</div>
+            <div class="icon warning"><i class="fas fa-ad"></i></div>
+            <div class="value"><?php echo number_format($adStats['impressions'] ?? 0); ?></div>
+            <div class="label">Impressões (7d)</div>
+            <div class="change"><?php echo $adStats['clicks'] ?? 0; ?> cliques</div>
         </div>
         
         <div class="stat-card">
-            <div class="icon danger"><i class="fab fa-bitcoin"></i></div>
-            <div class="value"><?php echo number_format($feesTotal, 6); ?></div>
-            <div class="label">BNB Total</div>
-            <div class="change"><?php echo number_format($totalGames); ?> sessões</div>
+            <div class="icon danger"><i class="fas fa-flag"></i></div>
+            <div class="value"><?php echo $sessionStats['flagged'] ?? 0; ?></div>
+            <div class="label">Sessões Flagged</div>
+            <div class="change">Hoje</div>
         </div>
     </div>
     
     <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-top: 30px;">
-        <!-- Atividades recentes -->
+        <!-- Últimas Transações -->
         <div class="panel">
             <div class="panel-header">
-                <h3 class="panel-title"><i class="fas fa-history"></i> Atividades Recentes</h3>
+                <h3 class="panel-title"><i class="fas fa-exchange-alt"></i> Últimas Transações</h3>
+                <a href="?page=transactions" class="btn btn-outline btn-sm">Ver Todas</a>
             </div>
             <div class="panel-body">
-                <?php if (empty($recentActivities)): ?>
+                <?php if (empty($recentTransactions)): ?>
                     <div class="empty-state">
                         <i class="fas fa-inbox"></i>
-                        <h3>Nenhuma atividade</h3>
-                        <p>As atividades aparecerão aqui</p>
+                        <p>Nenhuma transação ainda</p>
                     </div>
                 <?php else: ?>
                     <div class="table-container">
                         <table>
                             <thead>
                                 <tr>
+                                    <th>Usuário</th>
                                     <th>Tipo</th>
-                                    <th>Carteira</th>
                                     <th>Valor</th>
-                                    <th>Status</th>
                                     <th>Data</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($recentActivities as $activity): ?>
-                                <tr>
-                                    <td>
-                                        <?php if ($activity['type'] === 'withdrawal'): ?>
-                                            <span class="badge badge-warning"><i class="fas fa-money-bill-wave"></i> Saque</span>
-                                        <?php else: ?>
-                                            <span class="badge badge-primary"><i class="fas fa-gamepad"></i> Jogo</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <span class="wallet-addr" onclick="copyToClipboard('<?php echo $activity['wallet_address']; ?>')">
-                                            <?php echo substr($activity['wallet_address'], 0, 6) . '...' . substr($activity['wallet_address'], -4); ?>
-                                        </span>
-                                    </td>
-                                    <td style="color: var(--success);">$<?php echo number_format($activity['amount'], 6); ?></td>
-                                    <td>
-                                        <?php
-                                        $status = $activity['status'];
-                                        if (in_array($status, ['completed', 'approved'])) {
-                                            $statusClass = 'success';
-                                        } elseif (in_array($status, ['pending', 'active'])) {
-                                            $statusClass = 'warning';
-                                        } elseif (in_array($status, ['flagged', 'rejected'])) {
-                                            $statusClass = 'danger';
-                                        } else {
-                                            $statusClass = 'primary';
-                                        }
-                                        ?>
-                                        <span class="badge badge-<?php echo $statusClass; ?>"><?php echo ucfirst($activity['status']); ?></span>
-                                    </td>
-                                    <td><?php echo date('d/m H:i', strtotime($activity['created_at'])); ?></td>
-                                </tr>
-                                <?php endforeach; ?>
+                            <?php foreach ($recentTransactions as $tx): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($tx['display_name'] ?? 'Usuário'); ?></td>
+                                <td>
+                                    <?php
+                                    $typeLabels = [
+                                        'game_earning' => ['Ganho Jogo', 'success'],
+                                        'withdrawal' => ['Saque', 'warning'],
+                                        'stake' => ['Stake', 'primary'],
+                                        'unstake' => ['Unstake', 'info'],
+                                        'referral_bonus' => ['Bônus Indicação', 'success'],
+                                        'stake_reward' => ['Rendimento', 'success']
+                                    ];
+                                    $label = $typeLabels[$tx['type']] ?? [$tx['type'], 'primary'];
+                                    ?>
+                                    <span class="badge badge-<?php echo $label[1]; ?>"><?php echo $label[0]; ?></span>
+                                </td>
+                                <td style="color: <?php echo $tx['amount_brl'] >= 0 ? 'var(--success)' : 'var(--danger)'; ?>; font-weight: 600;">
+                                    <?php echo $tx['amount_brl'] >= 0 ? '+' : ''; ?><?php echo formatBRL($tx['amount_brl']); ?>
+                                </td>
+                                <td style="color: var(--text-dim);"><?php echo date('d/m H:i', strtotime($tx['created_at'])); ?></td>
+                            </tr>
+                            <?php endforeach; ?>
                             </tbody>
                         </table>
                     </div>
@@ -293,56 +220,67 @@ if (!isset($pdo)) {
             </div>
         </div>
         
-        <!-- Alertas de segurança -->
+        <!-- Novos Jogadores -->
         <div class="panel">
             <div class="panel-header">
-                <h3 class="panel-title"><i class="fas fa-shield-alt"></i> Alertas de Segurança</h3>
+                <h3 class="panel-title"><i class="fas fa-user-plus"></i> Novos Jogadores</h3>
+                <a href="?page=players" class="btn btn-outline btn-sm">Ver Todos</a>
             </div>
             <div class="panel-body">
-                <?php if ($flaggedSessions > 0): ?>
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <div>
-                            <strong><?php echo $flaggedSessions; ?> sessões flagged</strong>
-                            <p style="margin: 0; font-size: 0.9rem;">Possível tentativa de fraude</p>
+                <?php if (empty($recentPlayers)): ?>
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <p>Nenhum jogador ainda</p>
+                    </div>
+                <?php else: ?>
+                    <div class="player-list">
+                        <?php foreach ($recentPlayers as $player): ?>
+                        <div class="player-item" style="display: flex; align-items: center; gap: 15px; padding: 12px; border-bottom: 1px solid var(--border);">
+                            <?php if ($player['photo_url']): ?>
+                                <img src="<?php echo htmlspecialchars($player['photo_url']); ?>" alt="" style="width: 40px; height: 40px; border-radius: 50%;">
+                            <?php else: ?>
+                                <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            <?php endif; ?>
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600;"><?php echo htmlspecialchars($player['display_name'] ?? 'Usuário'); ?></div>
+                                <div style="font-size: 0.8rem; color: var(--text-dim);"><?php echo date('d/m/Y H:i', strtotime($player['created_at'])); ?></div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="color: var(--success); font-weight: 600;"><?php echo formatBRL($player['balance_brl']); ?></div>
+                                <div style="font-size: 0.8rem; color: var(--text-dim);"><?php echo $player['total_played']; ?> jogos</div>
+                            </div>
                         </div>
+                        <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
-                
-                <?php if ($bannedWallets > 0): ?>
-                    <div class="alert alert-warning">
-                        <i class="fas fa-ban"></i>
-                        <div>
-                            <strong><?php echo $bannedWallets; ?> wallets banidas</strong>
-                            <p style="margin: 0; font-size: 0.9rem;">Contas bloqueadas</p>
-                        </div>
-                    </div>
-                <?php endif; ?>
-                
-                <?php if ($pendingWithdrawals > 0): ?>
-                    <div class="alert alert-info">
-                        <i class="fas fa-clock"></i>
-                        <div>
-                            <strong><?php echo $pendingWithdrawals; ?> saques pendentes</strong>
-                            <p style="margin: 0; font-size: 0.9rem;">Aguardando aprovação</p>
-                        </div>
-                    </div>
-                <?php endif; ?>
-                
-                <?php if ($flaggedSessions == 0 && $bannedWallets == 0 && $pendingWithdrawals == 0): ?>
-                    <div class="alert alert-success">
-                        <i class="fas fa-check-circle"></i>
-                        <div>
-                            <strong>Tudo em ordem!</strong>
-                            <p style="margin: 0; font-size: 0.9rem;">Nenhum alerta no momento</p>
-                        </div>
-                    </div>
-                <?php endif; ?>
-                
-                <div style="margin-top: 20px;">
-                    <<a href="<?= $ADMIN_INDEX_URL ?>?page=security" class="btn btn-outline" style="width: 100%;">
-                        <i class="fas fa-shield-alt"></i> Ver Painel de Segurança
-                    </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resumo do Sistema -->
+    <div class="panel" style="margin-top: 30px;">
+        <div class="panel-header">
+            <h3 class="panel-title"><i class="fas fa-info-circle"></i> Resumo do Sistema</h3>
+        </div>
+        <div class="panel-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                <div class="info-box" style="padding: 15px; background: rgba(0,229,204,0.1); border-radius: 10px;">
+                    <div style="color: var(--text-dim); font-size: 0.85rem;">Total Ganho Jogadores</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: var(--success);"><?php echo formatBRL($playerStats['total_earned']); ?></div>
+                </div>
+                <div class="info-box" style="padding: 15px; background: rgba(123,245,66,0.1); border-radius: 10px;">
+                    <div style="color: var(--text-dim); font-size: 0.85rem;">Saques Pagos (30d)</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: var(--warning);"><?php echo formatBRL($withdrawStats['approved_amount_month']); ?></div>
+                </div>
+                <div class="info-box" style="padding: 15px; background: rgba(255,209,102,0.1); border-radius: 10px;">
+                    <div style="color: var(--text-dim); font-size: 0.85rem;">Rendimentos Staking</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: var(--primary);"><?php echo formatBRL($stakeStats['total_rewards']); ?></div>
+                </div>
+                <div class="info-box" style="padding: 15px; background: rgba(255,71,87,0.1); border-radius: 10px;">
+                    <div style="color: var(--text-dim); font-size: 0.85rem;">Comissões Indicação</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: var(--secondary);"><?php echo formatBRL($referralStats['total_paid']); ?></div>
                 </div>
             </div>
         </div>
