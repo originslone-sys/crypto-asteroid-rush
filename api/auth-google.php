@@ -10,6 +10,13 @@ require_once __DIR__ . "/config.php";
 setCORSHeaders();
 header('Content-Type: application/json; charset=utf-8');
 
+$raw = file_get_contents('php://input');
+$input = json_decode($raw, true);
+
+if (is_array($input)) {
+    $_POST = array_merge($_POST, $input);
+}
+
 $input = getRequestInput();
 $action = $input['action'] ?? 'verify';
 
