@@ -64,11 +64,13 @@ const SessionManager = {
             const response = await fetch('api/game-start.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    wallet: wallet,
-                    txHash: txHash
-                })
-            });
+          body: JSON.stringify({
+    wallet: wallet,
+    txHash: txHash,
+    google_uid: localStorage.getItem('googleUid'),
+    session_token: localStorage.getItem('sessionToken')
+})
+;
             
             const result = await response.json();
             
@@ -255,3 +257,4 @@ const SessionManager = {
 
 // Export for use in other files
 window.SessionManager = SessionManager;
+
