@@ -1,29 +1,35 @@
 <?php
 // ============================================
-// CRYPTO ASTEROID RUSH - Admin Sidebar
+// UNOBIX - Admin Sidebar
 // Arquivo: admin/includes/sidebar.php
-// ATUALIZADO: Link para pagina de Afiliados
+// ATUALIZADO: Google Auth, BRL, Ads Manager
 // ============================================
 
-// Contar saques pendentes
 $pendingWithdrawals = 0;
 $flaggedSessions = 0;
 $pendingReferrals = 0;
+$totalPlayers = 0;
 
 try {
     if (isset($pdo)) {
+        // Saques pendentes
         $stmt = $pdo->query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
         $pendingWithdrawals = $stmt->fetchColumn();
         
+        // Sessões flagged
         $stmt = $pdo->query("SELECT COUNT(*) FROM game_sessions WHERE status = 'flagged'");
         $flaggedSessions = $stmt->fetchColumn();
         
-        // Contar referrals completados aguardando resgate
+        // Referrals completados
         $tableExists = $pdo->query("SHOW TABLES LIKE 'referrals'")->fetch();
         if ($tableExists) {
             $stmt = $pdo->query("SELECT COUNT(*) FROM referrals WHERE status = 'completed'");
             $pendingReferrals = $stmt->fetchColumn();
         }
+        
+        // Total de jogadores
+        $stmt = $pdo->query("SELECT COUNT(*) FROM players");
+        $totalPlayers = $stmt->fetchColumn();
     }
 } catch (Exception $e) {}
 ?>
@@ -31,8 +37,8 @@ try {
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="sidebar-logo">
-            <span class="icon">&#9732;&#65039;</span>
-            <span class="text">ASTEROID RUSH</span>
+            <img src="<?php echo $ADMIN_BASE_URL; ?>/../img/logo-unobix.png" alt="Unobix" style="width: 36px; height: 36px; border-radius: 50%;">
+            <span class="text">UNOBIX</span>
         </div>
     </div>
     
@@ -56,6 +62,7 @@ try {
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=players" class="nav-item <?php echo $currentPage === 'players' ? 'active' : ''; ?>">
                 <i class="fas fa-users"></i>
                 <span>Jogadores</span>
+                <span class="badge badge-info"><?php echo $totalPlayers; ?></span>
             </a>
             
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=transactions" class="nav-item <?php echo $currentPage === 'transactions' ? 'active' : ''; ?>">
@@ -82,6 +89,15 @@ try {
                 <?php if ($pendingReferrals > 0): ?>
                     <span class="badge"><?php echo $pendingReferrals; ?></span>
                 <?php endif; ?>
+            </a>
+        </div>
+        
+        <div class="nav-section">
+            <div class="nav-section-title">Monetização</div>
+            
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=ads" class="nav-item <?php echo $currentPage === 'ads' ? 'active' : ''; ?>">
+                <i class="fas fa-ad"></i>
+                <span>Anúncios</span>
             </a>
         </div>
         
@@ -113,4 +129,8 @@ try {
             </a>
         </div>
     </nav>
+    
+    <div class="sidebar-footer">
+        <small style="color: var(--text-dim);">v2.0 - BRL</small>
+    </div>
 </aside>
