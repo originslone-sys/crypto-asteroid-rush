@@ -2,7 +2,7 @@
 // ============================================
 // UNOBIX - Informações de Afiliados
 // Arquivo: api/referral-info.php
-// v2.0 - Google Auth + BRL
+// v2.1 - Fix: Tratamento de duplicatas
 // ============================================
 
 require_once __DIR__ . "/config.php";
@@ -77,32 +77,105 @@ try {
     // ============================================
     // 1. BUSCAR OU CRIAR CÓDIGO DE REFERRAL
     // ============================================
-    $stmt = $pdo->prepare("
-        SELECT code FROM referral_codes 
-        WHERE google_uid = ? OR wallet_address = ? 
-        LIMIT 1
-    ");
-    $stmt->execute([$googleUid, $wallet]);
-    $codeRow = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // Buscar wallet do player se só temos google_uid
+    if (empty($wallet) && !empty($googleUid)) {
+        $stmt = $pdo->prepare("SELECT wallet_address FROM players WHERE google_uid = ? LIMIT 1");
+        $stmt->execute([$googleUid]);
+        $player = $stmt->fetch();
+        if ($player && !empty($player['wallet_address'])) {
+            $wallet = strtolower($player['wallet_address']);
+        }
+    }
+    
+    // Buscar google_uid do player se só temos wallet
+    if (empty($googleUid) && !empty($wallet)) {
+        $stmt = $pdo->prepare("SELECT google_uid FROM players WHERE wallet_address = ? LIMIT 1");
+        $stmt->execute([$wallet]);
+        $player = $stmt->fetch();
+        if ($player && !empty($player['google_uid'])) {
+            $googleUid = $player['google_uid'];
+        }
+    }
+    
+    // Buscar código existente - verificar AMBOS identificadores separadamente
+    $codeRow = null;
+    
+    // Primeiro tenta por google_uid
+    if (!empty($googleUid)) {
+        $stmt = $pdo->prepare("SELECT id, code, google_uid, wallet_address FROM referral_codes WHERE google_uid = ? LIMIT 1");
+        $stmt->execute([$googleUid]);
+        $codeRow = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+    
+    // Se não encontrou, tenta por wallet
+    if (!$codeRow && !empty($wallet)) {
+        $stmt = $pdo->prepare("SELECT id, code, google_uid, wallet_address FROM referral_codes WHERE wallet_address = ? LIMIT 1");
+        $stmt->execute([$wallet]);
+        $codeRow = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
 
     if ($codeRow && !empty($codeRow['code'])) {
         $referralCode = $codeRow['code'];
-    } else {
-        $referralCode = generateReferralCode($pdo);
         
-        // Buscar wallet do player se só temos google_uid
-        if (empty($wallet) && !empty($googleUid)) {
-            $stmt = $pdo->prepare("SELECT wallet_address FROM players WHERE google_uid = ? LIMIT 1");
-            $stmt->execute([$googleUid]);
-            $player = $stmt->fetch();
-            $wallet = $player['wallet_address'] ?? '';
+        // Atualizar registro se faltam dados
+        $needsUpdate = false;
+        $updateFields = [];
+        $updateValues = [];
+        
+        if (empty($codeRow['google_uid']) && !empty($googleUid)) {
+            $updateFields[] = "google_uid = ?";
+            $updateValues[] = $googleUid;
+            $needsUpdate = true;
         }
         
-        $stmt = $pdo->prepare("
-            INSERT INTO referral_codes (google_uid, wallet_address, code, created_at) 
-            VALUES (?, ?, ?, NOW())
-        ");
-        $stmt->execute([$googleUid ?: null, $wallet ?: null, $referralCode]);
+        if (empty($codeRow['wallet_address']) && !empty($wallet)) {
+            $updateFields[] = "wallet_address = ?";
+            $updateValues[] = $wallet;
+            $needsUpdate = true;
+        }
+        
+        if ($needsUpdate) {
+            $updateValues[] = $codeRow['id'];
+            $pdo->prepare("UPDATE referral_codes SET " . implode(', ', $updateFields) . " WHERE id = ?")
+                ->execute($updateValues);
+        }
+        
+    } else {
+        // Criar novo código
+        $referralCode = generateReferralCode($pdo);
+        
+        try {
+            $stmt = $pdo->prepare("
+                INSERT INTO referral_codes (google_uid, wallet_address, code, created_at) 
+                VALUES (?, ?, ?, NOW())
+            ");
+            $stmt->execute([
+                !empty($googleUid) ? $googleUid : null, 
+                !empty($wallet) ? $wallet : null, 
+                $referralCode
+            ]);
+        } catch (PDOException $e) {
+            // Se der erro de duplicata, buscar o código existente
+            if ($e->getCode() == 23000) {
+                // Tentar buscar novamente
+                $stmt = $pdo->prepare("
+                    SELECT code FROM referral_codes 
+                    WHERE google_uid = ? OR wallet_address = ? 
+                    LIMIT 1
+                ");
+                $stmt->execute([$googleUid, $wallet]);
+                $existingCode = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($existingCode && !empty($existingCode['code'])) {
+                    $referralCode = $existingCode['code'];
+                } else {
+                    throw $e; // Re-lançar se ainda não encontrou
+                }
+            } else {
+                throw $e;
+            }
+        }
     }
 
     // ============================================
