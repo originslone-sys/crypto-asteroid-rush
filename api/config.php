@@ -147,7 +147,7 @@ function validateWallet($wallet) {
  */
 function validateGoogleUID($uid) {
     // Google UID é uma string de 28 caracteres alfanuméricos
-    return preg_match('/^[a-zA-Z0-9]{20,128}$/', $uid);
+    preg_match('/^[a-zA-Z0-9_-]{10,128}$/', $uid);
 }
 
 /**
