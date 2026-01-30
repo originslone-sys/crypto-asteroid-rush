@@ -2,18 +2,28 @@
 // ============================================
 // UNOBIX - Iniciar Sessão de Jogo
 // Arquivo: api/game-start.php
-// v4.1 - Melhor error handling + auto-criar tabelas
-// PATCH: compat DB/schema + txHash + logs úteis
+// v5.0 - Unobix-only (google_uid), sem wallet/web3, compat DB legado
 // ============================================
 
-// Desabilitar exibição de erros HTML
-ini_set('display_errors', 0);
+ini_set('display_errors', '0');
+ini_set('html_errors', '0');
 error_reporting(E_ALL);
 
 require_once __DIR__ . "/config.php";
 
 setCorsHeaders();
 header('Content-Type: application/json; charset=utf-8');
+
+function jsonOut(array $payload, int $code = 200): void {
+    http_response_code($code);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+function dbWalletCompat(string $googleUid): string {
+    // Compat determinística (não é identidade real; apenas para schema legado NOT NULL)
+    return '0x' . substr(hash('sha256', 'unobix|' . $googleUid), 0, 40);
+}
 
 // ============================================
 // LER INPUT
@@ -22,25 +32,9 @@ $rawInput = file_get_contents('php://input');
 $input = json_decode($rawInput, true);
 if (!is_array($input)) $input = [];
 
-// Suporte híbrido: google_uid (novo) ou wallet (compatibilidade)
 $googleUid = isset($input['google_uid']) ? trim($input['google_uid']) : '';
-$wallet    = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
-$txHash    = isset($input['txHash']) ? trim($input['txHash']) : '';
-
-// Determinar identificador principal
-$identifier = '';
-$identifierType = '';
-
-// Validação simples
-if (!empty($googleUid) && strlen($googleUid) >= 10 && strlen($googleUid) <= 128) {
-    $identifier = $googleUid;
-    $identifierType = 'google_uid';
-} elseif (!empty($wallet) && preg_match('/^0x[a-fA-F0-9]{40}$/', $wallet)) {
-    $identifier = $wallet;
-    $identifierType = 'wallet';
-} else {
-    echo json_encode(['success' => false, 'error' => 'Identificação inválida. Faça login novamente.']);
-    exit;
+if ($googleUid === '' || !validateGoogleUid($googleUid)) {
+    jsonOut(['success' => false, 'error' => 'Identificação inválida. Faça login novamente.'], 400);
 }
 
 $clientIP = getClientIP();
@@ -48,40 +42,8 @@ $clientIP = getClientIP();
 try {
     $pdo = getDatabaseConnection();
     if (!$pdo) {
-        echo json_encode(['success' => false, 'error' => 'Erro ao conectar ao banco']);
-        exit;
+        jsonOut(['success' => false, 'error' => 'Erro ao conectar ao banco'], 500);
     }
-
-    // ============================================
-    // DIAGNÓSTICO SILENCIOSO (log apenas)
-    // ============================================
-    try {
-        $dbRow = $pdo->query("SELECT DATABASE() AS db")->fetch();
-        error_log("[game-start] DATABASE()=" . ($dbRow['db'] ?? 'NULL'));
-    } catch (Exception $e) {
-        // não abortar
-    }
-
-    // ============================================
-    // CRIAR TABELAS SE NÃO EXISTIREM
-    // ============================================
-
-    // Tabela de controle de IP
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS ip_sessions (
-            id BIGINT AUTO_INCREMENT PRIMARY KEY,
-            ip_address VARCHAR(45) NOT NULL,
-            session_id INT NOT NULL,
-            google_uid VARCHAR(128) DEFAULT NULL,
-            wallet_address VARCHAR(42) DEFAULT NULL,
-            status ENUM('active', 'completed', 'expired') DEFAULT 'active',
-            started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            ended_at DATETIME DEFAULT NULL,
-            INDEX idx_ip_status (ip_address, status),
-            INDEX idx_ip_time (ip_address, started_at),
-            INDEX idx_session (session_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
 
     // ============================================
     // VERIFICAÇÃO 1: Missão simultânea por IP
@@ -91,21 +53,20 @@ try {
         FROM ip_sessions ips
         LEFT JOIN game_sessions gs ON gs.id = ips.session_id
         WHERE ips.ip_address = ?
-        AND ips.status = 'active'
-        AND ips.started_at > DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+          AND ips.status = 'active'
+          AND ips.started_at > DATE_SUB(NOW(), INTERVAL 10 MINUTE)
         LIMIT 1
     ");
     $stmt->execute([$clientIP]);
-    $activeSession = $stmt->fetch();
+    $activeSession = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($activeSession) {
-        if ($activeSession['game_status'] === 'active') {
-            echo json_encode([
+        if (($activeSession['game_status'] ?? null) === 'active') {
+            jsonOut([
                 'success' => false,
                 'error' => 'Você já tem uma missão em andamento. Complete-a primeiro.',
                 'error_code' => 'CONCURRENT_MISSION'
-            ]);
-            exit;
+            ], 409);
         } else {
             $pdo->prepare("UPDATE ip_sessions SET status = 'completed', ended_at = NOW() WHERE id = ?")
                 ->execute([$activeSession['id']]);
@@ -113,7 +74,7 @@ try {
     }
 
     // ============================================
-    // VERIFICAÇÃO 2: Limite de 5 missões por hora por IP
+    // VERIFICAÇÃO 2: Limite por IP/hora
     // ============================================
     $maxMissionsPerHour = defined('MAX_MISSIONS_PER_HOUR') ? MAX_MISSIONS_PER_HOUR : 5;
 
@@ -121,100 +82,74 @@ try {
         SELECT COUNT(*) as mission_count
         FROM ip_sessions
         WHERE ip_address = ?
-        AND started_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+          AND started_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
     ");
     $stmt->execute([$clientIP]);
-    $hourlyCount = $stmt->fetch();
-
-    $missionsThisHour = (int)($hourlyCount['mission_count'] ?? 0);
+    $missionsThisHour = (int)(($stmt->fetch(PDO::FETCH_ASSOC)['mission_count'] ?? 0));
 
     if ($missionsThisHour >= $maxMissionsPerHour) {
         $stmt = $pdo->prepare("
-            SELECT started_at FROM ip_sessions
+            SELECT started_at
+            FROM ip_sessions
             WHERE ip_address = ?
-            AND started_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-            ORDER BY started_at ASC LIMIT 1
+              AND started_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+            ORDER BY started_at ASC
+            LIMIT 1
         ");
         $stmt->execute([$clientIP]);
-        $oldest = $stmt->fetch();
+        $oldest = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $waitSeconds = 0;
-        if ($oldest) {
+        if ($oldest && !empty($oldest['started_at'])) {
             $waitSeconds = max(0, (strtotime($oldest['started_at']) + 3600) - time());
         }
 
-        echo json_encode([
+        jsonOut([
             'success' => false,
             'error' => "Limite de {$maxMissionsPerHour} missões por hora atingido. Aguarde " . ceil($waitSeconds / 60) . " minutos.",
             'error_code' => 'HOURLY_LIMIT',
             'wait_seconds' => $waitSeconds
-        ]);
-        exit;
+        ], 429);
     }
 
     // ============================================
-    // BUSCAR/CRIAR JOGADOR
+    // BUSCAR/CRIAR JOGADOR (Unobix-only)
     // ============================================
-    $player = null;
+    $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
+    $stmt->execute([$googleUid]);
+    $player = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($identifierType === 'google_uid') {
+    if (!$player) {
+        // Cria sem wallet (requer schema players.wallet_address nullable)
+        $stmt = $pdo->prepare("
+            INSERT INTO players (google_uid, balance_brl, total_played, created_at)
+            VALUES (?, 0.00, 0, NOW())
+        ");
+        $stmt->execute([$googleUid]);
+
         $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
         $stmt->execute([$googleUid]);
-        $player = $stmt->fetch();
-
-        if (!$player) {
-            // Criar jogador
-            $tempWallet = '0x' . substr(hash('sha256', $googleUid . time()), 0, 40);
-            $stmt = $pdo->prepare("
-                INSERT INTO players (google_uid, wallet_address, balance_brl, total_played, created_at)
-                VALUES (?, ?, 0, 0, NOW())
-            ");
-            $stmt->execute([$googleUid, $tempWallet]);
-
-            $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
-            $stmt->execute([$googleUid]);
-            $player = $stmt->fetch();
-        }
-    } else {
-        $stmt = $pdo->prepare("SELECT * FROM players WHERE wallet_address = ? LIMIT 1");
-        $stmt->execute([$wallet]);
-        $player = $stmt->fetch();
-
-        if (!$player) {
-            $stmt = $pdo->prepare("
-                INSERT INTO players (wallet_address, balance_brl, total_played, created_at)
-                VALUES (?, 0, 0, NOW())
-            ");
-            $stmt->execute([$wallet]);
-
-            $stmt = $pdo->prepare("SELECT * FROM players WHERE wallet_address = ? LIMIT 1");
-            $stmt->execute([$wallet]);
-            $player = $stmt->fetch();
-        }
+        $player = $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     if (!$player) {
-        echo json_encode(['success' => false, 'error' => 'Não foi possível identificar o jogador']);
-        exit;
+        jsonOut(['success' => false, 'error' => 'Não foi possível identificar o jogador'], 500);
     }
 
-    if (!empty($player['is_banned']) && $player['is_banned']) {
-        echo json_encode([
+    if (!empty($player['is_banned']) && (int)$player['is_banned'] === 1) {
+        jsonOut([
             'success' => false,
             'error' => 'Conta suspensa: ' . ($player['ban_reason'] ?? 'Violação dos termos'),
             'banned' => true
-        ]);
-        exit;
+        ], 403);
     }
 
-    $playerId        = (int)$player['id'];
-    $playerGoogleUid = $player['google_uid'] ?? null;
-    $playerWallet    = $player['wallet_address'] ?? '';
-    $totalPlayed     = (int)($player['total_played'] ?? 0);
-    $missionNumber   = $totalPlayed + 1;
+    $playerId      = (int)$player['id'];
+    $totalPlayed   = (int)($player['total_played'] ?? 0);
+    $missionNumber = $totalPlayed + 1;
 
     // ============================================
-    // DETERMINAR HARD MODE (40%)
+    // HARD MODE (40%)
     // ============================================
     $hardModePercentage = defined('HARD_MODE_PERCENTAGE') ? HARD_MODE_PERCENTAGE : 40;
     $isHardMode = (mt_rand(1, 100) <= $hardModePercentage);
@@ -228,7 +163,6 @@ try {
         $rareCount = (mt_rand(1, 100) <= 70) ? 1 : 2;
     }
 
-    // Épico: chance baseada em missões jogadas
     $epicChance = $isHardMode ? 15 : 30;
     $hasEpic = ($missionNumber >= 5 && mt_rand(1, 100) <= $epicChance);
 
@@ -241,184 +175,67 @@ try {
     // ============================================
     // CRIAR SESSÃO
     // ============================================
-    $sessionToken = hash('sha256', $identifier . '|' . time() . '|' . bin2hex(random_bytes(16)));
+    $sessionToken = hash('sha256', $googleUid . '|' . time() . '|' . bin2hex(random_bytes(16)));
     $gameDuration = defined('GAME_DURATION') ? GAME_DURATION : 180;
 
-    // Blindagem: garantir que a coluna exista NO BANCO EM USO
-    $colGoogle = $pdo->query("SHOW COLUMNS FROM game_sessions LIKE 'google_uid'")->fetch();
-    $colWallet = $pdo->query("SHOW COLUMNS FROM game_sessions LIKE 'wallet_address'")->fetch();
-    $colTxHash = $pdo->query("SHOW COLUMNS FROM game_sessions LIKE 'tx_hash'")->fetch();
-
-    if (!$colWallet) {
-        // Sem wallet_address não tem como manter comportamento original
-        error_log("[game-start] Schema inválido: game_sessions.wallet_address não existe");
-        echo json_encode(['success' => false, 'error' => 'Erro interno do servidor']);
-        exit;
+    // Compat DB legado: algumas versões ainda exigem wallet_address NOT NULL em game_sessions
+    $walletCompat = $player['wallet_address'] ?? null;
+    if (!$walletCompat || !validateWallet($walletCompat)) {
+        $walletCompat = dbWalletCompat($googleUid);
     }
 
-    if ($colGoogle) {
-        // Caminho original (com google_uid)
-        if ($colTxHash) {
-            $stmt = $pdo->prepare("
-                INSERT INTO game_sessions (
-                    google_uid,
-                    wallet_address,
-                    session_token,
-                    mission_number,
-                    status,
-                    is_hard_mode,
-                    rare_asteroids_target,
-                    epic_asteroid_target,
-                    rare_ids,
-                    epic_id,
-                    ip_address,
-                    tx_hash,
-                    earnings_brl,
-                    started_at,
-                    created_at
-                ) VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())
-            ");
-
-            $stmt->execute([
-                $playerGoogleUid,
-                $playerWallet,
-                $sessionToken,
-                $missionNumber,
-                $isHardMode ? 1 : 0,
-                $rareCount,
-                $hasEpic ? 1 : 0,
-                json_encode($rareIds),
-                $epicId,
-                $clientIP,
-                $txHash
-            ]);
-        } else {
-            // Sem tx_hash no schema
-            $stmt = $pdo->prepare("
-                INSERT INTO game_sessions (
-                    google_uid,
-                    wallet_address,
-                    session_token,
-                    mission_number,
-                    status,
-                    is_hard_mode,
-                    rare_asteroids_target,
-                    epic_asteroid_target,
-                    rare_ids,
-                    epic_id,
-                    ip_address,
-                    earnings_brl,
-                    started_at,
-                    created_at
-                ) VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())
-            ");
-
-            $stmt->execute([
-                $playerGoogleUid,
-                $playerWallet,
-                $sessionToken,
-                $missionNumber,
-                $isHardMode ? 1 : 0,
-                $rareCount,
-                $hasEpic ? 1 : 0,
-                json_encode($rareIds),
-                $epicId,
-                $clientIP
-            ]);
-        }
-    } else {
-        // Fallback técnico: schema do DB em uso não tem google_uid
-        // Mantém compatibilidade: cria sessão só com wallet_address
-        error_log("[game-start] Aviso: game_sessions.google_uid não existe no DB em uso; criando sessão sem google_uid");
-
-        if ($colTxHash) {
-            $stmt = $pdo->prepare("
-                INSERT INTO game_sessions (
-                    wallet_address,
-                    session_token,
-                    mission_number,
-                    status,
-                    is_hard_mode,
-                    rare_asteroids_target,
-                    epic_asteroid_target,
-                    rare_ids,
-                    epic_id,
-                    ip_address,
-                    tx_hash,
-                    earnings_brl,
-                    started_at,
-                    created_at
-                ) VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())
-            ");
-
-            $stmt->execute([
-                $playerWallet,
-                $sessionToken,
-                $missionNumber,
-                $isHardMode ? 1 : 0,
-                $rareCount,
-                $hasEpic ? 1 : 0,
-                json_encode($rareIds),
-                $epicId,
-                $clientIP,
-                $txHash
-            ]);
-        } else {
-            $stmt = $pdo->prepare("
-                INSERT INTO game_sessions (
-                    wallet_address,
-                    session_token,
-                    mission_number,
-                    status,
-                    is_hard_mode,
-                    rare_asteroids_target,
-                    epic_asteroid_target,
-                    rare_ids,
-                    epic_id,
-                    ip_address,
-                    earnings_brl,
-                    started_at,
-                    created_at
-                ) VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())
-            ");
-
-            $stmt->execute([
-                $playerWallet,
-                $sessionToken,
-                $missionNumber,
-                $isHardMode ? 1 : 0,
-                $rareCount,
-                $hasEpic ? 1 : 0,
-                json_encode($rareIds),
-                $epicId,
-                $clientIP
-            ]);
-        }
-    }
+    // Insert session (google_uid sempre)
+    $stmt = $pdo->prepare("
+        INSERT INTO game_sessions (
+            google_uid,
+            wallet_address,
+            session_token,
+            mission_number,
+            status,
+            is_hard_mode,
+            rare_asteroids_target,
+            epic_asteroid_target,
+            rare_ids,
+            epic_id,
+            ip_address,
+            earnings_brl,
+            started_at,
+            created_at
+        ) VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, 0.00, NOW(), NOW())
+    ");
+    $stmt->execute([
+        $googleUid,
+        $walletCompat,            // compat (não depende do front)
+        $sessionToken,
+        $missionNumber,
+        $isHardMode ? 1 : 0,
+        $rareCount,
+        $hasEpic ? 1 : 0,
+        json_encode($rareIds),
+        $epicId,
+        $clientIP
+    ]);
 
     $sessionId = (int)$pdo->lastInsertId();
 
     // ============================================
-    // REGISTRAR NA TABELA DE CONTROLE DE IP
+    // REGISTRAR NA TABELA IP_SESSIONS
     // ============================================
     $pdo->prepare("
         INSERT INTO ip_sessions (ip_address, session_id, google_uid, wallet_address, status, started_at)
         VALUES (?, ?, ?, ?, 'active', NOW())
-    ")->execute([$clientIP, $sessionId, $playerGoogleUid, $playerWallet]);
+    ")->execute([$clientIP, $sessionId, $googleUid, $walletCompat]);
 
-    // Log
     if (function_exists('secureLog')) {
-        secureLog("GAME_START | IP: {$clientIP} | UID: {$playerGoogleUid} | Session: {$sessionId} | Mission: {$missionNumber} | HardMode: " . ($isHardMode ? 'YES' : 'NO'));
+        secureLog("GAME_START | IP: {$clientIP} | UID: {$googleUid} | Session: {$sessionId} | Mission: {$missionNumber} | HardMode: " . ($isHardMode ? 'YES' : 'NO'));
     }
 
-    // ============================================
-    // RESPOSTA
-    // ============================================
-    $response = [
+    jsonOut([
         'success' => true,
         'session_id' => $sessionId,
         'session_token' => $sessionToken,
         'player_id' => $playerId,
+        'google_uid' => $googleUid,
         'mission_number' => $missionNumber,
         'is_hard_mode' => $isHardMode,
         'rare_count' => $rareCount,
@@ -428,11 +245,9 @@ try {
         'game_duration' => $gameDuration,
         'initial_lives' => defined('INITIAL_LIVES') ? INITIAL_LIVES : 6,
         'missions_remaining' => $maxMissionsPerHour - $missionsThisHour - 1
-    ];
+    ]);
 
-    echo json_encode($response);
-
-} catch (Exception $e) {
+} catch (Throwable $e) {
     error_log("Erro em game-start.php: " . $e->getMessage());
-    echo json_encode(['success' => false, 'error' => 'Erro interno do servidor']);
+    jsonOut(['success' => false, 'error' => 'Erro interno do servidor'], 500);
 }
