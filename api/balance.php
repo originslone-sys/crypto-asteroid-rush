@@ -1,13 +1,12 @@
 <?php
 // ============================================
-// UNOBIX - API de Saldo
+// UNOBIX - API de Saldo (Unobix-only)
 // Arquivo: api/balance.php
-// v4.0 - Suporta Google UID + Wallet + BRL
+// v5.0 - Google UID only + BRL only + robust identifier resolver
 // ============================================
 
 // ============================================================
 // JSON Guard (Railway): impedir HTML/Warnings de quebrar JSON
-// (Precisa vir ANTES de qualquer require/include que possa emitir output)
 // ============================================================
 if (!headers_sent()) {
     header('Content-Type: application/json; charset=utf-8');
@@ -16,17 +15,14 @@ ini_set('display_errors', '0');
 ini_set('html_errors', '0');
 error_reporting(E_ALL);
 
-// Captura qualquer output acidental (BOM, echo, warnings impressos, etc.)
 if (!ob_get_level()) {
     ob_start();
 }
 
-// Converte warnings/notices em exceção (para cair no catch e responder JSON)
 set_error_handler(function($severity, $message, $file, $line) {
     throw new ErrorException($message, 0, $severity, $file, $line);
 });
 
-// Captura fatal/parse (não pega em try/catch)
 register_shutdown_function(function () {
     $err = error_get_last();
     if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
@@ -38,44 +34,94 @@ register_shutdown_function(function () {
         echo json_encode([
             'success' => false,
             'balance_brl' => '0.00',
-            'balance' => '0.00000000',
             'error' => 'Erro no servidor',
             'debug_error' => $err['message'],
-        ]);
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 });
 // ============================================================
 
 require_once __DIR__ . "/config.php";
 
-setCORSHeaders();
+setCorsHeaders();
 header('Content-Type: application/json; charset=utf-8');
 
-$input = getRequestInput();
+/**
+ * Resolve google_uid from multiple possible formats.
+ * Accepts:
+ * - $input['google_uid'] / googleUid / uid
+ * - identifier string (google uid)
+ * - identifier array ['type'=>'google_uid','value'=>'...']
+ * - identifier array ['google_uid'=>'...']
+ */
+function resolveGoogleUid(array $input): ?string {
+    // 1) direct fields in input
+    $candidates = [
+        $input['google_uid'] ?? null,
+        $input['googleUid'] ?? null,
+        $input['uid'] ?? null,
+    ];
+
+    foreach ($candidates as $c) {
+        if (is_string($c)) {
+            $v = trim($c);
+            if ($v !== '' && validateGoogleUid($v)) return $v;
+        }
+    }
+
+    // 2) if config has getUserIdentifier(), try it but normalize output
+    if (function_exists('getUserIdentifier')) {
+        try {
+            $id = getUserIdentifier($input);
+
+            // string
+            if (is_string($id)) {
+                $v = trim($id);
+                if ($v !== '' && validateGoogleUid($v)) return $v;
+            }
+
+            // array type/value
+            if (is_array($id)) {
+                if (isset($id['google_uid']) && is_string($id['google_uid'])) {
+                    $v = trim($id['google_uid']);
+                    if ($v !== '' && validateGoogleUid($v)) return $v;
+                }
+                if (isset($id['type'], $id['value']) && $id['type'] === 'google_uid' && is_string($id['value'])) {
+                    $v = trim($id['value']);
+                    if ($v !== '' && validateGoogleUid($v)) return $v;
+                }
+            }
+        } catch (Throwable $e) {
+            // ignore; we'll return null below
+        }
+    }
+
+    return null;
+}
+
+$input = function_exists('getRequestInput') ? getRequestInput() : [];
+if (!is_array($input)) $input = [];
 
 // Debug opcional: /api/balance.php?debug=1
 $debug = isset($_GET['debug']) && $_GET['debug'] == '1';
 
-// Obter identificador do usuário
-$identifier = getUserIdentifier($input);
-
-if (!$identifier) {
+$googleUid = resolveGoogleUid($input);
+if (!$googleUid) {
     $resp = [
         'success' => false,
         'balance_brl' => '0.00',
-        'balance' => '0.00', // Compatibilidade
-        'error' => 'Identificador inválido. Envie google_uid ou wallet_address.'
+        'error' => 'Identificador inválido. Envie google_uid.'
     ];
-    
+
     if ($debug) {
         $resp['debug'] = [
             'input_keys' => array_keys($input),
             'content_type' => $_SERVER['CONTENT_TYPE'] ?? '',
         ];
     }
-    
+
     if (ob_get_length()) { ob_clean(); }
-    echo json_encode($resp);
+    echo json_encode($resp, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
@@ -83,57 +129,63 @@ try {
     $pdo = getDatabaseConnection();
     if (!$pdo) throw new Exception("Falha na conexão com o banco");
 
-    $player = getPlayerByIdentifier($pdo, $identifier);
+    // Unobix-only: buscar por google_uid
+    $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
+    $stmt->execute([$googleUid]);
+    $player = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$player) {
-        // Jogador não existe ainda - retornar saldo zero
         if (ob_get_length()) { ob_clean(); }
         echo json_encode([
             'success' => true,
             'balance_brl' => '0.00',
-            'balance' => '0.00000000', // Compatibilidade legacy
             'staked_balance_brl' => '0.00',
+            'pending_stake_reward' => '0.00',
             'total_earned_brl' => '0.00',
+            'total_withdrawn_brl' => '0.00',
             'total_played' => 0,
             'is_new_player' => true
-        ]);
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
 
     // Calcular stake rewards pendentes
-    $stakeReward = 0;
-    if ($player['staked_balance_brl'] > 0 && $player['last_stake_update']) {
-        $secondsPassed = time() - strtotime($player['last_stake_update']);
-        $dailyRate = STAKE_APY / 365;
+    $stakeReward = 0.0;
+    $staked = (float)($player['staked_balance_brl'] ?? 0);
+    $lastUpdate = $player['last_stake_update'] ?? null;
+
+    if ($staked > 0 && $lastUpdate) {
+        $secondsPassed = time() - strtotime($lastUpdate);
+        $dailyRate = (defined('STAKE_APY') ? STAKE_APY : 0.05) / 365;
         $daysElapsed = $secondsPassed / 86400;
-        $stakeReward = $player['staked_balance_brl'] * (pow(1 + $dailyRate, $daysElapsed) - 1);
+        $stakeReward = $staked * (pow(1 + $dailyRate, $daysElapsed) - 1);
+        if ($stakeReward < 0) $stakeReward = 0.0;
     }
 
     if (ob_get_length()) { ob_clean(); }
     echo json_encode([
         'success' => true,
-        'balance_brl' => number_format((float)$player['balance_brl'], 2, '.', ''),
-        'balance' => number_format((float)$player['balance_usdt'], 8, '.', ''), // Compatibilidade legacy
-        'staked_balance_brl' => number_format((float)$player['staked_balance_brl'], 2, '.', ''),
-        'pending_stake_reward' => number_format($stakeReward, 2, '.', ''),
-        'total_earned_brl' => number_format((float)$player['total_earned_brl'], 2, '.', ''),
-        'total_withdrawn_brl' => number_format((float)$player['total_withdrawn_brl'], 2, '.', ''),
-        'total_played' => (int)$player['total_played'],
-        'is_banned' => (bool)$player['is_banned'],
+        'google_uid' => $googleUid,
+        'balance_brl' => number_format((float)($player['balance_brl'] ?? 0), 2, '.', ''),
+        'staked_balance_brl' => number_format((float)($player['staked_balance_brl'] ?? 0), 2, '.', ''),
+        'pending_stake_reward' => number_format((float)$stakeReward, 2, '.', ''),
+        'total_earned_brl' => number_format((float)($player['total_earned_brl'] ?? 0), 2, '.', ''),
+        'total_withdrawn_brl' => number_format((float)($player['total_withdrawn_brl'] ?? 0), 2, '.', ''),
+        'total_played' => (int)($player['total_played'] ?? 0),
+        'is_banned' => (bool)($player['is_banned'] ?? 0),
         'display_name' => $player['display_name'] ?? null,
         'email' => $player['email'] ?? null,
         'is_new_player' => false
-    ]);
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-} catch (Exception $e) {
+} catch (Throwable $e) {
     error_log("balance.php error: " . $e->getMessage());
 
     if (ob_get_length()) { ob_clean(); }
     echo json_encode([
         'success' => false,
         'balance_brl' => '0.00',
-        'balance' => '0.00000000',
         'error' => 'Erro no servidor'
-    ]);
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
 ?>
