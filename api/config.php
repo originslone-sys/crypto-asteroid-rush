@@ -30,8 +30,9 @@ if (getenv('MYSQLHOST') || getenv('DB_HOST')) {
 // ============================================
 // CONFIGURAÇÕES FIREBASE (Google Auth)
 // ============================================
-define('FIREBASE_PROJECT_ID', getenv('FIREBASE_PROJECT_ID') ?: 'unobix-app');
-define('FIREBASE_API_KEY', getenv('FIREBASE_API_KEY') ?: '');
+define('FIREBASE_PROJECT_ID', getenv('FIREBASE_PROJECT_ID') ?: '
+unobix-oauth-a69cd');
+define('FIREBASE_API_KEY', getenv('FIREBASE_API_KEY') ?: 'AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U');
 
 // ============================================
 // CONFIGURAÇÕES DE SEGURANÇA DO JOGO
