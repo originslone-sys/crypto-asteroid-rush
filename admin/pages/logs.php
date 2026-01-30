@@ -1,42 +1,16 @@
 <?php
 // ============================================
-// CRYPTO ASTEROID RUSH - Logs do Sistema
+// UNOBIX - Logs do Sistema
 // Arquivo: admin/pages/logs.php
 // ============================================
 
 $pageTitle = 'Logs';
-
-$logType = $_GET['type'] ?? 'security';
-
-$logs = [];
-$logContent = '';
+$logType = $_GET['type'] ?? 'database';
 
 try {
-    switch ($logType) {
-        case 'security':
-            $logFile = '../../api/game_security.log';
-            break;
-        case 'maintenance':
-            $logFile = '../../api/maintenance.log';
-            break;
-        case 'error':
-            $logFile = '../../api/error_log';
-            break;
-        default:
-            $logFile = '../../api/game_security.log';
-    }
-    
-    if (file_exists($logFile)) {
-        $logContent = file_get_contents($logFile);
-        // Pegar últimas 200 linhas
-        $lines = explode("\n", $logContent);
-        $lines = array_slice($lines, -200);
-        $logContent = implode("\n", array_reverse($lines));
-    }
-    
-    // Logs do banco de dados
     $securityLogs = $pdo->query("SELECT * FROM security_logs ORDER BY created_at DESC LIMIT 100")->fetchAll();
-    
+    $transactionLogs = $pdo->query("SELECT t.*, p.display_name FROM transactions t LEFT JOIN players p ON t.google_uid = p.google_uid ORDER BY t.created_at DESC LIMIT 100")->fetchAll();
+    $sessionLogs = $pdo->query("SELECT gs.*, p.display_name FROM game_sessions gs LEFT JOIN players p ON gs.google_uid = p.google_uid WHERE gs.status IN ('flagged', 'expired') ORDER BY gs.created_at DESC LIMIT 50")->fetchAll();
 } catch (Exception $e) {
     $error = $e->getMessage();
 }
@@ -50,75 +24,91 @@ try {
     <div class="panel">
         <div class="panel-body">
             <div class="tabs">
-                <a href="?page=logs&type=security" class="tab <?php echo $logType === 'security' ? 'active' : ''; ?>">
-                    <i class="fas fa-shield-alt"></i> Segurança
-                </a>
-                <a href="?page=logs&type=maintenance" class="tab <?php echo $logType === 'maintenance' ? 'active' : ''; ?>">
-                    <i class="fas fa-tools"></i> Manutenção
-                </a>
-                <a href="?page=logs&type=error" class="tab <?php echo $logType === 'error' ? 'active' : ''; ?>">
-                    <i class="fas fa-exclamation-circle"></i> Erros
-                </a>
-                <a href="?page=logs&type=database" class="tab <?php echo $logType === 'database' ? 'active' : ''; ?>">
-                    <i class="fas fa-database"></i> Banco de Dados
-                </a>
+                <a href="?page=logs&type=database" class="tab <?php echo $logType === 'database' ? 'active' : ''; ?>"><i class="fas fa-database"></i> Segurança</a>
+                <a href="?page=logs&type=transactions" class="tab <?php echo $logType === 'transactions' ? 'active' : ''; ?>"><i class="fas fa-exchange-alt"></i> Transações</a>
+                <a href="?page=logs&type=sessions" class="tab <?php echo $logType === 'sessions' ? 'active' : ''; ?>"><i class="fas fa-gamepad"></i> Sessões</a>
             </div>
         </div>
     </div>
     
     <?php if ($logType === 'database'): ?>
-    <!-- Logs do Banco de Dados -->
     <div class="panel">
-        <div class="panel-header">
-            <h3 class="panel-title"><i class="fas fa-database"></i> Logs de Segurança (Banco)</h3>
-        </div>
+        <div class="panel-header"><h3 class="panel-title"><i class="fas fa-shield-alt"></i> Logs de Segurança</h3></div>
         <div class="panel-body">
             <?php if (empty($securityLogs)): ?>
-                <div class="empty-state"><i class="fas fa-inbox"></i><h3>Nenhum log encontrado</h3></div>
+                <div class="empty-state"><i class="fas fa-inbox"></i><h3>Nenhum log</h3></div>
             <?php else: ?>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Wallet</th>
-                                <th>Sessão</th>
-                                <th>Tipo</th>
-                                <th>Dados</th>
-                                <th>IP</th>
-                                <th>Data</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        <?php foreach ($securityLogs as $log): ?>
-                        <tr>
-                            <td>#<?php echo $log['id']; ?></td>
-                            <td><span class="wallet-addr"><?php echo substr($log['wallet_address'] ?? '-', 0, 10); ?>...</span></td>
-                            <td><?php echo $log['session_id'] ?? '-'; ?></td>
-                            <td><span class="badge badge-warning"><?php echo $log['event_type']; ?></span></td>
-                            <td style="max-width: 200px; overflow: hidden;"><small><?php echo htmlspecialchars(substr($log['event_data'] ?? '', 0, 80)); ?></small></td>
-                            <td><code><?php echo $log['ip_address'] ?? '-'; ?></code></td>
-                            <td><?php echo date('d/m H:i:s', strtotime($log['created_at'])); ?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>ID</th><th>Tipo</th><th>Dados</th><th>IP</th><th>Data</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($securityLogs as $log): ?>
+                    <tr>
+                        <td>#<?php echo $log['id']; ?></td>
+                        <td><span class="badge badge-warning"><?php echo htmlspecialchars($log['event_type']); ?></span></td>
+                        <td style="max-width: 300px;"><small><?php echo htmlspecialchars(substr($log['event_data'] ?? '', 0, 100)); ?></small></td>
+                        <td><code><?php echo htmlspecialchars($log['ip_address'] ?? '-'); ?></code></td>
+                        <td><?php echo date('d/m H:i:s', strtotime($log['created_at'])); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    
+    <?php elseif ($logType === 'transactions'): ?>
+    <div class="panel">
+        <div class="panel-header"><h3 class="panel-title"><i class="fas fa-exchange-alt"></i> Transações</h3></div>
+        <div class="panel-body">
+            <?php if (empty($transactionLogs)): ?>
+                <div class="empty-state"><i class="fas fa-inbox"></i><h3>Nenhuma</h3></div>
+            <?php else: ?>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>ID</th><th>Jogador</th><th>Tipo</th><th>Valor</th><th>Status</th><th>Data</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($transactionLogs as $t): ?>
+                    <tr>
+                        <td>#<?php echo $t['id']; ?></td>
+                        <td><?php echo htmlspecialchars($t['display_name'] ?? 'Usuário'); ?></td>
+                        <td><span class="badge badge-primary"><?php echo $t['type']; ?></span></td>
+                        <td style="color: <?php echo $t['amount_brl'] >= 0 ? 'var(--success)' : 'var(--danger)'; ?>;">R$ <?php echo number_format($t['amount_brl'], 2, ',', '.'); ?></td>
+                        <td><span class="badge badge-<?php echo $t['status'] === 'completed' ? 'success' : 'warning'; ?>"><?php echo $t['status']; ?></span></td>
+                        <td><?php echo date('d/m H:i', strtotime($t['created_at'])); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
             <?php endif; ?>
         </div>
     </div>
     
     <?php else: ?>
-    <!-- Logs de Arquivo -->
     <div class="panel">
-        <div class="panel-header">
-            <h3 class="panel-title"><i class="fas fa-file-alt"></i> Conteúdo do Log</h3>
-        </div>
+        <div class="panel-header"><h3 class="panel-title"><i class="fas fa-gamepad"></i> Sessões Problemáticas</h3></div>
         <div class="panel-body">
-            <?php if (empty($logContent)): ?>
-                <div class="empty-state"><i class="fas fa-inbox"></i><h3>Log vazio ou não encontrado</h3></div>
+            <?php if (empty($sessionLogs)): ?>
+                <div class="empty-state"><i class="fas fa-check"></i><h3>Nenhuma</h3></div>
             <?php else: ?>
-                <pre style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; max-height: 600px; overflow: auto; font-size: 0.85rem; color: var(--text-dim); white-space: pre-wrap; word-wrap: break-word;"><?php echo htmlspecialchars($logContent); ?></pre>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>ID</th><th>Jogador</th><th>Status</th><th>Motivo</th><th>Data</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($sessionLogs as $s): ?>
+                    <tr>
+                        <td>#<?php echo $s['id']; ?></td>
+                        <td><?php echo htmlspecialchars($s['display_name'] ?? 'Usuário'); ?></td>
+                        <td><span class="badge badge-<?php echo $s['status'] === 'flagged' ? 'danger' : 'warning'; ?>"><?php echo $s['status']; ?></span></td>
+                        <td><small><?php echo htmlspecialchars($s['flag_reason'] ?? '-'); ?></small></td>
+                        <td><?php echo date('d/m H:i', strtotime($s['created_at'])); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
             <?php endif; ?>
         </div>
     </div>
