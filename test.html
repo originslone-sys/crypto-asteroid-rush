@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste UNOBIX</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        button { padding: 10px 20px; margin: 10px; }
+        .result { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Teste UNOBIX - Google Auth</h1>
+    
+    <div>
+        <h3>1. Testar API auth-google.php</h3>
+        <button onclick="testAPI()">Testar API Login</button>
+        <div id="api-result" class="result"></div>
+    </div>
+    
+    <div>
+        <h3>2. Testar Conexão Banco</h3>
+        <button onclick="testDB()">Testar Conexão</button>
+        <div id="db-result" class="result"></div>
+    </div>
+    
+    <div>
+        <h3>3. Verificar Schema</h3>
+        <button onclick="checkSchema()">Verificar Schema</button>
+        <div id="schema-result" class="result"></div>
+    </div>
+
+    <script>
+        async function testAPI() {
+            const result = document.getElementById('api-result');
+            result.innerHTML = 'Testando...';
+            
+            try {
+                const response = await fetch('/api/auth-google.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'login',
+                        google_uid: 'test_google_uid_123',
+                        email: 'test@example.com',
+                        display_name: 'Test User'
+                    })
+                });
+                
+                const data = await response.json();
+                result.innerHTML = `
+                    <strong>Status:</strong> ${response.status}<br>
+                    <strong>Resposta:</strong> ${JSON.stringify(data, null, 2)}
+                `;
+            } catch (error) {
+                result.innerHTML = `<strong>Erro:</strong> ${error.message}`;
+            }
+        }
+        
+        async function testDB() {
+            const result = document.getElementById('db-result');
+            result.innerHTML = 'Testando...';
+            
+            try {
+                const response = await fetch('/api/config.php');
+                const text = await response.text();
+                result.innerHTML = `
+                    <strong>Status:</strong> ${response.status}<br>
+                    <strong>Resposta (primeiros 500 chars):</strong><br>
+                    <pre>${text.substring(0, 500)}...</pre>
+                `;
+            } catch (error) {
+                result.innerHTML = `<strong>Erro:</strong> ${error.message}`;
+            }
+        }
+        
+        async function checkSchema() {
+            const result = document.getElementById('schema-result');
+            result.innerHTML = 'Verificando...';
+            
+            try {
+                const response = await fetch('/api/config.php?check=schema');
+                const text = await response.text();
+                result.innerHTML = `
+                    <strong>Status:</strong> ${response.status}<br>
+                    <strong>Resposta:</strong><br>
+                    <pre>${text}</pre>
+                `;
+            } catch (error) {
+                result.innerHTML = `<strong>Erro:</strong> ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
