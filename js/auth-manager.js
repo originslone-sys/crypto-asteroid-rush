@@ -120,10 +120,17 @@ class AuthManager {
         
         // Salvar estado para recuperar após redirect
         sessionStorage.setItem('authRedirectPending', 'true');
+        console.log('📝 Flag authRedirectPending definida');
         
         // Usar redirect (única opção que funciona no Railway)
-        await this.auth.signInWithRedirect(this.provider);
-        return null; // Página vai recarregar
+        // IMPORTANTE: signInWithRedirect NÃO retorna Promise no Firebase v9!
+        // Ele redireciona imediatamente
+        this.auth.signInWithRedirect(this.provider);
+        
+        // Não retornar nada - a página será redirecionada
+        // Se chegou aqui, algo deu errado
+        console.warn('⚠️ signInWithRedirect não redirecionou! Verifique Firebase config.');
+        throw new Error('Redirect não funcionou');
     }
     
     // Verificar resultado de redirect (chamar no início da página)
@@ -313,8 +320,11 @@ class AuthManager {
     }
 }
 
-// Criar instância global
-window.authManager = new AuthManager();
+// Criar instância global (se não existir)
+if (!window.authManager) {
+    window.authManager = new AuthManager();
+    console.log('✅ AuthManager criado globalmente');
+}
 
 // Verificar redirect result ao carregar (com timeout para evitar loops)
 document.addEventListener('DOMContentLoaded', async () => {
@@ -335,3 +345,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Alias para compatibilidade
 window.AuthManager = AuthManager;
+
+// Inicialização forçada após 2 segundos (fallback)
+setTimeout(() => {
+    if (window.authManager && !window.authManager.isInitialized) {
+        console.log('🔄 Inicialização forçada do AuthManager...');
+        window.authManager.init();
+    }
+}, 2000);

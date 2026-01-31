@@ -172,6 +172,35 @@
 <!-- Scripts -->
 <script src="js/firebase-config.js"></script>
 <script src="js/auth-manager.js"></script>
+
+<!-- Inicialização forçada do AuthManager -->
+<script>
+// Aguardar Firebase carregar
+setTimeout(() => {
+    if (typeof firebase !== 'undefined' && typeof AuthManager !== 'undefined') {
+        console.log('🔥 Firebase carregado, inicializando AuthManager...');
+        
+        // Criar instância global
+        window.authManager = new AuthManager();
+        
+        // Inicializar
+        window.authManager.init().then(() => {
+            console.log('✅ AuthManager inicializado com sucesso');
+            
+            // Disparar evento para main.js
+            const event = new CustomEvent('authManagerReady', { detail: { authManager: window.authManager } });
+            document.dispatchEvent(event);
+        }).catch(error => {
+            console.error('❌ Erro ao inicializar AuthManager:', error);
+        });
+    } else {
+        console.error('❌ Firebase ou AuthManager não carregados');
+        console.log('Firebase:', typeof firebase);
+        console.log('AuthManager:', typeof AuthManager);
+    }
+}, 1000);
+</script>
+
 <script src="js/main.js"></script>
 
 <script>
