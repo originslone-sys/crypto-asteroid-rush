@@ -144,7 +144,7 @@ class AuthManager {
         this.dispatchAuthEvent(user);
     }
     
-    // Sign in with Google - tenta popup, fallback para redirect
+    // Sign in with Google - APENAS REDIRECT no Railway (popup bloqueado)
     async signIn() {
         if (!this.auth || !this.provider) {
             await this.init();
@@ -153,64 +153,64 @@ class AuthManager {
             }
         }
         
-        try {
-            // Tentar popup primeiro (pode ser bloqueado no Railway)
-            console.log('🔐 Tentando login com popup...');
-            const result = await this.auth.signInWithPopup(this.provider);
-            return result.user;
-            
-        } catch (error) {
-            console.warn('⚠️ Popup falhou:', error.code);
-            
-            // Se popup foi bloqueado ou fechado, tentar redirect
-            if (error.code === 'auth/popup-blocked' || 
-                error.code === 'auth/popup-closed-by-user' ||
-                error.code === 'auth/cancelled-popup-request' ||
-                error.code === 'auth/network-request-failed') {
-                
-                console.log('🔄 Usando redirect como fallback...');
-                
-                // Salvar estado para recuperar após redirect
-                sessionStorage.setItem('authRedirectPending', 'true');
-                console.log('📝 Flag authRedirectPending definida');
-                
-                // Usar redirect - NÃO usar await, redireciona imediatamente
-                this.auth.signInWithRedirect(this.provider);
-                
-                // Não retornar nada - a página será redirecionada
-                // Se o código chegou aqui, o redirect não funcionou
-                return null;
-            }
-            
-            throw error;
-        }
+        console.log('🔐 Usando redirect (popup bloqueado no Railway)...');
+        
+        // Salvar estado para recuperar após redirect
+        sessionStorage.setItem('authRedirectPending', 'true');
+        console.log('📝 Flag authRedirectPending definida');
+        
+        // IMPORTANTE: No Railway, usar redirect imediatamente
+        // signInWithRedirect() redireciona a página IMEDIATAMENTE
+        // Não usar await, não retornar nada
+        this.auth.signInWithRedirect(this.provider);
+        
+        // Se chegou aqui, algo deu errado - mas não lançar erro
+        // Apenas log e retornar null
+        console.warn('⚠️ signInWithRedirect não redirecionou imediatamente');
+        return null;
     }
     
     // Verificar resultado de redirect (chamar no início da página)
     async checkRedirectResult() {
-        if (!this.auth) return null;
-        
-        // Limpar flag imediatamente para evitar loops
-        const wasRedirectPending = sessionStorage.getItem('authRedirectPending') === 'true';
-        sessionStorage.removeItem('authRedirectPending');
-        
-        if (!wasRedirectPending) {
+        if (!this.auth) {
+            console.log('ℹ️ Auth não disponível para checkRedirectResult');
             return null;
         }
         
+        // Verificar se há flag de redirect pendente
+        const wasRedirectPending = sessionStorage.getItem('authRedirectPending') === 'true';
+        
+        if (!wasRedirectPending) {
+            console.log('ℹ️ Nenhum redirect pendente');
+            return null;
+        }
+        
+        console.log('🔄 Verificando resultado de redirect...');
+        
         try {
+            // Limpar flag ANTES de verificar (evita loops)
+            sessionStorage.removeItem('authRedirectPending');
+            
             const result = await this.auth.getRedirectResult();
             
             if (result && result.user) {
-                console.log('✅ Login via redirect bem-sucedido');
+                console.log('✅ Login via redirect bem-sucedido:', result.user.email);
                 return result.user;
             }
             
             console.log('ℹ️ Nenhum resultado de redirect encontrado');
             return null;
         } catch (error) {
-            console.error('❌ Erro no redirect result:', error);
-            return null;
+            console.error('❌ Erro no redirect result:', error.code || error.message);
+            
+            // Em caso de erro comum, apenas ignorar
+            if (error.code === 'auth/network-request-failed' || 
+                error.code === 'auth/internal-error') {
+                console.log('⚠️ Erro de rede ignorado para redirect');
+                return null;
+            }
+            
+            throw error;
         }
     }
     
@@ -379,27 +379,28 @@ window.AuthManager = AuthManager;
 
 console.log('✅ AuthManager criado globalmente');
 
-// Verificar redirect result ao carregar (com timeout para evitar loops)
-document.addEventListener('DOMContentLoaded', async () => {
-    // Esperar um pouco para Firebase carregar
-    setTimeout(async () => {
-        if (sessionStorage.getItem('authRedirectPending') === 'true') {
-            console.log('🔄 Verificando resultado de redirect...');
-            try {
-                await window.authManager.checkRedirectResult();
-            } catch (error) {
-                console.error('Erro ao verificar redirect:', error);
-                // Limpar flag em caso de erro
-                sessionStorage.removeItem('authRedirectPending');
-            }
+// Verificar redirect result ao carregar (UMA VEZ apenas)
+setTimeout(async () => {
+    // Verificar apenas se há flag E se authManager está inicializado
+    if (sessionStorage.getItem('authRedirectPending') === 'true' && 
+        window.authManager && 
+        window.authManager.isInitialized) {
+        
+        console.log('🔄 Verificando resultado de redirect (timeout)...');
+        try {
+            await window.authManager.checkRedirectResult();
+        } catch (error) {
+            console.error('Erro ao verificar redirect:', error);
+            // Limpar flag em caso de erro
+            sessionStorage.removeItem('authRedirectPending');
         }
-    }, 1000);
-});
+    }
+}, 1500); // Aguardar mais para Firebase carregar completamente
 
-// Inicialização forçada após 2 segundos (fallback)
+// Inicialização forçada após 3 segundos (fallback seguro)
 setTimeout(() => {
     if (window.authManager && !window.authManager.isInitialized) {
-        console.log('🔄 Inicialização forçada do AuthManager...');
+        console.log('🔄 Inicialização forçada do AuthManager (fallback)...');
         window.authManager.init();
     }
-}, 2000);
+}, 3000);
