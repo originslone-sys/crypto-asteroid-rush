@@ -68,17 +68,48 @@ function formatDateShort(dateStr) {
 document.addEventListener('DOMContentLoaded', () => {
     createStars();
     captureReferralCode();
-    setupEventListeners();
     
-    // Aguardar autenticação
-    document.addEventListener('authStateChanged', (e) => {
-        if (e.detail.user) {
-            onUserLoggedIn(e.detail.user);
-        } else {
-            onUserLoggedOut();
-        }
+    // Aguardar authManager ficar pronto
+    waitForAuthManager().then(() => {
+        setupEventListeners();
+        
+        // Aguardar autenticação
+        document.addEventListener('authStateChanged', (e) => {
+            if (e.detail.user) {
+                onUserLoggedIn(e.detail.user);
+            } else {
+                onUserLoggedOut();
+            }
+        });
+    }).catch(error => {
+        console.error('❌ Falha ao carregar authManager:', error);
+        // Configurar listeners mesmo sem authManager
+        setupEventListeners();
     });
 });
+
+// Aguardar authManager ficar disponível
+async function waitForAuthManager() {
+    return new Promise((resolve, reject) => {
+        const maxAttempts = 30; // 3 segundos
+        let attempts = 0;
+        
+        const checkAuthManager = () => {
+            attempts++;
+            
+            if (window.authManager && typeof window.authManager.init === 'function') {
+                console.log('✅ authManager disponível após', attempts, 'tentativas');
+                resolve();
+            } else if (attempts >= maxAttempts) {
+                reject(new Error('authManager não carregado após 3 segundos'));
+            } else {
+                setTimeout(checkAuthManager, 100);
+            }
+        };
+        
+        checkAuthManager();
+    });
+}
 
 // Quando usuário faz login
 function onUserLoggedIn(user) {

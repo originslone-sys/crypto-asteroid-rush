@@ -373,11 +373,11 @@ class AuthManager {
     }
 }
 
-// Criar instância global (se não existir)
-if (!window.authManager) {
-    window.authManager = new AuthManager();
-    console.log('✅ AuthManager criado globalmente');
-}
+// Criar instância global IMEDIATAMENTE
+window.authManager = new AuthManager();
+window.AuthManager = AuthManager;
+
+console.log('✅ AuthManager criado globalmente');
 
 // Verificar redirect result ao carregar (com timeout para evitar loops)
 document.addEventListener('DOMContentLoaded', async () => {
@@ -395,9 +395,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }, 1000);
 });
-
-// Alias para compatibilidade
-window.AuthManager = AuthManager;
 
 // Inicialização forçada após 2 segundos (fallback)
 setTimeout(() => {
