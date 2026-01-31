@@ -107,7 +107,7 @@ class AuthManager {
         this.dispatchAuthEvent(user);
     }
     
-    // Sign in with Google - tenta popup, fallback para redirect
+    // Sign in with Google - APENAS REDIRECT (popup bloqueado no Railway)
     async signIn() {
         if (!this.auth || !this.provider) {
             await this.init();
@@ -116,51 +116,40 @@ class AuthManager {
             }
         }
         
-        try {
-            // Tentar popup primeiro
-            console.log('🔐 Tentando login com popup...');
-            const result = await this.auth.signInWithPopup(this.provider);
-            return result.user;
-            
-        } catch (error) {
-            console.warn('⚠️ Popup falhou:', error.code);
-            
-            // Se popup foi bloqueado ou fechado, tentar redirect
-            if (error.code === 'auth/popup-blocked' || 
-                error.code === 'auth/popup-closed-by-user' ||
-                error.code === 'auth/cancelled-popup-request') {
-                
-                console.log('🔄 Usando redirect como fallback...');
-                
-                // Salvar estado para recuperar após redirect
-                sessionStorage.setItem('authRedirectPending', 'true');
-                
-                // Usar redirect
-                await this.auth.signInWithRedirect(this.provider);
-                return null; // Página vai recarregar
-            }
-            
-            throw error;
-        }
+        console.log('🔐 Usando redirect (popup bloqueado no Railway)...');
+        
+        // Salvar estado para recuperar após redirect
+        sessionStorage.setItem('authRedirectPending', 'true');
+        
+        // Usar redirect (única opção que funciona no Railway)
+        await this.auth.signInWithRedirect(this.provider);
+        return null; // Página vai recarregar
     }
     
     // Verificar resultado de redirect (chamar no início da página)
     async checkRedirectResult() {
         if (!this.auth) return null;
         
+        // Limpar flag imediatamente para evitar loops
+        const wasRedirectPending = sessionStorage.getItem('authRedirectPending') === 'true';
+        sessionStorage.removeItem('authRedirectPending');
+        
+        if (!wasRedirectPending) {
+            return null;
+        }
+        
         try {
             const result = await this.auth.getRedirectResult();
             
             if (result && result.user) {
                 console.log('✅ Login via redirect bem-sucedido');
-                sessionStorage.removeItem('authRedirectPending');
                 return result.user;
             }
             
+            console.log('ℹ️ Nenhum resultado de redirect encontrado');
             return null;
         } catch (error) {
             console.error('❌ Erro no redirect result:', error);
-            sessionStorage.removeItem('authRedirectPending');
             return null;
         }
     }
@@ -327,12 +316,21 @@ class AuthManager {
 // Criar instância global
 window.authManager = new AuthManager();
 
-// Verificar redirect result ao carregar
+// Verificar redirect result ao carregar (com timeout para evitar loops)
 document.addEventListener('DOMContentLoaded', async () => {
-    if (sessionStorage.getItem('authRedirectPending') === 'true') {
-        console.log('🔄 Verificando resultado de redirect...');
-        await window.authManager.checkRedirectResult();
-    }
+    // Esperar um pouco para Firebase carregar
+    setTimeout(async () => {
+        if (sessionStorage.getItem('authRedirectPending') === 'true') {
+            console.log('🔄 Verificando resultado de redirect...');
+            try {
+                await window.authManager.checkRedirectResult();
+            } catch (error) {
+                console.error('Erro ao verificar redirect:', error);
+                // Limpar flag em caso de erro
+                sessionStorage.removeItem('authRedirectPending');
+            }
+        }
+    }, 1000);
 });
 
 // Alias para compatibilidade
