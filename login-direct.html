@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Direto - UNOBIX</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Arial', sans-serif; 
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .login-box {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 30px;
+            font-size: 2em;
+            background: linear-gradient(90deg, #00dbde, #fc00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .btn-google {
+            background: white;
+            color: #333;
+        }
+        .btn-google:hover {
+            background: #f0f0f0;
+            transform: translateY(-2px);
+        }
+        .btn-test {
+            background: linear-gradient(90deg, #00dbde, #fc00ff);
+            color: white;
+        }
+        .btn-test:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+        .success {
+            background: rgba(0, 255, 0, 0.1);
+            border: 2px solid #00ff00;
+            display: block;
+        }
+        .error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 2px solid #ff0000;
+            display: block;
+        }
+        .info {
+            background: rgba(0, 150, 255, 0.1);
+            border: 2px solid #0096ff;
+            display: block;
+        }
+        .loading {
+            display: none;
+            margin-top: 20px;
+        }
+        .loading.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h1>🚀 UNOBIX</h1>
+        <p style="margin-bottom: 30px; color: #aaa;">Escolha como fazer login:</p>
+        
+        <button class="btn btn-google" onclick="loginWithGoogle()">
+            <i class="fab fa-google"></i> Entrar com Google (Firebase)
+        </button>
+        
+        <button class="btn btn-test" onclick="loginTestUser()">
+            <i class="fas fa-user"></i> Usar Usuário de Teste
+        </button>
+        
+        <div class="loading" id="loading">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Processando login...</span>
+            </div>
+        </div>
+        
+        <div id="status" class="status"></div>
+        
+        <div style="margin-top: 30px; font-size: 14px; color: #888;">
+            <p>Problemas com login? <a href="emergency-login.html" style="color: #00dbde;">Use o login de emergência</a></p>
+        </div>
+    </div>
+    
+    <script>
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('show', show);
+        }
+        
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+        
+        async function loginWithGoogle() {
+            showLoading(true);
+            showStatus('Iniciando login com Google...', 'info');
+            
+            try {
+                // Tentar usar authManager se existir
+                if (window.authManager && typeof window.authManager.signIn === 'function') {
+                    await window.authManager.signIn();
+                    return;
+                }
+                
+                // Se não existir, carregar Firebase
+                showStatus('Carregando sistema de login...', 'info');
+                
+                // Carregar Firebase
+                await loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
+                await loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js');
+                
+                // Carregar configuração
+                await loadScript('js/firebase-config.js');
+                
+                // Carregar auth-manager
+                await loadScript('js/auth-manager.js');
+                
+                // Aguardar inicialização
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                if (window.authManager && typeof window.authManager.signIn === 'function') {
+                    showStatus('Redirecionando para login Google...', 'success');
+                    await window.authManager.signIn();
+                } else {
+                    throw new Error('Sistema de login não carregado');
+                }
+                
+            } catch (error) {
+                showLoading(false);
+                showStatus(`Erro: ${error.message}`, 'error');
+                console.error('Erro no login Google:', error);
+            }
+        }
+        
+        async function loginTestUser() {
+            showLoading(true);
+            showStatus('Criando usuário de teste...', 'info');
+            
+            try {
+                const testUid = 'test_user_' + Date.now();
+                const testEmail = 'test_' + Date.now() + '@unobix.com';
+                
+                const response = await fetch('api/auth-google.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'login',
+                        google_uid: testUid,
+                        email: testEmail,
+                        display_name: 'Test User',
+                        photo_url: 'https://example.com/photo.jpg'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Salvar dados
+                    localStorage.setItem('googleUid', testUid);
+                    localStorage.setItem('sessionToken', result.session_token);
+                    localStorage.setItem('userDisplayName', 'Test User');
+                    
+                    showStatus('✅ Login de teste realizado! Redirecionando...', 'success');
+                    
+                    // Redirecionar para dashboard
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1500);
+                } else {
+                    throw new Error(result.error || 'Erro no login');
+                }
+                
+            } catch (error) {
+                showLoading(false);
+                showStatus(`Erro: ${error.message}`, 'error');
+                console.error('Erro no login de teste:', error);
+            }
+        }
+        
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+        
+        // Verificar se já está logado
+        if (localStorage.getItem('googleUid')) {
+            showStatus(`Já logado como: ${localStorage.getItem('googleUid')}`, 'info');
+        }
+    </script>
+    
+    <!-- Font Awesome -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+</body>
+</html>
