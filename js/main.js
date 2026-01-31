@@ -253,10 +253,13 @@ function resetUI() {
 // ============================================
 
 async function connectWithGoogle() {
-    const result = await window.authManager.loginWithGoogle();
-    
-    if (!result.success) {
-        showNotification(result.error, 'error');
+    try {
+        console.log('🔐 Iniciando login com Google...');
+        await window.authManager.signIn();
+        // O signIn vai redirecionar, então não precisa de retorno
+    } catch (error) {
+        console.error('❌ Erro no login:', error);
+        showNotification('Erro ao fazer login: ' + error.message, 'error');
     }
 }
 
