@@ -36,6 +36,7 @@ try {
     if (!$pdo) {
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Erro ao conectar ao banco']);
+        if (function_exists('secureLog')) secureLog("GAME_START_DB_FAIL | google_uid: {$googleUid}");
         exit;
     }
 
@@ -154,7 +155,7 @@ try {
     $sessionToken = hash('sha256', $googleUid . '|' . time() . '|' . bin2hex(random_bytes(16)));
     $gameDuration = defined('GAME_DURATION') ? GAME_DURATION : 180;
 
-    // criar session (wallet NULL)
+    // criar session (wallet NULL) - CORRIGIDO: 10 placeholders
     $stmt = $pdo->prepare("
         INSERT INTO game_sessions (
             google_uid,
@@ -174,16 +175,16 @@ try {
         ) VALUES (?, NULL, ?, ?, 'active', ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())
     ");
     $stmt->execute([
-        $googleUid,
-        $sessionToken,
-        $missionNumber,
-        $isHardMode ? 1 : 0,
-        $rareCount,
-        $hasEpic ? 1 : 0,
-        json_encode($rareIds),
-        $epicId,
-        $clientIP
-        // ✅ CORRETO: 9 valores para 9 placeholders (NULL e 'active' são literais)
+        $googleUid,              // 1. google_uid
+        $sessionToken,           // 2. session_token
+        $missionNumber,          // 3. mission_number
+        $isHardMode ? 1 : 0,     // 4. is_hard_mode
+        $rareCount,              // 5. rare_asteroids_target
+        $hasEpic ? 1 : 0,        // 6. epic_asteroid_target
+        json_encode($rareIds),   // 7. rare_ids
+        $epicId,                 // 8. epic_id
+        $clientIP                // 9. ip_address
+        // ✅ CORRETO: 9 valores para 9 placeholders (NULL, 'active', 0, NOW() são literais)
     ]);
 
     $sessionId = (int)$pdo->lastInsertId();
