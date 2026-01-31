@@ -22,16 +22,30 @@ class AuthManager {
     }
     
     // Initialize auth
-    init() {
+    async init() {
         if (this.isInitialized) return;
         
-        if (typeof firebase === 'undefined') {
-            console.error('❌ Firebase não carregado');
-            setTimeout(() => this.init(), 500);
-            return;
-        }
+        // Aguardar Firebase carregar completamente
+        await this.waitForFirebase();
         
         try {
+            // Verificar se Firebase foi inicializado pelo firebase-config.js
+            if (!firebase.apps.length) {
+                console.warn('⚠️ Firebase não inicializado pelo firebase-config.js, inicializando agora...');
+                
+                const firebaseConfig = {
+                    apiKey: "AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U",
+                    authDomain: "unobix-oauth-a69cd.firebaseapp.com",
+                    projectId: "unobix-oauth-a69cd",
+                    storageBucket: "unobix-oauth-a69cd.firebasestorage.app",
+                    messagingSenderId: "1067767347117",
+                    appId: "1:1067767347117:web:26e1193bdef8e264409324"
+                };
+                
+                firebase.initializeApp(firebaseConfig);
+                console.log('✅ Firebase inicializado pelo AuthManager');
+            }
+            
             this.auth = firebase.auth();
             this.provider = new firebase.auth.GoogleAuthProvider();
             
@@ -42,17 +56,40 @@ class AuthManager {
                 prompt: 'select_account'
             });
             
+            // Configurar persistência
+            await this.auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+            
             // Listener de estado de autenticação
             this.auth.onAuthStateChanged((user) => {
                 this.handleAuthStateChange(user);
             });
             
             this.isInitialized = true;
-            console.log('🔐 AuthManager inicializado');
+            console.log('🔐 AuthManager inicializado com sucesso');
             
         } catch (error) {
             console.error('❌ Erro ao inicializar AuthManager:', error);
+            // Tentar novamente após 1 segundo
+            setTimeout(() => this.init(), 1000);
         }
+    }
+    
+    // Aguardar Firebase carregar
+    async waitForFirebase() {
+        return new Promise((resolve) => {
+            const checkFirebase = () => {
+                if (typeof firebase !== 'undefined' && 
+                    typeof firebase.initializeApp === 'function' &&
+                    typeof firebase.auth === 'function') {
+                    console.log('✅ Firebase SDK carregado');
+                    resolve();
+                } else {
+                    console.log('⏳ Aguardando Firebase SDK...');
+                    setTimeout(checkFirebase, 100);
+                }
+            };
+            checkFirebase();
+        });
     }
     
     // Handle auth state changes

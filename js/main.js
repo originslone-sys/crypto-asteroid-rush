@@ -258,13 +258,15 @@ async function connectWithGoogle() {
         
         // Verificar se authManager existe
         if (!window.authManager) {
-            console.error('❌ authManager não definido! Tentando inicializar...');
+            console.error('❌ authManager não definido!');
             
-            // Tentar carregar auth-manager.js dinamicamente
-            await loadAuthManager();
-            
-            if (!window.authManager) {
-                throw new Error('Não foi possível carregar o sistema de login');
+            // Tentar criar instância se AuthManager existir
+            if (typeof AuthManager !== 'undefined') {
+                console.log('🔄 Criando nova instância do AuthManager...');
+                window.authManager = new AuthManager();
+                await window.authManager.init();
+            } else {
+                throw new Error('Sistema de autenticação não carregado. Recarregue a página.');
             }
         }
         
@@ -274,54 +276,6 @@ async function connectWithGoogle() {
         console.error('❌ Erro no login:', error);
         showNotification('Erro ao fazer login: ' + error.message, 'error');
     }
-}
-
-// Carregar auth-manager dinamicamente se necessário
-async function loadAuthManager() {
-    return new Promise((resolve, reject) => {
-        // Verificar se já está carregado
-        if (typeof AuthManager !== 'undefined' && typeof firebase !== 'undefined') {
-            console.log('✅ AuthManager já carregado, criando instância...');
-            window.authManager = new AuthManager();
-            window.authManager.init().then(resolve).catch(reject);
-            return;
-        }
-        
-        // Carregar Firebase se necessário
-        if (typeof firebase === 'undefined') {
-            console.log('🔥 Carregando Firebase...');
-            const firebaseScript = document.createElement('script');
-            firebaseScript.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js';
-            firebaseScript.onload = () => {
-                const authScript = document.createElement('script');
-                authScript.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js';
-                authScript.onload = loadAuthManagerScript;
-                document.head.appendChild(authScript);
-            };
-            firebaseScript.onerror = () => reject(new Error('Falha ao carregar Firebase SDK'));
-            document.head.appendChild(firebaseScript);
-        } else {
-            loadAuthManagerScript();
-        }
-        
-        function loadAuthManagerScript() {
-            console.log('📦 Carregando auth-manager.js...');
-            const script = document.createElement('script');
-            script.src = 'js/auth-manager.js';
-            script.onload = () => {
-                setTimeout(() => {
-                    if (typeof AuthManager !== 'undefined') {
-                        window.authManager = new AuthManager();
-                        window.authManager.init().then(resolve).catch(reject);
-                    } else {
-                        reject(new Error('AuthManager não carregado após script'));
-                    }
-                }, 1000);
-            };
-            script.onerror = reject;
-            document.head.appendChild(script);
-        }
-    });
 }
 
 async function logout() {
