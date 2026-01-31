@@ -68,48 +68,17 @@ function formatDateShort(dateStr) {
 document.addEventListener('DOMContentLoaded', () => {
     createStars();
     captureReferralCode();
+    setupEventListeners();
     
-    // Aguardar authManager ficar pronto
-    waitForAuthManager().then(() => {
-        setupEventListeners();
-        
-        // Aguardar autenticação
-        document.addEventListener('authStateChanged', (e) => {
-            if (e.detail.user) {
-                onUserLoggedIn(e.detail.user);
-            } else {
-                onUserLoggedOut();
-            }
-        });
-    }).catch(error => {
-        console.error('❌ Falha ao carregar authManager:', error);
-        // Configurar listeners mesmo sem authManager
-        setupEventListeners();
+    // Aguardar autenticação
+    document.addEventListener('authStateChanged', (e) => {
+        if (e.detail.user) {
+            onUserLoggedIn(e.detail.user);
+        } else {
+            onUserLoggedOut();
+        }
     });
 });
-
-// Aguardar authManager ficar disponível
-async function waitForAuthManager() {
-    return new Promise((resolve, reject) => {
-        const maxAttempts = 30; // 3 segundos
-        let attempts = 0;
-        
-        const checkAuthManager = () => {
-            attempts++;
-            
-            if (window.authManager && typeof window.authManager.init === 'function') {
-                console.log('✅ authManager disponível após', attempts, 'tentativas');
-                resolve();
-            } else if (attempts >= maxAttempts) {
-                reject(new Error('authManager não carregado após 3 segundos'));
-            } else {
-                setTimeout(checkAuthManager, 100);
-            }
-        };
-        
-        checkAuthManager();
-    });
-}
 
 // Quando usuário faz login
 function onUserLoggedIn(user) {
@@ -286,21 +255,6 @@ function resetUI() {
 async function connectWithGoogle() {
     try {
         console.log('🔐 Iniciando login com Google...');
-        
-        // Verificar se authManager existe
-        if (!window.authManager) {
-            console.error('❌ authManager não definido!');
-            
-            // Tentar criar instância se AuthManager existir
-            if (typeof AuthManager !== 'undefined') {
-                console.log('🔄 Criando nova instância do AuthManager...');
-                window.authManager = new AuthManager();
-                await window.authManager.init();
-            } else {
-                throw new Error('Sistema de autenticação não carregado. Recarregue a página.');
-            }
-        }
-        
         await window.authManager.signIn();
         // O signIn vai redirecionar, então não precisa de retorno
     } catch (error) {

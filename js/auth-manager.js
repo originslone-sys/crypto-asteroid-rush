@@ -1,8 +1,6 @@
 /* ============================================
-   UNOBIX - Authentication Manager v2.0
-   File: js/auth-manager.js
+   UNOBIX - Authentication Manager v2.0 (VERSÃO QUE FUNCIONAVA)
    Google OAuth via Firebase
-   Fix: Melhor tratamento de popup e redirect fallback
    ============================================ */
 
 class AuthManager {
@@ -13,16 +11,6 @@ class AuthManager {
         this.onAuthStateChangedCallbacks = [];
         this.isInitialized = false;
         
-        // Configuração do Firebase
-        this.firebaseConfig = {
-            apiKey: "AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U",
-            authDomain: "unobix-oauth-a69cd.firebaseapp.com",
-            projectId: "unobix-oauth-a69cd",
-            storageBucket: "unobix-oauth-a69cd.firebasestorage.app",
-            messagingSenderId: "1067767347117",
-            appId: "1:1067767347117:web:26e1193bdef8e264409324"
-        };
-        
         // Aguardar DOM antes de inicializar
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.init());
@@ -32,30 +20,16 @@ class AuthManager {
     }
     
     // Initialize auth
-    async init() {
+    init() {
         if (this.isInitialized) return;
         
-        // Aguardar Firebase carregar completamente
-        await this.waitForFirebase();
+        if (typeof firebase === 'undefined') {
+            console.error('❌ Firebase não carregado');
+            setTimeout(() => this.init(), 500);
+            return;
+        }
         
         try {
-            // Verificar se Firebase foi inicializado pelo firebase-config.js
-            if (!firebase.apps.length) {
-                console.warn('⚠️ Firebase não inicializado pelo firebase-config.js, inicializando agora...');
-                
-                const firebaseConfig = {
-                    apiKey: "AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U",
-                    authDomain: "unobix-oauth-a69cd.firebaseapp.com",
-                    projectId: "unobix-oauth-a69cd",
-                    storageBucket: "unobix-oauth-a69cd.firebasestorage.app",
-                    messagingSenderId: "1067767347117",
-                    appId: "1:1067767347117:web:26e1193bdef8e264409324"
-                };
-                
-                firebase.initializeApp(firebaseConfig);
-                console.log('✅ Firebase inicializado pelo AuthManager');
-            }
-            
             this.auth = firebase.auth();
             this.provider = new firebase.auth.GoogleAuthProvider();
             
@@ -66,40 +40,17 @@ class AuthManager {
                 prompt: 'select_account'
             });
             
-            // Configurar persistência
-            await this.auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-            
             // Listener de estado de autenticação
             this.auth.onAuthStateChanged((user) => {
                 this.handleAuthStateChange(user);
             });
             
             this.isInitialized = true;
-            console.log('🔐 AuthManager inicializado com sucesso');
+            console.log('🔐 AuthManager inicializado');
             
         } catch (error) {
             console.error('❌ Erro ao inicializar AuthManager:', error);
-            // Tentar novamente após 1 segundo
-            setTimeout(() => this.init(), 1000);
         }
-    }
-    
-    // Aguardar Firebase carregar
-    async waitForFirebase() {
-        return new Promise((resolve) => {
-            const checkFirebase = () => {
-                if (typeof firebase !== 'undefined' && 
-                    typeof firebase.initializeApp === 'function' &&
-                    typeof firebase.auth === 'function') {
-                    console.log('✅ Firebase SDK carregado');
-                    resolve();
-                } else {
-                    console.log('⏳ Aguardando Firebase SDK...');
-                    setTimeout(checkFirebase, 100);
-                }
-            };
-            checkFirebase();
-        });
     }
     
     // Handle auth state changes
@@ -154,7 +105,7 @@ class AuthManager {
         this.dispatchAuthEvent(user);
     }
     
-    // Sign in with Google - Redirect com fallback manual
+    // Sign in with Google - tenta popup, fallback para redirect (VERSÃO ORIGINAL)
     async signIn() {
         if (!this.auth || !this.provider) {
             await this.init();
@@ -163,99 +114,52 @@ class AuthManager {
             }
         }
         
-        console.log('🔐 Usando redirect (popup bloqueado no Railway)...');
-        
-        // Salvar estado para recuperar após redirect
-        sessionStorage.setItem('authRedirectPending', 'true');
-        console.log('📝 Flag authRedirectPending definida');
-        
         try {
-            // Tentar redirect do Firebase
-            console.log('🔄 Iniciando signInWithRedirect do Firebase...');
-            this.auth.signInWithRedirect(this.provider);
-            
-            // Se chegou aqui, o Firebase não redirecionou
-            // Tentar fallback manual após 500ms
-            setTimeout(() => {
-                if (!sessionStorage.getItem('redirectStarted')) {
-                    console.warn('⚠️ Firebase não redirecionou, tentando fallback manual...');
-                    this.manualGoogleRedirect();
-                }
-            }, 500);
+            // Tentar popup primeiro
+            console.log('🔐 Tentando login com popup...');
+            const result = await this.auth.signInWithPopup(this.provider);
+            return result.user;
             
         } catch (error) {
-            console.error('❌ Erro no signInWithRedirect:', error);
-            console.log('🔄 Tentando fallback manual...');
-            this.manualGoogleRedirect();
+            console.warn('⚠️ Popup falhou:', error.code);
+            
+            // Se popup foi bloqueado ou fechado, tentar redirect
+            if (error.code === 'auth/popup-blocked' || 
+                error.code === 'auth/popup-closed-by-user' ||
+                error.code === 'auth/cancelled-popup-request') {
+                
+                console.log('🔄 Usando redirect como fallback...');
+                
+                // Salvar estado para recuperar após redirect
+                sessionStorage.setItem('authRedirectPending', 'true');
+                
+                // Usar redirect
+                await this.auth.signInWithRedirect(this.provider);
+                return null; // Página vai recarregar
+            }
+            
+            throw error;
         }
-        
-        return null;
-    }
-    
-    // Fallback manual para redirect do Google
-    manualGoogleRedirect() {
-        // Marcar que redirect foi iniciado
-        sessionStorage.setItem('redirectStarted', 'true');
-        
-        // URL de login do Google OAuth manual
-        const clientId = '1067767347117-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com';
-        const redirectUri = encodeURIComponent(window.location.origin + '/__/auth/handler');
-        const scope = encodeURIComponent('email profile');
-        
-        // URL do Google OAuth
-        const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-            `client_id=${firebaseConfig.apiKey}&` + // Usar apiKey como client_id
-            `redirect_uri=${redirectUri}&` +
-            `scope=${scope}&` +
-            `response_type=id_token&` +
-            `nonce=${Date.now()}&` +
-            `prompt=select_account`;
-        
-        console.log('🔗 Redirecionando manualmente para Google OAuth...');
-        window.location.href = googleAuthUrl;
     }
     
     // Verificar resultado de redirect (chamar no início da página)
     async checkRedirectResult() {
-        if (!this.auth) {
-            console.log('ℹ️ Auth não disponível para checkRedirectResult');
-            return null;
-        }
-        
-        // Verificar se há flag de redirect pendente
-        const wasRedirectPending = sessionStorage.getItem('authRedirectPending') === 'true';
-        
-        if (!wasRedirectPending) {
-            console.log('ℹ️ Nenhum redirect pendente');
-            return null;
-        }
-        
-        console.log('🔄 Verificando resultado de redirect...');
+        if (!this.auth) return null;
         
         try {
-            // Limpar flag ANTES de verificar (evita loops)
-            sessionStorage.removeItem('authRedirectPending');
-            
             const result = await this.auth.getRedirectResult();
             
             if (result && result.user) {
-                console.log('✅ Login via redirect bem-sucedido:', result.user.email);
+                console.log('✅ Login via redirect bem-sucedido');
+                sessionStorage.removeItem('authRedirectPending');
                 return result.user;
             }
             
-            console.log('ℹ️ Nenhum resultado de redirect encontrado');
             return null;
         } catch (error) {
-            console.error('❌ Erro no redirect result:', error.code || error.message);
-            
-            // Em caso de erro comum, apenas ignorar
-            if (error.code === 'auth/network-request-failed' || 
-                error.code === 'auth/internal-error') {
-                console.log('⚠️ Erro de rede ignorado para redirect');
-                return null;
-            }
-            
-            throw error;
+            console.error('❌ Erro no redirect result:', error);
+            sessionStorage.removeItem('authRedirectPending');
+            return null;
         }
     }
     
@@ -313,12 +217,12 @@ class AuthManager {
                 console.log('✅ Usuário sincronizado com backend');
                
                if (result.session_token) {
-  localStorage.setItem('sessionToken', result.session_token);
+                    localStorage.setItem('sessionToken', result.session_token);
 
-  // manter gameState em sincronia
-  window.gameState = window.gameState || {};
-  window.gameState.sessionToken = result.session_token;
-}
+                    // manter gameState em sincronia
+                    window.gameState = window.gameState || {};
+                    window.gameState.sessionToken = result.session_token;
+                }
 
                 
                 // Verificar referral
@@ -422,30 +326,21 @@ class AuthManager {
 window.authManager = new AuthManager();
 window.AuthManager = AuthManager;
 
-console.log('✅ AuthManager criado globalmente');
+console.log('✅ AuthManager criado globalmente (versão original)');
 
-// Verificar redirect result ao carregar (UMA VEZ apenas)
-setTimeout(async () => {
-    // Verificar apenas se há flag E se authManager está inicializado
-    if (sessionStorage.getItem('authRedirectPending') === 'true' && 
-        window.authManager && 
-        window.authManager.isInitialized) {
-        
-        console.log('🔄 Verificando resultado de redirect (timeout)...');
-        try {
-            await window.authManager.checkRedirectResult();
-        } catch (error) {
-            console.error('Erro ao verificar redirect:', error);
-            // Limpar flag em caso de erro
-            sessionStorage.removeItem('authRedirectPending');
+// Verificar redirect result ao carregar
+document.addEventListener('DOMContentLoaded', async () => {
+    // Esperar um pouco para Firebase carregar
+    setTimeout(async () => {
+        if (sessionStorage.getItem('authRedirectPending') === 'true') {
+            console.log('🔄 Verificando resultado de redirect...');
+            try {
+                await window.authManager.checkRedirectResult();
+            } catch (error) {
+                console.error('Erro ao verificar redirect:', error);
+                // Limpar flag em caso de erro
+                sessionStorage.removeItem('authRedirectPending');
+            }
         }
-    }
-}, 1500); // Aguardar mais para Firebase carregar completamente
-
-// Inicialização forçada após 3 segundos (fallback seguro)
-setTimeout(() => {
-    if (window.authManager && !window.authManager.isInitialized) {
-        console.log('🔄 Inicialização forçada do AuthManager (fallback)...');
-        window.authManager.init();
-    }
-}, 3000);
+    }, 1000);
+});
