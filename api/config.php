@@ -15,11 +15,23 @@ error_reporting(E_ALL);
 // ============================================
 // CONFIGURAÇÕES DE BANCO DE DADOS (Railway)
 // ============================================
-define('DB_HOST', getenv('MYSQLHOST') ?: 'interchange.proxy.rlwy.net');
-define('DB_NAME', getenv('MYSQLDATABASE') ?: 'railway');
-define('DB_USER', getenv('MYSQLUSER') ?: 'root');
-define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'AiaWPNyMBtRFnUWtFjJtkMVtNzDnflta');
-define('DB_PORT', getenv('MYSQLPORT') ?: 40129);
+// Prioridade: MYSQL_PUBLIC_URL > variáveis individuais > fallback
+$mysqlPublicUrl = getenv('MYSQL_PUBLIC_URL');
+if ($mysqlPublicUrl && preg_match('/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/', $mysqlPublicUrl, $matches)) {
+    // Usar URL pública: mysql://user:pass@host:port/database
+    define('DB_HOST', $matches[3]);  // host
+    define('DB_PORT', $matches[4]);  // port
+    define('DB_USER', $matches[1]);  // user
+    define('DB_PASS', $matches[2]);  // password
+    define('DB_NAME', $matches[5]);  // database
+} else {
+    // Fallback para variáveis individuais
+    define('DB_HOST', getenv('MYSQLHOST') ?: 'interchange.proxy.rlwy.net');
+    define('DB_PORT', getenv('MYSQLPORT') ?: 40129);
+    define('DB_NAME', getenv('MYSQLDATABASE') ?: 'railway');
+    define('DB_USER', getenv('MYSQLUSER') ?: 'root');
+    define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'AiaWPNyMBtRFnUWtFjJtkMVtNzDnflta');
+}
 
 // ============================================
 // CONFIGURAÇÕES DE SEGURANÇA
