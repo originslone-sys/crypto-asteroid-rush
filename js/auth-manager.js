@@ -107,7 +107,7 @@ class AuthManager {
         this.dispatchAuthEvent(user);
     }
     
-    // Sign in with Google - APENAS REDIRECT (popup bloqueado no Railway)
+    // Sign in with Google - tenta popup, fallback para redirect
     async signIn() {
         if (!this.auth || !this.provider) {
             await this.init();
@@ -116,21 +116,37 @@ class AuthManager {
             }
         }
         
-        console.log('🔐 Usando redirect (popup bloqueado no Railway)...');
-        
-        // Salvar estado para recuperar após redirect
-        sessionStorage.setItem('authRedirectPending', 'true');
-        console.log('📝 Flag authRedirectPending definida');
-        
-        // Usar redirect (única opção que funciona no Railway)
-        // IMPORTANTE: signInWithRedirect NÃO retorna Promise no Firebase v9!
-        // Ele redireciona imediatamente
-        this.auth.signInWithRedirect(this.provider);
-        
-        // Não retornar nada - a página será redirecionada
-        // Se chegou aqui, algo deu errado
-        console.warn('⚠️ signInWithRedirect não redirecionou! Verifique Firebase config.');
-        throw new Error('Redirect não funcionou');
+        try {
+            // Tentar popup primeiro (pode ser bloqueado no Railway)
+            console.log('🔐 Tentando login com popup...');
+            const result = await this.auth.signInWithPopup(this.provider);
+            return result.user;
+            
+        } catch (error) {
+            console.warn('⚠️ Popup falhou:', error.code);
+            
+            // Se popup foi bloqueado ou fechado, tentar redirect
+            if (error.code === 'auth/popup-blocked' || 
+                error.code === 'auth/popup-closed-by-user' ||
+                error.code === 'auth/cancelled-popup-request' ||
+                error.code === 'auth/network-request-failed') {
+                
+                console.log('🔄 Usando redirect como fallback...');
+                
+                // Salvar estado para recuperar após redirect
+                sessionStorage.setItem('authRedirectPending', 'true');
+                console.log('📝 Flag authRedirectPending definida');
+                
+                // Usar redirect - NÃO usar await, redireciona imediatamente
+                this.auth.signInWithRedirect(this.provider);
+                
+                // Não retornar nada - a página será redirecionada
+                // Se o código chegou aqui, o redirect não funcionou
+                return null;
+            }
+            
+            throw error;
+        }
     }
     
     // Verificar resultado de redirect (chamar no início da página)

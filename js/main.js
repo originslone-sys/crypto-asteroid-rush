@@ -276,95 +276,51 @@ async function connectWithGoogle() {
     }
 }
 
-// Carregar sistema de autenticação (Firebase ou Simple)
+// Carregar auth-manager dinamicamente se necessário
 async function loadAuthManager() {
-    return new Promise((resolve, reject) => {
-        console.log('🔄 Carregando sistema de autenticação...');
-        
-        // Primeiro tentar Firebase
-        loadFirebaseAuth().then(resolve).catch(firebaseError => {
-            console.warn('⚠️ Firebase falhou, usando AuthSimple:', firebaseError.message);
-            
-            // Fallback para AuthSimple
-            loadAuthSimple().then(resolve).catch(simpleError => {
-                console.error('❌ Ambos os sistemas falharam:', simpleError);
-                reject(new Error('Não foi possível carregar nenhum sistema de autenticação'));
-            });
-        });
-    });
-}
-
-// Carregar Firebase Auth
-async function loadFirebaseAuth() {
     return new Promise((resolve, reject) => {
         // Verificar se já está carregado
         if (typeof AuthManager !== 'undefined' && typeof firebase !== 'undefined') {
-            console.log('✅ Firebase já carregado, criando instância...');
+            console.log('✅ AuthManager já carregado, criando instância...');
             window.authManager = new AuthManager();
             window.authManager.init().then(resolve).catch(reject);
             return;
         }
         
-        // Carregar Firebase
-        console.log('🔥 Tentando carregar Firebase...');
-        
-        const firebaseScript = document.createElement('script');
-        firebaseScript.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js';
-        
-        firebaseScript.onload = () => {
-            const authScript = document.createElement('script');
-            authScript.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js';
-            
-            authScript.onload = () => {
-                console.log('📦 Carregando auth-manager.js...');
-                const managerScript = document.createElement('script');
-                managerScript.src = 'js/auth-manager.js';
-                
-                managerScript.onload = () => {
-                    setTimeout(() => {
-                        if (typeof AuthManager !== 'undefined') {
-                            window.authManager = new AuthManager();
-                            window.authManager.init().then(resolve).catch(reject);
-                        } else {
-                            reject(new Error('AuthManager não carregado'));
-                        }
-                    }, 1000);
-                };
-                
-                managerScript.onerror = reject;
-                document.head.appendChild(managerScript);
+        // Carregar Firebase se necessário
+        if (typeof firebase === 'undefined') {
+            console.log('🔥 Carregando Firebase...');
+            const firebaseScript = document.createElement('script');
+            firebaseScript.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js';
+            firebaseScript.onload = () => {
+                const authScript = document.createElement('script');
+                authScript.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js';
+                authScript.onload = loadAuthManagerScript;
+                document.head.appendChild(authScript);
             };
-            
-            authScript.onerror = reject;
-            document.head.appendChild(authScript);
-        };
+            firebaseScript.onerror = () => reject(new Error('Falha ao carregar Firebase SDK'));
+            document.head.appendChild(firebaseScript);
+        } else {
+            loadAuthManagerScript();
+        }
         
-        firebaseScript.onerror = () => reject(new Error('Falha ao carregar Firebase SDK'));
-        document.head.appendChild(firebaseScript);
-    });
-}
-
-// Carregar AuthSimple (fallback)
-async function loadAuthSimple() {
-    return new Promise((resolve, reject) => {
-        console.log('🔄 Carregando AuthSimple (fallback)...');
-        
-        const script = document.createElement('script');
-        script.src = 'js/auth-simple.js';
-        
-        script.onload = () => {
-            setTimeout(() => {
-                if (window.authManager && typeof window.authManager.init === 'function') {
-                    console.log('✅ AuthSimple carregado com sucesso');
-                    resolve();
-                } else {
-                    reject(new Error('AuthSimple não inicializado'));
-                }
-            }, 500);
-        };
-        
-        script.onerror = reject;
-        document.head.appendChild(script);
+        function loadAuthManagerScript() {
+            console.log('📦 Carregando auth-manager.js...');
+            const script = document.createElement('script');
+            script.src = 'js/auth-manager.js';
+            script.onload = () => {
+                setTimeout(() => {
+                    if (typeof AuthManager !== 'undefined') {
+                        window.authManager = new AuthManager();
+                        window.authManager.init().then(resolve).catch(reject);
+                    } else {
+                        reject(new Error('AuthManager não carregado após script'));
+                    }
+                }, 1000);
+            };
+            script.onerror = reject;
+            document.head.appendChild(script);
+        }
     });
 }
 
