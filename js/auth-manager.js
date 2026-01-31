@@ -13,6 +13,16 @@ class AuthManager {
         this.onAuthStateChangedCallbacks = [];
         this.isInitialized = false;
         
+        // Configuração do Firebase
+        this.firebaseConfig = {
+            apiKey: "AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U",
+            authDomain: "unobix-oauth-a69cd.firebaseapp.com",
+            projectId: "unobix-oauth-a69cd",
+            storageBucket: "unobix-oauth-a69cd.firebasestorage.app",
+            messagingSenderId: "1067767347117",
+            appId: "1:1067767347117:web:26e1193bdef8e264409324"
+        };
+        
         // Aguardar DOM antes de inicializar
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.init());
@@ -144,7 +154,7 @@ class AuthManager {
         this.dispatchAuthEvent(user);
     }
     
-    // Sign in with Google - APENAS REDIRECT no Railway (popup bloqueado)
+    // Sign in with Google - Redirect com fallback manual
     async signIn() {
         if (!this.auth || !this.provider) {
             await this.init();
@@ -159,15 +169,50 @@ class AuthManager {
         sessionStorage.setItem('authRedirectPending', 'true');
         console.log('📝 Flag authRedirectPending definida');
         
-        // IMPORTANTE: No Railway, usar redirect imediatamente
-        // signInWithRedirect() redireciona a página IMEDIATAMENTE
-        // Não usar await, não retornar nada
-        this.auth.signInWithRedirect(this.provider);
+        try {
+            // Tentar redirect do Firebase
+            console.log('🔄 Iniciando signInWithRedirect do Firebase...');
+            this.auth.signInWithRedirect(this.provider);
+            
+            // Se chegou aqui, o Firebase não redirecionou
+            // Tentar fallback manual após 500ms
+            setTimeout(() => {
+                if (!sessionStorage.getItem('redirectStarted')) {
+                    console.warn('⚠️ Firebase não redirecionou, tentando fallback manual...');
+                    this.manualGoogleRedirect();
+                }
+            }, 500);
+            
+        } catch (error) {
+            console.error('❌ Erro no signInWithRedirect:', error);
+            console.log('🔄 Tentando fallback manual...');
+            this.manualGoogleRedirect();
+        }
         
-        // Se chegou aqui, algo deu errado - mas não lançar erro
-        // Apenas log e retornar null
-        console.warn('⚠️ signInWithRedirect não redirecionou imediatamente');
         return null;
+    }
+    
+    // Fallback manual para redirect do Google
+    manualGoogleRedirect() {
+        // Marcar que redirect foi iniciado
+        sessionStorage.setItem('redirectStarted', 'true');
+        
+        // URL de login do Google OAuth manual
+        const clientId = '1067767347117-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com';
+        const redirectUri = encodeURIComponent(window.location.origin + '/__/auth/handler');
+        const scope = encodeURIComponent('email profile');
+        
+        // URL do Google OAuth
+        const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+            `client_id=${firebaseConfig.apiKey}&` + // Usar apiKey como client_id
+            `redirect_uri=${redirectUri}&` +
+            `scope=${scope}&` +
+            `response_type=id_token&` +
+            `nonce=${Date.now()}&` +
+            `prompt=select_account`;
+        
+        console.log('🔗 Redirecionando manualmente para Google OAuth...');
+        window.location.href = googleAuthUrl;
     }
     
     // Verificar resultado de redirect (chamar no início da página)
