@@ -15,11 +15,11 @@ error_reporting(E_ALL);
 // ============================================
 // CONFIGURAÇÕES DE BANCO DE DADOS (Railway)
 // ============================================
-define('DB_HOST', getenv('MYSQLHOST') ?: 'mysql.railway.internal');
+define('DB_HOST', getenv('MYSQLHOST') ?: 'interchange.proxy.rlwy.net');
 define('DB_NAME', getenv('MYSQLDATABASE') ?: 'railway');
 define('DB_USER', getenv('MYSQLUSER') ?: 'root');
 define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'AiaWPNyMBtRFnUWtFjJtkMVtNzDnflta');
-define('DB_PORT', getenv('MYSQLPORT') ?: 3306);
+define('DB_PORT', getenv('MYSQLPORT') ?: 40129);
 
 // ============================================
 // CONFIGURAÇÕES DE SEGURANÇA
