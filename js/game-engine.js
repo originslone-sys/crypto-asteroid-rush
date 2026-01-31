@@ -183,13 +183,13 @@ function createExplosion(x, y, colors, asteroid) {
     playSound('explosion.mp3', 0.6);
     
     if (asteroid.type === 'LEGENDARY') {
-        showNotification('⭐ LEGENDARY!', `+$${asteroid.reward.toFixed(4)} USDT`, true);
+        showNotification('⭐ LENDÁRIO!', `+R$${asteroid.reward.toFixed(3)}`, true);
         setTimeout(() => playSound('powerup.mp3', 1.0), 100);
     } else if (asteroid.type === 'EPIC') {
-        showNotification('🔮 EPIC!', `+$${asteroid.reward.toFixed(4)} USDT`, true);
+        showNotification('🔮 ÉPICO!', `+R$${asteroid.reward.toFixed(3)}`, true);
         setTimeout(() => playSound('powerup.mp3', 0.9), 100);
     } else if (asteroid.type === 'RARE') {
-        showNotification('💎 RARE!', `+$${asteroid.reward.toFixed(4)} USDT`, true);
+        showNotification('💎 RARO!', `+R$${asteroid.reward.toFixed(3)}`, true);
         setTimeout(() => playSound('powerup.mp3', 0.8), 100);
     }
 }
@@ -237,7 +237,7 @@ function getSessionData() {
         return {
             sessionId: session.id,
             sessionToken: session.token,
-            wallet: session.wallet
+            google_uid: session.googleUid  // ← CORRIGIDO: google_uid em vez de wallet
         };
     }
     
@@ -245,7 +245,7 @@ function getSessionData() {
     return {
         sessionId: gameState.sessionId,
         sessionToken: gameState.sessionToken,
-        wallet: gameState.wallet
+        google_uid: gameState.googleUid  // ← CORRIGIDO
     };
 }
 
@@ -276,7 +276,7 @@ async function gameOver() {
     
     console.log('📤 Session data for game-end:', sessionData);
     
-    if (sessionData.sessionId && sessionData.sessionToken && sessionData.wallet) {
+    if (sessionData.sessionId && sessionData.sessionToken && sessionData.google_uid) {
         try {
             const response = await fetch('api/game-end.php', {
                 method: 'POST',
@@ -284,7 +284,7 @@ async function gameOver() {
                 body: JSON.stringify({
                     session_id: sessionData.sessionId,
                     session_token: sessionData.sessionToken,
-                    wallet: sessionData.wallet,
+                    google_uid: sessionData.google_uid,
                     score: gameState.score,
                     earnings: 0,
                     stats: stats,
@@ -383,7 +383,7 @@ async function endGame() {
     console.log('📤 Payload:', {
         session_id: sessionData.sessionId,
         session_token: sessionData.sessionToken,
-        wallet: sessionData.wallet,
+        wallet: sessionData.google_uid,
         score: gameState.score,
         earnings: gameState.earnings,
         stats: stats,
@@ -394,7 +394,7 @@ async function endGame() {
     let serverEarnings = gameState.earnings;
     let serverBalance = null;
     
-    if (sessionData.sessionId && sessionData.sessionToken && sessionData.wallet) {
+    if (sessionData.sessionId && sessionData.sessionToken && sessionData.google_uid) {
         try {
             const response = await fetch('api/game-end.php', {
                 method: 'POST',
@@ -402,7 +402,7 @@ async function endGame() {
                 body: JSON.stringify({
                     session_id: sessionData.sessionId,
                     session_token: sessionData.sessionToken,
-                    wallet: sessionData.wallet,
+                    wallet: sessionData.google_uid,
                     score: gameState.score,
                     earnings: gameState.earnings,
                     stats: stats,
