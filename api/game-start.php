@@ -110,18 +110,24 @@ try {
     $missionNumber = $totalPlayed + 1;
 
     // ============================================
-    // 4. GARANTIR COLUNAS EM GAME_SESSIONS
+    // 4. GARANTIR COLUNAS EM GAME_SESSIONS (com tratamento de erro)
     // ============================================
-    $pdo->exec("
-        ALTER TABLE game_sessions
-        ADD COLUMN IF NOT EXISTS session_token VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS mission_number INT,
-        ADD COLUMN IF NOT EXISTS rare_count INT,
-        ADD COLUMN IF NOT EXISTS rare_ids TEXT,
-        ADD COLUMN IF NOT EXISTS epic_id INT,
-        ADD COLUMN IF NOT EXISTS game_duration INT,
-        ADD COLUMN IF NOT EXISTS started_at DATETIME
-    ");
+    try {
+        $pdo->exec("
+            ALTER TABLE game_sessions
+            ADD COLUMN IF NOT EXISTS session_token VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS mission_number INT,
+            ADD COLUMN IF NOT EXISTS rare_count INT,
+            ADD COLUMN IF NOT EXISTS rare_ids TEXT,
+            ADD COLUMN IF NOT EXISTS epic_id INT,
+            ADD COLUMN IF NOT EXISTS game_duration INT,
+            ADD COLUMN IF NOT EXISTS started_at DATETIME
+        ");
+        error_log('✅ Colunas game_sessions verificadas/atualizadas');
+    } catch (Exception $e) {
+        error_log('⚠️ ALTER TABLE game_sessions falhou (pode já existir): ' . $e->getMessage());
+        // Continuar mesmo se falhar - colunas podem já existir
+    }
     
     // ============================================
     // 5. LÓGICA DO JOGO (mantida do original)
@@ -207,7 +213,7 @@ try {
         'epic_id' => $epicId,
         'game_duration' => $gameDuration,
         'initial_lives' => defined('INITIAL_LIVES') ? INITIAL_LIVES : 6,
-        'missions_remaining' => 99 // Placeholder - precisa calcular
+        'missions_remaining' => 99 // Placeholder
     ]);
 
 } catch (Throwable $e) {
