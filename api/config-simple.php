@@ -8,10 +8,23 @@ ini_set('html_errors', '0');
 error_reporting(E_ALL);
 
 // ============================================
-// CONFIGURAÇÕES DE BANCO DE DADOS (Cloud Run)
+// CONFIGURAÇÕES DE BANCO DE DADOS (Cloud Run + Cloud SQL)
 // ============================================
-$dbHost = getenv('MYSQLHOST') ?: '127.0.0.1';
-$dbPort = getenv('MYSQLPORT') ?: '3306';
+// Tentar socket Unix do Cloud SQL primeiro
+$cloudsqlInstance = getenv('CLOUDSQL_INSTANCE') ?: 'project-7be1cae5-5f08-45fb-aca:us-central1:unobix';
+
+if ($cloudsqlInstance && file_exists('/cloudsql/' . $cloudsqlInstance)) {
+    // Usar socket Unix do Cloud SQL
+    $dbHost = "/cloudsql/" . $cloudsqlInstance;
+    $dbPort = null; // Socket não usa porta
+    error_log('🔧 Usando socket Cloud SQL: ' . $dbHost);
+} else {
+    // Usar TCP/IP (Cloud SQL Proxy)
+    $dbHost = getenv('MYSQLHOST') ?: '127.0.0.1';
+    $dbPort = getenv('MYSQLPORT') ?: '3306';
+    error_log('🔧 Usando TCP/IP: ' . $dbHost . ':' . $dbPort);
+}
+
 $dbName = getenv('MYSQLDATABASE') ?: 'unobix_db';
 $dbUser = getenv('MYSQLUSER') ?: 'unobix_user';
 $dbPass = getenv('MYSQLPASSWORD') ?: 'YyZD3H)dndSo*A/N';
@@ -36,16 +49,27 @@ function getDatabaseConnection() {
 
     if ($pdo === null) {
         try {
-            $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+            // Construir DSN baseado no tipo de conexão
+            if (DB_PORT === null) {
+                // Socket Unix (Cloud SQL)
+                $dsn = "mysql:unix_socket=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+                error_log('🔧 Tentando conexão via socket Unix: ' . DB_HOST);
+            } else {
+                // TCP/IP
+                $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+                error_log('🔧 Tentando conexão TCP/IP: ' . DB_HOST . ':' . DB_PORT);
+            }
+            
             $pdo = new PDO($dsn, DB_USER, DB_PASS, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false
             ]);
-            error_log('✅ Conexão com banco estabelecida: ' . DB_HOST . ':' . DB_PORT . ' -> ' . DB_NAME);
+            error_log('✅ Conexão com banco estabelecida: ' . DB_NAME);
         } catch (PDOException $e) {
             error_log('❌ Erro de conexão DB: ' . $e->getMessage());
-            error_log('❌ DSN: ' . "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME);
+            error_log('❌ DSN tentada: ' . $dsn);
+            error_log('❌ Usuário: ' . DB_USER);
             return null;
         }
     }
