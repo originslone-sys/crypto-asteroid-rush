@@ -39,12 +39,17 @@ if ($mysqlPublicUrl && preg_match('/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+
       }
 
       // Verificar se todas variáveis estão definidas
-    if (!$dbHost || !$dbPort || !$dbName || !$dbUser || !$dbPass) {
+    // MAS permitir valores padrão para desenvolvimento
+    if (!$dbHost || !$dbName || !$dbUser) {
         error_log('❌ ERRO CRÍTICO: Variáveis de ambiente do banco de dados não definidas.');
         error_log('   Verifique o arquivo .env ou variáveis de ambiente do servidor.');
         http_response_code(500);
         die(json_encode(['error' => 'Erro de configuração do servidor.']));
     }
+    
+    // Usar valores padrão se não definidos
+    if (!$dbPort) $dbPort = '3306';
+    if (!$dbPass) $dbPass = ''; // Permitir senha vazia para desenvolvimento
     
     define('DB_HOST', $dbHost);
     define('DB_PORT', $dbPort);

@@ -27,10 +27,17 @@ $action = $input['action'] ?? 'login';
 try {
     $pdo = getDatabaseConnection();
     if (!$pdo) {
+        error_log('❌ auth-google.php: getDatabaseConnection() retornou null');
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Falha na conexão com o banco']);
         exit;
     }
+    
+    // Log para debug
+    error_log('✅ auth-google.php: Conexão com banco estabelecida');
+    error_log('   DB_HOST: ' . (defined('DB_HOST') ? DB_HOST : 'não definido'));
+    error_log('   DB_NAME: ' . (defined('DB_NAME') ? DB_NAME : 'não definido'));
+    error_log('   DB_USER: ' . (defined('DB_USER') ? DB_USER : 'não definido'));
 
     // user_sessions já existe no seu banco, mas mantemos garantia
     $pdo->exec("
