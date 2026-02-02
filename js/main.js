@@ -254,6 +254,14 @@ function resetUI() {
 
 async function connectWithGoogle() {
     try {
+        // Verificar se authManager está disponível
+        if (!window.authManager) {
+            console.error('❌ authManager não está disponível. Recarregando página...');
+            showNotification('Sistema de login não carregado. Recarregando...', 'warning');
+            setTimeout(() => location.reload(), 2000);
+            return;
+        }
+        
         console.log('🔐 Iniciando login com Google...');
         await window.authManager.signIn();
         // O signIn vai redirecionar, então não precisa de retorno

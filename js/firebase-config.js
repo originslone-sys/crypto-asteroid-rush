@@ -1,13 +1,11 @@
 /* ============================================
-   UNOBIX - Firebase Configuration (CLIENT-SIDE SAFE)
-   Configuração segura do Firebase sem API Key exposta
+   UNOBIX - Firebase Configuration
+   Configuração completa do Firebase
    ============================================ */
 
-// ATENÇÃO: API Key NÃO está mais hardcoded aqui!
-// A autenticação é feita via server-side no endpoint /api/auth-firebase.php
-
-// Configuração do Firebase (APENAS informações públicas)
+// Configuração completa do Firebase
 const firebaseConfig = {
+  apiKey: "AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U",
   authDomain: "unobix-oauth-a69cd.firebaseapp.com",
   projectId: "unobix-oauth-a69cd",
   storageBucket: "unobix-oauth-a69cd.firebasestorage.app",
@@ -17,9 +15,6 @@ const firebaseConfig = {
 
 // Inicializar Firebase APENAS se já não inicializado
 if (!firebase.apps.length) {
-    // NOTA: apiKey NÃO está mais hardcoded aqui!
-    // Será injetada dinamicamente pelo servidor se necessário
-    // Para autenticação, usamos endpoint server-side
     firebase.initializeApp(firebaseConfig);
 }
 
