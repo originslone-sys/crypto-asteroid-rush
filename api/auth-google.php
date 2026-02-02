@@ -5,7 +5,8 @@
 // Unobix-only: google_uid como identidade, sem wallet placeholder
 // ============================================
 
-require_once __DIR__ . "/config.php";
+// Usar config simplificada que funciona no Cloud Run
+require_once __DIR__ . "/config-simple.php";
 
 ini_set('display_errors', 0);
 ini_set('html_errors', 0);
