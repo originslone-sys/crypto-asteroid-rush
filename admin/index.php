@@ -18,9 +18,16 @@ if (preg_match('~/(pages|includes)$~', $__scriptDir)) {
 $ADMIN_BASE_URL  = $__scriptDir;
 $ADMIN_INDEX_URL = $ADMIN_BASE_URL . '/index.php';
 
-// Configuração de autenticação
-define('ADMIN_USER', 'admin');
-define('ADMIN_PASS', 'unobix2026'); // ALTERE ESTA SENHA!
+// Configuração de autenticação (usar variáveis de ambiente)
+$adminUser = getenv('ADMIN_USER') ?: 'admin';
+$adminPass = getenv('ADMIN_PASSWORD');
+
+if (!$adminPass) {
+    die('❌ ERRO: Senha de administração não configurada. Defina ADMIN_PASSWORD no .env');
+}
+
+define('ADMIN_USER', $adminUser);
+define('ADMIN_PASS', $adminPass);
 
 // Logout
 if (isset($_GET['logout'])) {

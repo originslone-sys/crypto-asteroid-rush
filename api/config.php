@@ -15,7 +15,7 @@ error_reporting(E_ALL);
 // ============================================
 // CONFIGURAÇÕES DE BANCO DE DADOS (Railway)
 // ============================================
-// Prioridade: MYSQL_PUBLIC_URL > variáveis individuais > fallback
+// Prioridade: MYSQL_PUBLIC_URL > variáveis individuais > ERRO se faltar
 $mysqlPublicUrl = getenv('MYSQL_PUBLIC_URL');
 if ($mysqlPublicUrl && preg_match('/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/', $mysqlPublicUrl, $matches)) {
     // Usar URL pública: mysql://user:pass@host:port/database
@@ -25,32 +25,73 @@ if ($mysqlPublicUrl && preg_match('/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+
     define('DB_PASS', $matches[2]);  // password
     define('DB_NAME', $matches[5]);  // database
 } else {
-    // Fallback para variáveis individuais
-    define('DB_HOST', getenv('MYSQLHOST') ?: 'interchange.proxy.rlwy.net');
-    define('DB_PORT', getenv('MYSQLPORT') ?: 40129);
-    define('DB_NAME', getenv('MYSQLDATABASE') ?: 'railway');
-    define('DB_USER', getenv('MYSQLUSER') ?: 'root');
-    define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'AiaWPNyMBtRFnUWtFjJtkMVtNzDnflta');
+    // Usar variáveis individuais - NÃO HÁ FALLBACK HARDCODED
+    $dbHost = getenv('MYSQLHOST');
+    $dbPort = getenv('MYSQLPORT');
+    $dbName = getenv('MYSQLDATABASE');
+    $dbUser = getenv('MYSQLUSER');
+    $dbPass = getenv('MYSQLPASSWORD');
+    
+    // Verificar se todas variáveis estão definidas
+    if (!$dbHost || !$dbPort || !$dbName || !$dbUser || !$dbPass) {
+        error_log('❌ ERRO CRÍTICO: Variáveis de ambiente do banco de dados não definidas.');
+        error_log('   Verifique o arquivo .env ou variáveis de ambiente do servidor.');
+        http_response_code(500);
+        die(json_encode(['error' => 'Erro de configuração do servidor.']));
+    }
+    
+    define('DB_HOST', $dbHost);
+    define('DB_PORT', $dbPort);
+    define('DB_NAME', $dbName);
+    define('DB_USER', $dbUser);
+    define('DB_PASS', $dbPass);
 }
 
 // ============================================
 // CONFIGURAÇÕES DE SEGURANÇA
 // ============================================
-define('GAME_SECRET_KEY', getenv('GAME_SECRET_KEY') ?: 'UNOBIX_2026_S3CR3T_K3Y_X9Z2M4');
-define('ADMIN_PASSWORD', getenv('ADMIN_PASSWORD') ?: 'admin_muito_seguro_2026');
+$gameSecretKey = getenv('GAME_SECRET_KEY');
+$adminPassword = getenv('ADMIN_PASSWORD');
+
+if (!$gameSecretKey || !$adminPassword) {
+    error_log('❌ ERRO CRÍTICO: Chaves de segurança não definidas no .env');
+    http_response_code(500);
+    die(json_encode(['error' => 'Erro de configuração de segurança.']));
+}
+
+define('GAME_SECRET_KEY', $gameSecretKey);
+define('ADMIN_PASSWORD', $adminPassword);
 
 // ============================================
 // FIREBASE / GOOGLE AUTH
 // ============================================
-define('FIREBASE_PROJECT_ID', getenv('FIREBASE_PROJECT_ID') ?: 'unobix-oauth-a69cd');
-define('FIREBASE_API_KEY', getenv('FIREBASE_API_KEY') ?: 'AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U');
+$firebaseProjectId = getenv('FIREBASE_PROJECT_ID');
+$firebaseApiKey = getenv('FIREBASE_API_KEY');
+
+if (!$firebaseProjectId || !$firebaseApiKey) {
+    error_log('❌ ERRO CRÍTICO: Configurações do Firebase não definidas no .env');
+    http_response_code(500);
+    die(json_encode(['error' => 'Erro de configuração de autenticação.']));
+}
+
+define('FIREBASE_PROJECT_ID', $firebaseProjectId);
+define('FIREBASE_API_KEY', $firebaseApiKey);
 
 // ============================================
 // hCAPTCHA
 // ============================================
-define('HCAPTCHA_SITE_KEY', getenv('HCAPTCHA_SITE_KEY') ?: '');
-define('HCAPTCHA_SECRET_KEY', getenv('HCAPTCHA_SECRET_KEY') ?: '');
-define('CAPTCHA_ENABLED', true);
+$hcaptchaSiteKey = getenv('HCAPTCHA_SITE_KEY');
+$hcaptchaSecretKey = getenv('HCAPTCHA_SECRET_KEY');
+
+if (!$hcaptchaSecretKey) {
+    error_log('⚠️ AVISO: Chave secreta do hCaptcha não definida. CAPTCHA desabilitado.');
+    define('CAPTCHA_ENABLED', false);
+} else {
+    define('CAPTCHA_ENABLED', true);
+}
+
+define('HCAPTCHA_SITE_KEY', $hcaptchaSiteKey ?: '');
+define('HCAPTCHA_SECRET_KEY', $hcaptchaSecretKey ?: '');
 define('CAPTCHA_REQUIRED_ON_VICTORY', true);
 define('CAPTCHA_REQUIRED_ON_GAMEOVER', false);
 
