@@ -4,8 +4,8 @@
 // Endpoint seguro para verificar tokens do Firebase
 // ============================================
 
-// Usar config simplificada que funciona no Cloud Run
-require_once 'config-simple.php';
+// Configuração completa para Cloud Run (mantém todas as funcionalidades)
+require_once 'config-cloudrun.php';
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
