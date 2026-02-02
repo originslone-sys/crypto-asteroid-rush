@@ -55,10 +55,21 @@ try {
     // ============================================
     // 2. SINCRONIZAR USUÁRIO (users → players)
     // ============================================
-    // Primeiro verificar se usuário existe em users
-    $stmt = $pdo->prepare("SELECT id, google_uid, email, display_name, balance_brl FROM users WHERE google_uid = ? LIMIT 1");
-    $stmt->execute([$googleUid]);
+    // Frontend envia UID com '...' (ex: 'DqnexVtvrt...')
+    // Precisamos remover os '...' para fazer LIKE search correto
+    $cleanGoogleUid = str_replace('...', '', $googleUid);
+    
+    // Primeiro tentar LIKE com UID limpo
+    $stmt = $pdo->prepare("SELECT id, google_uid, email, display_name, balance_brl FROM users WHERE google_uid LIKE ? LIMIT 1");
+    $stmt->execute([$cleanGoogleUid . '%']);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // Se não encontrou, tentar exato (com UID original)
+    if (!$user) {
+        $stmt = $pdo->prepare("SELECT id, google_uid, email, display_name, balance_brl FROM users WHERE google_uid = ? LIMIT 1");
+        $stmt->execute([$googleUid]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
     
     if ($user) {
         // Sincronizar com players
@@ -73,21 +84,33 @@ try {
     }
     
     // ============================================
-    // 3. BUSCAR/CRIAR PLAYER (código original mantido)
+    // 3. BUSCAR/CRIAR PLAYER (com suporte a UID truncado)
     // ============================================
-    $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
-    $stmt->execute([$googleUid]);
+    // Usar UID limpo (sem '...') para LIKE search
+    $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid LIKE ? LIMIT 1");
+    $stmt->execute([$cleanGoogleUid . '%']);
     $player = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // Se não encontrou, tentar exato (com UID original)
+    if (!$player) {
+        $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
+        $stmt->execute([$googleUid]);
+        $player = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
 
     if (!$player) {
+        // Usar google_uid REAL do users (se encontrado) ou o limpo
+        $realGoogleUid = $user ? $user['google_uid'] : $cleanGoogleUid;
+        
         $stmt = $pdo->prepare("
             INSERT INTO players (google_uid, balance_brl, total_played, created_at, updated_at)
             VALUES (?, 0.00, 0, NOW(), NOW())
         ");
-        $stmt->execute([$googleUid]);
+        $stmt->execute([$realGoogleUid]);
 
+        // Buscar com google_uid real
         $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
-        $stmt->execute([$googleUid]);
+        $stmt->execute([$realGoogleUid]);
         $player = $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
@@ -110,18 +133,24 @@ try {
     $missionNumber = $totalPlayed + 1;
 
     // ============================================
-    // 4. GARANTIR COLUNAS EM GAME_SESSIONS
+    // 4. GARANTIR COLUNAS EM GAME_SESSIONS (com tratamento de erro)
     // ============================================
-    $pdo->exec("
-        ALTER TABLE game_sessions
-        ADD COLUMN IF NOT EXISTS session_token VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS mission_number INT,
-        ADD COLUMN IF NOT EXISTS rare_count INT,
-        ADD COLUMN IF NOT EXISTS rare_ids TEXT,
-        ADD COLUMN IF NOT EXISTS epic_id INT,
-        ADD COLUMN IF NOT EXISTS game_duration INT,
-        ADD COLUMN IF NOT EXISTS started_at DATETIME
-    ");
+    try {
+        $pdo->exec("
+            ALTER TABLE game_sessions
+            ADD COLUMN IF NOT EXISTS session_token VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS mission_number INT,
+            ADD COLUMN IF NOT EXISTS rare_count INT,
+            ADD COLUMN IF NOT EXISTS rare_ids TEXT,
+            ADD COLUMN IF NOT EXISTS epic_id INT,
+            ADD COLUMN IF NOT EXISTS game_duration INT,
+            ADD COLUMN IF NOT EXISTS started_at DATETIME
+        ");
+        error_log('✅ Colunas game_sessions verificadas/atualizadas');
+    } catch (Exception $e) {
+        error_log('⚠️ ALTER TABLE game_sessions falhou (pode já existir): ' . $e->getMessage());
+        // Continuar mesmo se falhar - colunas podem já existir
+    }
     
     // ============================================
     // 5. LÓGICA DO JOGO (mantida do original)
@@ -207,7 +236,7 @@ try {
         'epic_id' => $epicId,
         'game_duration' => $gameDuration,
         'initial_lives' => defined('INITIAL_LIVES') ? INITIAL_LIVES : 6,
-        'missions_remaining' => 99 // Placeholder - precisa calcular
+        'missions_remaining' => 99 // Placeholder
     ]);
 
 } catch (Throwable $e) {
