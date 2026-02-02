@@ -3,7 +3,7 @@
 // DEBUG ENDPOINT - Para verificar erros
 // ============================================
 
-require_once 'config.php';
+require_once __DIR__ . "/config-cloudrun.php";
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');

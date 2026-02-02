@@ -5,7 +5,7 @@
 // v2.0 - Google Auth + BRL
 // ============================================
 
-require_once __DIR__ . "/config.php";
+require_once __DIR__ . "/config-cloudrun.php";
 
 setCorsHeaders();
 

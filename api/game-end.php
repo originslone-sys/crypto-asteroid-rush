@@ -5,7 +5,7 @@
 // Unobix-only: google_uid + session_token + session_id
 // ============================================
 
-require_once __DIR__ . "/config.php";
+require_once __DIR__ . "/config-cloudrun.php";
 
 ini_set('display_errors', 0);
 ini_set('html_errors', 0);

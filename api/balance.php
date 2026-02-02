@@ -41,7 +41,7 @@ register_shutdown_function(function () {
 });
 // ============================================================
 
-require_once __DIR__ . "/config.php";
+require_once __DIR__ . "/config-cloudrun.php";
 
 setCorsHeaders();
 header('Content-Type: application/json; charset=utf-8');

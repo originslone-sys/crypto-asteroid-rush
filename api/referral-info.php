@@ -5,7 +5,7 @@
 // v2.1 - Fix: Tratamento de duplicatas
 // ============================================
 
-require_once __DIR__ . "/config.php";
+require_once __DIR__ . "/config-cloudrun.php";
 
 setCorsHeaders();
 
