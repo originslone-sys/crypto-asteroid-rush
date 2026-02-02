@@ -76,12 +76,13 @@ try {
 
             // upsert user (usando nossa tabela 'users' do schema)
             $stmt = $pdo->prepare("
-                INSERT INTO users (google_uid, email, display_name, photo_url, balance_brl, created_at, updated_at)
-                VALUES (?, ?, ?, ?, 0.00, NOW(), NOW())
+                INSERT INTO users (google_uid, email, display_name, photo_url, balance_brl, created_at, updated_at, last_login)
+                VALUES (?, ?, ?, ?, 0.00, NOW(), NOW(), NOW())
                 ON DUPLICATE KEY UPDATE
                     email = COALESCE(VALUES(email), email),
                     display_name = COALESCE(VALUES(display_name), display_name),
                     photo_url = COALESCE(VALUES(photo_url), photo_url),
+                    last_login = NOW(),
                     updated_at = NOW()
             ");
             $stmt->execute([
@@ -102,8 +103,8 @@ try {
                 exit;
             }
 
-            // Verificar se usuário está ativo (nossa tabela users tem 'status')
-            if (isset($user['status']) && $user['status'] === 'banned') {
+            // Verificar se usuário está ativo (nossa tabela users tem 'is_banned')
+            if (isset($user['is_banned']) && $user['is_banned']) {
                 echo json_encode([
                     'success' => false,
                     'error' => 'Conta suspensa',
@@ -138,8 +139,9 @@ try {
                     'display_name' => $user['display_name'] ?? '',
                     'photo_url' => $user['photo_url'] ?? '',
                     'balance_brl' => number_format((float)($user['balance_brl'] ?? 0), 2, '.', ''),
-                    'total_earned' => number_format((float)($user['total_earned'] ?? 0), 2, '.', ''),
-                    'total_played' => (int)($user['total_played'] ?? 0)
+                    'balance_usdt' => number_format((float)($user['balance_usdt'] ?? 0), 2, '.', ''),
+                    'total_withdrawn_brl' => number_format((float)($user['total_withdrawn_brl'] ?? 0), 2, '.', ''),
+                    'created_at' => $user['created_at'] ?? ''
                 ]
             ]);
             break;
@@ -183,9 +185,10 @@ try {
                     'display_name' => $user['display_name'] ?? '',
                     'photo_url' => $user['photo_url'] ?? '',
                     'balance_brl' => number_format((float)($user['balance_brl'] ?? 0), 2, '.', ''),
-                    'total_earned' => number_format((float)($user['total_earned'] ?? 0), 2, '.', ''),
-                    'total_played' => (int)($user['total_played'] ?? 0),
-                    'created_at' => $user['created_at'] ?? ''
+                    'balance_usdt' => number_format((float)($user['balance_usdt'] ?? 0), 2, '.', ''),
+                    'total_withdrawn_brl' => number_format((float)($user['total_withdrawn_brl'] ?? 0), 2, '.', ''),
+                    'created_at' => $user['created_at'] ?? '',
+                    'last_login' => $user['last_login'] ?? ''
                 ]
             ]);
             break;
