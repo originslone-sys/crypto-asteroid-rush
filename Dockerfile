@@ -42,7 +42,7 @@ RUN chmod +x /usr/local/bin/auto-scale.sh
 # Baixa via GitHub Releases (evita curl 22 / 404)
 # ===========================================
 ARG CLOUD_SQL_PROXY_VERSION=2.21.0
-RUN curl -fsSL -o /cloud_sql_proxy \
+RUN curl -fsSL -L -o /cloud_sql_proxy \
       https://github.com/GoogleCloudPlatform/cloud-sql-proxy/releases/download/v${CLOUD_SQL_PROXY_VERSION}/cloud-sql-proxy.linux.amd64 \
     && chmod +x /cloud_sql_proxy
 
