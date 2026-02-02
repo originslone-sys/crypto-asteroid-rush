@@ -55,10 +55,17 @@ try {
     // ============================================
     // 2. SINCRONIZAR USUÁRIO (users → players)
     // ============================================
-    // Primeiro verificar se usuário existe em users
-    $stmt = $pdo->prepare("SELECT id, google_uid, email, display_name, balance_brl FROM users WHERE google_uid = ? LIMIT 1");
-    $stmt->execute([$googleUid]);
+    // Frontend pode enviar UID truncado, buscar por match parcial
+    $stmt = $pdo->prepare("SELECT id, google_uid, email, display_name, balance_brl FROM users WHERE google_uid LIKE ? LIMIT 1");
+    $stmt->execute([$googleUid . '%']);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // Se não encontrou com LIKE, tentar exato
+    if (!$user) {
+        $stmt = $pdo->prepare("SELECT id, google_uid, email, display_name, balance_brl FROM users WHERE google_uid = ? LIMIT 1");
+        $stmt->execute([$googleUid]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
     
     if ($user) {
         // Sincronizar com players
@@ -73,21 +80,33 @@ try {
     }
     
     // ============================================
-    // 3. BUSCAR/CRIAR PLAYER (código original mantido)
+    // 3. BUSCAR/CRIAR PLAYER (com suporte a UID truncado)
     // ============================================
-    $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
-    $stmt->execute([$googleUid]);
+    // Primeiro tentar LIKE (para UID truncado do frontend)
+    $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid LIKE ? LIMIT 1");
+    $stmt->execute([$googleUid . '%']);
     $player = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // Se não encontrou, tentar exato
+    if (!$player) {
+        $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
+        $stmt->execute([$googleUid]);
+        $player = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
 
     if (!$player) {
+        // Precisamos do google_uid COMPLETO do users, não o truncado
+        $realGoogleUid = $user ? $user['google_uid'] : $googleUid;
+        
         $stmt = $pdo->prepare("
             INSERT INTO players (google_uid, balance_brl, total_played, created_at, updated_at)
             VALUES (?, 0.00, 0, NOW(), NOW())
         ");
-        $stmt->execute([$googleUid]);
+        $stmt->execute([$realGoogleUid]);
 
+        // Buscar com google_uid real
         $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
-        $stmt->execute([$googleUid]);
+        $stmt->execute([$realGoogleUid]);
         $player = $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
