@@ -10,6 +10,7 @@ RUN apk add --no-cache \
     nginx \
     supervisor \
     bash \
+    curl \
     && docker-php-ext-install pdo_mysql mysqli \
     && rm -rf /var/cache/apk/*
 
@@ -36,7 +37,8 @@ COPY docker/php-fpm-dynamic.conf /usr/local/etc/php-fpm.d/www.conf
 # Permissão de execução para o script
 RUN chmod +x /usr/local/bin/auto-scale.sh
 
-# Cloud SQL Proxy para conexão segura com Cloud SQL\nRUN wget -q -O /cloud_sql_proxy https://storage.googleapis.com/cloudsql-proxy/v2.8.2/cloud_sql_proxy.linux.amd64 \\
+# Cloud SQL Proxy para conexão segura com Cloud SQL
+RUN curl -fsSL -o /cloud_sql_proxy https://storage.googleapis.com/cloudsql-proxy/v2.8.2/cloud_sql_proxy.linux.amd64 \
     && chmod +x /cloud_sql_proxy
 
 # Copia a aplicação
@@ -53,7 +55,6 @@ RUN chown -R www-data:www-data /app \
 # Porta exposta
 EXPOSE 8080
 
-# Script de inicialização que detecta RAM e configura workers
 # Script de inicialização com Cloud SQL Proxy
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
