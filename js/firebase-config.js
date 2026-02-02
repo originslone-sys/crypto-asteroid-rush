@@ -1,6 +1,6 @@
 /* ============================================
-   UNOBIX - Firebase Configuration
-   Configuração completa do Firebase
+   UNOBIX - Firebase Configuration v10.7.1
+   Configuração completa do Firebase (compat mode)
    ============================================ */
 
 // Configuração completa do Firebase
@@ -14,8 +14,10 @@ const firebaseConfig = {
 };
 
 // Inicializar Firebase APENAS se já não inicializado
-if (!firebase.apps.length) {
+// Usando compat mode para v10.7.1
+if (firebase.apps.length === 0) {
     firebase.initializeApp(firebaseConfig);
+    console.log('🔥 Firebase v10.7.1 inicializado (compat mode)');
 }
 
 // Exportar auth para uso global
