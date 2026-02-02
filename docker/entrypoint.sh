@@ -1,26 +1,47 @@
 #!/bin/sh
+set -eu
 
 echo "🚀 Iniciando Crypto Asteroid Rush..."
-echo "📡 Conectando ao Cloud SQL..."
+echo "📡 Inicializando Cloud SQL Auth Proxy (v2)..."
 
-# Iniciar Cloud SQL Proxy em background
-# Conecta ao Cloud SQL instance: project-7be1cae5-5f08-45fb-aca:us-west1:unobix
+# Instance connection name (preferir via ENV)
+# Exemplo: project-7be1cae5-5f08-45fb-aca:us-central1:unobix
+CLOUDSQL_INSTANCE="${CLOUDSQL_INSTANCE:-project-7be1cae5-5f08-45fb-aca:us-central1:unobix}"
+
+# Porta local onde o proxy vai escutar (MySQL padrão)
+CLOUDSQL_PORT="${CLOUDSQL_PORT:-3306}"
+
+echo "🔧 Instance: ${CLOUDSQL_INSTANCE}"
+echo "🔧 Local TCP: 127.0.0.1:${CLOUDSQL_PORT}"
+
+# Inicia o proxy em background (v2 syntax)
+# OBS: v2 aceita o instance name como argumento posicional.
+# Flags: --address / --port
 /cloud_sql_proxy \
-  -instances=project-7be1cae5-5f08-45fb-aca:us-west1:unobix=tcp:3306 \
-  -verbose \
+  --address 127.0.0.1 \
+  --port "${CLOUDSQL_PORT}" \
+  --verbose \
+  "${CLOUDSQL_INSTANCE}" \
   &
 
-# Aguardar proxy conectar
-echo "⏳ Aguardando conexão com Cloud SQL..."
-sleep 8
+PROXY_PID="$!"
 
-# Verificar se proxy está rodando
-if ps aux | grep -q "[c]loud_sql_proxy"; then
-    echo "✅ Cloud SQL Proxy conectado"
-else
-    echo "❌ Cloud SQL Proxy falhou"
-fi
+# Aguarda o proxy "subir" (checando se o processo continua vivo)
+echo "⏳ Aguardando Cloud SQL Proxy iniciar..."
+i=0
+while [ $i -lt 15 ]; do
+  if kill -0 "$PROXY_PID" 2>/dev/null; then
+    # Proxy ainda está rodando
+    sleep 1
+    i=$((i+1))
+  else
+    echo "❌ Cloud SQL Proxy morreu ao iniciar (PID ${PROXY_PID})."
+    exit 1
+  fi
+done
+
+echo "✅ Cloud SQL Proxy em execução (PID ${PROXY_PID})."
 
 # Iniciar aplicação principal
-echo "🚀 Iniciando Nginx + PHP-FPM..."
+echo "🚀 Iniciando Supervisor (Nginx + PHP-FPM)..."
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
