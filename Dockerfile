@@ -37,8 +37,13 @@ COPY docker/php-fpm-dynamic.conf /usr/local/etc/php-fpm.d/www.conf
 # Permissão de execução para o script
 RUN chmod +x /usr/local/bin/auto-scale.sh
 
-# Cloud SQL Proxy para conexão segura com Cloud SQL
-RUN curl -fsSL -o /cloud_sql_proxy https://storage.googleapis.com/cloudsql-proxy/v2.8.2/cloud_sql_proxy.linux.amd64 \
+# ===========================================
+# Cloud SQL Auth Proxy (corrigido)
+# Baixa via GitHub Releases (evita curl 22 / 404)
+# ===========================================
+ARG CLOUD_SQL_PROXY_VERSION=2.21.0
+RUN curl -fsSL -o /cloud_sql_proxy \
+      https://github.com/GoogleCloudPlatform/cloud-sql-proxy/releases/download/v${CLOUD_SQL_PROXY_VERSION}/cloud-sql-proxy.linux.amd64 \
     && chmod +x /cloud_sql_proxy
 
 # Copia a aplicação
