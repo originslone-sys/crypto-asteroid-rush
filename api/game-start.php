@@ -29,37 +29,92 @@ try {
         throw new Exception('Falha na conexão com banco');
     }
     
-    // 3. BUSCAR USER (qualquer método que funcione)
-    error_log("🔍 Buscando user com UID: '$googleUid'");
+    // 3. BUSCAR USER COM MÚLTIPLAS TENTATIVAS
+    error_log("🎯 BUSCA USER: UID recebido = '$googleUid'");
     
-    // Tentativa 1: Busca exata
-    $stmt = $pdo->prepare("SELECT id, google_uid, email FROM users WHERE google_uid = ? LIMIT 1");
-    $stmt->execute([$googleUid]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    $user = null;
+    $searchMethods = [];
     
-    // Tentativa 2: Se não encontrou, buscar qualquer user (para teste)
+    // Método 1: Busca exata com UID recebido
+    $searchMethods[] = ['method' => 'exato', 'uid' => $googleUid];
+    
+    // Método 2: Se UID tem '...', tentar sem eles
+    if (strpos($googleUid, '...') !== false) {
+        $cleanUid = str_replace('...', '', $googleUid);
+        $searchMethods[] = ['method' => 'sem ...', 'uid' => $cleanUid];
+    }
+    
+    // Método 3: LIKE com UID limpo
+    if (isset($cleanUid)) {
+        $searchMethods[] = ['method' => 'LIKE inicio', 'uid' => $cleanUid . '%'];
+    }
+    
+    // Método 4: LIKE com qualquer parte
+    $searchMethods[] = ['method' => 'LIKE qualquer', 'uid' => '%' . $googleUid . '%'];
+    
+    foreach ($searchMethods as $search) {
+        if ($search['method'] === 'LIKE inicio' || $search['method'] === 'LIKE qualquer') {
+            $stmt = $pdo->prepare("SELECT id, google_uid, email FROM users WHERE google_uid LIKE ? LIMIT 1");
+        } else {
+            $stmt = $pdo->prepare("SELECT id, google_uid, email FROM users WHERE google_uid = ? LIMIT 1");
+        }
+        
+        $stmt->execute([$search['uid']]);
+        $foundUser = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($foundUser) {
+            error_log("✅ ENCONTRADO com método: {$search['method']}, UID: '{$search['uid']}'");
+            error_log("   User ID: {$foundUser['id']}, UID banco: '{$foundUser['google_uid']}'");
+            $user = $foundUser;
+            $googleUid = $foundUser['google_uid']; // Usar UID REAL do banco
+            break;
+        } else {
+            error_log("❌ NÃO encontrado com método: {$search['method']}, UID: '{$search['uid']}'");
+        }
+    }
+    
+    // Se ainda não encontrou, verificar se tabela tem users
     if (!$user) {
-        error_log("❌ User não encontrado com busca exata");
+        error_log("🔍 Verificando se tabela users tem dados...");
+        $stmt = $pdo->query("SELECT COUNT(*) as total FROM users");
+        $count = $stmt->fetch(PDO::FETCH_ASSOC);
+        error_log("   Total users no banco: " . $count['total']);
         
-        // Buscar PRIMEIRO user disponível (para teste)
-        $stmt = $pdo->query("SELECT id, google_uid, email FROM users LIMIT 1");
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($user) {
-            error_log("⚠️ Usando user alternativo: ID {$user['id']}, UID: {$user['google_uid']}");
-            $googleUid = $user['google_uid']; // Usar UID real do banco
+        if ($count['total'] > 0) {
+            // Listar primeiros 3 users para debug
+            $stmt = $pdo->query("SELECT id, google_uid, email FROM users ORDER BY id LIMIT 3");
+            $someUsers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($someUsers as $u) {
+                error_log("   - ID: {$u['id']}, UID: '{$u['google_uid']}'");
+            }
+            
+            // Usar primeiro user disponível
+            $stmt = $pdo->query("SELECT id, google_uid, email FROM users LIMIT 1");
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($user) {
+                error_log("⚠️ Usando primeiro user disponível: ID {$user['id']}, UID: '{$user['google_uid']}'");
+                $googleUid = $user['google_uid'];
+            }
+        } else {
+            error_log("❌ TABELA USERS VAZIA! auth-google.php não criou users.");
+            // Não vamos criar user de teste - melhor falhar e mostrar erro claro
+            echo json_encode([
+                'success' => false, 
+                'error' => 'Usuário não encontrado. Faça login primeiro.',
+                'debug' => 'Tabela users está vazia. Execute auth-google.php primeiro.'
+            ]);
+            exit;
         }
     }
     
     if (!$user) {
-        // Criar user de teste
-        error_log("⚠️ Nenhum user encontrado, criando de teste...");
-        $testUid = 'test_' . time();
-        $stmt = $pdo->prepare("INSERT INTO users (google_uid, email, created_at) VALUES (?, 'test@example.com', NOW())");
-        $stmt->execute([$testUid]);
-        
-        $user = ['id' => $pdo->lastInsertId(), 'google_uid' => $testUid];
-        $googleUid = $testUid;
+        error_log("❌ CRÍTICO: Nenhum user encontrado após todas tentativas");
+        echo json_encode([
+            'success' => false,
+            'error' => 'Erro crítico: Nenhum usuário no sistema',
+            'debug' => 'Tabela users vazia ou problema de conexão'
+        ]);
+        exit;
     }
     
     $userId = $user['id'];
