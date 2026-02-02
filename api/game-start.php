@@ -130,53 +130,34 @@ try {
     $totalPlayed = (int)($sessionCount['total'] ?? 0);
     $missionNumber = $totalPlayed + 1;
 
-    // hard mode
+    // hard mode (simplificado para schema atual)
     $hardModePercentage = defined('HARD_MODE_PERCENTAGE') ? HARD_MODE_PERCENTAGE : 40;
     $isHardMode = (mt_rand(1, 100) <= $hardModePercentage);
 
-    // especiais
-    $rareCount = $isHardMode ? ((mt_rand(1, 100) <= 50) ? 1 : 0) : ((mt_rand(1, 100) <= 70) ? 1 : 2);
-    $epicChance = $isHardMode ? 15 : 30;
-    $hasEpic = ($missionNumber >= 5 && mt_rand(1, 100) <= $epicChance);
-
-    $rareIds = [];
-    for ($i = 0; $i < $rareCount; $i++) $rareIds[] = mt_rand(50, 200);
-    $epicId = $hasEpic ? mt_rand(201, 250) : 0;
-
-    // sessão token (server)
-    $sessionToken = hash('sha256', $googleUid . '|' . time() . '|' . bin2hex(random_bytes(16)));
+    // game duration
     $gameDuration = defined('GAME_DURATION') ? GAME_DURATION : 180;
 
-    // criar session (wallet NULL) - CORRIGIDO: 10 placeholders
+    // criar session usando schema real da tabela game_sessions
+    $sessionUuid = bin2hex(random_bytes(18)); // 36 caracteres hex
+    
     $stmt = $pdo->prepare("
         INSERT INTO game_sessions (
+            user_id,
+            session_uuid,
             google_uid,
-            wallet_address,
-            session_token,
-            mission_number,
-            status,
             is_hard_mode,
-            rare_asteroids_target,
-            epic_asteroid_target,
-            rare_ids,
-            epic_id,
-            ip_address,
+            status,
             earnings_brl,
-            started_at,
+            ip_address,
             created_at
-        ) VALUES (?, NULL, ?, ?, 'active', ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())
+        ) VALUES (?, ?, ?, ?, 'active', 0, ?, NOW())
     ");
     $stmt->execute([
-        $googleUid,              // 1. google_uid
-        $sessionToken,           // 2. session_token
-        $missionNumber,          // 3. mission_number
+        $userId,                 // 1. user_id (relacionamento correto)
+        $sessionUuid,            // 2. session_uuid (36 chars)
+        $googleUid,              // 3. google_uid (para compatibilidade)
         $isHardMode ? 1 : 0,     // 4. is_hard_mode
-        $rareCount,              // 5. rare_asteroids_target
-        $hasEpic ? 1 : 0,        // 6. epic_asteroid_target
-        json_encode($rareIds),   // 7. rare_ids
-        $epicId,                 // 8. epic_id
-        $clientIP                // 9. ip_address
-        // ✅ CORRETO: 9 valores para 9 placeholders (NULL, 'active', 0, NOW() são literais)
+        $clientIP                // 5. ip_address
     ]);
 
     $sessionId = (int)$pdo->lastInsertId();
@@ -194,14 +175,10 @@ try {
     echo json_encode([
         'success' => true,
         'session_id' => $sessionId,
-        'session_token' => $sessionToken,
-        'player_id' => $playerId,
+        'session_uuid' => $sessionUuid,
+        'user_id' => $userId,
         'mission_number' => $missionNumber,
         'is_hard_mode' => $isHardMode,
-        'rare_count' => $rareCount,
-        'has_epic' => (bool)$hasEpic,
-        'rare_ids' => $rareIds,
-        'epic_id' => $epicId,
         'game_duration' => $gameDuration,
         'initial_lives' => defined('INITIAL_LIVES') ? INITIAL_LIVES : 6,
         'missions_remaining' => $maxMissionsPerHour - $missionsThisHour - 1
