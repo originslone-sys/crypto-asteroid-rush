@@ -1,70 +1,76 @@
 <?php
-// Debug endpoint temporário
-require_once __DIR__ . "/config.php";
+// ============================================
+// DEBUG ENDPOINT - Para verificar erros
+// ============================================
 
-header('Content-Type: text/plain');
-echo "=== DEBUG UNOBIX ===\n\n";
+require_once 'config.php';
 
-// 1. Mostrar variáveis de ambiente
-echo "1. Variáveis de ambiente:\n";
-$envVars = ['MYSQL_PUBLIC_URL', 'MYSQLHOST', 'MYSQLPORT', 'MYSQLUSER', 'MYSQLPASSWORD', 'MYSQLDATABASE'];
-foreach ($envVars as $var) {
-    $value = getenv($var);
-    echo "   $var: " . ($value ? $value : '(não definida)') . "\n";
-}
-echo "\n";
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
 
-// 2. Mostrar constantes definidas
-echo "2. Constantes config.php:\n";
-echo "   DB_HOST: " . DB_HOST . "\n";
-echo "   DB_PORT: " . DB_PORT . "\n";
-echo "   DB_NAME: " . DB_NAME . "\n";
-echo "   DB_USER: " . DB_USER . "\n";
-echo "   DB_PASS: " . (strlen(DB_PASS) > 0 ? '***' . substr(DB_PASS, -4) : 'vazia') . "\n\n";
+echo json_encode([
+    'status' => 'debug',
+    'timestamp' => date('Y-m-d H:i:s'),
+    'environment' => [
+        'APP_ENV' => getenv('APP_ENV') ?: 'not set',
+        'DB_HOST' => defined('DB_HOST') ? DB_HOST : 'not defined',
+        'DB_NAME' => defined('DB_NAME') ? DB_NAME : 'not defined',
+        'DB_USER' => defined('DB_USER') ? DB_USER : 'not defined',
+        'DB_PORT' => defined('DB_PORT') ? DB_PORT : 'not defined',
+        'GAME_SECRET_KEY' => defined('GAME_SECRET_KEY') ? substr(GAME_SECRET_KEY, 0, 10) . '...' : 'not defined',
+        'ADMIN_PASSWORD' => defined('ADMIN_PASSWORD') ? substr(ADMIN_PASSWORD, 0, 3) . '...' : 'not defined',
+    ],
+    'server' => [
+        'php_version' => PHP_VERSION,
+        'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'unknown',
+        'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
+    ],
+    'database_test' => testDatabaseConnection(),
+], JSON_PRETTY_PRINT);
 
-// 3. Testar conexão
-echo "3. Testando conexão MySQL...\n";
-try {
-    $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
-    $pdo = new PDO($dsn, DB_USER, DB_PASS, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false
-    ]);
-    
-    echo "   ✅ Conexão OK\n";
-    echo "   DSN: $dsn\n";
-    
-    // Testar query
-    $stmt = $pdo->query("SELECT DATABASE() as db, USER() as user, VERSION() as version");
-    $result = $stmt->fetch();
-    echo "   Banco: " . $result['db'] . "\n";
-    echo "   Usuário: " . $result['user'] . "\n";
-    echo "   MySQL: " . $result['version'] . "\n\n";
-    
-    // Testar tabela players
-    echo "4. Testando tabela players...\n";
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM players");
-    $players = $stmt->fetch();
-    echo "   Total players: " . $players['total'] . "\n";
-    
-    $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ?");
-    $stmt->execute(['DqnexVtvrtdG3fe8fSGzHk8NA713']);
-    $player = $stmt->fetch();
-    
-    if ($player) {
-        echo "   ✅ Player encontrado: " . $player['google_uid'] . "\n";
-        echo "   ID: " . $player['id'] . "\n";
-        echo "   Email: " . ($player['email'] ?? 'N/A') . "\n";
-    } else {
-        echo "   ❌ Player não encontrado\n";
+function testDatabaseConnection() {
+    try {
+        $pdo = getDatabaseConnection();
+        if (!$pdo) {
+            return ['connected' => false, 'error' => 'getDatabaseConnection returned null'];
+        }
+        
+        // Testar consulta simples
+        $stmt = $pdo->query("SELECT 1 as test");
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Verificar tabelas
+        $tables = [];
+        $stmt = $pdo->query("SHOW TABLES");
+        while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
+            $tables[] = $row[0];
+        }
+        
+        // Verificar tabela users
+        $usersTableExists = in_array('users', $tables);
+        $usersColumns = [];
+        
+        if ($usersTableExists) {
+            $stmt = $pdo->query("DESCRIBE users");
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $usersColumns[] = $row['Field'];
+            }
+        }
+        
+        return [
+            'connected' => true,
+            'test_query' => $result['test'] ?? 'failed',
+            'tables' => $tables,
+            'users_table_exists' => $usersTableExists,
+            'users_columns' => $usersColumns,
+            'total_tables' => count($tables),
+        ];
+        
+    } catch (Exception $e) {
+        return [
+            'connected' => false,
+            'error' => $e->getMessage(),
+            'error_code' => $e->getCode(),
+        ];
     }
-    
-} catch (PDOException $e) {
-    echo "   ❌ Erro PDO: " . $e->getMessage() . "\n";
-    echo "   Código: " . $e->getCode() . "\n";
-    echo "   SQL State: " . $e->errorInfo[0] . "\n";
 }
-
-echo "\n=== FIM DEBUG ===\n";
-?>

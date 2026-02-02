@@ -196,8 +196,18 @@ try {
     }
 
 } catch (Throwable $e) {
-    error_log("auth-google.php error: " . $e->getMessage());
-    if (function_exists('secureLog')) secureLog("AUTH_GOOGLE_ERROR | " . $e->getMessage());
+    error_log("❌ auth-google.php ERROR: " . $e->getMessage());
+    error_log("❌ Stack trace: " . $e->getTraceAsString());
+    error_log("❌ File: " . $e->getFile() . " Line: " . $e->getLine());
+    
+    if (function_exists('secureLog')) {
+        secureLog("AUTH_GOOGLE_ERROR | " . $e->getMessage());
+    }
+    
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Erro no servidor']);
+    echo json_encode([
+        'success' => false, 
+        'error' => 'Erro de configuração de autenticação',
+        'debug' => (getenv('APP_ENV') !== 'production') ? $e->getMessage() : null
+    ]);
 }
