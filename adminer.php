@@ -6,10 +6,40 @@
 
 require_once 'api/config-cloudrun.php';
 
-// Segurança básica - só permitir em desenvolvimento
-if (getenv('APP_ENV') === 'production') {
-    header('HTTP/1.1 403 Forbidden');
-    echo 'Adminer não disponível em produção';
+// Segurança básica - permitir com senha em produção
+$adminerPassword = getenv('ADMINER_PASSWORD') ?: 'unobix_admin_2024';
+$providedPassword = $_GET['password'] ?? $_POST['password'] ?? '';
+
+if (getenv('APP_ENV') === 'production' && $providedPassword !== $adminerPassword) {
+    // Mostrar formulário de login
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        echo '<div style="padding: 20px; background: #f44336; color: white;">Senha incorreta</div>';
+    }
+    ?>
+    <!DOCTYPE html>
+    <html>
+    <head><title>Adminer - Login</title><style>
+        body { font-family: sans-serif; background: #1a1a1a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .login-box { background: #2d2d2d; padding: 30px; border-radius: 10px; text-align: center; }
+        input { padding: 10px; margin: 10px; width: 200px; }
+        button { padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style></head>
+    <body>
+        <div class="login-box">
+            <h2>🔐 Adminer - Crypto Asteroid Rush</h2>
+            <p>Digite a senha de administração:</p>
+            <form method="post">
+                <input type="password" name="password" placeholder="Senha" required>
+                <br>
+                <button type="submit">Acessar</button>
+            </form>
+            <p style="margin-top: 20px; font-size: 12px; color: #888;">
+                Dica: Verifique variável de ambiente ADMINER_PASSWORD
+            </p>
+        </div>
+    </body>
+    </html>
+    <?php
     exit;
 }
 
