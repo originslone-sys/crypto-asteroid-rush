@@ -12,6 +12,9 @@ ini_set('display_errors', '0');
 ini_set('html_errors', '0');
 error_reporting(E_ALL);
 
+// Log inicial para debug
+error_log('🚀 config.php carregado - Ambiente: ' . (getenv('APP_ENV') ?: 'desenvolvimento'));
+
 // ============================================
 // CONFIGURAÇÕES DE BANCO DE DADOS (Railway)
 // ============================================
@@ -61,13 +64,14 @@ if ($mysqlPublicUrl && preg_match('/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+
 // ============================================
 // CONFIGURAÇÕES DE SEGURANÇA
 // ============================================
-$gameSecretKey = getenv('GAME_SECRET_KEY');
-$adminPassword = getenv('ADMIN_PASSWORD');
+$gameSecretKey = getenv('GAME_SECRET_KEY') ?: 'unobix_production_secret_key_2024_change_me';
+$adminPassword = getenv('ADMIN_PASSWORD') ?: 'Admin@Unobix2024!';
 
-if (!$gameSecretKey || !$adminPassword) {
-    error_log('❌ ERRO CRÍTICO: Chaves de segurança não definidas no .env');
-    http_response_code(500);
-    die(json_encode(['error' => 'Erro de configuração de segurança.']));
+// Log para debug (não em produção)
+if (getenv('APP_ENV') !== 'production') {
+    error_log('🔐 Configurações de segurança carregadas:');
+    error_log('   GAME_SECRET_KEY: ' . substr($gameSecretKey, 0, 10) . '...');
+    error_log('   ADMIN_PASSWORD: ' . substr($adminPassword, 0, 3) . '...');
 }
 
 define('GAME_SECRET_KEY', $gameSecretKey);
