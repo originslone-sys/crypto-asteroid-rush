@@ -103,39 +103,31 @@ try {
         exit;
     }
 
-    // 3) buscar player (cria se não existir)
-    $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
+    // 3) buscar user (usando tabela users que já existe)
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE google_uid = ? LIMIT 1");
     $stmt->execute([$googleUid]);
-    $player = $stmt->fetch(PDO::FETCH_ASSOC);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$player) {
-        $stmt = $pdo->prepare("
-            INSERT INTO players (google_uid, balance_brl, total_played, created_at, updated_at)
-            VALUES (?, 0.00, 0, NOW(), NOW())
-        ");
-        $stmt->execute([$googleUid]);
-
-        $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
-        $stmt->execute([$googleUid]);
-        $player = $stmt->fetch(PDO::FETCH_ASSOC);
-    }
-
-    if (!$player) {
-        echo json_encode(['success' => false, 'error' => 'Não foi possível identificar o jogador']);
+    if (!$user) {
+        echo json_encode(['success' => false, 'error' => 'Usuário não encontrado. Faça login novamente.']);
         exit;
     }
 
-    if (!empty($player['is_banned'])) {
+    if (!empty($user['is_banned'])) {
         echo json_encode([
             'success' => false,
-            'error' => 'Conta suspensa: ' . ($player['ban_reason'] ?? 'Violação dos termos'),
+            'error' => 'Conta suspensa: ' . ($user['ban_reason'] ?? 'Violação dos termos'),
             'banned' => true
         ]);
         exit;
     }
 
-    $playerId = (int)$player['id'];
-    $totalPlayed = (int)($player['total_played'] ?? 0);
+    $userId = (int)$user['id'];
+    // Como users não tem total_played, usamos um valor padrão ou contamos game_sessions
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM game_sessions WHERE user_id = ?");
+    $stmt->execute([$userId]);
+    $sessionCount = $stmt->fetch(PDO::FETCH_ASSOC);
+    $totalPlayed = (int)($sessionCount['total'] ?? 0);
     $missionNumber = $totalPlayed + 1;
 
     // hard mode
