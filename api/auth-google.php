@@ -67,11 +67,10 @@ try {
                 exit;
             }
 
-            // upsert player (sem wallet placeholder)
-            // mantém colunas existentes, mas não obriga wallet
+            // upsert user (usando nossa tabela 'users' do schema)
             $stmt = $pdo->prepare("
-                INSERT INTO players (google_uid, email, display_name, photo_url, balance_brl, total_played, created_at, updated_at)
-                VALUES (?, ?, ?, ?, 0.00, 0, NOW(), NOW())
+                INSERT INTO users (google_uid, email, display_name, photo_url, balance_brl, created_at, updated_at)
+                VALUES (?, ?, ?, ?, 0.00, NOW(), NOW())
                 ON DUPLICATE KEY UPDATE
                     email = COALESCE(VALUES(email), email),
                     display_name = COALESCE(VALUES(display_name), display_name),
@@ -85,28 +84,29 @@ try {
                 $photoUrl ?: null,
             ]);
 
-            // buscar player
-            $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
+            // buscar user
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE google_uid = ? LIMIT 1");
             $stmt->execute([$googleUid]);
-            $player = $stmt->fetch(PDO::FETCH_ASSOC);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$player) {
+            if (!$user) {
                 http_response_code(500);
-                echo json_encode(['success' => false, 'error' => 'Falha ao carregar jogador']);
+                echo json_encode(['success' => false, 'error' => 'Falha ao carregar usuário']);
                 exit;
             }
 
-            if (!empty($player['is_banned'])) {
+            // Verificar se usuário está ativo (nossa tabela users tem 'status')
+            if (isset($user['status']) && $user['status'] === 'banned') {
                 echo json_encode([
                     'success' => false,
                     'error' => 'Conta suspensa',
-                    'message' => $player['ban_reason'] ?? 'Entre em contato com o suporte.'
+                    'message' => $user['ban_reason'] ?? 'Entre em contato com o suporte.'
                 ]);
                 exit;
             }
 
             // criar sessão
-            $sessionToken = hash('sha256', $googleUid . '|' . ($player['id'] ?? 0) . '|' . microtime(true) . '|' . bin2hex(random_bytes(16)));
+            $sessionToken = hash('sha256', $googleUid . '|' . ($user['id'] ?? 0) . '|' . microtime(true) . '|' . bin2hex(random_bytes(16)));
 
             $stmt = $pdo->prepare("
                 INSERT INTO user_sessions (google_uid, session_token, firebase_token, ip_address, user_agent, expires_at)
@@ -124,14 +124,15 @@ try {
                 'success' => true,
                 'message' => 'Login realizado com sucesso',
                 'session_token' => $sessionToken,
-                'player' => [
-                    'id' => (int)$player['id'],
+                'user' => [
+                    'id' => (int)$user['id'],
                     'google_uid' => $googleUid,
-                    'email' => $player['email'] ?? '',
-                    'display_name' => $player['display_name'] ?? '',
-                    'photo_url' => $player['photo_url'] ?? '',
-                    'balance_brl' => number_format((float)($player['balance_brl'] ?? 0), 2, '.', ''),
-                    'total_played' => (int)($player['total_played'] ?? 0)
+                    'email' => $user['email'] ?? '',
+                    'display_name' => $user['display_name'] ?? '',
+                    'photo_url' => $user['photo_url'] ?? '',
+                    'balance_brl' => number_format((float)($user['balance_brl'] ?? 0), 2, '.', ''),
+                    'total_earned' => number_format((float)($user['total_earned'] ?? 0), 2, '.', ''),
+                    'total_played' => (int)($user['total_played'] ?? 0)
                 ]
             ]);
             break;
@@ -158,26 +159,26 @@ try {
                 exit;
             }
 
-            $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE google_uid = ? LIMIT 1");
             $stmt->execute([$googleUid]);
-            $player = $stmt->fetch(PDO::FETCH_ASSOC);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$player) {
+            if (!$user) {
                 echo json_encode(['success' => false, 'error' => 'Usuário não encontrado']);
                 exit;
             }
 
             echo json_encode([
                 'success' => true,
-                'player' => [
-                    'google_uid' => $player['google_uid'],
-                    'email' => $player['email'] ?? '',
-                    'display_name' => $player['display_name'] ?? '',
-                    'photo_url' => $player['photo_url'] ?? '',
-                    'balance_brl' => number_format((float)($player['balance_brl'] ?? 0), 2, '.', ''),
-                    'total_earned_brl' => number_format((float)($player['total_earned_brl'] ?? 0), 2, '.', ''),
-                    'total_played' => (int)($player['total_played'] ?? 0),
-                    'created_at' => $player['created_at'] ?? ''
+                'user' => [
+                    'google_uid' => $user['google_uid'],
+                    'email' => $user['email'] ?? '',
+                    'display_name' => $user['display_name'] ?? '',
+                    'photo_url' => $user['photo_url'] ?? '',
+                    'balance_brl' => number_format((float)($user['balance_brl'] ?? 0), 2, '.', ''),
+                    'total_earned' => number_format((float)($user['total_earned'] ?? 0), 2, '.', ''),
+                    'total_played' => (int)($user['total_played'] ?? 0),
+                    'created_at' => $user['created_at'] ?? ''
                 ]
             ]);
             break;
