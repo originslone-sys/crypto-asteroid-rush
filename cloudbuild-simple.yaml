@@ -1,0 +1,26 @@
+# ===========================================
+# SIMPLE Cloud Build Configuration
+# Direct source deployment (no Docker build)
+# ===========================================
+
+steps:
+  # Deploy directly from source (Cloud Build will build automatically)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+    - 'run'
+    - 'deploy'
+    - 'crypto-asteroid'
+    - '--source'
+    - '.'
+    - '--region'
+    - 'us-central1'
+    - '--platform'
+    - 'managed'
+    - '--allow-unauthenticated'
+    - '--set-env-vars'
+    - 'MYSQLHOST=127.0.0.1,MYSQLPORT=3306,MYSQLDATABASE=unobix_db,MYSQLUSER=unobix_user,MYSQLPASSWORD=YyZD3H)dndSo*A/N,FIREBASE_API_KEY=AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U,FIREBASE_PROJECT_ID=unobix-oauth-a69cd,ADMIN_PASSWORD=Admin@Unobix2024!,GAME_SECRET_KEY=unobix_production_secret_key_2024_change_me,APP_ENV=production,DEBUG=false'
+    - '--add-cloudsql-instances'
+    - 'project-7be1cae5-5f08-45fb-aca:us-central1:unobix'
+
+# Timeout (15 minutes for source builds)
+timeout: 900s
