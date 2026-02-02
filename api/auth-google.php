@@ -40,25 +40,10 @@ try {
     error_log('   DB_NAME: ' . (defined('DB_NAME') ? DB_NAME : 'não definido'));
     error_log('   DB_USER: ' . (defined('DB_USER') ? DB_USER : 'não definido'));
 
-    // user_sessions já existe no seu banco, mas mantemos garantia
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS user_sessions (
-            id BIGINT AUTO_INCREMENT PRIMARY KEY,
-            google_uid VARCHAR(128) NOT NULL,
-            session_token VARCHAR(255) NOT NULL,
-            firebase_token TEXT NULL,
-            ip_address VARCHAR(45),
-            user_agent VARCHAR(500),
-            is_active TINYINT(1) DEFAULT 1,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            expires_at DATETIME DEFAULT NULL,
-            last_activity DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            UNIQUE KEY uk_session_token (session_token),
-            KEY idx_google_uid (google_uid),
-            KEY idx_active (is_active),
-            KEY idx_expires (expires_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
+    // user_sessions já existe no seu banco com schema diferente
+    // Schema real: user_id (não google_uid), sem firebase_token, sem is_active
+    // Não recriamos para evitar conflitos com schema existente
+    error_log('ℹ️ Tabela user_sessions existe com schema: user_id, session_token, ip_address, user_agent, created_at, last_activity, expires_at');
 
     switch ($action) {
         case 'verify':
@@ -114,17 +99,16 @@ try {
                 exit;
             }
 
-            // criar sessão
+            // criar sessão (usando user_id conforme schema real)
             $sessionToken = hash('sha256', $googleUid . '|' . ($user['id'] ?? 0) . '|' . microtime(true) . '|' . bin2hex(random_bytes(16)));
 
             $stmt = $pdo->prepare("
-                INSERT INTO user_sessions (google_uid, session_token, firebase_token, ip_address, user_agent, expires_at)
-                VALUES (?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))
+                INSERT INTO user_sessions (user_id, session_token, ip_address, user_agent, expires_at)
+                VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))
             ");
             $stmt->execute([
-                $googleUid,
+                $user['id'],  // user_id em vez de google_uid
                 $sessionToken,
-                $firebaseToken,
                 getClientIP(),
                 substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500)
             ]);
