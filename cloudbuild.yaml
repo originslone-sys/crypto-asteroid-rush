@@ -28,10 +28,27 @@ steps:
       - '--allow-unauthenticated'
       - '--add-cloudsql-instances'
       - 'project-7be1cae5-5f08-45fb-aca:us-west1:unobix'
+      # Runtime tuning (ajuste depois)
+      - '--cpu'
+      - '1'
+      - '--memory'
+      - '1Gi'
+      - '--concurrency'
+      - '40'
+      - '--timeout'
+      - '120'
       - '--set-env-vars'
-      - 'CLOUDSQL_INSTANCE=project-7be1cae5-5f08-45fb-aca:us-west1:unobix,MYSQLHOST=127.0.0.1,MYSQLPORT=3306,MYSQLDATABASE=unobix_db,MYSQLUSER=unobix_user,APP_ENV=production,DEBUG=false'
+      - >-
+        CLOUDSQL_INSTANCE=project-7be1cae5-5f08-45fb-aca:us-west1:unobix,
+        MYSQLDATABASE=unobix_db,
+        MYSQLUSER=unobix_user,
+        APP_ENV=production,
+        DEBUG=false
 
 options:
   logging: CLOUD_LOGGING_ONLY
 
 timeout: 900s
+
+images:
+  - 'us-west1-docker.pkg.dev/project-7be1cae5-5f08-45fb-aca/cloud-run-source-deploy/crypto-asteroid:$SHORT_SHA'
