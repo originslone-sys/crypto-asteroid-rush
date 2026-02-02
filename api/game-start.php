@@ -55,12 +55,16 @@ try {
     // ============================================
     // 2. SINCRONIZAR USUÁRIO (users → players)
     // ============================================
-    // Frontend pode enviar UID truncado, buscar por match parcial
+    // Frontend envia UID com '...' (ex: 'DqnexVtvrt...')
+    // Precisamos remover os '...' para fazer LIKE search correto
+    $cleanGoogleUid = str_replace('...', '', $googleUid);
+    
+    // Primeiro tentar LIKE com UID limpo
     $stmt = $pdo->prepare("SELECT id, google_uid, email, display_name, balance_brl FROM users WHERE google_uid LIKE ? LIMIT 1");
-    $stmt->execute([$googleUid . '%']);
+    $stmt->execute([$cleanGoogleUid . '%']);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Se não encontrou com LIKE, tentar exato
+    // Se não encontrou, tentar exato (com UID original)
     if (!$user) {
         $stmt = $pdo->prepare("SELECT id, google_uid, email, display_name, balance_brl FROM users WHERE google_uid = ? LIMIT 1");
         $stmt->execute([$googleUid]);
@@ -82,12 +86,12 @@ try {
     // ============================================
     // 3. BUSCAR/CRIAR PLAYER (com suporte a UID truncado)
     // ============================================
-    // Primeiro tentar LIKE (para UID truncado do frontend)
+    // Usar UID limpo (sem '...') para LIKE search
     $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid LIKE ? LIMIT 1");
-    $stmt->execute([$googleUid . '%']);
+    $stmt->execute([$cleanGoogleUid . '%']);
     $player = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Se não encontrou, tentar exato
+    // Se não encontrou, tentar exato (com UID original)
     if (!$player) {
         $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
         $stmt->execute([$googleUid]);
@@ -95,8 +99,8 @@ try {
     }
 
     if (!$player) {
-        // Precisamos do google_uid COMPLETO do users, não o truncado
-        $realGoogleUid = $user ? $user['google_uid'] : $googleUid;
+        // Usar google_uid REAL do users (se encontrado) ou o limpo
+        $realGoogleUid = $user ? $user['google_uid'] : $cleanGoogleUid;
         
         $stmt = $pdo->prepare("
             INSERT INTO players (google_uid, balance_brl, total_played, created_at, updated_at)
