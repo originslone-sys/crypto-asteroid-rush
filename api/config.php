@@ -31,8 +31,14 @@ if ($mysqlPublicUrl && preg_match('/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+
     $dbName = getenv('MYSQLDATABASE');
     $dbUser = getenv('MYSQLUSER');
     $dbPass = getenv('MYSQLPASSWORD');
-    
-    // Verificar se todas variáveis estão definidas
+
+      // Cloud Run + Cloud SQL attachment: usar socket /cloudsql/<instance>
+      $cloudsqlInstance = getenv('CLOUDSQL_INSTANCE');
+      if ($cloudsqlInstance) {
+          $dbHost = "/cloudsql/" . $cloudsqlInstance;
+      }
+
+      // Verificar se todas variáveis estão definidas
     if (!$dbHost || !$dbPort || !$dbName || !$dbUser || !$dbPass) {
         error_log('❌ ERRO CRÍTICO: Variáveis de ambiente do banco de dados não definidas.');
         error_log('   Verifique o arquivo .env ou variáveis de ambiente do servidor.');
