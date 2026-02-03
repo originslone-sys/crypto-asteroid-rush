@@ -64,15 +64,17 @@ define('ADMIN_PASSWORD', $adminPassword);
 $firebaseProjectId = getenv('FIREBASE_PROJECT_ID');
 $firebaseApiKey = getenv('FIREBASE_API_KEY');
 
-if ($firebaseProjectId && $firebaseApiKey) {
-    define('FIREBASE_PROJECT_ID', $firebaseProjectId);
-    define('FIREBASE_API_KEY', $firebaseApiKey);
+// Usar valores reais do Firebase (mesmos do frontend) se variáveis não estiverem definidas
+if (!$firebaseProjectId || !$firebaseApiKey) {
+    $firebaseProjectId = 'unobix-oauth-a69cd';
+    $firebaseApiKey = 'AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U';
+    error_log('⚠️ Firebase config usando valores hardcoded (Cloud Run sem variáveis)');
 } else {
-    // Valores padrão para desenvolvimento
-    define('FIREBASE_PROJECT_ID', 'unobix-game');
-    define('FIREBASE_API_KEY', 'AIzaSyDummyKeyForDevelopmentOnly');
-    error_log('⚠️ Firebase config usando valores padrão (desenvolvimento)');
+    error_log('✅ Firebase config carregada das variáveis de ambiente');
 }
+
+define('FIREBASE_PROJECT_ID', $firebaseProjectId);
+define('FIREBASE_API_KEY', $firebaseApiKey);
 
 // ============================================
 // CONFIGURAÇÕES DO JOGO
