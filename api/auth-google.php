@@ -51,7 +51,7 @@ try {
             $googleUid = $input['google_uid'] ?? $input['googleUid'] ?? $input['uid'] ?? null;
             $email = $input['email'] ?? null;
             $displayName = $input['display_name'] ?? $input['displayName'] ?? $input['name'] ?? null;
-            $photoUrl = $input['photo_url'] ?? $input['photoUrl'] ?? $input['photoURL'] ?? null;
+            // photo_url removido - não mais utilizado
             $firebaseToken = $input['firebase_token'] ?? $input['idToken'] ?? null;
 
             $googleUid = is_string($googleUid) ? trim($googleUid) : '';
@@ -60,14 +60,13 @@ try {
                 exit;
             }
 
-            // upsert user (usando nossa tabela 'users' do schema)
+            // upsert user (usando nossa tabela 'users' do schema - SEM photo_url)
             $stmt = $pdo->prepare("
-                INSERT INTO users (google_uid, email, display_name, photo_url, balance_brl, created_at, updated_at, last_login)
-                VALUES (?, ?, ?, ?, 0.00, NOW(), NOW(), NOW())
+                INSERT INTO users (google_uid, email, display_name, balance_brl, total_played, total_earned_brl, created_at, updated_at, last_login)
+                VALUES (?, ?, ?, 0.00, 0, 0.00, NOW(), NOW(), NOW())
                 ON DUPLICATE KEY UPDATE
                     email = COALESCE(VALUES(email), email),
                     display_name = COALESCE(VALUES(display_name), display_name),
-                    photo_url = COALESCE(VALUES(photo_url), photo_url),
                     last_login = NOW(),
                     updated_at = NOW()
             ");
@@ -75,7 +74,6 @@ try {
                 $googleUid,
                 $email ?: null,
                 $displayName ?: null,
-                $photoUrl ?: null,
             ]);
 
             // buscar user
@@ -122,11 +120,12 @@ try {
                     'google_uid' => $googleUid,
                     'email' => $user['email'] ?? '',
                     'display_name' => $user['display_name'] ?? '',
-                    'photo_url' => $user['photo_url'] ?? '',
                     'balance_brl' => number_format((float)($user['balance_brl'] ?? 0), 2, '.', ''),
-                    'balance_usdt' => number_format((float)($user['balance_usdt'] ?? 0), 2, '.', ''),
+                    'total_played' => (int)($user['total_played'] ?? 0),
+                    'total_earned_brl' => number_format((float)($user['total_earned_brl'] ?? 0), 2, '.', ''),
                     'total_withdrawn_brl' => number_format((float)($user['total_withdrawn_brl'] ?? 0), 2, '.', ''),
-                    'created_at' => $user['created_at'] ?? ''
+                    'created_at' => $user['created_at'] ?? '',
+                    'last_login' => $user['last_login'] ?? ''
                 ]
             ]);
             break;
@@ -168,9 +167,9 @@ try {
                     'google_uid' => $user['google_uid'],
                     'email' => $user['email'] ?? '',
                     'display_name' => $user['display_name'] ?? '',
-                    'photo_url' => $user['photo_url'] ?? '',
                     'balance_brl' => number_format((float)($user['balance_brl'] ?? 0), 2, '.', ''),
-                    'balance_usdt' => number_format((float)($user['balance_usdt'] ?? 0), 2, '.', ''),
+                    'total_played' => (int)($user['total_played'] ?? 0),
+                    'total_earned_brl' => number_format((float)($user['total_earned_brl'] ?? 0), 2, '.', ''),
                     'total_withdrawn_brl' => number_format((float)($user['total_withdrawn_brl'] ?? 0), 2, '.', ''),
                     'created_at' => $user['created_at'] ?? '',
                     'last_login' => $user['last_login'] ?? ''
