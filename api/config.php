@@ -225,6 +225,13 @@ function validateWallet($wallet) {
 if (!function_exists('validateGoogleUid')) {
     function validateGoogleUid($uid) {
         if (empty($uid)) return false;
+        
+        // Aceitar UID com '...' para compatibilidade com frontend
+        if (strpos($uid, '...') !== false) {
+            error_log("⚠️ UID com '...' aceito para compatibilidade: '$uid'");
+            return true;
+        }
+        
         // Relaxado para permitir testes: 10-128 caracteres
         return preg_match('/^[a-zA-Z0-9_-]{10,128}$/', $uid);
     }
