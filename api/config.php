@@ -35,35 +35,23 @@ if ($mysqlPublicUrl && preg_match('/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+
     $dbUser = getenv('MYSQLUSER');
     $dbPass = getenv('MYSQLPASSWORD');
 
-      // Cloud Run + Cloud SQL attachment: usar socket /cloudsql/<instance>
-      $cloudsqlInstance = getenv('CLOUDSQL_INSTANCE');
-      if ($cloudsqlInstance) {
-          $dbHost = "/cloudsql/" . $cloudsqlInstance;
-      }
-
-      // Usar valores padrão para desenvolvimento se não estiverem definidos
-      if (!$dbHost) {
-          // Cloud Run com Cloud SQL
-          $cloudsqlInstance = getenv('CLOUDSQL_INSTANCE');
-          if ($cloudsqlInstance) {
-              $dbHost = "/cloudsql/" . $cloudsqlInstance;
-              error_log('🔧 Usando Cloud SQL socket: ' . $dbHost);
-          } else {
-              // Fallback para desenvolvimento
-              $dbHost = '34.168.76.127';
-              error_log('⚠️ AVISO: DB_HOST não definido, usando fallback para desenvolvimento');
-          }
-      }
-      
-      if (!$dbName) {
-          $dbName = 'unobix_db';
-          error_log('⚠️ AVISO: DB_NAME não definido, usando fallback');
-      }
-      
-      if (!$dbUser) {
-          $dbUser = 'unobix_user';
-          error_log('⚠️ AVISO: DB_USER não definido, usando fallback');
-      }
+    // Cloud Run + Cloud SQL: SEMPRE usar TCP/IP (IP público) porque IP privado está desativado
+    // IGNORAR CLOUDSQL_INSTANCE - Cloud SQL configurado apenas com IP público
+    if (!$dbHost) {
+        // Fallback para IP público do Cloud SQL
+        $dbHost = '34.168.76.127';
+        error_log('🔧 Cloud Run: Usando TCP/IP (IP público) para Cloud SQL: ' . $dbHost);
+    }
+    
+    if (!$dbName) {
+        $dbName = 'unobix_db';
+        error_log('⚠️ AVISO: DB_NAME não definido, usando fallback');
+    }
+    
+    if (!$dbUser) {
+        $dbUser = 'unobix_user';
+        error_log('⚠️ AVISO: DB_USER não definido, usando fallback');
+    }
     
     // Usar valores padrão se não definidos
     if (!$dbPort) $dbPort = '3306';
