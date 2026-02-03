@@ -68,11 +68,14 @@ function debugGameStart() {
     return $result;
 }
 
-function debugGameEvent($sessionId, $sessionToken) {
+function debugGameEvent($sessionId, $sessionToken, $googleUid) {
+    // Usar UID truncado (como frontend)
+    $truncatedUid = substr($googleUid, 0, 12) . '...';
+    
     $testData = [
         'session_id' => $sessionId,
         'session_token' => $sessionToken,
-        'google_uid' => 'DqnexVtvrtdG3fe8fSGzVvQ7Y5J3',
+        'google_uid' => $truncatedUid,
         'asteroid_id' => 1,
         'reward_type' => 'common'
     ];
@@ -92,11 +95,14 @@ function debugGameEvent($sessionId, $sessionToken) {
     return $result;
 }
 
-function debugGameEnd($sessionId, $sessionToken) {
+function debugGameEnd($sessionId, $sessionToken, $googleUid) {
+    // Usar UID truncado (como frontend)
+    $truncatedUid = substr($googleUid, 0, 12) . '...';
+    
     $testData = [
         'session_id' => $sessionId,
         'session_token' => $sessionToken,
-        'google_uid' => 'DqnexVtvrtdG3fe8fSGzVvQ7Y5J3',
+        'google_uid' => $truncatedUid,
         'is_victory' => true,
         'client_score' => 100,
         'client_earnings' => 0.01
@@ -155,13 +161,15 @@ try {
         $latestSession = $debugResults['recent_sessions'][0];
         $debugResults['api_tests'][] = debugGameEvent(
             $latestSession['id'],
-            $latestSession['session_token']
+            $latestSession['session_token'],
+            $latestSession['google_uid']
         );
         
         // Testar game-end
         $debugResults['api_tests'][] = debugGameEnd(
             $latestSession['id'],
-            $latestSession['session_token']
+            $latestSession['session_token'],
+            $latestSession['google_uid']
         );
     }
     
