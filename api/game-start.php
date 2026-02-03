@@ -192,99 +192,127 @@ try {
     $missionNumber = $totalPlayed + 1;
 
     // ============================================
-    // 4. GARANTIR COLUNAS EM GAME_SESSIONS (com tratamento de erro)
+    // 4. VERIFICAR ESTRUTURA DA TABELA GAME_SESSIONS
     // ============================================
+    error_log('🔍 Verificando estrutura da tabela game_sessions...');
+    
+    // Verificar se session_token existe
     try {
-        $pdo->exec("
-            ALTER TABLE game_sessions
-            ADD COLUMN IF NOT EXISTS session_token VARCHAR(255),
-            ADD COLUMN IF NOT EXISTS mission_number INT,
-            ADD COLUMN IF NOT EXISTS rare_count INT,
-            ADD COLUMN IF NOT EXISTS rare_ids TEXT,
-            ADD COLUMN IF NOT EXISTS epic_id INT,
-            ADD COLUMN IF NOT EXISTS game_duration INT,
-            ADD COLUMN IF NOT EXISTS started_at DATETIME
-        ");
-        error_log('✅ Colunas game_sessions verificadas/atualizadas');
+        $stmt = $pdo->query("SHOW COLUMNS FROM game_sessions LIKE 'session_token'");
+        $sessionTokenExists = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$sessionTokenExists) {
+            error_log('⚠️ Coluna session_token não existe na tabela game_sessions');
+            error_log('   Usando apenas session_uuid (coluna existente)');
+        } else {
+            error_log('✅ Coluna session_token existe');
+        }
     } catch (Exception $e) {
-        error_log('⚠️ ALTER TABLE game_sessions falhou (pode já existir): ' . $e->getMessage());
-        // Continuar mesmo se falhar - colunas podem já existir
+        error_log('⚠️ Erro ao verificar estrutura: ' . $e->getMessage());
     }
     
     // ============================================
-    // 5. LÓGICA DO JOGO (mantida do original)
+    // 5. LÓGICA DO JOGO (simplificada)
     // ============================================
-    // hard mode
-    $hardModePercentage = defined('HARD_MODE_PERCENTAGE') ? HARD_MODE_PERCENTAGE : 40;
-    $isHardMode = (mt_rand(1, 100) <= $hardModePercentage);
+    // hard mode (40% chance)
+    $isHardMode = (mt_rand(1, 100) <= 40);
+    error_log("🎲 Hard mode: " . ($isHardMode ? 'SIM' : 'NÃO'));
 
-    // especiais
-    $rareCount = $isHardMode ? ((mt_rand(1, 100) <= 50) ? 1 : 0) : ((mt_rand(1, 100) <= 70) ? 1 : 2);
-    $epicChance = $isHardMode ? 15 : 30;
-    $hasEpic = ($missionNumber >= 5 && mt_rand(1, 100) <= $epicChance);
-
+    // rare asteroids (simplificado)
+    $rareCount = $isHardMode ? 1 : 2;
+    $hasEpic = ($missionNumber >= 5 && mt_rand(1, 100) <= 30);
+    
     $rareIds = [];
-    for ($i = 0; $i < $rareCount; $i++) $rareIds[] = mt_rand(50, 200);
+    for ($i = 0; $i < $rareCount; $i++) {
+        $rareIds[] = mt_rand(50, 200);
+    }
     $epicId = $hasEpic ? mt_rand(201, 250) : 0;
+    
+    error_log("🎯 Rare count: $rareCount, Has epic: " . ($hasEpic ? 'SIM' : 'NÃO'));
 
-    // sessão token (server)
-    $sessionToken = hash('sha256', $googleUid . '|' . time() . '|' . bin2hex(random_bytes(16)));
+    // Gerar session_uuid (único identificador)
     $sessionUuid = bin2hex(random_bytes(18)); // 36 chars para session_uuid
     $gameDuration = defined('GAME_DURATION') ? GAME_DURATION : 180;
     
     $clientIP = getClientIP();
     
     // ============================================
-    // 6. CRIAR SESSÃO (com todas as colunas necessárias)
+    // 6. CRIAR SESSÃO (usando apenas colunas existentes)
     // ============================================
-    $stmt = $pdo->prepare("
-        INSERT INTO game_sessions (
-            user_id,
-            session_uuid,
-            session_token,
-            google_uid,
-            mission_number,
-            is_hard_mode,
-            rare_count,
-            rare_ids,
-            epic_id,
-            status,
-            game_duration,
-            earnings_brl,
-            ip_address,
-            started_at,
-            created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 0, ?, NOW(), NOW())
-    ");
-    $stmt->execute([
-        $playerId,                 // user_id (para relacionamento)
-        $sessionUuid,              // session_uuid
-        $sessionToken,             // session_token (frontend espera)
-        $googleUid,                // google_uid
-        $missionNumber,            // mission_number
-        $isHardMode ? 1 : 0,       // is_hard_mode
-        $rareCount,                // rare_count
-        json_encode($rareIds),     // rare_ids
-        $epicId,                   // epic_id
-        $gameDuration,             // game_duration
-        $clientIP                  // ip_address
-    ]);
-
+    error_log('📝 Criando sessão com session_uuid: ' . $sessionUuid);
+    
+    // Verificar se session_token existe para decidir quais colunas usar
+    $stmt = $pdo->query("SHOW COLUMNS FROM game_sessions LIKE 'session_token'");
+    $sessionTokenExists = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($sessionTokenExists) {
+        // Se session_token existe, usar ambas as colunas
+        $sessionToken = hash('sha256', $googleUid . '|' . time() . '|' . bin2hex(random_bytes(16)));
+        $stmt = $pdo->prepare("
+            INSERT INTO game_sessions (
+                user_id,
+                session_uuid,
+                session_token,
+                google_uid,
+                is_hard_mode,
+                status,
+                game_duration,
+                ip_address,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, NOW())
+        ");
+        $stmt->execute([
+            $userId,
+            $sessionUuid,
+            $sessionToken,
+            $realGoogleUid,
+            $isHardMode ? 1 : 0,
+            $gameDuration,
+            $clientIP
+        ]);
+        error_log('✅ Sessão criada com session_token');
+    } else {
+        // Se session_token não existe, usar apenas session_uuid
+        $stmt = $pdo->prepare("
+            INSERT INTO game_sessions (
+                user_id,
+                session_uuid,
+                google_uid,
+                is_hard_mode,
+                status,
+                game_duration,
+                ip_address,
+                created_at
+            ) VALUES (?, ?, ?, ?, 'active', ?, ?, NOW())
+        ");
+        $stmt->execute([
+            $userId,
+            $sessionUuid,
+            $realGoogleUid,
+            $isHardMode ? 1 : 0,
+            $gameDuration,
+            $clientIP
+        ]);
+        error_log('✅ Sessão criada (sem session_token)');
+    }
+    
     $sessionId = (int)$pdo->lastInsertId();
+    error_log("🎉 Sessão criada com ID: $sessionId");
 
     // ============================================
     // 7. ATUALIZAR TOTAL_PLAYED DO PLAYER
     // ============================================
     $pdo->prepare("UPDATE players SET total_played = total_played + 1, updated_at = NOW() WHERE id = ?")
         ->execute([$playerId]);
+    
+    error_log("📈 Player $playerId atualizado: total_played incrementado");
 
     // ============================================
     // 8. RESPOSTA COMPLETA (frontend espera tudo isso)
     // ============================================
-    echo json_encode([
+    $response = [
         'success' => true,
         'session_id' => $sessionId,
-        'session_token' => $sessionToken,      // Frontend usa
         'session_uuid' => $sessionUuid,        // Para referência
         'player_id' => $playerId,
         'mission_number' => $missionNumber,
@@ -296,10 +324,18 @@ try {
         'game_duration' => $gameDuration,
         'initial_lives' => defined('INITIAL_LIVES') ? INITIAL_LIVES : 6,
         'missions_remaining' => 99 // Placeholder
-    ]);
+    ];
+    
+    // Adicionar session_token apenas se foi gerado
+    if (isset($sessionToken)) {
+        $response['session_token'] = $sessionToken;
+    }
+    
+    error_log("📤 Enviando resposta para frontend");
+    echo json_encode($response);
 
 } catch (Throwable $e) {
-    error_log("Erro em game-start.php: " . $e->getMessage() . " | Trace: " . $e->getTraceAsString());
+    error_log("❌ Erro em game-start.php: " . $e->getMessage() . " | Trace: " . $e->getTraceAsString());
     if (function_exists('secureLog')) secureLog("GAME_START_ERROR | " . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Erro interno do servidor', 'debug' => $e->getMessage()]);
