@@ -83,10 +83,13 @@ define('ADMIN_PASSWORD', $adminPassword);
 $firebaseProjectId = getenv('FIREBASE_PROJECT_ID');
 $firebaseApiKey = getenv('FIREBASE_API_KEY');
 
+// Usar valores padrão se não estiverem definidos (para desenvolvimento/Cloud Run sem variáveis)
 if (!$firebaseProjectId || !$firebaseApiKey) {
-    error_log('❌ ERRO CRÍTICO: Configurações do Firebase não definidas no .env');
-    http_response_code(500);
-    die(json_encode(['error' => 'Erro de configuração de autenticação.']));
+    $firebaseProjectId = 'unobix-oauth-a69cd';
+    $firebaseApiKey = 'AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U';
+    error_log('⚠️ AVISO: Firebase config usando valores padrão (variáveis de ambiente não definidas)');
+} else {
+    error_log('✅ Firebase config carregada das variáveis de ambiente');
 }
 
 define('FIREBASE_PROJECT_ID', $firebaseProjectId);
