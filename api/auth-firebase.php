@@ -104,9 +104,9 @@ try {
         ]
     );
     
-    // Verificar se usuário já existe
+    // Verificar se usuário já existe (usando nomes CORRETOS das colunas)
     $stmt = $pdo->prepare("
-        SELECT user_id, google_uid, email, name, photo_url, balance, created_at 
+        SELECT id, google_uid, email, display_name, photo_url, balance_brl, created_at 
         FROM users 
         WHERE google_uid = ?
     ");
@@ -118,12 +118,12 @@ try {
     
     if ($existingUser) {
         // Usuário existente - atualizar informações se necessário
-        $userId = $existingUser['user_id'];
+        $userId = $existingUser['id'];
         
         $updateStmt = $pdo->prepare("
             UPDATE users 
-            SET email = ?, name = ?, photo_url = ?, last_login = NOW() 
-            WHERE user_id = ?
+            SET email = ?, display_name = ?, photo_url = ?, last_login = NOW(), updated_at = NOW()
+            WHERE id = ?
         ");
         $updateStmt->execute([
             $firebaseUser['email'],
@@ -132,12 +132,12 @@ try {
             $userId
         ]);
     } else {
-        // Novo usuário - criar registro
+        // Novo usuário - criar registro (usando nomes CORRETOS das colunas)
         $insertStmt = $pdo->prepare("
             INSERT INTO users (
-                google_uid, email, name, photo_url, 
-                balance, created_at, last_login
-            ) VALUES (?, ?, ?, ?, 0.00, NOW(), NOW())
+                google_uid, email, display_name, photo_url, 
+                balance_brl, created_at, last_login, updated_at
+            ) VALUES (?, ?, ?, ?, 0.00, NOW(), NOW(), NOW())
         ");
         $insertStmt->execute([
             $firebaseUser['uid'],
@@ -149,12 +149,17 @@ try {
         $userId = $pdo->lastInsertId();
         $isNewUser = true;
         
-        // Criar carteira inicial
-        $walletStmt = $pdo->prepare("
-            INSERT INTO wallets (user_id, balance, created_at) 
-            VALUES (?, 0.00, NOW())
+        // Criar player (em vez de wallet)
+        $playerStmt = $pdo->prepare("
+            INSERT INTO players (google_uid, email, display_name, photo_url, balance_brl, total_played, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 0.00, 0, NOW(), NOW())
         ");
-        $walletStmt->execute([$userId]);
+        $playerStmt->execute([
+            $firebaseUser['uid'],
+            $firebaseUser['email'],
+            $firebaseUser['name'],
+            $firebaseUser['photo_url']
+        ]);
     }
     
     // Gerar session token seguro
