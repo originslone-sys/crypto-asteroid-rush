@@ -328,49 +328,68 @@ crypto-asteroid-rush/
 2. **Ajustar conexões** se necessário
 3. **Testar fluxo completo** login → jogo
 
-## 🔍 INFORMAÇÕES TÉCNICAS (VERIFICADAS)
+## 🔍 INFORMAÇÕES TÉCNICAS (VERIFICADAS E COMPARADAS)
 
-### **BANCO DE DADOS - ESTRUTURA REAL (13 TABELAS):**
+### **BANCO DE DADOS - ANÁLISE COMPARATIVA:**
 
-#### **📊 TABELAS PRINCIPAIS (VERIFICADAS):**
-1. **users** - Jogadores
-   - `google_uid` (UNIQUE), `email`, `display_name`, `photo_url`
-   - `balance_brl`, `balance_usdt`, `total_withdrawn_brl`
-   - `is_banned`, `ban_reason`, `created_at`, `last_login`
+#### **📊 DISCREPÂNCIAS ENCONTRADAS (REAL vs DOCBASE):**
+
+| Aspecto | Banco Real (13 tabelas) | Docbase.md (3 tabelas) | Status |
+|---------|-------------------------|------------------------|--------|
+| **Tabela jogadores** | `users` | `players` | ❌ Nome diferente |
+| **Colunas users** | `balance_usdt`, `wallet_address` | `staked_balance_brl`, `total_earned_brl`, `total_played` | ❌ Colunas diferentes |
+| **game_sessions** | `user_id`, `session_uuid`, `wallet_address`, `earnings_usdt` | `client_score`, `client_earnings`, `captcha_verified` | ❌ Colunas diferentes |
+| **game_events** | `event_type`, `event_data` (JSON), `earnings_usdt` | `asteroid_id`, `reward_type`, `reward_amount_brl` | ❌ Estrutura diferente |
+| **Tabelas extras** | 10 tabelas adicionais (segurança, configuração) | Não mencionadas | ❌ Faltando no docbase |
+
+#### **📊 ESTRUTURA REAL DO BANCO (13 TABELAS VERIFICADAS):**
+
+##### **👥 TABELAS DE USUÁRIO E JOGO:**
+1. **users** - Jogadores (equivale a `players` no docbase)
+   - `google_uid` (UNIQUE), `email`, `display_name`, `photo_url`, `wallet_address`
+   - `balance_brl`, `balance_usdt`, `total_withdrawn_brl`, `total_withdrawn`
+   - `is_banned`, `ban_reason`, `created_at`, `last_login`, `updated_at`
 
 2. **game_sessions** - Sessões de jogo
-   - `session_uuid` (UNIQUE), `google_uid`, `user_id`
+   - `session_uuid` (UNIQUE), `user_id`, `google_uid`, `wallet_address`
    - `is_hard_mode`, `status` (active/completed/flagged/abandoned)
-   - `earnings_brl`, `earnings_usdt`, `asteroids_destroyed`
-   - `mission_number`, `rare_asteroids_target`, `epic_asteroid_target`
-   - `session_token`, `started_at`, `ended_at`
+   - `earnings_brl`, `earnings_usdt`, `asteroids_destroyed`, `game_duration`
+   - `mission_number`, `rare_asteroids_target`, `epic_asteroid_target`, `rare_ids`, `epic_id`
+   - `session_token`, `started_at`, `ended_at`, `ip_address`, `user_agent`
 
 3. **game_events** - Eventos de destruição
    - `session_id`, `event_type`, `event_data` (JSON)
-   - `earnings_brl`, `earnings_usdt`, `google_uid`
+   - `earnings_brl`, `earnings_usdt`, `google_uid`, `wallet_address`
    - `created_at`
 
+##### **💰 TABELAS FINANCEIRAS:**
 4. **withdrawals** - Saques
-   - `user_id`, `amount_brl`, `amount_usdt`
-   - `wallet_address`, `status` (pending/processing/completed/rejected/cancelled)
-   - `transaction_hash`, `admin_notes`
+   - `user_id`, `amount_brl`, `amount_usdt`, `wallet_address`
+   - `status` (pending/processing/completed/rejected/cancelled)
+   - `transaction_hash`, `admin_notes`, `created_at`, `processed_at`, `completed_at`
 
 5. **staking** - Staking
-   - `user_id`, `amount`, `apy` (5.00)
-   - `status` (active/completed/cancelled), `earnings`
-   - `start_date`, `end_date`
+   - `user_id`, `amount`, `apy` (5.00), `earnings`
+   - `status` (active/completed/cancelled)
+   - `start_date`, `end_date`, `created_at`
 
-#### **🛡️ TABELAS DE SEGURANÇA:**
+##### **🛡️ TABELAS DE SEGURANÇA (NÃO NO DOCBASE):**
 6. **admin_logs** - Logs administrativos
-7. **ip_blacklist** - IPs bloqueados
+7. **ip_blacklist** - IPs bloqueados  
 8. **ip_sessions** - Sessões por IP
 9. **rate_limits** - Rate limiting
 10. **suspicious_activity** - Atividades suspeitas
 11. **user_sessions** - Sessões de usuário
 
-#### **⚙️ TABELAS DE CONFIGURAÇÃO:**
+##### **⚙️ TABELAS DE CONFIGURAÇÃO (NÃO NO DOCBASE):**
 12. **game_settings** - Configurações do jogo
-13. **players** - Tabela alternativa de jogadores (legado?)
+13. **players** - Tabela alternativa (legado? duplicada de `users`?)
+
+#### **🎯 CONCLUSÃO DA ANÁLISE:**
+- **Docbase.md está desatualizado** - Só define 3 tabelas de 13
+- **Estrutura real é mais complexa** - Inclui segurança, configuração, múltiplas moedas (BRL + USDT)
+- **Nomenclatura diferente** - `users` vs `players`, colunas com nomes diferentes
+- **Possível evolução:** Sistema migrou de USDT para BRL, mantendo colunas antigas
 
 ### **CONEXÃO BANCO:**
 - **IP:** `34.168.76.127` (Cloud SQL público)
@@ -446,26 +465,33 @@ crypto-asteroid-rush/
 - **v4.0 (2026-01):** Unobix (Google Auth, BRL, Free-to-Play)
 - **v4.1 (2026-01):** Correções autenticação, CAPTCHA matemático
 
-## ✅ CONFIABILIDADE DAS INFORMAÇÕES
+## ✅ CONFIABILIDADE DAS INFORMAÇÕES (ANÁLISE COMPARATIVA)
 
 ### **VERIFICAÇÕES REALIZADAS:**
 1. ✅ **Estrutura de arquivos:** 111 arquivos verificados
 2. ✅ **Banco de dados:** 13 tabelas conectadas e analisadas
-3. ✅ **Conexão Cloud SQL:** Testada e funcional
-4. ✅ **Documentação cruzada:** docbase.md + estrutura real
+3. ✅ **Análise comparativa:** docbase.md vs estrutura real (identificadas discrepâncias)
+4. ✅ **Conexão Cloud SQL:** Testada e funcional
 5. ✅ **Correções aplicadas:** Baseadas em feedback específico
+
+### **DESCOBERTAS IMPORTANTES:**
+- 🔍 **Docbase.md desatualizado:** Só define 3 tabelas de 13
+- 🔍 **Estrutura real mais complexa:** Inclui segurança, configuração, múltiplas moedas
+- 🔍 **Discrepâncias de nomenclatura:** `users` vs `players`, colunas diferentes
+- 🔍 **Possível evolução:** Sistema migrou de USDT para BRL (colunas antigas mantidas)
 
 ### **INFORMAÇÕES CONFIRMADAS:**
 - ✅ Páginas HTML: 13 arquivos (classificação corrigida)
 - ✅ Monetização: Anúncios (pré-jogo loading.html, pós-jogo finalização)
 - ✅ affiliates.html: Painel do cliente (não conteúdo informativo)
-- ✅ Estrutura banco: 13 tabelas com schema completo
+- ✅ Estrutura banco REAL: 13 tabelas com schema completo verificado
+- ✅ Discrepâncias documentadas: docbase.md vs realidade
 
 ### **METODOLOGIA:**
 - **Verificação direta:** Conexão ao banco real
-- **Análise cruzada:** docbase.md vs estrutura real
-- **Correção contínua:** Baseada em feedback específico
-- **Transparência:** Documentação de todas as verificações
+- **Análise comparativa:** docbase.md vs estrutura real (identificação de discrepâncias)
+- **Transparência total:** Documentação de todas as diferenças encontradas
+- **Correção baseada em dados:** Preferência por estrutura verificada vs documentação desatualizada
 
 ---
 *Documentação verificada e corrigida com base em dados reais*
