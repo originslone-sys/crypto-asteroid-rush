@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Debug - Auth Google</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #0f0;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #000;
+            border: 1px solid #0f0;
+            border-radius: 5px;
+        }
+        .error {
+            color: #f00;
+        }
+        .success {
+            color: #0f0;
+        }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: monospace;
+            font-weight: bold;
+        }
+        pre {
+            background: #222;
+            padding: 10px;
+            overflow-x: auto;
+            border-left: 3px solid #0f0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug - Auth Google Endpoint</h1>
+    
+    <div class="section">
+        <h2>Teste 1: Requisição Direta</h2>
+        <button onclick="testDirect()">Testar Endpoint</button>
+        <div id="result1"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Teste 2: Verificar Headers</h2>
+        <button onclick="testHeaders()">Verificar Headers</button>
+        <div id="result2"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Teste 3: Response Raw</h2>
+        <button onclick="testRaw()">Ver Response Raw</button>
+        <div id="result3"></div>
+    </div>
+
+    <script>
+        async function testDirect() {
+            const result = document.getElementById('result1');
+            result.innerHTML = '<p>⏳ Testando...</p>';
+            
+            try {
+                const response = await fetch('/api/auth-google.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'login',
+                        google_uid: 'TEST_UID_12345678901234567890',
+                        email: 'test@test.com',
+                        display_name: 'Test User'
+                    })
+                });
+                
+                const contentType = response.headers.get('content-type');
+                
+                result.innerHTML = `
+                    <p><strong>Status:</strong> ${response.status} ${response.statusText}</p>
+                    <p><strong>Content-Type:</strong> ${contentType}</p>
+                `;
+                
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    result.innerHTML += `<p class="success">✅ JSON Válido:</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    const text = await response.text();
+                    result.innerHTML += `<p class="error">❌ Não é JSON:</p><pre>${escapeHtml(text.substring(0, 1000))}</pre>`;
+                }
+                
+            } catch (error) {
+                result.innerHTML = `<p class="error">❌ Erro: ${error.message}</p><pre>${error.stack}</pre>`;
+            }
+        }
+        
+        async function testHeaders() {
+            const result = document.getElementById('result2');
+            result.innerHTML = '<p>⏳ Verificando headers...</p>';
+            
+            try {
+                const response = await fetch('/api/auth-google.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'login',
+                        google_uid: 'TEST_123'
+                    })
+                });
+                
+                let headersHtml = '<p><strong>Response Headers:</strong></p><pre>';
+                for (let [key, value] of response.headers.entries()) {
+                    headersHtml += `${key}: ${value}\n`;
+                }
+                headersHtml += '</pre>';
+                
+                result.innerHTML = headersHtml;
+                
+            } catch (error) {
+                result.innerHTML = `<p class="error">❌ Erro: ${error.message}</p>`;
+            }
+        }
+        
+        async function testRaw() {
+            const result = document.getElementById('result3');
+            result.innerHTML = '<p>⏳ Buscando resposta raw...</p>';
+            
+            try {
+                const response = await fetch('/api/auth-google.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'login',
+                        google_uid: 'TEST_UID_12345678901234567890',
+                        email: 'test@test.com'
+                    })
+                });
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const bytes = new Uint8Array(arrayBuffer);
+                const text = new TextDecoder().decode(bytes);
+                
+                result.innerHTML = `
+                    <p><strong>Status:</strong> ${response.status}</p>
+                    <p><strong>Tamanho:</strong> ${bytes.length} bytes</p>
+                    <p><strong>Primeiros 500 bytes (hex):</strong></p>
+                    <pre>${Array.from(bytes.slice(0, 500)).map(b => b.toString(16).padStart(2, '0')).join(' ')}</pre>
+                    <p><strong>Conteúdo decodificado:</strong></p>
+                    <pre>${escapeHtml(text.substring(0, 2000))}</pre>
+                `;
+                
+            } catch (error) {
+                result.innerHTML = `<p class="error">❌ Erro: ${error.message}</p>`;
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
