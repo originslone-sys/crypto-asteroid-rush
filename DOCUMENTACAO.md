@@ -78,11 +78,11 @@ crypto-asteroid-rush/
 - `rules.html`           # Regras
 - `faq.html`             # FAQ
 - `economy.html`         # Economia
+- `affiliates.html`      # Programa de afiliados
 
 ### **📋 LEGAL:**
-- `terms.html`           # Termos
-- `privacy.html`         # Privacidade
-- `affiliates.html`      # Afiliados
+- `terms.html`           # Termos de uso
+- `privacy.html`         # Política de privacidade
 
 ### **🎮 GAMEPLAY:**
 - `gameplay.html`        # Demonstração gameplay
@@ -116,6 +116,7 @@ crypto-asteroid-rush/
 ### **📊 CONFIGURAÇÃO:**
 - `game-config.js`       # Configuração do jogo
 - `game-start.js`        # Início do jogo
+- `main.js`              # Script principal global
 
 ### **📢 ANÚNCIOS:**
 - `ads-manager.js`       # Gerenciador de anúncios
