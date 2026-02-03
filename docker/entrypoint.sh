@@ -28,16 +28,35 @@ if [ -d "api" ]; then
         fi
     done
     
-    # Verificar estrutura
+    # Verificar estrutura com mais detalhes
     echo ""
     echo "📁 Estrutura após correção:"
     echo "Raiz (/app):"
-    ls *.php 2>/dev/null | head -10 || echo "  (nenhum arquivo PHP na raiz)"
+    ls -la *.php 2>/dev/null | head -15 || echo "  (nenhum arquivo PHP na raiz)"
+    
+    echo ""
+    echo "📁 Conteúdo de api/:"
+    ls -la api/*.php 2>/dev/null | head -10 || echo "  (nenhum arquivo PHP em api/)"
+    
+    # Log adicional para debugging
+    echo ""
+    echo "🔍 Debug info:"
+    echo "  PWD: $(pwd)"
+    echo "  Whoami: $(whoami)"
+    echo "  API dir exists: $([ -d "api" ] && echo "YES" || echo "NO")"
+    echo "  config.php in api/: $([ -f "api/config.php" ] && echo "YES" || echo "NO")"
+    echo "  config.php in root: $([ -f "config.php" ] && echo "YES" || echo "NO")"
     
 else
     echo "❌ ATENÇÃO: api/ directory NÃO encontrada em /app/"
     echo "📁 Conteúdo de /app/:"
-    ls -la 2>/dev/null | head -20 || echo "  (não foi possível listar)"
+    ls -la 2>/dev/null | head -30 || echo "  (não foi possível listar)"
+    echo ""
+    echo "🔍 Debug info:"
+    echo "  PWD: $(pwd)"
+    echo "  Whoami: $(whoami)"
+    echo "  Listing /app:"
+    ls -la /app 2>/dev/null | head -20 || echo "  (cannot list /app)"
 fi
 
 # ============================================
