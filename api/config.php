@@ -1,217 +1,67 @@
 <?php
 // ============================================
 // UNOBIX - Configuração Principal
-// Arquivo: api/config.php
-// v2.0 - Google Auth + BRL + hCaptcha
+// api/config.php v3.0
 // ============================================
 
-// ============================================
-// AJUSTES TÉCNICOS (Railway) - evitar HTML em endpoints JSON
-// ============================================
 ini_set('display_errors', '0');
 ini_set('html_errors', '0');
 error_reporting(E_ALL);
 
-// Log inicial para debug
-error_log('🚀 config.php carregado - Ambiente: ' . (getenv('APP_ENV') ?: 'desenvolvimento'));
-
 // ============================================
-// CONFIGURAÇÕES DE BANCO DE DADOS (Railway)
+// BANCO DE DADOS
 // ============================================
-// Prioridade: MYSQL_PUBLIC_URL > variáveis individuais > ERRO se faltar
 $mysqlPublicUrl = getenv('MYSQL_PUBLIC_URL');
 if ($mysqlPublicUrl && preg_match('/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/', $mysqlPublicUrl, $matches)) {
-    // Usar URL pública: mysql://user:pass@host:port/database
-    define('DB_HOST', $matches[3]);  // host
-    define('DB_PORT', $matches[4]);  // port
-    define('DB_USER', $matches[1]);  // user
-    define('DB_PASS', $matches[2]);  // password
-    define('DB_NAME', $matches[5]);  // database
+    define('DB_HOST', $matches[3]);
+    define('DB_PORT', $matches[4]);
+    define('DB_USER', $matches[1]);
+    define('DB_PASS', $matches[2]);
+    define('DB_NAME', $matches[5]);
 } else {
-    // Usar variáveis individuais - NÃO HÁ FALLBACK HARDCODED
-    $dbHost = getenv('MYSQLHOST');
-    $dbPort = getenv('MYSQLPORT');
-    $dbName = getenv('MYSQLDATABASE');
-    $dbUser = getenv('MYSQLUSER');
-    $dbPass = getenv('MYSQLPASSWORD');
-
-    // Cloud Run + Cloud SQL: SEMPRE usar TCP/IP (IP público) porque IP privado está desativado
-    // IGNORAR CLOUDSQL_INSTANCE - Cloud SQL configurado apenas com IP público
-    if (!$dbHost) {
-        // Fallback para IP público do Cloud SQL
-        $dbHost = '34.168.76.127';
-        error_log('🔧 Cloud Run: Usando TCP/IP (IP público) para Cloud SQL: ' . $dbHost);
-    }
-    
-    if (!$dbName) {
-        $dbName = 'unobix_db';
-        error_log('⚠️ AVISO: DB_NAME não definido, usando fallback');
-    }
-    
-    if (!$dbUser) {
-        $dbUser = 'unobix_user';
-        error_log('⚠️ AVISO: DB_USER não definido, usando fallback');
-    }
-    
-    // Usar valores padrão se não definidos
-    if (!$dbPort) $dbPort = '3306';
-    if (!$dbPass) {
-        $dbPass = 'YyZD3H)dndSo*A/N';
-        error_log('⚠️ AVISO: DB_PASS não definido, usando fallback');
-    }
-    
-    define('DB_HOST', $dbHost);
-    define('DB_PORT', $dbPort);
-    define('DB_NAME', $dbName);
-    define('DB_USER', $dbUser);
-    define('DB_PASS', $dbPass);
+    define('DB_HOST', getenv('MYSQLHOST') ?: getenv('DB_HOST') ?: '34.168.76.127');
+    define('DB_PORT', getenv('MYSQLPORT') ?: getenv('DB_PORT') ?: '3306');
+    define('DB_NAME', getenv('MYSQLDATABASE') ?: getenv('DB_NAME') ?: 'unobix_db');
+    define('DB_USER', getenv('MYSQLUSER') ?: getenv('DB_USER') ?: 'unobix_user');
+    define('DB_PASS', getenv('MYSQLPASSWORD') ?: getenv('DB_PASS') ?: 'YyZD3H)dndSo*A/N');
 }
 
-// ============================================
-// CONFIGURAÇÕES DE SEGURANÇA
-// ============================================
-$gameSecretKey = getenv('GAME_SECRET_KEY') ?: 'unobix_production_secret_key_2024_change_me';
-$adminPassword = getenv('ADMIN_PASSWORD') ?: 'Admin@Unobix2024!';
+// FIREBASE
+define('FIREBASE_PROJECT_ID', getenv('FIREBASE_PROJECT_ID') ?: 'unobix-oauth-a69cd');
+define('FIREBASE_API_KEY', getenv('FIREBASE_API_KEY') ?: 'AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U');
 
-// Log para debug (não em produção)
-if (getenv('APP_ENV') !== 'production') {
-    error_log('🔐 Configurações de segurança carregadas:');
-    error_log('   GAME_SECRET_KEY: ' . substr($gameSecretKey, 0, 10) . '...');
-    error_log('   ADMIN_PASSWORD: ' . substr($adminPassword, 0, 3) . '...');
-}
+// CAPTCHA
+$hcaptchaSecret = getenv('HCAPTCHA_SECRET_KEY');
+define('CAPTCHA_ENABLED', !empty($hcaptchaSecret));
+define('HCAPTCHA_SECRET_KEY', $hcaptchaSecret ?: '');
+define('CAPTCHA_REQUIRED_ON_VICTORY', false);
 
-define('GAME_SECRET_KEY', $gameSecretKey);
-define('ADMIN_PASSWORD', $adminPassword);
-
-// ============================================
-// FIREBASE / GOOGLE AUTH (Cloud Run Optimized - 2025)
-// ============================================
-$firebaseProjectId = getenv('FIREBASE_PROJECT_ID');
-$firebaseApiKey = getenv('FIREBASE_API_KEY');
-
-// Cloud Run best practice: Use defaults but don't crash
-if (!$firebaseProjectId) {
-    $firebaseProjectId = 'unobix-oauth-a69cd';
-    error_log('⚠️ CLOUD RUN: FIREBASE_PROJECT_ID usando valor padrão (variável não definida)');
-}
-
-if (!$firebaseApiKey) {
-    $firebaseApiKey = 'AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U';
-    error_log('⚠️ CLOUD RUN: FIREBASE_API_KEY usando valor padrão (variável não definida)');
-}
-
-// Log configuration status (helpful for Cloud Run debugging)
-if (getenv('APP_ENV') === 'production') {
-    error_log('✅ CLOUD RUN: Firebase config loaded - Project: ' . substr($firebaseProjectId, 0, 10) . '...');
-}
-
-define('FIREBASE_PROJECT_ID', $firebaseProjectId);
-define('FIREBASE_API_KEY', $firebaseApiKey);
-
-// Firebase verification endpoint (2025 best practice)
-define('FIREBASE_VERIFY_URL', 'https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyIdToken');
-
-// ============================================
-// hCAPTCHA
-// ============================================
-$hcaptchaSiteKey = getenv('HCAPTCHA_SITE_KEY');
-$hcaptchaSecretKey = getenv('HCAPTCHA_SECRET_KEY');
-
-if (!$hcaptchaSecretKey) {
-    error_log('⚠️ AVISO: Chave secreta do hCaptcha não definida. CAPTCHA desabilitado.');
-    define('CAPTCHA_ENABLED', false);
-} else {
-    define('CAPTCHA_ENABLED', true);
-}
-
-define('HCAPTCHA_SITE_KEY', $hcaptchaSiteKey ?: '');
-define('HCAPTCHA_SECRET_KEY', $hcaptchaSecretKey ?: '');
-define('CAPTCHA_REQUIRED_ON_VICTORY', true);
-define('CAPTCHA_REQUIRED_ON_GAMEOVER', false);
-
-// ============================================
-// CONFIGURAÇÕES DO JOGO
-// ============================================
-define('GAME_DURATION', 180);           // 3 minutos
-define('GAME_TOLERANCE', 300);          // 5 minutos de tolerância
+// JOGO
+define('GAME_DURATION', 180);
+define('GAME_TOLERANCE', 300);
 define('INITIAL_LIVES', 6);
 define('MAX_MISSIONS_PER_HOUR', 5);
-define('MAX_CONCURRENT_MISSIONS', 1);
-define('COOLDOWN_MINUTES', 3);
-
-// ============================================
-// HARD MODE (40% das missões) - SECRETO!
-// ============================================
-define('HARD_MODE_PERCENTAGE', 40);
-define('HARD_MODE_SPEED_MULTIPLIER', 1.4);
-define('HARD_MODE_SPAWN_MULTIPLIER', 0.7);
-
-// ============================================
-// VALORES DE RECOMPENSA (BRL) - SECRETO!
-// ============================================
-define('REWARD_NONE', 0);
-define('REWARD_COMMON', 0);             // R$ 0,00
-define('REWARD_RARE', 0.001);           // R$ 0,0001
-define('REWARD_EPIC', 0.005);           // R$ 0,0005
-define('REWARD_LEGENDARY', 0.02);       // R$ 0,002
-
-// Mapeamento de recompensas (usado internamente)
-define('ASTEROID_REWARDS_BRL', [
-    'none' => 0,
-    'common' => 0,
-    'rare' => 0.0001,
-    'epic' => 0.0005,
-    'legendary' => 0.002
-]);
-
-// ============================================
-// SPAWN RATES - SECRETO! (nunca expor)
-// ============================================
-define('SPAWN_RATE_COMMON', 0.95);      // 95%
-define('SPAWN_RATE_RARE', 0.03);        // 3%
-define('SPAWN_RATE_EPIC', 0.015);       // 1.5%
-define('SPAWN_RATE_LEGENDARY', 0.005);  // 0.5%
-
-// ============================================
-// STAKING (5% APY)
-// ============================================
-define('STAKE_APY', 0.05);              // 5% ao ano
-define('MIN_STAKE_BRL', 0.01);
-define('MAX_STAKE_BRL', 10000.00);
-
-// ============================================
-// SAQUES
-// ============================================
-define('MIN_WITHDRAW_BRL', 1.00);
-define('MAX_WITHDRAW_BRL', 1000.00);
-define('WEEKLY_WITHDRAW_LIMIT', 1);
-define('PROCESSING_START_DAY', 20);
-define('PROCESSING_END_DAY', 25);
-
-// Métodos de saque disponíveis
-define('WITHDRAW_METHODS', ['pix', 'paypal', 'usdt_bep20']);
-
-// ============================================
-// SEGURANÇA / ANTI-FRAUDE
-// ============================================
-define('EARNINGS_ALERT_BRL', 0.10);     // Alerta se > R$ 0.30 por missão
-define('EARNINGS_BLOCK_BRL', 0.20);     // Bloquear se > R$ 1.00 por missão
-define('EARNINGS_SUSPECT_BRL', 0.15);   // Suspeito se > R$ 0.50 por missão
-define('AUTO_BAN_AFTER_ALERTS', 5);
-
-// Rate limit de eventos por segundo
 define('MAX_EVENTS_PER_SECOND', 10);
+define('HARD_MODE_PERCENTAGE', 40);
+
+// RECOMPENSAS BRL
+define('REWARD_COMMON', 0);
+define('REWARD_RARE', 0.001);
+define('REWARD_EPIC', 0.005);
+define('REWARD_LEGENDARY', 0.02);
+define('ASTEROID_REWARDS_BRL', ['none'=>0,'common'=>0,'rare'=>0.001,'epic'=>0.005,'legendary'=>0.02]);
+
+// SEGURANÇA
+define('EARNINGS_ALERT_BRL', 0.10);
+define('EARNINGS_SUSPECT_BRL', 0.15);
+define('EARNINGS_BLOCK_BRL', 0.20);
 
 // ============================================
-// FUNÇÕES AUXILIARES
+// FUNÇÕES
 // ============================================
 
-/**
- * Obtém conexão com o banco de dados
- */
 function getDatabaseConnection() {
     static $pdo = null;
-
     if ($pdo === null) {
         try {
             $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
@@ -221,354 +71,87 @@ function getDatabaseConnection() {
                 PDO::ATTR_EMULATE_PREPARES => false
             ]);
         } catch (PDOException $e) {
-            error_log("Erro de conexão DB: " . $e->getMessage());
+            error_log("❌ DB Error: " . $e->getMessage());
             return null;
         }
     }
-
     return $pdo;
 }
 
-/**
- * Valida wallet Ethereum (para compatibilidade)
- */
-function validateWallet($wallet) {
-    return preg_match('/^0x[a-fA-F0-9]{40}$/', $wallet);
+function getDBConnection() { return getDatabaseConnection(); }
+
+function validateGoogleUid($uid) {
+    if (empty($uid) || !is_string($uid)) return false;
+    $uid = trim($uid);
+    if (strpos($uid, '...') !== false) return strlen($uid) >= 10;
+    return strlen($uid) >= 21 && strlen($uid) <= 128 && preg_match('/^[a-zA-Z0-9_-]+$/', $uid);
 }
 
-/**
- * Valida Google UID
- * Firebase/Google UIDs podem conter letras, números, _ e -
- * Tamanho típico: 10–128 caracteres (relaxado para testes)
- */
-if (!function_exists('validateGoogleUid')) {
-    function validateGoogleUid($uid) {
-        if (empty($uid)) return false;
-        
-        // Aceitar UID com '...' para compatibilidade com frontend
-        if (strpos($uid, '...') !== false) {
-            error_log("⚠️ UID com '...' aceito para compatibilidade: '$uid'");
-            return true;
-        }
-        
-        // Relaxado para permitir testes: 10-128 caracteres
-        return preg_match('/^[a-zA-Z0-9_-]{10,128}$/', $uid);
-    }
-}
-
-/**
- * Alias para compatibilidade
- * OBS: PHP trata nomes de função como case-insensitive,
- * então ESTE alias só pode existir se a função ainda não existir.
- */
-if (!function_exists('validateGoogleUID')) {
-    function validateGoogleUID($uid) {
-        return validateGoogleUid($uid);
-    }
-}
-
-/**
- * Lê input da request (JSON + POST + GET) de forma compatível
- * (necessário para endpoints que chamam getRequestInput())
- */
-if (!function_exists('getRequestInput')) {
-    function getRequestInput() {
-        $input = [];
-
-        // JSON body
-        $raw = file_get_contents('php://input');
-        if ($raw !== false && $raw !== '') {
-            $decoded = json_decode($raw, true);
-            if (is_array($decoded)) {
-                $input = $decoded;
-            }
-        }
-
-        // Merge POST e GET (sem sobrescrever JSON quando já existe)
-        if (!empty($_POST) && is_array($_POST)) {
-            foreach ($_POST as $k => $v) {
-                if (!array_key_exists($k, $input)) $input[$k] = $v;
-            }
-        }
-        if (!empty($_GET) && is_array($_GET)) {
-            foreach ($_GET as $k => $v) {
-                if (!array_key_exists($k, $input)) $input[$k] = $v;
-            }
-        }
-
-        return $input;
-    }
-}
-
-/**
- * Obtém identificador do usuário (google_uid ou wallet)
- */
-function getUserIdentifier($input) {
-    $googleUid = isset($input['google_uid']) ? trim($input['google_uid']) : '';
-    $wallet    = isset($input['wallet']) ? trim(strtolower($input['wallet'])) : '';
-
-    if ($googleUid !== '' && validateGoogleUid($googleUid)) {
-        return [
-            'type'  => 'google_uid',
-            'value' => $googleUid
-        ];
-    }
-
-    if ($wallet !== '' && validateWallet($wallet)) {
-        return [
-            'type'  => 'wallet',
-            'value' => $wallet
-        ];
-    }
-
-    return null;
-}
-
-/**
- * Gera token de sessão seguro
- */
-function generateSessionToken($identifier, $sessionId) {
-    $data = $identifier . '|' . $sessionId . '|' . time() . '|' . GAME_SECRET_KEY;
-    return hash('sha256', $data);
-}
-
-/**
- * Obtém IP real do cliente
- */
 function getClientIP() {
-    $headers = [
-        'HTTP_CF_CONNECTING_IP',
-        'HTTP_X_FORWARDED_FOR',
-        'HTTP_X_REAL_IP',
-        'REMOTE_ADDR'
-    ];
-
-    foreach ($headers as $header) {
-        if (!empty($_SERVER[$header])) {
-            $ip = $_SERVER[$header];
-            if (strpos($ip, ',') !== false) {
-                $ip = trim(explode(',', $ip)[0]);
-            }
-            if (filter_var($ip, FILTER_VALIDATE_IP)) {
-                return $ip;
-            }
+    foreach (['HTTP_CF_CONNECTING_IP','HTTP_X_FORWARDED_FOR','HTTP_X_REAL_IP','REMOTE_ADDR'] as $h) {
+        if (!empty($_SERVER[$h])) {
+            $ip = $_SERVER[$h];
+            if (strpos($ip, ',') !== false) $ip = trim(explode(',', $ip)[0]);
+            if (filter_var($ip, FILTER_VALIDATE_IP)) return $ip;
         }
     }
-
     return '0.0.0.0';
 }
 
-/**
- * Log seguro para eventos do jogo
- */
-function secureLog($message, $file = 'game_security.log') {
-    $logDir = __DIR__ . '/logs';
-    if (!is_dir($logDir)) {
-        @mkdir($logDir, 0755, true);
-    }
-
-    $logEntry = date('Y-m-d H:i:s') . ' | ' . $message . "\n";
-    @file_put_contents($logDir . '/' . $file, $logEntry, FILE_APPEND | LOCK_EX);
+function secureLog($msg) {
+    error_log("[" . date('Y-m-d H:i:s') . "] " . getClientIP() . " | $msg");
 }
 
-/**
- * Busca configuração do banco (system_config)
- */
-function getSystemConfig($key, $default = null) {
-    $pdo = getDatabaseConnection();
-    if (!$pdo) return $default;
-
-    try {
-        $stmt = $pdo->prepare("SELECT config_value, is_public FROM system_config WHERE config_key = ?");
-        $stmt->execute([$key]);
-        $result = $stmt->fetch();
-
-        if ($result) {
-            return json_decode($result['config_value'], true);
-        }
-    } catch (Exception $e) {
-        error_log("Erro ao buscar config: " . $e->getMessage());
-    }
-
-    return $default;
+function getRewardByType($type) {
+    $r = ASTEROID_REWARDS_BRL;
+    return $r[strtolower($type)] ?? 0;
 }
 
-/**
- * Determina se a missão será hard mode (40%)
- */
 function isHardModeMission() {
     return mt_rand(1, 100) <= HARD_MODE_PERCENTAGE;
 }
 
-/**
- * Calcula recompensa baseada no tipo (BRL)
- */
-function getRewardByType($type) {
-    $rewards = ASTEROID_REWARDS_BRL;
-    return isset($rewards[$type]) ? $rewards[$type] : 0;
-}
-
-/**
- * Verifica CAPTCHA via hCaptcha
- */
 function verifyCaptcha($token, $ip = null) {
-    if (!CAPTCHA_ENABLED || empty(HCAPTCHA_SECRET_KEY)) {
-        return ['success' => true, 'message' => 'CAPTCHA desabilitado'];
-    }
-
-    if (empty($token)) {
-        return ['success' => false, 'message' => 'Token CAPTCHA ausente'];
-    }
-
-    $data = [
-        'secret' => HCAPTCHA_SECRET_KEY,
-        'response' => $token,
-        'remoteip' => $ip ?: getClientIP()
-    ];
-
+    if (!CAPTCHA_ENABLED) return ['success' => true];
+    if (empty($token)) return ['success' => false, 'message' => 'Token ausente'];
+    
     $ch = curl_init('https://hcaptcha.com/siteverify');
     curl_setopt_array($ch, [
         CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => http_build_query($data),
+        CURLOPT_POSTFIELDS => http_build_query(['secret'=>HCAPTCHA_SECRET_KEY,'response'=>$token,'remoteip'=>$ip?:getClientIP()]),
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 10
     ]);
-
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $resp = curl_exec($ch);
     curl_close($ch);
-
-    if ($httpCode !== 200 || !$response) {
-        return ['success' => false, 'message' => 'Erro ao verificar CAPTCHA'];
-    }
-
-    $result = json_decode($response, true);
-
-    return [
-        'success' => isset($result['success']) && $result['success'] === true,
-        'message' => isset($result['error-codes']) ? implode(', ', $result['error-codes']) : 'OK'
-    ];
+    
+    $result = $resp ? json_decode($resp, true) : null;
+    return ['success' => !empty($result['success'])];
 }
 
-/**
- * Busca usuário por google_uid (tabela users - wallet não mais suportado)
- */
 function findPlayer($pdo, $identifier) {
-    $userInfo = getUserIdentifier($identifier);
-    if (!$userInfo) return null;
-
-    // Apenas Google UID é suportado agora (wallet foi removido)
-    if ($userInfo['type'] === 'google_uid') {
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE google_uid = ? LIMIT 1");
-        $stmt->execute([$userInfo['value']]);
-        return $stmt->fetch();
+    $uid = is_array($identifier) ? ($identifier['google_uid'] ?? $identifier['googleUid'] ?? '') : $identifier;
+    $uid = trim($uid);
+    if (empty($uid)) return null;
+    
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE google_uid = ? LIMIT 1");
+    $stmt->execute([$uid]);
+    $user = $stmt->fetch();
+    
+    if (!$user && strpos($uid, '...') !== false) {
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE google_uid LIKE ? LIMIT 1");
+        $stmt->execute([str_replace('...', '%', $uid)]);
+        $user = $stmt->fetch();
     }
-
-    // Wallet não é mais suportado na nova estrutura
-    error_log("WARNING: Busca por wallet não suportada na tabela users");
-    return null;
+    
+    return $user;
 }
 
-/**
- * Alias de compatibilidade: alguns endpoints chamam getPlayerByIdentifier()
- */
-if (!function_exists('getPlayerByIdentifier')) {
-    function getPlayerByIdentifier($pdo, $identifier) {
-        return findPlayer($pdo, $identifier);
-    }
-}
-
-/**
- * Cria ou atualiza usuário na tabela users (ESTRUTURA ATUAL - SEM photo_url/wallet_address)
- */
-function getOrCreatePlayer($pdo, $input) {
-    error_log("DEBUG getOrCreatePlayer: " . json_encode($input));
-    $googleUid = isset($input['google_uid']) ? trim($input['google_uid']) : '';
-    $email = isset($input['email']) ? trim($input['email']) : '';
-    $displayName = isset($input['display_name']) ? trim($input['display_name']) : '';
-    // photo_url removido conforme instrução - não será mais utilizado
-
-    // Google UID tem prioridade
-    if (!empty($googleUid) && validateGoogleUid($googleUid)) {
-        error_log("DEBUG: Processando Google UID: $googleUid");
-        
-        try {
-            // Buscar por Google UID na tabela USERS (não players)
-            $stmt = $pdo->prepare("SELECT * FROM users WHERE google_uid = ? LIMIT 1");
-            $stmt->execute([$googleUid]);
-            $user = $stmt->fetch();
-
-            if ($user) {
-                // Atualizar informações (sem photo_url)
-                $updateStmt = $pdo->prepare("
-                    UPDATE users SET 
-                        email = COALESCE(NULLIF(?, ''), email),
-                        display_name = COALESCE(NULLIF(?, ''), display_name),
-                        updated_at = NOW(),
-                        last_login = NOW()
-                    WHERE id = ?
-                ");
-                $updateStmt->execute([$email, $displayName, $user['id']]);
-                
-                return findPlayer($pdo, $input); // findPlayer também será atualizado
-            }
-
-            // Criar novo usuário na tabela USERS
-            // NOTA: balance_brl inicia em 0, total_played não existe mais em users
-            $stmt = $pdo->prepare("
-                INSERT INTO users (
-                    google_uid, 
-                    email, 
-                    display_name,
-                    balance_brl,
-                    created_at,
-                    updated_at,
-                    last_login
-                ) VALUES (?, ?, ?, 0, NOW(), NOW(), NOW())
-            ");
-            
-            $stmt->execute([$googleUid, $email, $displayName]);
-            return findPlayer($pdo, $input);
-            
-        } catch (PDOException $e) {
-            error_log("ERROR getOrCreatePlayer: " . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    error_log("ERROR getOrCreatePlayer: Nenhum identificador válido fornecido");
-    return null;
-}
-
-// ============================================
-// HEADERS PADRÃO (CORS)
-// ============================================
 function setCorsHeaders() {
     header('Content-Type: application/json; charset=utf-8');
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Authorization');
-
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-        http_response_code(204);
-        exit(0);
-    }
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 }
-
-// ============================================
-// ALIASES / COMPATIBILIDADE (nomes antigos / variações)
-// ============================================
-
-// Alguns endpoints chamam setCORSHeaders() (nome legado). Mantemos compatibilidade.
-if (!function_exists('setCORSHeaders')) {
-    function setCORSHeaders() {
-        return setCorsHeaders();
-    }
-}
-
-// Compatibilidade extra para variações antigas (se existir em algum arquivo legado)
-if (!function_exists('setCORSHeader')) {
-    function setCORSHeader() {
-        return setCorsHeaders();
-    }
-}
+function setCORSHeaders() { setCorsHeaders(); }
