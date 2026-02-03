@@ -1,15 +1,18 @@
 <?php
 /**
- * Debug das APIs - Acessível via web
- * URL: /api/debug.php
+ * Debug das APIs - Acessível via web com autenticação
+ * URL: /api/debug.php?token=DEBUG_TOKEN
  */
 
 require_once __DIR__ . "/config-cloudrun.php";
 
-// Permitir acesso apenas em desenvolvimento
-if (!defined('ENVIRONMENT') || ENVIRONMENT !== 'development') {
+// Autenticação simples por token
+$validToken = 'DEBUG_' . date('Ymd');
+$providedToken = $_GET['token'] ?? '';
+
+if ($providedToken !== $validToken) {
     http_response_code(403);
-    echo "Debug desativado em produção";
+    echo "Debug requer token. Token de hoje: " . $validToken;
     exit;
 }
 
