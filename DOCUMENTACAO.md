@@ -1,5 +1,18 @@
-# 📚 DOCUMENTAÇÃO ÚNICA DO PROJETO
-*Baseada em revisão completa - Última atualização: 2026-02-03*
+# 📚 DOCUMENTAÇÃO ÚNICA DO PROJETO - UNOBIX
+*Baseada em revisão completa + docbase.md - Última atualização: 2026-02-03*
+
+## 🎮 VISÃO GERAL DO PROJETO
+
+### **NOME E EVOLUÇÃO:**
+- **Nome atual:** Unobix (v4.0+)
+- **Nome anterior:** Crypto Asteroid Rush (v1.0)
+- **Evolução:** MetaMask → Google OAuth | USDT → BRL | Pay-to-Play → Free-to-Play
+
+### **MODELO DE NEGÓCIO:**
+- **Tipo:** Free-to-Play com recompensas reais em BRL
+- **Monetização:** Anúncios (pré-jogo, banners, intersticiais)
+- **House Edge:** 40% das missões são "hard mode" (secreto)
+- **Limite:** 5 missões por hora por IP
 
 ## 📊 ESTATÍSTICAS ATUAIS (VERIFICADAS)
 - **Total arquivos:** 111 (após limpeza)
@@ -114,12 +127,31 @@ crypto-asteroid-rush/
 - `captcha-manager.js`   # Gerenciador CAPTCHA
 
 ### **📊 CONFIGURAÇÃO:**
-- `game-config.js`       # Configuração do jogo
-- `game-start.js`        # Início do jogo
-- `main.js`              # Script principal global
+- `game-config.js`       # Configurações (CONFIG, gameState, missionStats)
+- `game-start.js`        # Lógica de início de missão
+- `main.js`              # Script principal global (inicialização, event listeners)
 
 ### **📢 ANÚNCIOS:**
-- `ads-manager.js`       # Gerenciador de anúncios
+- `ads-manager.js`       # Gerenciador de anúncios (pré-jogo, banners, etc.)
+
+### **🎯 ORDEM DE CARREGAMENTO (game.html):**
+```
+1. firebase-config.js    # Config Firebase
+2. auth-manager.js       # Autenticação
+3. game-config.js        # Configurações
+4. game-ui.js            # UI
+5. game-engine.js        # Motor do jogo
+6. game-renderer.js      # Renderização
+7. ship-renderer.js      # Render de naves
+8. game-ships.js         # Seleção de naves
+9. game-session-manager.js # Sessões
+10. game-start.js        # Início do jogo
+11. game-audio.js        # Áudio
+12. game-anticheat.js    # Anti-cheat
+13. ads-manager.js       # Anúncios
+14. captcha-manager.js   # CAPTCHA
+15. game-main.js         # Principal (game loop)
+```
 
 ## 🎨 ARQUIVOS CSS (4 ARQUIVOS)
 - `main.css`             # Estilos gerais
@@ -172,26 +204,58 @@ crypto-asteroid-rush/
 - **IMPACTO:** Login com Google pode não funcionar
 - **TESTE:** Testar endpoint por endpoint no Cloud Run
 
-## 🔗 FLUXOS PRINCIPAIS
+## 🔗 FLUXOS PRINCIPAIS (ATUALIZADO)
 
-### **LOGIN COM GOOGLE:**
+### **FLUXO COMPLETO DO JOGO:**
 ```
-1. Usuário → dashboard.html
-2. Clique "Entrar com Google" → auth-manager.js
-3. Firebase SDK → Popup Google → Token
-4. Frontend → auth-firebase.php (POST com token)
-5. Backend verifica token → Cria/atualiza user
-6. Retorna session_token → Frontend
-7. Frontend → game-start.php → Inicia sessão
+1. LOGIN:
+   - Usuário → dashboard.html
+   - Clique "Entrar com Google" → auth-manager.js
+   - Firebase SDK → Popup Google → Token
+   - Frontend → auth-google.php (POST google_uid, email, display_name)
+   - Backend cria/atualiza user → Retorna session_token
+
+2. INÍCIO DA MISSÃO:
+   - Menu inicial → Seleção de nave (5 designs visuais)
+   - Clique "Iniciar Missão" → Anúncio pré-jogo (5 segundos)
+   - Frontend → game-start.php (POST google_uid)
+   - Backend: Valida limites, determina hard mode (40%), cria sessão
+   - Retorna: session_id, mission_number, is_hard_mode, game_duration (180s)
+
+3. GAME LOOP (180 SEGUNDOS):
+   - A cada frame: Input, física, colisões, renderização
+   - Asteroide destruído → game-event.php (POST session_id, asteroid_id, reward)
+   - Colisão nave-asteroide → Perde vida → Se vidas=0 → Game Over
+   - Tempo esgotado → Vitória
+
+4. FIM DA MISSÃO:
+   - Frontend → game-end.php (POST session_id, earnings, captcha)
+   - Backend valida CAPTCHA, credita earnings, atualiza balance
+   - Retorna earnings_brl, new_balance, stats
 ```
 
-### **INÍCIO DO JOGO:**
-```
-1. Frontend → game-start.php (POST google_uid)
-2. Backend busca user → Cria game_session
-3. Retorna session_id, player_id, mission_number
-4. Frontend inicia jogo com dados
-```
+## ⚙️ SISTEMAS AUXILIARES (DOCBASE)
+
+### **💰 SISTEMA DE RECOMPENSAS:**
+- **Common asteroide:** R$ 0,0001
+- **Rare asteroide:** R$ 0,001
+- **Epic asteroide:** R$ 0,01
+- **Legendary asteroide:** R$ 0,005 (apenas hard mode)
+
+### **🤝 PROGRAMA DE AFILIADOS:**
+- **Comissão:** R$ 1,00 por cada 100 missões do indicado
+- **APIs:** referral-info.php, referral-claim.php
+- **Link:** `?ref=CODIGO_UNICO`
+
+### **🏦 STAKING:**
+- **APY:** 5% ao ano
+- **APIs:** stake.php, unstake.php, get-stakes.php
+- **Cálculo:** `rendimento = valor × (0.05 / 365) × dias`
+
+### **📢 SISTEMA DE ANÚNCIOS:**
+- **Tipos:** Pré-jogo (5s), Banner, Interstitial, Rewarded
+- **APIs:** ads-config.php, ads-log.php
+- **Configuração:** Via painel admin
 
 ## 🎯 ESTADO ATUAL DO PROJETO
 
@@ -259,24 +323,34 @@ crypto-asteroid-rush/
 2. **Ajustar conexões** se necessário
 3. **Testar fluxo completo** login → jogo
 
-## 🔍 INFORMAÇÕES TÉCNICAS
+## 🔍 INFORMAÇÕES TÉCNICAS (ATUALIZADO)
 
-### **BANCO DE DADOS:**
-- **IP:** `34.168.76.127`
+### **BANCO DE DADOS - TABELAS PRINCIPAIS:**
+1. **users** - Jogadores (google_uid, email, balance_brl, total_withdrawn_brl)
+2. **game_sessions** - Sessões de jogo (session_id, google_uid, mission_number, is_hard_mode)
+3. **game_events** - Eventos de destruição (session_id, asteroid_id, reward_type, reward_amount_brl)
+4. **withdrawals** - Saques (google_uid, amount_brl, status, pix_key)
+5. **staking** - Staking (google_uid, amount_brl, apy_percentage, created_at)
+6. **referrals** - Afiliados (referrer_uid, referred_uid, status, commission_earned)
+
+### **CONEXÃO BANCO:**
+- **IP:** `34.168.76.127` (Cloud SQL público)
 - **Database:** `unobix_db`
 - **User:** `unobix_user`
 - **Senha:** `YyZD3H)dndSo*A/N`
 - **Cloud SQL Instance:** `project-7be1cae5-5f08-45fb-aca:us-west1:unobix`
+- **Socket Unix (Cloud Run):** `/cloudsql/project-7be1cae5-5f08-45fb-aca:us-west1:unobix`
 
 ### **FIREBASE:**
 - **Project ID:** `unobix-oauth-a69cd`
 - **API Key:** `AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U`
-- **Mesma configuração do frontend**
+- **SDK:** Firebase v9 (compat mode)
 
 ### **CLOUD RUN:**
 - **Serviço:** `crypto-asteroid-rush`
 - **Região:** `us-west1`
 - **URL:** `https://crypto-asteroid-234282032979.us-west1.run.app`
+- **Tecnologia:** PHP 8.2 + Nginx + Supervisor
 
 ## 📝 COMMITS RECENTES RELEVANTES
 
@@ -304,8 +378,38 @@ crypto-asteroid-rush/
 3. `game-end.php` - Fim jogo
 4. `balance.php` - Saldo
 
+## 🔧 TROUBLESHOOTING (DOCBASE)
+
+### **ERRO 500 EM APIS:**
+1. **Causas:** Erro sintaxe PHP, função não definida, tabela não existe, variável ambiente não configurada
+2. **Diagnóstico:** Criar `api/test.php` com `display_errors` ativado
+3. **Teste:** `db-ping.php` para verificar conexão banco
+
+### **"IDENTIFICAÇÃO INVÁLIDA":**
+1. **Causa:** google_uid não enviado ou inválido
+2. **Verificar:** localStorage tem 'googleUid'? authManager.getUserId() retorna valor?
+3. **Solução:** Recarregar página, fazer login novamente
+
+### **JOGO NÃO INICIA APÓS ANÚNCIO:**
+1. **Causa:** Erro no SessionManager.startSession()
+2. **Verificar:** Console do navegador, Network tab, logs Railway
+3. **Teste:** game-start.php isoladamente
+
+### **CAPTCHA NÃO APARECE:**
+1. **Causa:** Modal não inicializa CAPTCHA
+2. **Verificar:** CaptchaManager.init() chamado? Elemento #captchaWidget existe?
+3. **Console:** Mensagem "CaptchaManager pronto"?
+
+## 📝 HISTÓRICO DE VERSÕES
+- **v1.0 (2025-01):** Crypto Asteroid Rush (MetaMask, USDT)
+- **v2.0 (2025-06):** Migração para USDT
+- **v3.0 (2025-10):** Sistema de vidas, house edge
+- **v4.0 (2026-01):** Unobix (Google Auth, BRL, Free-to-Play)
+- **v4.1 (2026-01):** Correções autenticação, CAPTCHA matemático
+
 ---
-*Documentação única baseada em revisão completa do projeto*
+*Documentação única baseada em revisão completa + docbase.md*
 *Informações verificadas contra estrutura real (111 arquivos)*
+*Integração de conhecimento de múltiplas fontes*
 *Foco em problemas atuais e metodologia de trabalho*
 *Última atualização: 2026-02-03*
