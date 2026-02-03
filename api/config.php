@@ -151,17 +151,17 @@ define('HARD_MODE_SPAWN_MULTIPLIER', 0.7);
 // ============================================
 define('REWARD_NONE', 0);
 define('REWARD_COMMON', 0);             // R$ 0,00
-define('REWARD_RARE', 0.001);           // R$ 0,001
-define('REWARD_EPIC', 0.005);           // R$ 0,005
-define('REWARD_LEGENDARY', 0.02);       // R$ 0,02
+define('REWARD_RARE', 0.001);           // R$ 0,0001
+define('REWARD_EPIC', 0.005);           // R$ 0,0005
+define('REWARD_LEGENDARY', 0.02);       // R$ 0,002
 
 // Mapeamento de recompensas (usado internamente)
 define('ASTEROID_REWARDS_BRL', [
     'none' => 0,
     'common' => 0,
-    'rare' => 0.001,
-    'epic' => 0.005,
-    'legendary' => 0.02
+    'rare' => 0.0001,
+    'epic' => 0.0005,
+    'legendary' => 0.002
 ]);
 
 // ============================================
@@ -183,7 +183,7 @@ define('MAX_STAKE_BRL', 10000.00);
 // SAQUES
 // ============================================
 define('MIN_WITHDRAW_BRL', 1.00);
-define('MAX_WITHDRAW_BRL', 10000.00);
+define('MAX_WITHDRAW_BRL', 1000.00);
 define('WEEKLY_WITHDRAW_LIMIT', 1);
 define('PROCESSING_START_DAY', 20);
 define('PROCESSING_END_DAY', 25);
@@ -194,9 +194,9 @@ define('WITHDRAW_METHODS', ['pix', 'paypal', 'usdt_bep20']);
 // ============================================
 // SEGURANÇA / ANTI-FRAUDE
 // ============================================
-define('EARNINGS_ALERT_BRL', 0.30);     // Alerta se > R$ 0.30 por missão
-define('EARNINGS_BLOCK_BRL', 1.00);     // Bloquear se > R$ 1.00 por missão
-define('EARNINGS_SUSPECT_BRL', 0.50);   // Suspeito se > R$ 0.50 por missão
+define('EARNINGS_ALERT_BRL', 0.10);     // Alerta se > R$ 0.30 por missão
+define('EARNINGS_BLOCK_BRL', 0.20);     // Bloquear se > R$ 1.00 por missão
+define('EARNINGS_SUSPECT_BRL', 0.15);   // Suspeito se > R$ 0.50 por missão
 define('AUTO_BAN_AFTER_ALERTS', 5);
 
 // Rate limit de eventos por segundo
