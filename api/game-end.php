@@ -36,7 +36,15 @@ if (!$sessionId || !$sessionToken) {
     exit;
 }
 
-if (!$googleUid || !validateGoogleUid($googleUid)) {
+// Aceitar UID truncado (compatibilidade com frontend)
+if (!$googleUid) {
+    echo json_encode(['success' => false, 'error' => 'google_uid inválido']);
+    exit;
+}
+
+// Verificar se é UID truncado (com '...')
+$isTruncated = strpos($googleUid, '...') !== false;
+if (!$isTruncated && !validateGoogleUid($googleUid)) {
     echo json_encode(['success' => false, 'error' => 'google_uid inválido']);
     exit;
 }
@@ -53,15 +61,29 @@ try {
 
     $pdo->beginTransaction();
 
-    // 1) buscar sessão com lock (apenas google_uid)
-    $stmt = $pdo->prepare("
-        SELECT * FROM game_sessions
-        WHERE id = ?
-          AND google_uid = ?
-          AND status = 'active'
-        FOR UPDATE
-    ");
-    $stmt->execute([$sessionId, $googleUid]);
+    // 1) buscar sessão com lock (aceita UID truncado)
+    if ($isTruncated) {
+        // UID truncado: usar LIKE
+        $likeUid = str_replace('...', '%', $googleUid);
+        $stmt = $pdo->prepare("
+            SELECT * FROM game_sessions
+            WHERE id = ?
+              AND google_uid LIKE ?
+              AND status = 'active'
+            FOR UPDATE
+        ");
+        $stmt->execute([$sessionId, $likeUid]);
+    } else {
+        // UID completo: busca exata
+        $stmt = $pdo->prepare("
+            SELECT * FROM game_sessions
+            WHERE id = ?
+              AND google_uid = ?
+              AND status = 'active'
+            FOR UPDATE
+        ");
+        $stmt->execute([$sessionId, $googleUid]);
+    }
     $session = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$session) {
