@@ -139,9 +139,9 @@ try {
     $sessionId = (int)$pdo->lastInsertId();
     
     // ============================================
-    // 5. ATUALIZAR USER (apenas last_login)
+    // 5. ATUALIZAR USER (incrementar total_played + last_login)
     // ============================================
-    $pdo->prepare("UPDATE users SET last_login = NOW(), updated_at = NOW() WHERE id = ?")
+    $pdo->prepare("UPDATE users SET total_played = total_played + 1, last_login = NOW(), updated_at = NOW() WHERE id = ?")
         ->execute([$userId]);
     
     // ============================================

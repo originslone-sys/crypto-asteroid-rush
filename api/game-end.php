@@ -188,14 +188,14 @@ try {
         $sessionId
     ]);
 
-    // 6) creditar player (google_uid only)
+    // 6) creditar user (google_uid only) - usando tabela users
     $credited = false;
     if ($finalEarningsBrl > 0 && $alertLevel !== 'BLOCK') {
         $stmt = $pdo->prepare("
-            UPDATE players SET
+            UPDATE users SET
                 balance_brl = balance_brl + ?,
-                total_earned_brl = total_earned_brl + ?,
-                total_played = total_played + 1
+                total_earned_brl = total_earned_brl + ?
+                -- total_played já foi incrementado em game-start.php
             WHERE google_uid = ?
         ");
         $stmt->execute([$finalEarningsBrl, $finalEarningsBrl, $googleUid]);
@@ -210,10 +210,8 @@ try {
             $finalEarningsBrl,
             "Missão #{$session['mission_number']}" . (!empty($session['is_hard_mode']) ? ' (Hard)' : '')
         ]);
-    } else {
-        $pdo->prepare("UPDATE players SET total_played = total_played + 1 WHERE google_uid = ?")
-            ->execute([$googleUid]);
     }
+    // NOTA: total_played NÃO incrementa aqui - já foi incrementado em game-start.php
 
     // 7) ip_sessions
     $pdo->prepare("UPDATE ip_sessions SET status = 'completed', ended_at = NOW() WHERE session_id = ?")
@@ -221,10 +219,10 @@ try {
 
     $pdo->commit();
 
-    // 8) saldo atualizado
-    $stmt = $pdo->prepare("SELECT balance_brl, total_earned_brl, total_played FROM players WHERE google_uid = ? LIMIT 1");
+    // 8) saldo atualizado - usando tabela users
+    $stmt = $pdo->prepare("SELECT balance_brl, total_played, total_earned_brl FROM users WHERE google_uid = ? LIMIT 1");
     $stmt->execute([$googleUid]);
-    $player = $stmt->fetch(PDO::FETCH_ASSOC);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (function_exists('secureLog')) {
         secureLog("GAME_END | session: {$sessionId} | earnings: R$ {$finalEarningsBrl} | credited: " . ($credited ? 'YES' : 'NO'));
@@ -238,7 +236,7 @@ try {
         'victory' => $isVictory,
         'earnings_brl' => $finalEarningsBrl,
         'final_earnings' => $finalEarningsBrl,
-        'new_balance' => (float)($player['balance_brl'] ?? 0),
+        'new_balance' => (float)($user['balance_brl'] ?? 0),
         'events_recorded' => $eventCount,
         'stats' => [
             'legendary' => (int)($serverEvents['legendary_count'] ?? 0),
@@ -246,10 +244,10 @@ try {
             'rare' => (int)($serverEvents['rare_count'] ?? 0),
             'common' => (int)($serverEvents['common_count'] ?? 0)
         ],
-        'player' => [
-            'balance_brl' => (float)($player['balance_brl'] ?? 0),
-            'total_earned_brl' => (float)($player['total_earned_brl'] ?? 0),
-            'total_played' => (int)($player['total_played'] ?? 0)
+        'user' => [
+            'balance_brl' => (float)($user['balance_brl'] ?? 0),
+            'total_played' => (int)($user['total_played'] ?? 0),
+            'total_earned_brl' => (float)($user['total_earned_brl'] ?? 0)
         ],
         'credited' => $credited,
         'captcha_verified' => $captchaVerified,
