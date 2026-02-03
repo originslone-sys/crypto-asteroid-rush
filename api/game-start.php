@@ -73,25 +73,17 @@ try {
     error_log("✅ User encontrado: ID $userId, UID: '$realGoogleUid'");
     
     // ============================================
-    // 2. BUSCAR/CRIAR PLAYER
+    // 2. USAR USER (tabela users, não players)
     // ============================================
-    $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
+    // Já temos $user da busca anterior
+    $userId = (int)$user['id'];
+    
+    // Mission number: usar contagem de sessões ou valor padrão
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total_sessions FROM game_sessions WHERE google_uid = ?");
     $stmt->execute([$realGoogleUid]);
-    $player = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$player) {
-        // Criar player
-        $stmt = $pdo->prepare("INSERT INTO players (google_uid, balance_brl, total_played, created_at) VALUES (?, 0, 0, NOW())");
-        $stmt->execute([$realGoogleUid]);
-        
-        $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
-        $stmt->execute([$realGoogleUid]);
-        $player = $stmt->fetch(PDO::FETCH_ASSOC);
-    }
-    
-    $playerId = (int)$player['id'];
-    $totalPlayed = (int)($player['total_played'] ?? 0);
-    $missionNumber = $totalPlayed + 1;
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    $totalSessions = (int)($result['total_sessions'] ?? 0);
+    $missionNumber = $totalSessions + 1;
     
     // ============================================
     // 3. LÓGICA DO JOGO
@@ -147,10 +139,10 @@ try {
     $sessionId = (int)$pdo->lastInsertId();
     
     // ============================================
-    // 5. ATUALIZAR PLAYER
+    // 5. ATUALIZAR USER (apenas last_login)
     // ============================================
-    $pdo->prepare("UPDATE players SET total_played = total_played + 1, updated_at = NOW() WHERE id = ?")
-        ->execute([$playerId]);
+    $pdo->prepare("UPDATE users SET last_login = NOW(), updated_at = NOW() WHERE id = ?")
+        ->execute([$userId]);
     
     // ============================================
     // 6. RESPOSTA
@@ -159,7 +151,7 @@ try {
         'success' => true,
         'session_id' => $sessionId,
         'session_token' => $sessionToken,
-        'player_id' => $playerId,
+        'user_id' => $userId,
         'mission_number' => $missionNumber,
         'is_hard_mode' => $isHardMode,
         'rare_count' => $rareCount,
