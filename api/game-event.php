@@ -181,8 +181,21 @@ try {
         ];
         
         // earnings_usdt removido - usar apenas earnings_brl
-        // Colunas legendary_asteroids, epic_asteroids, etc podem não existir
-        // Manter apenas contagem básica
+        
+        switch ($validRewardType) {
+            case 'legendary':
+                $updateFields[] = 'legendary_asteroids = COALESCE(legendary_asteroids, 0) + 1';
+                break;
+            case 'epic':
+                $updateFields[] = 'epic_asteroids = COALESCE(epic_asteroids, 0) + 1';
+                break;
+            case 'rare':
+                $updateFields[] = 'rare_asteroids = COALESCE(rare_asteroids, 0) + 1';
+                break;
+            case 'common':
+                $updateFields[] = 'common_asteroids = COALESCE(common_asteroids, 0) + 1';
+                break;
+        }
         
         $pdo->prepare("UPDATE game_sessions SET " . implode(', ', $updateFields) . " WHERE id = ?")
             ->execute([$sessionId]);
