@@ -125,33 +125,25 @@ $diagnostic['tests']['firebase_config'] = [
 // ============================================
 // TEST 5: Critical PHP Files (Cloud Run container paths)
 // ============================================
-// In Cloud Run container, files should be in root via symlinks
-// But we check both locations for safety
+// In Cloud Run container, files may be in root or api/ directory
+// We check both locations to be safe
 $requiredFiles = [
-    'config.php' => ['config.php', 'api/config.php', './config.php', '/app/config.php'],
-    'config-cloudrun.php' => ['config-cloudrun.php', 'api/config-cloudrun.php', './config-cloudrun.php'],
-    'auth-firebase.php' => ['auth-firebase.php', 'api/auth-firebase.php', './auth-firebase.php'],
-    'game-start.php' => ['game-start.php', 'api/game-start.php', './game-start.php']
+    'config.php' => ['config.php', 'api/config.php'],
+    'config-cloudrun.php' => ['config-cloudrun.php', 'api/config-cloudrun.php'],
+    'auth-firebase.php' => ['auth-firebase.php', 'api/auth-firebase.php'],
+    'game-start.php' => ['game-start.php', 'api/game-start.php']
 ];
 
-$filesTest = ['status' => 'PASS', 'missing' => [], 'found' => [], 'details' => []];
+$filesTest = ['status' => 'PASS', 'missing' => [], 'found' => []];
 foreach ($requiredFiles as $file => $paths) {
     $found = false;
     $foundPath = null;
-    $details = [];
     
     foreach ($paths as $path) {
-        $exists = file_exists($path);
-        $details[$path] = [
-            'exists' => $exists,
-            'is_link' => $exists ? is_link($path) : false,
-            'realpath' => $exists ? realpath($path) : null
-        ];
-        
-        if ($exists) {
+        if (file_exists($path)) {
             $found = true;
             $foundPath = $path;
-            // Don't break - collect all details for debugging
+            break;
         }
     }
     
@@ -161,16 +153,7 @@ foreach ($requiredFiles as $file => $paths) {
     } else {
         $filesTest['found'][$file] = $foundPath;
     }
-    
-    $filesTest['details'][$file] = $details;
 }
-
-// Also check if we're in the right directory and api/ exists
-$filesTest['current_directory'] = getcwd();
-$filesTest['api_directory_exists'] = is_dir('api');
-$filesTest['root_listing'] = @scandir('.') ?: [];
-$filesTest['api_listing'] = $filesTest['api_directory_exists'] ? @scandir('api') : [];
-
 $diagnostic['tests']['required_files'] = $filesTest;
 
 // ============================================
