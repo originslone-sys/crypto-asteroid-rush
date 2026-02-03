@@ -1,5 +1,5 @@
 /* ============================================
-   UNOBIX - Authentication Manager v2.0 (VERSÃO QUE FUNCIONAVA)
+   UNOBIX - Authentication Manager v3.0 (CORRIGIDO)
    Google OAuth via Firebase
    ============================================ */
 
@@ -92,12 +92,14 @@ class AuthManager {
             localStorage.removeItem('userDisplayName');
             localStorage.removeItem('userEmail');
             localStorage.removeItem('userPhotoURL');
+            localStorage.removeItem('sessionToken');
             
             // Limpar gameState
             if (typeof gameState !== 'undefined' && gameState !== null) {
                 gameState.user = null;
                 gameState.googleUid = null;
                 gameState.isConnected = false;
+                gameState.sessionToken = null;
             }
         }
         
@@ -105,7 +107,7 @@ class AuthManager {
         this.dispatchAuthEvent(user);
     }
     
-    // Sign in with Google - tenta popup, fallback para redirect (VERSÃO ORIGINAL)
+    // Sign in with Google - tenta popup, fallback para redirect
     async signIn() {
         if (!this.auth || !this.provider) {
             await this.init();
@@ -194,14 +196,19 @@ class AuthManager {
         return this.currentUser?.uid || localStorage.getItem('googleUid') || null;
     }
     
-    // Sync user with backend
+    // Sync user with backend - CORRIGIDO
     async syncUserWithBackend(user) {
         if (!user) return;
         
         try {
-            const response = await fetch('api/auth-google.php', {
+            console.log('🔄 Sincronizando com backend...');
+            
+            const response = await fetch('/api/auth-google.php', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
                 body: JSON.stringify({
                     action: 'login',
                     google_uid: user.uid,
@@ -211,27 +218,90 @@ class AuthManager {
                 })
             });
             
+            // Verificar se resposta é JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('❌ Resposta não é JSON:', text.substring(0, 200));
+                throw new Error('Backend retornou resposta inválida');
+            }
+            
             const result = await response.json();
             
             if (result.success) {
                 console.log('✅ Usuário sincronizado com backend');
-               
-               if (result.session_token) {
+                
+                // Salvar session token
+                if (result.session_token) {
                     localStorage.setItem('sessionToken', result.session_token);
-
-                    // manter gameState em sincronia
+                    
+                    // Manter gameState em sincronia
                     window.gameState = window.gameState || {};
                     window.gameState.sessionToken = result.session_token;
                 }
-
+                
+                // Salvar dados do usuário
+                if (result.user) {
+                    localStorage.setItem('userData', JSON.stringify(result.user));
+                    
+                    if (window.gameState) {
+                        window.gameState.userData = result.user;
+                        window.gameState.balance_brl = result.user.balance_brl || 0;
+                    }
+                }
                 
                 // Verificar referral
                 this.checkReferral(user.uid);
+                
             } else {
                 console.warn('⚠️ Aviso do backend:', result.error);
+                
+                // Se usuário está banido, fazer logout
+                if (result.error && result.error.includes('suspensa')) {
+                    alert('Sua conta foi suspensa. Entre em contato com o suporte.');
+                    await this.signOut();
+                }
             }
         } catch (error) {
             console.error('❌ Erro ao sincronizar com backend:', error);
+            
+            // Tentar endpoint alternativo (login.php para compatibilidade)
+            try {
+                console.log('🔄 Tentando endpoint alternativo...');
+                
+                const fallbackResponse = await fetch('/api/login.php', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        google_uid: user.uid,
+                        email: user.email,
+                        display_name: user.displayName
+                    })
+                });
+                
+                const fallbackContentType = fallbackResponse.headers.get('content-type');
+                if (fallbackContentType && fallbackContentType.includes('application/json')) {
+                    const fallbackResult = await fallbackResponse.json();
+                    
+                    if (fallbackResult.success) {
+                        console.log('✅ Sincronizado via endpoint alternativo');
+                        
+                        if (fallbackResult.player) {
+                            localStorage.setItem('userData', JSON.stringify(fallbackResult.player));
+                            
+                            if (window.gameState) {
+                                window.gameState.userData = fallbackResult.player;
+                                window.gameState.balance_brl = fallbackResult.player.balance_brl || 0;
+                            }
+                        }
+                    }
+                }
+            } catch (fallbackError) {
+                console.error('❌ Fallback também falhou:', fallbackError);
+            }
         }
     }
     
@@ -242,19 +312,25 @@ class AuthManager {
         
         if (refCode) {
             try {
-                const response = await fetch('api/apply-referral.php', {
+                const response = await fetch('/api/apply-referral.php', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
                     body: JSON.stringify({
                         google_uid: googleUid,
                         referral_code: refCode
                     })
                 });
                 
-                const result = await response.json();
-                
-                if (result.success) {
-                    console.log('✅ Código de indicação aplicado:', refCode);
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        console.log('✅ Código de indicação aplicado:', refCode);
+                    }
                 }
                 
                 // Limpar código da URL
@@ -308,6 +384,40 @@ class AuthManager {
         }
     }
     
+    // Get balance from backend
+    async getBalance() {
+        const googleUid = this.getUserId();
+        if (!googleUid) return null;
+        
+        try {
+            const response = await fetch('/api/auth-google.php', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'balance',
+                    google_uid: googleUid
+                })
+            });
+            
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const result = await response.json();
+                
+                if (result.success) {
+                    return result.balance_brl || 0;
+                }
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('Erro ao obter saldo:', error);
+            return null;
+        }
+    }
+    
     // Aliases para compatibilidade
     async loginWithGoogle() {
         return this.signIn();
@@ -326,7 +436,7 @@ class AuthManager {
 window.authManager = new AuthManager();
 window.AuthManager = AuthManager;
 
-console.log('✅ AuthManager criado globalmente (versão original)');
+console.log('✅ AuthManager criado globalmente (versão corrigida v3.0)');
 
 // Verificar redirect result ao carregar
 document.addEventListener('DOMContentLoaded', async () => {
@@ -338,7 +448,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await window.authManager.checkRedirectResult();
             } catch (error) {
                 console.error('Erro ao verificar redirect:', error);
-                // Limpar flag em caso de erro
                 sessionStorage.removeItem('authRedirectPending');
             }
         }
