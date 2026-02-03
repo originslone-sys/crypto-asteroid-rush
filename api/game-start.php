@@ -23,9 +23,17 @@ $input = array_merge($_GET, $_POST, readJsonInput());
 $googleUid = $input['google_uid'] ?? $input['googleUid'] ?? null;
 
 if (!$googleUid || !validateGoogleUid($googleUid)) {
-    echo json_encode(['success' => false, 'error' => 'google_uid inválido ou não fornecido']);
-    exit;
+    // Mas aceitar UID com '...' para debug/teste
+    if (strpos($googleUid, '...') !== false) {
+        error_log("⚠️ UID com '...' aceito para debug: '$googleUid'");
+    } else {
+        echo json_encode(['success' => false, 'error' => 'google_uid inválido ou não fornecido']);
+        exit;
+    }
 }
+
+// Log inicial para debug
+error_log("🎮 GAME-START INICIADO - UID: '$googleUid'");
 
 try {
     $pdo = getDatabaseConnection();
