@@ -1,22 +1,28 @@
-# 📚 DOCUMENTAÇÃO COMPLETA ATUALIZADA
-*Baseada em dados reais do projeto - Última atualização: 2026-02-03*
+# 📚 DOCUMENTAÇÃO ÚNICA DO PROJETO
+*Baseada em revisão completa - Última atualização: 2026-02-03*
 
-## 📊 ESTATÍSTICAS REAIS (VERIFICADAS)
-- **Total arquivos:** 160
-- **Arquivos PHP:** 46 (29 na pasta `api/`)
-- **Páginas HTML:** 15
+## 📊 ESTATÍSTICAS ATUAIS (VERIFICADAS)
+- **Total arquivos:** 111 (após limpeza)
+- **Arquivos PHP:** 45 (29 na pasta `api/`)
+- **Páginas HTML:** 13 (após remoções)
 - **Arquivos JavaScript:** 19
 - **Arquivos CSS:** 4
 - **Imagens:** 4 arquivos
 - **Sons:** 4 arquivos
+- **Documentação:** 1 arquivo MD (este)
 
-## 📁 ESTRUTURA REAL DO PROJETO
+## 📁 ESTRUTURA REAL ATUAL DO PROJETO
 
 ### **PASTAS PRINCIPAIS:**
 ```
 crypto-asteroid-rush/
 ├── 📁 admin/                    # Painel administrativo (12 arquivos)
+│   ├── 📁 css/                 # Estilos admin
+│   ├── 📁 includes/            # Componentes reutilizáveis
+│   ├── 📁 js/                  # JavaScript admin
+│   └── 📁 pages/               # Páginas do admin
 ├── 📁 api/                     # Backend PHP (29 arquivos ativos)
+│   └── 📁 logs/                # Logs da API
 ├── 📁 css/                     # Estilos (4 arquivos)
 ├── 📁 docker/                  # Configuração Docker (5 arquivos)
 ├── 📁 img/                     # Imagens (4 arquivos)
@@ -27,13 +33,13 @@ crypto-asteroid-rush/
 
 ## 📄 ARQUIVOS PHP DA API (ATUALIZADO)
 
-### **🔐 AUTENTICAÇÃO (FUNCIONA LOCALMENTE):**
-- `auth-google.php`       # ✅ Login Google direto (funciona local)
-- `auth-firebase.php`     # ⚠️ Login Firebase (problema Cloud Run - CORRIGIDO)
+### **🔐 AUTENTICAÇÃO:**
+- `auth-google.php`       # Login Google direto
+- `auth-firebase.php`     # Verificação Firebase (CORRIGIDO)
 - `login.php`            # Login Wallet (legado)
 
-### **🎮 JOGO (CORREÇÕES APLICADAS):**
-- `game-start.php`       # ✅ Corrigido (colunas, UID validation)
+### **🎮 JOGO:**
+- `game-start.php`       # Iniciar sessão (CORRIGIDO)
 - `game-event.php`       # Eventos do jogo
 - `game-end.php`         # Finalizar jogo
 
@@ -43,16 +49,26 @@ crypto-asteroid-rush/
 - `withdraw.php`         # Saques
 - `transactions.php`     # Transações
 
-### **⚙️ CONFIGURAÇÃO (CORREÇÕES APLICADAS):**
-- `config.php`           # ✅ Corrigido (valores padrão, não mata app)
+### **🔗 REFERRAL:**
+- `referral-info.php`    # Info referrals
+- `referral-claim.php`   # Claim rewards
+- `referral-register.php` # Registrar referral
+
+### **⚙️ CONFIGURAÇÃO:**
+- `config.php`           # Configuração completa (CORRIGIDO)
 - `config-cloudrun.php`  # Config Cloud Run
 - `rate-limiter.php`     # Rate limiting
 
-## 🌐 PÁGINAS HTML PRINCIPAIS
+### **🛡️ SEGURANÇA:**
+- `admin-security.php`   # Segurança admin
+- `verify-captcha.php`   # CAPTCHA
+- `report-suspicious.php` # Reportar atividades
+
+## 🌐 PÁGINAS HTML ATUAIS (13 ARQUIVOS)
 
 ### **🏠 INTERFACE DO USUÁRIO:**
 - `index.html`           # Página inicial
-- `dashboard.html`       # ✅ Painel do usuário (login Google aqui)
+- `dashboard.html`       # Painel do usuário (login Google)
 - `game.html`            # Jogo principal
 - `wallet.html`          # Carteira
 - `staking.html`         # Staking
@@ -61,41 +77,71 @@ crypto-asteroid-rush/
 - `how-to-play.html`     # Como jogar
 - `rules.html`           # Regras
 - `faq.html`             # FAQ
-- `roadmap.html`         # Roadmap
 - `economy.html`         # Economia
 
-## 📜 ARQUIVOS JAVASCRIPT (FRONTEND)
+### **📋 LEGAL:**
+- `terms.html`           # Termos
+- `privacy.html`         # Privacidade
+- `affiliates.html`      # Afiliados
+
+### **🎮 GAMEPLAY:**
+- `gameplay.html`        # Demonstração gameplay
+
+## 📜 ARQUIVOS JAVASCRIPT (19 ARQUIVOS)
 
 ### **🎮 CORE DO JOGO:**
 - `game-main.js`         # Principal
 - `game-engine.js`       # Motor do jogo
 - `game-renderer.js`     # Renderização
 - `game-ui.js`           # Interface
+- `game-session.js`      # Sessão
+- `game-ships.js`        # Naves
 
 ### **🔐 AUTENTICAÇÃO:**
-- `auth-manager.js`      # ✅ Gerenciador auth (Firebase SDK)
-- `firebase-config.js`   # ✅ Config Firebase (funciona)
+- `auth-manager.js`      # Gerenciador auth (Firebase SDK)
+- `firebase-config.js`   # Config Firebase
 
 ### **💰 FINANCEIRO:**
 - `game-wallet.js`       # Carteira
 - `game-session-manager.js` # Gerenciador sessão
 
-## 🎨 ARQUIVOS CSS
+### **🎵 MULTIMÍDIA:**
+- `game-audio.js`        # Áudio
+- `ship-renderer.js`     # Renderização naves
+
+### **🛡️ SEGURANÇA:**
+- `game-anticheat.js`    # Anti-cheat
+- `captcha-manager.js`   # Gerenciador CAPTCHA
+
+### **📊 CONFIGURAÇÃO:**
+- `game-config.js`       # Configuração do jogo
+- `game-start.js`        # Início do jogo
+
+### **📢 ANÚNCIOS:**
+- `ads-manager.js`       # Gerenciador de anúncios
+
+## 🎨 ARQUIVOS CSS (4 ARQUIVOS)
 - `main.css`             # Estilos gerais
 - `game.css`             # Estilos do jogo
 - `dashboard.css`        # Estilos dashboard
+- `admin/css/admin.css`  # Estilos admin
 
 ## 🐳 DEPLOY & INFRAESTRUTURA
 
-### **CLOUD RUN + CLOUD SQL:**
+### **DOCKER & CLOUD RUN:**
 - `Dockerfile`           # Imagem Docker
 - `cloudbuild.yaml`      # Build Cloud Run
 - `docker/nginx.conf`    # Config Nginx
 - `docker/entrypoint.sh` # Script inicialização
+- `docker/supervisord.conf` # Supervisor
+- `docker/php-fpm-dynamic.conf` # PHP-FPM dinâmico
+- `docker/auto-scale.sh` # Auto-scale
 
 ### **VARIÁVEIS DE AMBIENTE:**
-- `.env.example`         # Template
+- `.env.example`         # Template variáveis
 - `.env.local`           # Config local (testes)
+- `.env`                 # Configuração atual
+- `.env.test`            # Config testes
 
 ## ✅ CORREÇÕES APLICADAS (CONFIRMADAS)
 
@@ -104,29 +150,30 @@ crypto-asteroid-rush/
 2. **config.php** - Não mata app se variáveis não definidas
 3. **game-start.php** - INSERT corrigido, validação UID
 4. **game_sessions table** - Colunas faltantes criadas
+5. **UID validation** - Aceita `...` para compatibilidade
 
-*Nota: Estes problemas foram corrigidos e não afetam mais o funcionamento.*
+*Nota: Estes problemas foram corrigidos em commits recentes e não afetam mais o funcionamento.*
 
 ## 🎯 PROBLEMAS ATUAIS (FOCAR AQUI)
 
-### **1. ESTRUTURA DE CONEXÃO CLOUD RUN:**
+### **1. CONFIGURAÇÃO CLOUD RUN:**
 - **SITUAÇÃO:** Cloud Run usa socket Unix (`/cloudsql/...`), não TCP/IP
 - **IMPACTO:** Conexão banco pode falhar se não configurado corretamente
-- **VERIFICAÇÃO NECESSÁRIA:** Testar `db-ping.php` no Cloud Run
+- **VERIFICAÇÃO:** Testar `db-ping.php` e `test-cloudsql-connection.php` no Cloud Run
 
-### **2. VARIÁVEIS DE AMBIENTE NO DEPLOY:**
+### **2. VARIÁVEIS DE AMBIENTE:**
 - **SITUAÇÃO:** `cloudbuild.yaml` não passa todas variáveis necessárias
-- **IMPACTO:** Firebase auth e conexão banco falham
-- **SOLUÇÃO POTENCIAL:** Configurar variáveis no Cloud Run ou atualizar cloudbuild.yaml
+- **IMPACTO:** Firebase auth e conexão banco podem falhar
+- **SOLUÇÃO:** Configurar variáveis no Cloud Run ou atualizar cloudbuild.yaml
 
-### **3. FLUXO DE AUTENTICAÇÃO:**
+### **3. FLUXO DE AUTENTICAÇÃO NÃO TESTADO:**
 - **SITUAÇÃO:** Fluxo completo não testado no ambiente real
 - **IMPACTO:** Login com Google pode não funcionar
-- **TESTE NECESSÁRIO:** Testar endpoint por endpoint no Cloud Run
+- **TESTE:** Testar endpoint por endpoint no Cloud Run
 
 ## 🔗 FLUXOS PRINCIPAIS
 
-### **LOGIN COM GOOGLE (TEÓRICO):**
+### **LOGIN COM GOOGLE:**
 ```
 1. Usuário → dashboard.html
 2. Clique "Entrar com Google" → auth-manager.js
@@ -137,7 +184,7 @@ crypto-asteroid-rush/
 7. Frontend → game-start.php → Inicia sessão
 ```
 
-### **INÍCIO DO JOGO (TESTADO LOCAL):**
+### **INÍCIO DO JOGO:**
 ```
 1. Frontend → game-start.php (POST google_uid)
 2. Backend busca user → Cria game_session
@@ -158,12 +205,12 @@ crypto-asteroid-rush/
 - Conexão banco pode falhar (socket Unix vs TCP/IP)
 - Firebase auth não testado no ambiente real
 
-### **❌ NÃO TESTADO:**
+### **❌ NÃO TESTADO NO AMBIENTE REAL:**
 - Fluxo completo login → jogo no Cloud Run
 - Integração real com Firebase
 - Performance sob carga
 
-## 🛠️ COMO USAR ESTA ESTRUTURA PARA TRABALHAR
+## 🛠️ METODOLOGIA DE TRABALHO
 
 ### **1. DIAGNÓSTICO SISTEMÁTICO:**
 ```
@@ -192,7 +239,7 @@ crypto-asteroid-rush/
 ## 📈 PRÓXIMOS PASSOS PRIORITÁRIOS
 
 ### **PRIORIDADE 1: DIAGNÓSTICO CLOUD RUN**
-1. **Verificar logs** reais do Cloud Run (com gcloud correto)
+1. **Verificar logs** reais do Cloud Run
 2. **Testar conexão banco** no ambiente (`db-ping.php`)
 3. **Testar endpoints** um por um no Cloud Run
 
@@ -211,40 +258,53 @@ crypto-asteroid-rush/
 2. **Ajustar conexões** se necessário
 3. **Testar fluxo completo** login → jogo
 
-## 🔍 REFERÊNCIAS E COMMITS
+## 🔍 INFORMAÇÕES TÉCNICAS
 
-### **COMMITS RECENTES DE CORREÇÃO:**
-- `22e0095` - Mapa visual da estrutura
+### **BANCO DE DADOS:**
+- **IP:** `34.168.76.127`
+- **Database:** `unobix_db`
+- **User:** `unobix_user`
+- **Senha:** `YyZD3H)dndSo*A/N`
+- **Cloud SQL Instance:** `project-7be1cae5-5f08-45fb-aca:us-west1:unobix`
+
+### **FIREBASE:**
+- **Project ID:** `unobix-oauth-a69cd`
+- **API Key:** `AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U`
+- **Mesma configuração do frontend**
+
+### **CLOUD RUN:**
+- **Serviço:** `crypto-asteroid-rush`
+- **Região:** `us-west1`
+- **URL:** `https://crypto-asteroid-234282032979.us-west1.run.app`
+
+## 📝 COMMITS RECENTES RELEVANTES
+
+### **CORREÇÕES APLICADAS:**
 - `5d4dacb` - auth-firebase.php usa getDatabaseConnection()
 - `a372814` - Firebase config não mata aplicação
 - `36549ec` - game-start.php corrigido + validação UID
 - `f59fbae` - game-start.php usa colunas existentes
 
-### **ARQUIVOS DE ANÁLISE (CONSULTAR):**
-- `ANALISE_BANCO_DADOS.md` - Estrutura do banco
-- `ANALISE_RAPIDA_COMPLETA.md` - Análise geral
-- `CHECKLIST.md` - Tarefas pendentes
-- `PROGRESS.md` - Progresso atual
+### **DOCUMENTAÇÃO:**
+- `a227fed` - Documentação completa atualizada
+- `7bf2e64` - Limpeza arquivos MD antigos
 
-## 📝 NOTAS IMPORTANTES
+## 🎯 ARQUIVOS CRÍTICOS PARA TESTE
 
-### **CONFIGURAÇÃO CLOUD RUN:**
-- Usa Cloud SQL via socket Unix (`/cloudsql/...`)
-- Variáveis devem ser configuradas no deploy
-- `CLOUDSQL_INSTANCE` já configurado no cloudbuild.yaml
+### **TESTES BÁSICOS:**
+1. `db-ping.php` - Conexão banco
+2. `test-cloudsql-connection.php` - Conexão Cloud SQL
+3. `auth-google.php` - Auth simulado
+4. `game-start.php` - Início jogo
 
-### **BANCO DE DADOS:**
-- IP: `34.168.76.127`
-- Database: `unobix_db`
-- User: `unobix_user`
-- Senha: `YyZD3H)dndSo*A/N`
-
-### **FIREBASE:**
-- Project ID: `unobix-oauth-a69cd`
-- API Key: `AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U`
-- Mesma configuração do frontend
+### **TESTES AVANÇADOS:**
+1. `auth-firebase.php` - Auth real (Firebase)
+2. `game-event.php` - Eventos jogo
+3. `game-end.php` - Fim jogo
+4. `balance.php` - Saldo
 
 ---
-*Documentação baseada em análise de 42 arquivos MD + dados reais do projeto*
-*Foco na estrutura atual e problemas reais não resolvidos*
-*Última verificação: 2026-02-03*
+*Documentação única baseada em revisão completa do projeto*
+*Informações verificadas contra estrutura real (111 arquivos)*
+*Foco em problemas atuais e metodologia de trabalho*
+*Última atualização: 2026-02-03*
