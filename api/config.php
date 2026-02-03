@@ -41,18 +41,36 @@ if ($mysqlPublicUrl && preg_match('/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+
           $dbHost = "/cloudsql/" . $cloudsqlInstance;
       }
 
-      // Verificar se todas variáveis estão definidas
-    // MAS permitir valores padrão para desenvolvimento
-    if (!$dbHost || !$dbName || !$dbUser) {
-        error_log('❌ ERRO CRÍTICO: Variáveis de ambiente do banco de dados não definidas.');
-        error_log('   Verifique o arquivo .env ou variáveis de ambiente do servidor.');
-        http_response_code(500);
-        die(json_encode(['error' => 'Erro de configuração do servidor.']));
-    }
+      // Usar valores padrão para desenvolvimento se não estiverem definidos
+      if (!$dbHost) {
+          // Cloud Run com Cloud SQL
+          $cloudsqlInstance = getenv('CLOUDSQL_INSTANCE');
+          if ($cloudsqlInstance) {
+              $dbHost = "/cloudsql/" . $cloudsqlInstance;
+              error_log('🔧 Usando Cloud SQL socket: ' . $dbHost);
+          } else {
+              // Fallback para desenvolvimento
+              $dbHost = '34.168.76.127';
+              error_log('⚠️ AVISO: DB_HOST não definido, usando fallback para desenvolvimento');
+          }
+      }
+      
+      if (!$dbName) {
+          $dbName = 'unobix_db';
+          error_log('⚠️ AVISO: DB_NAME não definido, usando fallback');
+      }
+      
+      if (!$dbUser) {
+          $dbUser = 'unobix_user';
+          error_log('⚠️ AVISO: DB_USER não definido, usando fallback');
+      }
     
     // Usar valores padrão se não definidos
     if (!$dbPort) $dbPort = '3306';
-    if (!$dbPass) $dbPass = ''; // Permitir senha vazia para desenvolvimento
+    if (!$dbPass) {
+        $dbPass = 'YyZD3H)dndSo*A/N';
+        error_log('⚠️ AVISO: DB_PASS não definido, usando fallback');
+    }
     
     define('DB_HOST', $dbHost);
     define('DB_PORT', $dbPort);
