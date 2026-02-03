@@ -47,8 +47,11 @@ function debugAuthGoogle() {
 }
 
 function debugGameStart() {
+    // Usar UID truncado (como frontend)
+    $truncatedUid = 'DqnexVtvrtdG...';
+    
     $testData = [
-        'google_uid' => 'DqnexVtvrtdG3fe8fSGzVvQ7Y5J3',
+        'google_uid' => $truncatedUid,
         'email' => 'originslone@gmail.com',
         'display_name' => 'Lone Labs'
     ];
