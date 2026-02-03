@@ -1,247 +1,188 @@
 <?php
 // ============================================
-// UNOBIX - Autenticação Google v3.2 (ULTRA ROBUSTO)
+// UNOBIX - Autenticação Google v4.0 FINAL
 // api/auth-google.php
+// Adaptado para tabela users existente
 // ============================================
 
-// CRÍTICO: Desabilitar TODOS os outputs de erro
+// CRÍTICO: Desabilitar outputs de erro
 @ini_set('display_errors', '0');
 @ini_set('display_startup_errors', '0');
 @ini_set('html_errors', '0');
 @error_reporting(0);
 
-// Iniciar output buffering ANTES de qualquer coisa
-@ob_start();
-
-// Limpar qualquer output anterior
+// Limpar buffer
 while (@ob_get_level()) {
     @ob_end_clean();
 }
 @ob_start();
 
-// Headers PRIMEIRO (antes de qualquer output)
+// Headers CORS
 @header('Content-Type: application/json; charset=utf-8', true);
 @header('Access-Control-Allow-Origin: *', true);
 @header('Access-Control-Allow-Methods: GET, POST, OPTIONS', true);
 @header('Access-Control-Allow-Headers: Content-Type, Authorization', true);
 
-// OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     @http_response_code(204);
     exit(0);
 }
 
-// Função para log em arquivo
-function logDebug($message) {
-    $logFile = __DIR__ . '/auth-debug.log';
-    $timestamp = date('Y-m-d H:i:s');
-    @file_put_contents($logFile, "[$timestamp] $message\n", FILE_APPEND);
-}
-
-// Função para retornar JSON e sair IMEDIATAMENTE
+// Função para enviar JSON
 function sendJson($data, $statusCode = 200) {
-    // Limpar TODO o buffer
     while (@ob_get_level()) {
         @ob_end_clean();
     }
-    
-    // Definir status
     @http_response_code($statusCode);
-    
-    // Headers novamente (garantir)
     @header('Content-Type: application/json; charset=utf-8', true);
-    @header('Access-Control-Allow-Origin: *', true);
-    
-    // Output JSON puro
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    
-    // Flush e exit
     if (function_exists('fastcgi_finish_request')) {
         fastcgi_finish_request();
     }
     exit(0);
 }
 
-// CAPTURAR QUALQUER ERRO FATAL
+// Log de debug (comentar em produção)
+function logDebug($msg) {
+    @file_put_contents(__DIR__ . '/auth-debug.log', date('[Y-m-d H:i:s] ') . $msg . "\n", FILE_APPEND);
+}
+
+// Capturar erros fatais
 register_shutdown_function(function() {
     $error = error_get_last();
     if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
-        logDebug("FATAL ERROR: " . json_encode($error));
+        logDebug("FATAL: {$error['message']} in {$error['file']}:{$error['line']}");
         sendJson([
             'success' => false,
             'error' => 'Erro fatal no servidor',
-            'debug' => 'Check auth-debug.log'
+            'debug' => $error['message']
         ], 500);
     }
 });
 
-// TENTAR CARREGAR CONFIG
 try {
-    logDebug("=== INICIANDO AUTH REQUEST ===");
+    logDebug("=== INÍCIO DA REQUISIÇÃO ===");
     
-    if (!file_exists(__DIR__ . "/config.php")) {
-        logDebug("ERRO: config.php não encontrado");
-        sendJson([
-            'success' => false,
-            'error' => 'Arquivo de configuração não encontrado'
-        ], 500);
+    // Carregar config
+    $configPath = __DIR__ . "/config.php";
+    if (!file_exists($configPath)) {
+        logDebug("ERRO: config.php não encontrado em " . __DIR__);
+        sendJson(['success' => false, 'error' => 'Configuração não encontrada'], 500);
     }
     
-    require_once __DIR__ . "/config.php";
-    logDebug("Config carregado com sucesso");
+    require_once $configPath;
+    logDebug("Config carregado");
     
-} catch (Throwable $e) {
-    logDebug("ERRO ao carregar config: " . $e->getMessage());
-    sendJson([
-        'success' => false,
-        'error' => 'Erro ao carregar configuração',
-        'details' => $e->getMessage()
-    ], 500);
-}
-
-// PROCESSAR INPUT
-try {
+    // Processar input
     $rawInput = @file_get_contents('php://input');
-    logDebug("Raw input: " . substr($rawInput, 0, 200));
-    
     $input = @json_decode($rawInput, true);
-    
     if (!is_array($input)) {
         $input = array_merge($_GET ?? [], $_POST ?? []);
-        logDebug("Usando GET/POST params");
     }
     
     $action = $input['action'] ?? 'login';
     logDebug("Action: $action");
     
-} catch (Throwable $e) {
-    logDebug("ERRO ao processar input: " . $e->getMessage());
-    sendJson([
-        'success' => false,
-        'error' => 'Erro ao processar requisição'
-    ], 400);
-}
-
-// CONECTAR AO BANCO
-try {
-    logDebug("Tentando conectar ao banco...");
+    // Conectar banco - TENTAR TODAS AS OPÇÕES
+    $pdo = null;
     
-    if (!function_exists('getDatabaseConnection')) {
-        logDebug("ERRO: getDatabaseConnection não existe");
-        sendJson([
-            'success' => false,
-            'error' => 'Função de banco não encontrada'
-        ], 500);
+    // Opção 1: getDatabaseConnection (se existir)
+    if (function_exists('getDatabaseConnection')) {
+        $pdo = getDatabaseConnection();
+        logDebug("Usando getDatabaseConnection");
     }
     
-    $pdo = getDatabaseConnection();
+    // Opção 2: getDBConnection (se existir)
+    if (!$pdo && function_exists('getDBConnection')) {
+        $pdo = getDBConnection();
+        logDebug("Usando getDBConnection");
+    }
+    
+    // Opção 3: Conexão direta
+    if (!$pdo) {
+        logDebug("Tentando conexão direta...");
+        
+        // Verificar se constantes existem
+        if (!defined('DB_HOST') || !defined('DB_NAME') || !defined('DB_USER') || !defined('DB_PASS')) {
+            logDebug("ERRO: Constantes de DB não definidas");
+            sendJson(['success' => false, 'error' => 'Configuração de banco incompleta'], 500);
+        }
+        
+        try {
+            $dsn = "mysql:host=" . DB_HOST . ";port=" . (defined('DB_PORT') ? DB_PORT : '3306') . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+            logDebug("DSN: $dsn");
+            
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false
+            ]);
+            logDebug("Conexão direta estabelecida");
+        } catch (PDOException $e) {
+            logDebug("ERRO na conexão: " . $e->getMessage());
+            sendJson(['success' => false, 'error' => 'Erro ao conectar no banco'], 500);
+        }
+    }
     
     if (!$pdo) {
-        logDebug("ERRO: PDO retornou null");
-        sendJson([
-            'success' => false,
-            'error' => 'Falha na conexão com banco de dados'
-        ], 500);
+        logDebug("ERRO: PDO é null após todas tentativas");
+        sendJson(['success' => false, 'error' => 'Falha na conexão com banco'], 500);
     }
     
     logDebug("Banco conectado com sucesso");
     
-} catch (Throwable $e) {
-    logDebug("ERRO na conexão: " . $e->getMessage());
-    sendJson([
-        'success' => false,
-        'error' => 'Erro ao conectar no banco',
-        'details' => $e->getMessage()
-    ], 500);
-}
-
-// PROCESSAR AÇÃO
-try {
+    // PROCESSAR AÇÕES
     switch ($action) {
         case 'verify':
         case 'login':
-            logDebug("=== PROCESSANDO LOGIN ===");
+            logDebug("=== LOGIN ===");
             
             // Obter dados
             $googleUid = trim($input['google_uid'] ?? $input['googleUid'] ?? $input['uid'] ?? '');
             $email = trim($input['email'] ?? '');
             $displayName = trim($input['display_name'] ?? $input['displayName'] ?? $input['name'] ?? '');
-            $photoUrl = trim($input['photo_url'] ?? $input['photoURL'] ?? '');
             
-            logDebug("GoogleUid: " . substr($googleUid, 0, 20));
-            logDebug("Email: $email");
+            logDebug("GoogleUid: " . substr($googleUid, 0, 30));
             
-            // Validar
             if (empty($googleUid)) {
-                logDebug("ERRO: google_uid vazio");
-                sendJson([
-                    'success' => false,
-                    'error' => 'google_uid é obrigatório'
-                ], 400);
+                sendJson(['success' => false, 'error' => 'google_uid obrigatório'], 400);
             }
             
-            if (!function_exists('validateGoogleUid')) {
-                logDebug("AVISO: validateGoogleUid não existe, pulando validação");
-            } else if (!validateGoogleUid($googleUid)) {
-                logDebug("ERRO: google_uid inválido");
-                sendJson([
-                    'success' => false,
-                    'error' => 'google_uid inválido'
-                ], 400);
+            // Validação básica
+            $googleUid = substr($googleUid, 0, 128); // Truncar se muito longo
+            if (strlen($googleUid) < 10) {
+                sendJson(['success' => false, 'error' => 'google_uid muito curto'], 400);
             }
             
-            // Verificar se tabela users existe
-            try {
-                $stmt = $pdo->query("SHOW TABLES LIKE 'users'");
-                $tableExists = $stmt->fetch();
-                
-                if (!$tableExists) {
-                    logDebug("ERRO: Tabela 'users' não existe");
-                    sendJson([
-                        'success' => false,
-                        'error' => 'Tabela de usuários não encontrada. Execute o SQL de criação.'
-                    ], 500);
-                }
-                
-                logDebug("Tabela 'users' existe");
-                
-            } catch (PDOException $e) {
-                logDebug("ERRO ao verificar tabela: " . $e->getMessage());
-                sendJson([
-                    'success' => false,
-                    'error' => 'Erro ao verificar estrutura do banco'
-                ], 500);
-            }
-            
-            // Upsert
+            // UPSERT adaptado para SUA ESTRUTURA
             try {
                 logDebug("Executando UPSERT...");
                 
                 $stmt = $pdo->prepare("
                     INSERT INTO users (
-                        google_uid, email, display_name, photo_url,
-                        balance_brl, total_played, total_earned_brl,
-                        created_at, updated_at, last_login
-                    ) VALUES (?, ?, ?, ?, 0, 0, 0, NOW(), NOW(), NOW())
+                        google_uid, 
+                        email, 
+                        display_name, 
+                        balance_brl, 
+                        total_played, 
+                        total_earned_brl,
+                        created_at, 
+                        updated_at, 
+                        last_login
+                    ) VALUES (?, ?, ?, 0, 0, 0, NOW(), NOW(), NOW())
                     ON DUPLICATE KEY UPDATE
                         email = COALESCE(VALUES(email), email),
                         display_name = COALESCE(VALUES(display_name), display_name),
-                        photo_url = COALESCE(VALUES(photo_url), photo_url),
                         last_login = NOW(),
                         updated_at = NOW()
                 ");
                 
-                $stmt->execute([$googleUid, $email, $displayName, $photoUrl]);
-                
-                logDebug("UPSERT executado com sucesso");
+                $result = $stmt->execute([$googleUid, $email, $displayName]);
+                logDebug("UPSERT OK - Affected rows: " . $stmt->rowCount());
                 
             } catch (PDOException $e) {
-                logDebug("ERRO no UPSERT: " . $e->getMessage());
-                sendJson([
-                    'success' => false,
-                    'error' => 'Erro ao salvar usuário',
-                    'details' => $e->getMessage()
-                ], 500);
+                logDebug("ERRO UPSERT: " . $e->getMessage());
+                sendJson(['success' => false, 'error' => 'Erro ao salvar usuário: ' . $e->getMessage()], 500);
             }
             
             // Buscar usuário
@@ -253,33 +194,18 @@ try {
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
                 
                 if (!$user) {
-                    logDebug("ERRO: Usuário não encontrado após insert");
-                    sendJson([
-                        'success' => false,
-                        'error' => 'Usuário não encontrado após criação'
-                    ], 500);
+                    logDebug("ERRO: Usuário não encontrado após UPSERT");
+                    sendJson(['success' => false, 'error' => 'Usuário não carregado'], 500);
                 }
                 
-                logDebug("Usuário encontrado: ID " . $user['id']);
+                logDebug("Usuário carregado: ID " . $user['id']);
                 
             } catch (PDOException $e) {
-                logDebug("ERRO ao buscar usuário: " . $e->getMessage());
-                sendJson([
-                    'success' => false,
-                    'error' => 'Erro ao carregar usuário'
-                ], 500);
+                logDebug("ERRO SELECT: " . $e->getMessage());
+                sendJson(['success' => false, 'error' => 'Erro ao buscar usuário'], 500);
             }
             
-            // Verificar ban
-            if (!empty($user['is_banned'])) {
-                logDebug("Usuário banido: " . $user['id']);
-                sendJson([
-                    'success' => false,
-                    'error' => 'Conta suspensa: ' . ($user['ban_reason'] ?? 'Violação dos termos')
-                ], 403);
-            }
-            
-            // Gerar token
+            // Gerar session token
             $sessionToken = hash('sha256', 
                 $googleUid . '|' . 
                 $user['id'] . '|' . 
@@ -287,24 +213,24 @@ try {
                 bin2hex(random_bytes(16))
             );
             
-            logDebug("Token gerado");
-            
-            // Sucesso!
             logDebug("=== LOGIN SUCESSO ===");
             
+            // Retornar dados
             sendJson([
                 'success' => true,
                 'message' => 'Login realizado com sucesso',
                 'session_token' => $sessionToken,
                 'user' => [
                     'id' => (int)$user['id'],
-                    'google_uid' => $googleUid,
+                    'google_uid' => $user['google_uid'],
                     'email' => $user['email'] ?? '',
                     'display_name' => $user['display_name'] ?? '',
-                    'photo_url' => $user['photo_url'] ?? '',
+                    'wallet_address' => $user['wallet_address'] ?? null,
                     'balance_brl' => (float)($user['balance_brl'] ?? 0),
                     'total_played' => (int)($user['total_played'] ?? 0),
                     'total_earned_brl' => (float)($user['total_earned_brl'] ?? 0),
+                    'is_admin' => (bool)($user['is_admin'] ?? false),
+                    'referral_code' => $user['referral_code'] ?? null,
                     'created_at' => $user['created_at'] ?? '',
                     'last_login' => $user['last_login'] ?? ''
                 ]
@@ -312,40 +238,23 @@ try {
             break;
             
         case 'logout':
-            logDebug("Logout");
-            sendJson([
-                'success' => true,
-                'message' => 'Logout realizado'
-            ]);
+            sendJson(['success' => true, 'message' => 'Logout OK']);
             break;
             
         case 'profile':
         case 'balance':
-            logDebug("Profile/Balance");
-            
             $googleUid = trim($input['google_uid'] ?? $input['googleUid'] ?? '');
             
             if (empty($googleUid)) {
-                sendJson([
-                    'success' => false,
-                    'error' => 'google_uid necessário'
-                ], 400);
+                sendJson(['success' => false, 'error' => 'google_uid necessário'], 400);
             }
             
-            $user = null;
-            if (function_exists('findPlayer')) {
-                $user = findPlayer($pdo, $googleUid);
-            } else {
-                $stmt = $pdo->prepare("SELECT * FROM users WHERE google_uid = ? LIMIT 1");
-                $stmt->execute([$googleUid]);
-                $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            }
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE google_uid = ? LIMIT 1");
+            $stmt->execute([$googleUid]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (!$user) {
-                sendJson([
-                    'success' => false,
-                    'error' => 'Usuário não encontrado'
-                ], 404);
+                sendJson(['success' => false, 'error' => 'Usuário não encontrado'], 404);
             }
             
             sendJson([
@@ -363,33 +272,18 @@ try {
             break;
             
         default:
-            logDebug("Ação inválida: $action");
-            sendJson([
-                'success' => false,
-                'error' => 'Ação inválida: ' . $action
-            ], 400);
+            sendJson(['success' => false, 'error' => 'Ação inválida'], 400);
     }
     
 } catch (PDOException $e) {
-    logDebug("PDO EXCEPTION: " . $e->getMessage());
-    sendJson([
-        'success' => false,
-        'error' => 'Erro no banco de dados',
-        'details' => $e->getMessage()
-    ], 500);
+    logDebug("PDO Exception: " . $e->getMessage());
+    sendJson(['success' => false, 'error' => 'Erro de banco: ' . $e->getMessage()], 500);
     
 } catch (Throwable $e) {
-    logDebug("THROWABLE: " . $e->getMessage());
-    sendJson([
-        'success' => false,
-        'error' => 'Erro interno do servidor',
-        'details' => $e->getMessage()
-    ], 500);
+    logDebug("Exception: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+    sendJson(['success' => false, 'error' => 'Erro: ' . $e->getMessage()], 500);
 }
 
 // Não deve chegar aqui
-logDebug("AVISO: Chegou ao final do script sem retornar");
-sendJson([
-    'success' => false,
-    'error' => 'Resposta inválida'
-], 500);
+logDebug("AVISO: Fim do script sem retorno");
+sendJson(['success' => false, 'error' => 'Fim inesperado'], 500);
