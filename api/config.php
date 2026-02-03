@@ -96,22 +96,32 @@ define('GAME_SECRET_KEY', $gameSecretKey);
 define('ADMIN_PASSWORD', $adminPassword);
 
 // ============================================
-// FIREBASE / GOOGLE AUTH
+// FIREBASE / GOOGLE AUTH (Cloud Run Optimized - 2025)
 // ============================================
 $firebaseProjectId = getenv('FIREBASE_PROJECT_ID');
 $firebaseApiKey = getenv('FIREBASE_API_KEY');
 
-// Usar valores padrão se não estiverem definidos (para desenvolvimento/Cloud Run sem variáveis)
-if (!$firebaseProjectId || !$firebaseApiKey) {
+// Cloud Run best practice: Use defaults but don't crash
+if (!$firebaseProjectId) {
     $firebaseProjectId = 'unobix-oauth-a69cd';
+    error_log('⚠️ CLOUD RUN: FIREBASE_PROJECT_ID usando valor padrão (variável não definida)');
+}
+
+if (!$firebaseApiKey) {
     $firebaseApiKey = 'AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U';
-    error_log('⚠️ AVISO: Firebase config usando valores padrão (variáveis de ambiente não definidas)');
-} else {
-    error_log('✅ Firebase config carregada das variáveis de ambiente');
+    error_log('⚠️ CLOUD RUN: FIREBASE_API_KEY usando valor padrão (variável não definida)');
+}
+
+// Log configuration status (helpful for Cloud Run debugging)
+if (getenv('APP_ENV') === 'production') {
+    error_log('✅ CLOUD RUN: Firebase config loaded - Project: ' . substr($firebaseProjectId, 0, 10) . '...');
 }
 
 define('FIREBASE_PROJECT_ID', $firebaseProjectId);
 define('FIREBASE_API_KEY', $firebaseApiKey);
+
+// Firebase verification endpoint (2025 best practice)
+define('FIREBASE_VERIFY_URL', 'https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyIdToken');
 
 // ============================================
 // hCAPTCHA
