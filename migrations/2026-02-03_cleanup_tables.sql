@@ -20,6 +20,9 @@ ALTER TABLE users DROP COLUMN IF EXISTS wallet_address;
 -- Remover balance_usdt (sistema usa apenas BRL)
 ALTER TABLE users DROP COLUMN IF EXISTS balance_usdt;
 
+-- Remover total_withdrawn (duplicada de total_withdrawn_brl)
+ALTER TABLE users DROP COLUMN IF EXISTS total_withdrawn;
+
 -- ============================================
 -- 3. VERIFICAR ESTRUTURA FINAL DA TABELA users
 -- ============================================
