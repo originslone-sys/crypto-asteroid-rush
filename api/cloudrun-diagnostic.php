@@ -123,20 +123,35 @@ $diagnostic['tests']['firebase_config'] = [
 ];
 
 // ============================================
-// TEST 5: Critical PHP Files
+// TEST 5: Critical PHP Files (Cloud Run container paths)
 // ============================================
+// In Cloud Run container, files may be in root or api/ directory
+// We check both locations to be safe
 $requiredFiles = [
-    'api/config.php',
-    'api/config-cloudrun.php',
-    'api/auth-firebase.php',
-    'api/game-start.php'
+    'config.php' => ['config.php', 'api/config.php'],
+    'config-cloudrun.php' => ['config-cloudrun.php', 'api/config-cloudrun.php'],
+    'auth-firebase.php' => ['auth-firebase.php', 'api/auth-firebase.php'],
+    'game-start.php' => ['game-start.php', 'api/game-start.php']
 ];
 
-$filesTest = ['status' => 'PASS', 'missing' => []];
-foreach ($requiredFiles as $file) {
-    if (!file_exists($file)) {
+$filesTest = ['status' => 'PASS', 'missing' => [], 'found' => []];
+foreach ($requiredFiles as $file => $paths) {
+    $found = false;
+    $foundPath = null;
+    
+    foreach ($paths as $path) {
+        if (file_exists($path)) {
+            $found = true;
+            $foundPath = $path;
+            break;
+        }
+    }
+    
+    if (!$found) {
         $filesTest['missing'][] = $file;
         $filesTest['status'] = 'FAIL';
+    } else {
+        $filesTest['found'][$file] = $foundPath;
     }
 }
 $diagnostic['tests']['required_files'] = $filesTest;
