@@ -42,6 +42,11 @@ steps:
         CLOUDSQL_INSTANCE=project-7be1cae5-5f08-45fb-aca:us-west1:unobix,
         MYSQLDATABASE=unobix_db,
         MYSQLUSER=unobix_user,
+        MYSQLPASSWORD=YyZD3H)dndSo*A/N,
+        FIREBASE_PROJECT_ID=unobix-oauth-a69cd,
+        FIREBASE_API_KEY=AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U,
+        GAME_SECRET_KEY=game_secret_key_123,
+        ADMIN_PASSWORD=admin_pass_123,
         APP_ENV=production,
         DEBUG=false
 
