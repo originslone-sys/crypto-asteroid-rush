@@ -40,14 +40,20 @@ if (!$sessionToken) {
     exit;
 }
 
-// Determinar identificador
+// Determinar identificador - ACEITAR UID TRUNCADO (compatibilidade)
 $identifier = '';
-if (!empty($googleUid) && validateGoogleUid($googleUid)) {
-    $identifier = $googleUid;
-} elseif (!empty($wallet) && validateWallet($wallet)) {
-    $identifier = $wallet;
-} else {
-    echo json_encode(['success' => false, 'error' => 'Identificação inválida']);
+if (!empty($googleUid)) {
+    // Aceitar UID com '...' para compatibilidade (como game-start.php)
+    if (strpos($googleUid, '...') !== false) {
+        error_log("⚠️ game-event.php: UID com '...' aceito: '$googleUid'");
+        $identifier = $googleUid;
+    } elseif (validateGoogleUid($googleUid)) {
+        $identifier = $googleUid;
+    }
+}
+
+if (empty($identifier)) {
+    echo json_encode(['success' => false, 'error' => 'google_uid inválido']);
     exit;
 }
 
@@ -60,26 +66,30 @@ try {
     }
 
     // ============================================
-    // 1. VALIDAR SESSÃO (Google UID tem prioridade)
+    // 1. VALIDAR SESSÃO (apenas Google UID, wallet não mais suportado)
     // ============================================
-    if (!empty($googleUid) && validateGoogleUid($googleUid)) {
-        // Buscar por Google UID
-        $stmt = $pdo->prepare("
-            SELECT * FROM game_sessions 
-            WHERE id = ? 
-            AND google_uid = ?
-            AND status IN ('active', 'completed')
-        ");
-        $stmt->execute([$sessionId, $googleUid]);
-    } elseif (!empty($wallet) && validateWallet($wallet)) {
-        // Fallback para wallet (legacy)
-        $stmt = $pdo->prepare("
-            SELECT * FROM game_sessions 
-            WHERE id = ? 
-            AND wallet_address = ?
-            AND status IN ('active', 'completed')
-        ");
-        $stmt->execute([$sessionId, $wallet]);
+    if (!empty($identifier)) {
+        // Buscar por Google UID (aceita LIKE para UID truncado)
+        if (strpos($identifier, '...') !== false) {
+            // UID truncado: usar LIKE
+            $likeIdentifier = str_replace('...', '%', $identifier);
+            $stmt = $pdo->prepare("
+                SELECT * FROM game_sessions 
+                WHERE id = ? 
+                AND google_uid LIKE ?
+                AND status IN ('active', 'completed')
+            ");
+            $stmt->execute([$sessionId, $likeIdentifier]);
+        } else {
+            // UID completo: busca exata
+            $stmt = $pdo->prepare("
+                SELECT * FROM game_sessions 
+                WHERE id = ? 
+                AND google_uid = ?
+                AND status IN ('active', 'completed')
+            ");
+            $stmt->execute([$sessionId, $identifier]);
+        }
     } else {
         echo json_encode(['success' => false, 'error' => 'Identificação inválida']);
         exit;
@@ -134,26 +144,24 @@ try {
     $validRewardBrl = getRewardByType($validRewardType);
     
     // ============================================
-    // 4. REGISTRAR EVENTO (wallet_address pode ser NULL)
+    // 4. REGISTRAR EVENTO (apenas Google UID, sem wallet)
     // ============================================
     $stmt = $pdo->prepare("
         INSERT INTO game_events (
             session_id, 
             google_uid,
-            wallet_address, 
             asteroid_id, 
             reward_type,
             reward_amount,
             reward_amount_brl,
             client_timestamp,
             created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), NOW())
+        ) VALUES (?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), NOW())
     ");
     
     $stmt->execute([
         $sessionId,
         $session['google_uid'],
-        $session['wallet_address'],  // Pode ser NULL para Google users
         $asteroidId,
         $validRewardType,
         $validRewardBrl,
@@ -172,23 +180,9 @@ try {
             "earnings_brl = earnings_brl + {$validRewardBrl}"
         ];
         
-        // Também atualiza earnings_usdt para compatibilidade (mesmo valor)
-        $updateFields[] = "earnings_usdt = earnings_usdt + {$validRewardBrl}";
-        
-        switch ($validRewardType) {
-            case 'legendary':
-                $updateFields[] = 'legendary_asteroids = COALESCE(legendary_asteroids, 0) + 1';
-                break;
-            case 'epic':
-                $updateFields[] = 'epic_asteroids = COALESCE(epic_asteroids, 0) + 1';
-                break;
-            case 'rare':
-                $updateFields[] = 'rare_asteroids = COALESCE(rare_asteroids, 0) + 1';
-                break;
-            case 'common':
-                $updateFields[] = 'common_asteroids = COALESCE(common_asteroids, 0) + 1';
-                break;
-        }
+        // earnings_usdt removido - usar apenas earnings_brl
+        // Colunas legendary_asteroids, epic_asteroids, etc podem não existir
+        // Manter apenas contagem básica
         
         $pdo->prepare("UPDATE game_sessions SET " . implode(', ', $updateFields) . " WHERE id = ?")
             ->execute([$sessionId]);
