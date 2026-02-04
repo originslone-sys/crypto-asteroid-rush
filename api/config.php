@@ -1,7 +1,7 @@
 <?php
 // ============================================
 // UNOBIX - Configuração Principal
-// api/config.php v3.0
+// api/config.php v3.1 - CORRIGIDO
 // ============================================
 
 ini_set('display_errors', '0');
@@ -78,7 +78,9 @@ function getDatabaseConnection() {
     return $pdo;
 }
 
-function getDBConnection() { return getDatabaseConnection(); }
+function getDBConnection() { 
+    return getDatabaseConnection(); 
+}
 
 function validateGoogleUid($uid) {
     if (empty($uid) || !is_string($uid)) return false;
@@ -152,6 +154,13 @@ function setCorsHeaders() {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Authorization');
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { 
+        http_response_code(204); 
+        exit; 
+    }
 }
-function setCORSHeaders() { setCorsHeaders(); }
+
+// Alias para compatibilidade (mantém apenas um)
+function setCORSHeaders() { 
+    setCorsHeaders(); 
+}
