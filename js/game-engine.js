@@ -1,7 +1,7 @@
 /* ============================================
-   UNOBIX - Game Engine v5.3
+   UNOBIX - Game Engine v6.0
    File: js/game-engine.js
-   CORRIGIDO: Envia google_uid (não wallet)
+   Corrigido: Formato BRL, google_uid
    ============================================ */
 
 let canvas, ctx;
@@ -164,6 +164,9 @@ function fireBullet() {
     }
 }
 
+// ============================================
+// EXPLOSÃO - NOTIFICAÇÕES EM BRL
+// ============================================
 function createExplosion(x, y, colors, asteroid) {
     const particleColors = [colors.base, colors.dark, colors.light, '#FFF'];
     
@@ -181,14 +184,17 @@ function createExplosion(x, y, colors, asteroid) {
     
     if (typeof playSound === 'function') playSound('explosion.mp3', 0.6);
     
+    // CORRIGIDO: Notificações em português e formato BRL
+    const rewardText = `+R$ ${asteroid.reward.toFixed(4)}`.replace('.', ',');
+    
     if (asteroid.type === 'LEGENDARY') {
-        if (typeof showNotification === 'function') showNotification('⭐ LENDÁRIO!', `+R$${asteroid.reward.toFixed(3)}`, true);
+        if (typeof showNotification === 'function') showNotification('⭐ LENDÁRIO!', rewardText, true);
         setTimeout(() => { if (typeof playSound === 'function') playSound('powerup.mp3', 1.0); }, 100);
     } else if (asteroid.type === 'EPIC') {
-        if (typeof showNotification === 'function') showNotification('🔮 ÉPICO!', `+R$${asteroid.reward.toFixed(3)}`, true);
+        if (typeof showNotification === 'function') showNotification('🔮 ÉPICO!', rewardText, true);
         setTimeout(() => { if (typeof playSound === 'function') playSound('powerup.mp3', 0.9); }, 100);
     } else if (asteroid.type === 'RARE') {
-        if (typeof showNotification === 'function') showNotification('💎 RARO!', `+R$${asteroid.reward.toFixed(3)}`, true);
+        if (typeof showNotification === 'function') showNotification('💎 RARO!', rewardText, true);
         setTimeout(() => { if (typeof playSound === 'function') playSound('powerup.mp3', 0.8); }, 100);
     }
 }
@@ -227,10 +233,10 @@ function handleShipCollision(asteroid) {
 }
 
 // ============================================
-// HELPER: Obter dados de sessão de forma segura
+// HELPER: Obter dados de sessão
 // ============================================
 function getSessionData() {
-    // Tentar obter do SessionManager primeiro (fonte de verdade)
+    // Tentar obter do SessionManager primeiro
     if (typeof SessionManager !== 'undefined' && SessionManager.currentSession) {
         const session = SessionManager.currentSession;
         return {
@@ -273,9 +279,8 @@ async function gameOver() {
     console.log('💀 GAME OVER - Perdeu R$' + lostEarnings.toFixed(4));
     
     const sessionData = getSessionData();
-    console.log('📤 Session data:', sessionData);
     
-    // Enviar fim de jogo ao servidor
+    // Enviar fim de jogo ao servidor (vitória = false)
     if (sessionData.sessionId && sessionData.sessionToken && sessionData.google_uid) {
         try {
             const response = await fetch('api/game-end.php', {
@@ -284,9 +289,9 @@ async function gameOver() {
                 body: JSON.stringify({
                     session_id: sessionData.sessionId,
                     session_token: sessionData.sessionToken,
-                    google_uid: sessionData.google_uid,  // ← CORRIGIDO!
+                    google_uid: sessionData.google_uid,
                     score: gameState.score,
-                    earnings: 0,  // Perdeu tudo
+                    earnings: 0,
                     lives_remaining: 0,
                     victory: false,
                     stats: stats
@@ -299,8 +304,6 @@ async function gameOver() {
         } catch (e) {
             console.error('❌ Error sending game-over:', e);
         }
-    } else {
-        console.error('❌ Missing session data!', sessionData);
     }
     
     // Limpar sessão
@@ -399,27 +402,34 @@ async function endGame() {
     }));
     
     const sessionData = getSessionData();
-    console.log('📤 Session data para game-end:', sessionData);
     
     // Variáveis para resposta do servidor
     let serverEarnings = gameState.earnings;
     let serverBalance = null;
+    let captchaRequired = false;
     
     if (sessionData.sessionId && sessionData.sessionToken && sessionData.google_uid) {
         try {
+            // Obter token do CAPTCHA se disponível
+            let captchaToken = '';
+            if (typeof CaptchaManager !== 'undefined' && CaptchaManager.isComplete()) {
+                captchaToken = CaptchaManager.getToken() || '';
+            }
+            
             const response = await fetch('api/game-end.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     session_id: sessionData.sessionId,
                     session_token: sessionData.sessionToken,
-                    google_uid: sessionData.google_uid,  // ← CORRIGIDO! Era "wallet"
+                    google_uid: sessionData.google_uid,
                     score: gameState.score,
                     earnings: gameState.earnings,
                     lives_remaining: gameState.lives,
                     victory: true,
                     stats: stats,
-                    destroyed_asteroids: destroyedList
+                    destroyed_asteroids: destroyedList,
+                    captcha_token: captchaToken
                 })
             });
             
@@ -427,19 +437,24 @@ async function endGame() {
             console.log('✅ Game-end response:', result);
             
             if (result.success) {
-                serverEarnings = parseFloat(result.final_earnings) || gameState.earnings;
-                serverBalance = parseFloat(result.new_balance) || null;
-                
-                console.log(`💰 Ganhos finais: R$${serverEarnings}`);
-                console.log(`📦 Novo saldo: R$${serverBalance}`);
-                
-                gameState.earnings = serverEarnings;
-                gameState.serverConfirmedEarnings = serverEarnings;
-                gameState.newBalance = serverBalance;
-                
-                // Atualizar localStorage
-                if (serverBalance !== null) {
-                    localStorage.setItem('userBalance', serverBalance.toString());
+                if (result.captcha_required) {
+                    // CAPTCHA necessário - mostrar tela de verificação
+                    captchaRequired = true;
+                    serverEarnings = result.final_earnings || gameState.earnings;
+                } else {
+                    serverEarnings = parseFloat(result.final_earnings) || gameState.earnings;
+                    serverBalance = parseFloat(result.new_balance) || null;
+                    
+                    console.log(`💰 Ganhos finais: R$${serverEarnings}`);
+                    console.log(`📦 Novo saldo: R$${serverBalance}`);
+                    
+                    gameState.earnings = serverEarnings;
+                    gameState.serverConfirmedEarnings = serverEarnings;
+                    gameState.newBalance = serverBalance;
+                    
+                    if (serverBalance !== null) {
+                        localStorage.setItem('userBalance', serverBalance.toString());
+                    }
                 }
                 
                 if (result.warning) {
@@ -455,7 +470,7 @@ async function endGame() {
             console.error('❌ Network error:', e);
         }
     } else {
-        console.error('❌ Missing session data! Ganhos podem não ser salvos.', sessionData);
+        console.error('❌ Missing session data!', sessionData);
         if (typeof showNotification === 'function') {
             showNotification('⚠️ ERRO', 'Dados de sessão ausentes', true);
         }
@@ -498,7 +513,9 @@ function updateShipPosition() {
     }
 }
 
-// Exports
+// ============================================
+// EXPORTS
+// ============================================
 window.canvas = canvas;
 window.ctx = ctx;
 window.stars = stars;
@@ -517,4 +534,4 @@ window.endGame = endGame;
 window.updateShipPosition = updateShipPosition;
 window.getSessionData = getSessionData;
 
-console.log('📦 game-engine.js v5.3 carregado');
+console.log('📦 game-engine.js v6.0 carregado (BRL)');
