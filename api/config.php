@@ -21,7 +21,7 @@ if (!defined('DB_HOST')) {
         define('DB_PASS', $matches[2]);
         define('DB_NAME', $matches[5]);
     } else {
-        define('DB_HOST', getenv('MYSQLHOST') ?: getenv('DB_HOST') ?: '127.0.0.1');
+        define('DB_HOST', getenv('MYSQLHOST') ?: getenv('DB_HOST') ?: '34.168.76.127');
         define('DB_PORT', getenv('MYSQLPORT') ?: getenv('DB_PORT') ?: '3306');
         define('DB_NAME', getenv('MYSQLDATABASE') ?: getenv('DB_NAME') ?: 'unobix_db');
         define('DB_USER', getenv('MYSQLUSER') ?: getenv('DB_USER') ?: 'unobix_user');
