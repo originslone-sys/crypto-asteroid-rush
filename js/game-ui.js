@@ -1,9 +1,7 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - UI Functions v2.1
+   UNOBIX - UI Functions v3.0
    File: js/game-ui.js
-   Native alerts and improved UX
-   FIX: Vidas apagam corretamente ao perder
-   FIX: Mostra new balance do servidor
+   Corrigido: Formato BRL, removido wallet MetaMask
    ============================================ */
 
 let loadingScreen, connectModal, gameMenuModal, endGameModal, gameOverModal;
@@ -23,17 +21,14 @@ function initUIElements() {
     customAlert = document.getElementById('customAlert');
     customConfirm = document.getElementById('customConfirm');
     
-    // Setup custom alert/confirm handlers
     setupCustomDialogs();
 }
 
 function setupCustomDialogs() {
-    // Alert OK button
     document.getElementById('alertOkBtn')?.addEventListener('click', () => {
         customAlert.classList.remove('active');
     });
     
-    // Confirm buttons
     document.getElementById('confirmYesBtn')?.addEventListener('click', () => {
         customConfirm.classList.remove('active');
         if (confirmCallback) {
@@ -51,7 +46,7 @@ function setupCustomDialogs() {
     });
 }
 
-// Show initial loading screen
+// Tela de carregamento inicial
 function showLoading(show) {
     if (!loadingScreen) return;
     
@@ -61,7 +56,7 @@ function showLoading(show) {
     }, show ? 0 : 500);
 }
 
-// Show pre-game loading screen with ads
+// Tela pré-jogo (com anúncios)
 function showPreGameLoading(show) {
     if (!preGameScreen) return;
     
@@ -85,18 +80,17 @@ function startLoadingAnimation() {
     
     if (!loadingBar || !loadingPercent) return;
     
-    // Set random tip
     if (gameTip && typeof getRandomTip === 'function') {
         gameTip.textContent = getRandomTip();
     }
     
     const statuses = [
-        'Loading assets...',
-        'Initializing engines...',
-        'Calibrating weapons...',
-        'Scanning asteroid field...',
-        'Preparing mission...',
-        'Ready for launch!'
+        'Carregando recursos...',
+        'Inicializando motores...',
+        'Calibrando armas...',
+        'Escaneando campo de asteroides...',
+        'Preparando missão...',
+        'Pronto para lançamento!'
     ];
     
     if (loadingInterval) clearInterval(loadingInterval);
@@ -119,7 +113,6 @@ function startLoadingAnimation() {
         loadingBar.style.width = loadingProgress + '%';
         loadingPercent.textContent = Math.floor(loadingProgress) + '%';
         
-        // Update status
         const statusIndex = Math.min(
             Math.floor(loadingProgress / 20),
             statuses.length - 1
@@ -128,7 +121,6 @@ function startLoadingAnimation() {
             loadingStatus.textContent = statuses[statusIndex];
         }
         
-        // Change tip occasionally
         if (loadingProgress > 30 && loadingProgress < 80 && Math.random() < 0.1) {
             if (gameTip && typeof getRandomTip === 'function') {
                 gameTip.textContent = getRandomTip();
@@ -137,7 +129,7 @@ function startLoadingAnimation() {
     }, 100);
 }
 
-// Show modal by ID
+// Mostrar modal por ID
 function showModal(modalId) {
     document.querySelectorAll('.modal-overlay').forEach(modal => {
         if (!modal.classList.contains('custom-alert') && 
@@ -154,12 +146,12 @@ function showModal(modalId) {
     }
 }
 
-// Show transaction popup
+// Popup de transação
 function showTransactionPopup(show) {
     if (!transactionPopup) return;
     
     if (show) {
-        document.getElementById('txStatus').textContent = 'Awaiting confirmation...';
+        document.getElementById('txStatus').textContent = 'Aguardando confirmação...';
         transactionPopup.classList.add('active');
         gameState.transactionInProgress = true;
     } else {
@@ -168,7 +160,9 @@ function showTransactionPopup(show) {
     }
 }
 
-// Update game UI
+// ============================================
+// ATUALIZAR UI DO JOGO - FORMATO BRL
+// ============================================
 function updateUI() {
     const countdown = document.getElementById('countdown');
     const score = document.getElementById('score');
@@ -190,15 +184,33 @@ function updateUI() {
         score.textContent = gameState.score;
     }
     
+    // CORRIGIDO: Formato BRL
     if (earned) {
-        earned.textContent = `$${gameState.earnings.toFixed(4)}`;
+        earned.textContent = formatEarningsBRL(gameState.earnings);
     }
     
     updateLivesDisplay();
 }
 
+/**
+ * Formatar ganhos em BRL (4 casas decimais)
+ */
+function formatEarningsBRL(value) {
+    return 'R$ ' + (value || 0).toFixed(4).replace('.', ',');
+}
+
+/**
+ * Formatar valor em BRL (2 casas decimais)
+ */
+function formatBRL(value) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(value || 0);
+}
+
 // ============================================
-// FIX: Update lives display - agora apaga corretamente
+// DISPLAY DE VIDAS
 // ============================================
 function updateLivesDisplay() {
     const livesContainer = document.getElementById('lives');
@@ -207,29 +219,22 @@ function updateLivesDisplay() {
     const lifeElements = livesContainer.querySelectorAll('.life');
     lifeElements.forEach((life, index) => {
         if (index < gameState.lives) {
-            // Vida ativa
             life.classList.add('active');
             life.classList.remove('lost');
         } else {
-            // FIX: Vida perdida - adiciona classe 'lost' para estilização
             life.classList.remove('active');
             life.classList.add('lost');
         }
     });
 }
 
-// ============================================
-// FIX: Animate life lost - animação + apaga permanentemente
-// ============================================
 function animateLifeLost() {
     const livesContainer = document.getElementById('lives');
     if (!livesContainer) return;
     
-    // Encontrar a última vida ativa (a que será perdida)
     const lifeElements = livesContainer.querySelectorAll('.life');
     let lostLifeIndex = -1;
     
-    // Encontrar o índice da vida que acabou de perder
     lifeElements.forEach((life, index) => {
         if (index === gameState.lives) {
             lostLifeIndex = index;
@@ -238,11 +243,8 @@ function animateLifeLost() {
     
     if (lostLifeIndex >= 0 && lostLifeIndex < lifeElements.length) {
         const lostLife = lifeElements[lostLifeIndex];
-        
-        // Adicionar animação de piscar
         lostLife.classList.add('losing');
         
-        // Após animação, marcar como perdida permanentemente
         setTimeout(() => {
             lostLife.classList.remove('active', 'losing');
             lostLife.classList.add('lost');
@@ -250,7 +252,9 @@ function animateLifeLost() {
     }
 }
 
-// Show in-game notification
+// ============================================
+// NOTIFICAÇÕES IN-GAME
+// ============================================
 function showNotification(title, message, isSpecial = false) {
     if (!notification) return;
     
@@ -261,18 +265,17 @@ function showNotification(title, message, isSpecial = false) {
     if (notifTitle) notifTitle.textContent = title;
     if (notifMessage) notifMessage.textContent = message;
     
-    // Set icon based on type
     if (notifIcon) {
-        if (title.includes('LEGENDARY')) {
+        if (title.includes('LENDÁRIO') || title.includes('LEGENDARY')) {
             notifIcon.className = 'fas fa-star';
             notification.style.borderColor = '#FFD700';
-        } else if (title.includes('EPIC')) {
+        } else if (title.includes('ÉPICO') || title.includes('EPIC')) {
             notifIcon.className = 'fas fa-gem';
             notification.style.borderColor = '#9932CC';
-        } else if (title.includes('RARE')) {
+        } else if (title.includes('RARO') || title.includes('RARE')) {
             notifIcon.className = 'fas fa-diamond';
             notification.style.borderColor = '#1E90FF';
-        } else if (title.includes('DAMAGE') || title.includes('HIT') || title.includes('COLLISION')) {
+        } else if (title.includes('DANO') || title.includes('DAMAGE') || title.includes('HIT')) {
             notifIcon.className = 'fas fa-exclamation-triangle';
             notification.style.borderColor = 'var(--danger)';
         } else {
@@ -288,24 +291,10 @@ function showNotification(title, message, isSpecial = false) {
     }, 2000);
 }
 
-// Update wallet UI
-function updateWalletUI(walletAddress) {
-    if (!walletAddress) return;
-    
-    const walletInfo = document.getElementById('connectedWalletInfo');
-    const walletText = document.getElementById('connectedWalletText');
-    
-    if (walletInfo) {
-        walletInfo.style.display = 'flex';
-    }
-    
-    if (walletText) {
-        walletText.textContent = `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`;
-    }
-}
-
-// Custom Alert (replaces browser alert)
-function gameAlert(message, type = 'info', title = 'Notice') {
+// ============================================
+// ALERTAS E CONFIRMAÇÕES CUSTOMIZADOS
+// ============================================
+function gameAlert(message, type = 'info', title = 'Aviso') {
     return new Promise((resolve) => {
         const alertIcon = document.getElementById('alertIcon');
         const alertTitle = document.getElementById('alertTitle');
@@ -347,8 +336,7 @@ function gameAlert(message, type = 'info', title = 'Notice') {
     });
 }
 
-// Custom Confirm (replaces browser confirm)
-function gameConfirm(message, title = 'Confirm') {
+function gameConfirm(message, title = 'Confirmar') {
     return new Promise((resolve) => {
         const confirmTitle = document.getElementById('confirmTitle');
         const confirmMessage = document.getElementById('confirmMessage');
@@ -361,24 +349,26 @@ function gameConfirm(message, title = 'Confirm') {
     });
 }
 
-// Show game over screen
+// ============================================
+// TELA DE GAME OVER (perdeu todas as vidas)
+// ============================================
 function showGameOver(lostEarnings) {
     const lostEarningsEl = document.getElementById('lostEarnings');
     if (lostEarningsEl) {
-        lostEarningsEl.textContent = `$${lostEarnings.toFixed(4)}`;
+        // CORRIGIDO: Formato BRL
+        lostEarningsEl.textContent = formatEarningsBRL(lostEarnings);
     }
     
     showModal('gameOverModal');
 }
 
 // ============================================
-// FIX: Show end game results - aceita valores do servidor
+// TELA DE FIM DE JOGO (vitória)
 // ============================================
 function showEndGameResults(stats, serverEarnings = null, serverBalance = null) {
-    console.log('📊 showEndGameResults called with:', { 
+    console.log('📊 showEndGameResults:', { 
         displayEarnings: serverEarnings || gameState.earnings,
         serverBalance: serverBalance,
-        serverEarnings: serverEarnings,
         stats: stats 
     });
     
@@ -386,60 +376,70 @@ function showEndGameResults(stats, serverEarnings = null, serverBalance = null) 
     const finalReward = document.getElementById('finalReward');
     const breakdownContainer = document.getElementById('asteroidsBreakdown');
     
-    // FIX: Usar earnings do servidor se disponível
+    // Usar earnings do servidor se disponível
     const displayEarnings = (serverEarnings !== null && !isNaN(serverEarnings)) 
         ? serverEarnings 
         : gameState.earnings;
     
     if (finalScore) finalScore.textContent = gameState.score;
-    if (finalReward) finalReward.textContent = `$${parseFloat(displayEarnings).toFixed(4)}`;
     
-    // Generate breakdown HTML
+    // CORRIGIDO: Formato BRL
+    if (finalReward) finalReward.textContent = formatEarningsBRL(displayEarnings);
+    
+    // Gerar breakdown HTML
     let breakdownHTML = `
-        <div class="breakdown-title">ASTEROIDS BREAKDOWN</div>
+        <div class="breakdown-title">ASTEROIDES DESTRUÍDOS</div>
         <div class="breakdown-grid">
             <div class="breakdown-item">
                 <span class="breakdown-type common">
                     <span class="dot"></span>
-                    Common
+                    Comum
                 </span>
                 <span class="breakdown-count">${stats.common}</span>
             </div>
             <div class="breakdown-item">
                 <span class="breakdown-type rare">
                     <span class="dot"></span>
-                    Rare
+                    Raro
                 </span>
-                <span class="breakdown-count">${stats.rare} (+$${(stats.rare * CONFIG.REWARDS.RARE).toFixed(4)})</span>
+                <span class="breakdown-count">${stats.rare} (+${formatEarningsBRL(stats.rare * CONFIG.REWARDS.RARE)})</span>
             </div>
             <div class="breakdown-item">
                 <span class="breakdown-type epic">
                     <span class="dot"></span>
-                    Epic
+                    Épico
                 </span>
-                <span class="breakdown-count">${stats.epic} (+$${(stats.epic * CONFIG.REWARDS.EPIC).toFixed(4)})</span>
+                <span class="breakdown-count">${stats.epic} (+${formatEarningsBRL(stats.epic * CONFIG.REWARDS.EPIC)})</span>
             </div>
             <div class="breakdown-item">
                 <span class="breakdown-type legendary">
                     <span class="dot"></span>
-                    Legendary
+                    Lendário
                 </span>
-                <span class="breakdown-count">${stats.legendary} (+$${(stats.legendary * CONFIG.REWARDS.LEGENDARY).toFixed(4)})</span>
+                <span class="breakdown-count">${stats.legendary} (+${formatEarningsBRL(stats.legendary * CONFIG.REWARDS.LEGENDARY)})</span>
             </div>
         </div>
     `;
     
-    // FIX: Adicionar NEW BALANCE se disponível
+    // Mostrar novo saldo se disponível
     if (serverBalance !== null && !isNaN(serverBalance)) {
         breakdownHTML += `
             <div class="balance-update">
                 <div class="balance-icon"><i class="fas fa-wallet"></i></div>
                 <div class="balance-info">
-                    <span class="balance-label">NEW BALANCE</span>
-                    <span class="balance-value">$${parseFloat(serverBalance).toFixed(4)}</span>
+                    <span class="balance-label">NOVO SALDO</span>
+                    <span class="balance-value">${formatBRL(serverBalance)}</span>
                 </div>
             </div>
         `;
+        
+        // Mostrar também no elemento dedicado
+        const balanceUpdate = document.getElementById('balanceUpdate');
+        const newBalanceEl = document.getElementById('newBalance');
+        if (balanceUpdate && newBalanceEl) {
+            newBalanceEl.textContent = formatBRL(serverBalance);
+            balanceUpdate.style.display = 'flex';
+        }
     }
     
     if (breakdownContainer) {
@@ -449,7 +449,7 @@ function showEndGameResults(stats, serverEarnings = null, serverBalance = null) 
     showModal('endGameModal');
 }
 
-// Update selected ship info
+// Atualizar info da nave selecionada
 function updateSelectedShipInfo(shipDesign) {
     const infoEl = document.getElementById('selectedShipInfo');
     if (!infoEl) return;
@@ -460,7 +460,7 @@ function updateSelectedShipInfo(shipDesign) {
             nameEl.textContent = shipDesign.name;
             nameEl.style.color = shipDesign.primary;
         } else {
-            nameEl.textContent = 'Random ship will be assigned';
+            nameEl.textContent = 'Nave aleatória será atribuída';
             nameEl.style.color = '';
         }
     }
@@ -471,7 +471,9 @@ function showMissionInfo(rareCount, hasEpic) {
     console.log('Mission info (legacy):', { rareCount, hasEpic });
 }
 
-// Export functions
+// ============================================
+// EXPORTAR FUNÇÕES
+// ============================================
 window.initUIElements = initUIElements;
 window.showLoading = showLoading;
 window.showPreGameLoading = showPreGameLoading;
@@ -481,10 +483,13 @@ window.updateUI = updateUI;
 window.updateLivesDisplay = updateLivesDisplay;
 window.animateLifeLost = animateLifeLost;
 window.showNotification = showNotification;
-window.updateWalletUI = updateWalletUI;
 window.showMissionInfo = showMissionInfo;
 window.gameAlert = gameAlert;
 window.gameConfirm = gameConfirm;
 window.showGameOver = showGameOver;
 window.showEndGameResults = showEndGameResults;
 window.updateSelectedShipInfo = updateSelectedShipInfo;
+window.formatEarningsBRL = formatEarningsBRL;
+window.formatBRL = formatBRL;
+
+console.log('📦 game-ui.js v3.0 carregado (BRL)');
