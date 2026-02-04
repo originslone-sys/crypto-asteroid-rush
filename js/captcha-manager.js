@@ -1,16 +1,20 @@
 /* ============================================
-   UNOBIX - CAPTCHA Manager v3.0
+   UNOBIX - CAPTCHA Manager v4.0
    File: js/captcha-manager.js
-   CAPTCHA matemático simples (sem hCaptcha)
+   CAPTCHA matemático simples (apenas soma)
    ============================================ */
 
 const CaptchaManager = {
     isVerified: false,
     currentAnswer: null,
     currentQuestion: null,
+    num1: 0,
+    num2: 0,
     isInitialized: false,
     
-    // Initialize captcha
+    /**
+     * Inicializar CAPTCHA
+     */
     init(containerId = 'captchaWidget') {
         const container = document.getElementById(containerId);
         if (!container) {
@@ -18,47 +22,28 @@ const CaptchaManager = {
             return;
         }
         
-        // Gerar novo desafio
         this.generateChallenge();
-        
-        // Renderizar interface
         this.render(container);
         
         this.isInitialized = true;
         console.log('🛡️ CAPTCHA matemático inicializado');
     },
     
-    // Gerar desafio matemático
+    /**
+     * Gerar desafio de soma simples
+     */
     generateChallenge() {
-        const operations = ['+', '-', '×'];
-        const operation = operations[Math.floor(Math.random() * operations.length)];
-        
-        let num1, num2, answer;
-        
-        switch (operation) {
-            case '+':
-                num1 = Math.floor(Math.random() * 20) + 1;
-                num2 = Math.floor(Math.random() * 20) + 1;
-                answer = num1 + num2;
-                break;
-            case '-':
-                num1 = Math.floor(Math.random() * 20) + 10;
-                num2 = Math.floor(Math.random() * 10) + 1;
-                answer = num1 - num2;
-                break;
-            case '×':
-                num1 = Math.floor(Math.random() * 10) + 1;
-                num2 = Math.floor(Math.random() * 10) + 1;
-                answer = num1 * num2;
-                break;
-        }
-        
-        this.currentQuestion = `${num1} ${operation} ${num2} = ?`;
-        this.currentAnswer = answer;
+        // Apenas soma para simplicidade
+        this.num1 = Math.floor(Math.random() * 20) + 1;
+        this.num2 = Math.floor(Math.random() * 20) + 1;
+        this.currentAnswer = this.num1 + this.num2;
+        this.currentQuestion = `${this.num1} + ${this.num2} = ?`;
         this.isVerified = false;
     },
     
-    // Renderizar interface do CAPTCHA
+    /**
+     * Renderizar interface do CAPTCHA
+     */
     render(container) {
         container.innerHTML = `
             <div class="math-captcha">
@@ -96,13 +81,16 @@ const CaptchaManager = {
                 }
             });
             
-            // Auto-verificar quando digitar
+            // Auto-verificar quando digitar resposta completa
             input.addEventListener('input', () => {
                 const value = parseInt(input.value);
                 if (!isNaN(value) && input.value.length >= String(this.currentAnswer).length) {
                     this.verify();
                 }
             });
+            
+            // Focar no input
+            setTimeout(() => input.focus(), 100);
         }
         
         if (verifyBtn) {
@@ -114,7 +102,9 @@ const CaptchaManager = {
         }
     },
     
-    // Verificar resposta
+    /**
+     * Verificar resposta
+     */
     verify() {
         const input = document.getElementById('captchaInput');
         if (!input) return false;
@@ -147,7 +137,9 @@ const CaptchaManager = {
         }
     },
     
-    // Atualizar desafio
+    /**
+     * Atualizar desafio
+     */
     refresh() {
         this.generateChallenge();
         
@@ -160,7 +152,9 @@ const CaptchaManager = {
         this.disableClaimButton();
     },
     
-    // Enable claim button
+    /**
+     * Habilitar botão de resgate
+     */
     enableClaimButton() {
         const claimBtn = document.getElementById('claimRewardBtn');
         if (claimBtn) {
@@ -169,7 +163,9 @@ const CaptchaManager = {
         }
     },
     
-    // Disable claim button
+    /**
+     * Desabilitar botão de resgate
+     */
     disableClaimButton() {
         const claimBtn = document.getElementById('claimRewardBtn');
         if (claimBtn) {
@@ -178,7 +174,9 @@ const CaptchaManager = {
         }
     },
     
-    // Show status message
+    /**
+     * Mostrar mensagem de status
+     */
     showStatus(message, type = 'info') {
         const statusEl = document.getElementById('captchaStatus');
         if (statusEl) {
@@ -187,21 +185,28 @@ const CaptchaManager = {
         }
     },
     
-    // Get verification status
+    /**
+     * Verificar se está completo
+     */
     isComplete() {
         return this.isVerified;
     },
     
-    // Get token (para compatibilidade com backend)
+    /**
+     * Obter token para enviar ao backend
+     * Formato: base64 de "math_{resposta}_{timestamp}"
+     */
     getToken() {
         if (this.isVerified) {
-            // Gerar token simples baseado na resposta correta
-            return btoa(`math_${this.currentAnswer}_${Date.now()}`);
+            const tokenData = `math_${this.currentAnswer}_${Date.now()}`;
+            return btoa(tokenData);
         }
         return null;
     },
     
-    // Reset captcha
+    /**
+     * Resetar CAPTCHA
+     */
     reset() {
         this.isVerified = false;
         this.currentAnswer = null;
@@ -213,12 +218,7 @@ const CaptchaManager = {
     }
 };
 
-// Inicializar quando DOM carregar
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🛡️ CaptchaManager pronto');
-});
-
-// Auto-initialize when end game modal is shown
+// Observar quando modal de fim de jogo abrir
 const observeEndGameModal = () => {
     const endGameModal = document.getElementById('endGameModal');
     
@@ -248,3 +248,5 @@ if (document.readyState === 'loading') {
 }
 
 window.CaptchaManager = CaptchaManager;
+
+console.log('🛡️ CaptchaManager v4.0 carregado (soma simples)');
