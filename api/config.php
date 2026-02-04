@@ -1,8 +1,7 @@
 <?php
 // ============================================
 // UNOBIX - Configuração Principal
-// api/config.php v4.1 - CORRIGIDO
-// Moeda: BRL | Sem MetaMask/USDT
+// api/config.php v4.2 - Cloud Run + Cloud SQL
 // ============================================
 
 ini_set('display_errors', '0');
@@ -10,23 +9,30 @@ ini_set('html_errors', '0');
 error_reporting(E_ALL);
 
 // ============================================
-// BANCO DE DADOS
+// BANCO DE DADOS - CLOUD SQL
 // ============================================
 if (!defined('DB_HOST')) {
-    $mysqlPublicUrl = getenv('MYSQL_PUBLIC_URL');
-    if ($mysqlPublicUrl && preg_match('/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/', $mysqlPublicUrl, $matches)) {
-        define('DB_HOST', $matches[3]);
-        define('DB_PORT', $matches[4]);
-        define('DB_USER', $matches[1]);
-        define('DB_PASS', $matches[2]);
-        define('DB_NAME', $matches[5]);
+    // Cloud SQL socket path para Cloud Run
+    $cloudSqlSocket = '/cloudsql/project-7be1cae5-5f08-45fb-aca:us-west1:unobix';
+    
+    // Verificar se está rodando no Cloud Run (socket existe)
+    $isCloudRun = file_exists('/cloudsql') || getenv('K_SERVICE');
+    
+    if ($isCloudRun) {
+        // Cloud Run - usar Unix socket
+        define('DB_SOCKET', $cloudSqlSocket);
+        define('DB_HOST', null);
+        define('DB_PORT', null);
     } else {
-        define('DB_HOST', getenv('MYSQLHOST') ?: getenv('DB_HOST') ?: '34.168.76.127');
-        define('DB_PORT', getenv('MYSQLPORT') ?: getenv('DB_PORT') ?: '3306');
-        define('DB_NAME', getenv('MYSQLDATABASE') ?: getenv('DB_NAME') ?: 'unobix_db');
-        define('DB_USER', getenv('MYSQLUSER') ?: getenv('DB_USER') ?: 'unobix_user');
-        define('DB_PASS', getenv('MYSQLPASSWORD') ?: getenv('DB_PASS') ?: 'YyZD3H)dndSo*A/N');
+        // Desenvolvimento local - usar IP/porta
+        define('DB_SOCKET', null);
+        define('DB_HOST', getenv('MYSQLHOST') ?: '127.0.0.1');
+        define('DB_PORT', getenv('MYSQLPORT') ?: '3306');
     }
+    
+    define('DB_NAME', getenv('MYSQLDATABASE') ?: 'unobix_db');
+    define('DB_USER', getenv('MYSQLUSER') ?: 'unobix_user');
+    define('DB_PASS', getenv('MYSQLPASSWORD') ?: '');
 }
 
 // ============================================
@@ -34,11 +40,11 @@ if (!defined('DB_HOST')) {
 // ============================================
 if (!defined('FIREBASE_PROJECT_ID')) {
     define('FIREBASE_PROJECT_ID', getenv('FIREBASE_PROJECT_ID') ?: 'unobix-oauth-a69cd');
-    define('FIREBASE_API_KEY', getenv('FIREBASE_API_KEY') ?: 'AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U');
+    define('FIREBASE_API_KEY', getenv('FIREBASE_API_KEY') ?: '');
 }
 
 // ============================================
-// CAPTCHA - Matemático simples (sem hCaptcha)
+// CAPTCHA
 // ============================================
 if (!defined('CAPTCHA_ENABLED')) {
     define('CAPTCHA_ENABLED', true);
@@ -104,7 +110,7 @@ if (!defined('STAKE_APY')) {
 }
 
 // ============================================
-// FUNÇÕES DE BANCO DE DADOS
+// CONEXÃO COM BANCO DE DADOS
 // ============================================
 
 if (!function_exists('getDatabaseConnection')) {
@@ -112,11 +118,20 @@ if (!function_exists('getDatabaseConnection')) {
         static $pdo = null;
         if ($pdo === null) {
             try {
-                $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+                // Construir DSN baseado no ambiente
+                if (defined('DB_SOCKET') && DB_SOCKET) {
+                    // Cloud Run - Unix socket
+                    $dsn = "mysql:unix_socket=" . DB_SOCKET . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+                } else {
+                    // Desenvolvimento local - TCP/IP
+                    $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+                }
+                
                 $pdo = new PDO($dsn, DB_USER, DB_PASS, [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::ATTR_TIMEOUT => 10
                 ]);
             } catch (PDOException $e) {
                 error_log("❌ DB Error: " . $e->getMessage());
@@ -149,8 +164,7 @@ if (!function_exists('validateGoogleUid')) {
 if (!function_exists('validateWallet')) {
     function validateWallet($wallet) {
         if (empty($wallet) || !is_string($wallet)) return false;
-        $wallet = trim(strtolower($wallet));
-        return preg_match('/^0x[a-f0-9]{40}$/', $wallet);
+        return preg_match('/^0x[a-f0-9]{40}$/', strtolower(trim($wallet)));
     }
 }
 
@@ -285,7 +299,6 @@ if (!function_exists('setCorsHeaders')) {
     }
 }
 
-// Alias - NÃO redeclarar se já existir
 if (!function_exists('setCORSHeaders')) {
     function setCORSHeaders() { 
         setCorsHeaders(); 
@@ -313,13 +326,6 @@ if (!function_exists('getUserIdentifier')) {
         
         if (!empty($googleUid) && validateGoogleUid($googleUid)) {
             return ['type' => 'google_uid', 'value' => $googleUid];
-        }
-        
-        $wallet = $input['wallet'] ?? $input['wallet_address'] ?? '';
-        $wallet = trim(strtolower($wallet));
-        
-        if (!empty($wallet) && validateWallet($wallet)) {
-            return ['type' => 'wallet', 'value' => $wallet];
         }
         
         return null;
