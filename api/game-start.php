@@ -1,20 +1,23 @@
 <?php
 // ============================================
 // UNOBIX - Iniciar Sessão de Jogo
-// api/game-start.php v3.0
+// api/game-start.php v4.0
+// Usa config.php, trata colunas opcionais
 // ============================================
 
 require_once __DIR__ . "/config.php";
+
 setCorsHeaders();
 
-$input = json_decode(file_get_contents('php://input'), true);
-if (!$input || empty($input['google_uid'])) {
+$input = getRequestInput();
+
+if (empty($input['google_uid'])) {
     echo json_encode(['success' => false, 'error' => 'google_uid não fornecido']);
     exit;
 }
 
 $googleUid = trim($input['google_uid']);
-if (strlen($googleUid) < 10) {
+if (!validateGoogleUid($googleUid)) {
     echo json_encode(['success' => false, 'error' => 'google_uid inválido']);
     exit;
 }
@@ -29,7 +32,7 @@ try {
         exit;
     }
     
-    // 1. BUSCAR USUÁRIO
+    // Buscar usuário
     $user = findPlayer($pdo, $googleUid);
     
     if (!$user) {
@@ -37,16 +40,22 @@ try {
         exit;
     }
     
+    // Verificar ban (se coluna existir)
     if (!empty($user['is_banned'])) {
-        echo json_encode(['success' => false, 'error' => 'Conta suspensa: ' . ($user['ban_reason'] ?? '')]);
+        echo json_encode(['success' => false, 'error' => 'Conta suspensa: ' . ($user['ban_reason'] ?? 'Violação dos termos')]);
         exit;
     }
     
     $userId = (int)$user['id'];
     $realGoogleUid = $user['google_uid'];
     
-    // 2. VERIFICAR LIMITE POR IP (5/hora)
-    $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM game_sessions WHERE ip_address = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)");
+    // Verificar limite por IP
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) as count 
+        FROM game_sessions 
+        WHERE ip_address = ? 
+        AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+    ");
     $stmt->execute([$clientIP]);
     $ipCheck = $stmt->fetch();
     
@@ -62,30 +71,38 @@ try {
     
     $missionsRemaining = MAX_MISSIONS_PER_HOUR - $ipCheck['count'] - 1;
     
-    // 3. EXPIRAR SESSÕES ATIVAS
-    $pdo->prepare("UPDATE game_sessions SET status = 'expired', ended_at = NOW() WHERE google_uid = ? AND status = 'active'")
-        ->execute([$realGoogleUid]);
+    // Expirar sessões ativas do usuário
+    $pdo->prepare("
+        UPDATE game_sessions 
+        SET status = 'expired', ended_at = NOW() 
+        WHERE google_uid = ? AND status = 'active'
+    ")->execute([$realGoogleUid]);
     
-    // 4. CALCULAR MISSÃO
+    // Calcular número da missão
     $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM game_sessions WHERE google_uid = ?");
     $stmt->execute([$realGoogleUid]);
     $result = $stmt->fetch();
     $missionNumber = (int)($result['total'] ?? 0) + 1;
     
-    // 5. HARD MODE E RECOMPENSAS
+    // Determinar hard mode (SERVIDOR é a fonte de verdade!)
     $isHardMode = isHardModeMission();
+    
+    // Configurar recompensas especiais
     $rareCount = $isHardMode ? 1 : 2;
     $hasEpic = ($missionNumber >= 5 && mt_rand(1, 100) <= 30);
     $hasLegendary = ($missionNumber >= 10 && mt_rand(1, 100) <= 10);
     
     $rareIds = [];
-    for ($i = 0; $i < $rareCount; $i++) $rareIds[] = mt_rand(50, 200);
+    for ($i = 0; $i < $rareCount; $i++) {
+        $rareIds[] = mt_rand(50, 200);
+    }
     $epicId = $hasEpic ? mt_rand(201, 250) : 0;
     $legendaryId = $hasLegendary ? mt_rand(251, 280) : 0;
     
-    // 6. CRIAR SESSÃO
+    // Criar token de sessão
     $sessionToken = hash('sha256', $realGoogleUid . '|' . time() . '|' . bin2hex(random_bytes(16)));
     
+    // Criar sessão
     $stmt = $pdo->prepare("
         INSERT INTO game_sessions (
             google_uid, session_token, mission_number, status, is_hard_mode,
@@ -96,19 +113,25 @@ try {
     ");
     
     $stmt->execute([
-        $realGoogleUid, $sessionToken, $missionNumber, $isHardMode ? 1 : 0,
-        $rareCount, $hasEpic ? 1 : 0, json_encode($rareIds), $epicId,
-        $clientIP, substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500)
+        $realGoogleUid, 
+        $sessionToken, 
+        $missionNumber, 
+        $isHardMode ? 1 : 0,
+        $rareCount, 
+        $hasEpic ? 1 : 0, 
+        json_encode($rareIds), 
+        $epicId,
+        $clientIP, 
+        substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500)
     ]);
     
     $sessionId = (int)$pdo->lastInsertId();
     
-    // 7. ATUALIZAR USUÁRIO
+    // Atualizar total_played do usuário
     $pdo->prepare("UPDATE users SET total_played = total_played + 1, last_login = NOW() WHERE id = ?")
         ->execute([$userId]);
     
-    // 8. RESPOSTA
-    secureLog("GAME_START | Session: $sessionId | User: $userId | Mission: $missionNumber");
+    secureLog("GAME_START | Session: $sessionId | User: $userId | Mission: $missionNumber | HardMode: " . ($isHardMode ? 'YES' : 'NO'));
     
     echo json_encode([
         'success' => true,
