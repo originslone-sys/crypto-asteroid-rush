@@ -1,8 +1,8 @@
 <?php
 // ============================================
-// UNOBIX - Autenticação Google v5.0 LIMPO
+// UNOBIX - Autenticação Google v6.0 FINAL
 // api/auth-google.php
-// Usa funções existentes do config.php
+// 100% compatível com config.php v3.0
 // ============================================
 
 require_once __DIR__ . "/config.php";
@@ -10,7 +10,7 @@ require_once __DIR__ . "/config.php";
 // Usar função do config.php para CORS
 setCorsHeaders();
 
-// Função para retornar JSON limpo
+// Função para retornar JSON
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -47,17 +47,17 @@ try {
                 jsonResponse(['success' => false, 'error' => 'google_uid obrigatório'], 400);
             }
             
-            // Usar função do config.php se existir
-            if (function_exists('validateGoogleUid') && !validateGoogleUid($googleUid)) {
+            // Usar função de validação do config.php
+            if (!validateGoogleUid($googleUid)) {
                 jsonResponse(['success' => false, 'error' => 'google_uid inválido'], 400);
             }
             
-            // Limitar tamanho
+            // Limitar tamanho dos campos
             $googleUid = substr($googleUid, 0, 128);
             $email = substr($email, 0, 255);
             $displayName = substr($displayName, 0, 100);
             
-            // UPSERT - estrutura da sua tabela
+            // UPSERT - usa APENAS as colunas da tabela users
             $stmt = $pdo->prepare("
                 INSERT INTO users (
                     google_uid, 
@@ -79,10 +79,8 @@ try {
             
             $stmt->execute([$googleUid, $email, $displayName]);
             
-            // Buscar usuário
-            $stmt = $pdo->prepare("SELECT * FROM users WHERE google_uid = ? LIMIT 1");
-            $stmt->execute([$googleUid]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            // Buscar usuário usando função do config.php
+            $user = findPlayer($pdo, $googleUid);
             
             if (!$user) {
                 jsonResponse(['success' => false, 'error' => 'Usuário não encontrado'], 500);
@@ -97,9 +95,7 @@ try {
             );
             
             // Log usando função do config.php
-            if (function_exists('secureLog')) {
-                secureLog("LOGIN | User: {$user['id']} | UID: " . substr($googleUid, 0, 15));
-            }
+            secureLog("AUTH_LOGIN | User: {$user['id']} | UID: " . substr($googleUid, 0, 15));
             
             // Retornar dados
             jsonResponse([
@@ -135,15 +131,8 @@ try {
                 jsonResponse(['success' => false, 'error' => 'google_uid necessário'], 400);
             }
             
-            // Usar função do config.php se existir
-            $user = null;
-            if (function_exists('findPlayer')) {
-                $user = findPlayer($pdo, $googleUid);
-            } else {
-                $stmt = $pdo->prepare("SELECT * FROM users WHERE google_uid = ? LIMIT 1");
-                $stmt->execute([$googleUid]);
-                $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            }
+            // Usar função do config.php
+            $user = findPlayer($pdo, $googleUid);
             
             if (!$user) {
                 jsonResponse(['success' => false, 'error' => 'Usuário não encontrado'], 404);
@@ -168,14 +157,10 @@ try {
     }
     
 } catch (PDOException $e) {
-    if (function_exists('secureLog')) {
-        secureLog("AUTH ERROR: " . $e->getMessage());
-    }
+    secureLog("AUTH_ERROR: " . $e->getMessage());
     jsonResponse(['success' => false, 'error' => 'Erro no banco de dados'], 500);
     
 } catch (Throwable $e) {
-    if (function_exists('secureLog')) {
-        secureLog("AUTH EXCEPTION: " . $e->getMessage());
-    }
+    secureLog("AUTH_EXCEPTION: " . $e->getMessage());
     jsonResponse(['success' => false, 'error' => 'Erro interno'], 500);
 }
