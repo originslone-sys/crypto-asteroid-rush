@@ -59,10 +59,10 @@ try {
     $lastSession = $stmt->fetch(PDO::FETCH_ASSOC);
     $debug['last_session'] = $lastSession;
     
-    // Verificar eventos da última sessão
+    // Verificar eventos da última sessão - CORRIGIDO: usar earnings_brl
     if ($lastSession) {
         $debug['step'] = 'checking_session_events';
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count, SUM(reward_amount_brl) as total FROM game_events WHERE session_id = ?");
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count, SUM(earnings_brl) as total FROM game_events WHERE session_id = ?");
         $stmt->execute([$lastSession['id']]);
         $debug['last_session_events'] = $stmt->fetch(PDO::FETCH_ASSOC);
     }
@@ -72,6 +72,11 @@ try {
     $stmt = $pdo->query("SELECT id, google_uid, balance_brl, total_earned_brl FROM users ORDER BY id DESC LIMIT 5");
     $debug['recent_users'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Verificar transações recentes
+    $debug['step'] = 'checking_transactions';
+    $stmt = $pdo->query("SELECT * FROM transactions ORDER BY id DESC LIMIT 5");
+    $debug['recent_transactions'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
     $debug['step'] = 'complete';
     $debug['success'] = true;
     
@@ -80,7 +85,6 @@ try {
     $debug['error'] = $e->getMessage();
     $debug['error_file'] = $e->getFile();
     $debug['error_line'] = $e->getLine();
-    $debug['error_trace'] = $e->getTraceAsString();
 }
 
 echo json_encode($debug, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
