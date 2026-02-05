@@ -1,8 +1,8 @@
 <?php
 // ============================================
 // UNOBIX - Registrar Evento de Jogo
-// api/game-event.php v4.0
-// Usa config.php
+// api/game-event.php v4.1
+// Adaptado para estrutura existente do banco
 // ============================================
 
 require_once __DIR__ . "/config.php";
@@ -64,55 +64,56 @@ try {
         exit;
     }
     
-    // Rate limit
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) as c 
-        FROM game_events 
-        WHERE session_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 SECOND)
-    ");
-    $stmt->execute([$sessionId]);
-    if ($stmt->fetch()['c'] >= MAX_EVENTS_PER_SECOND) {
-        echo json_encode(['success' => true, 'throttled' => true, 'reward_brl' => 0]);
-        exit;
-    }
-    
     // Calcular recompensa (SERVIDOR!)
     $validTypes = ['none', 'common', 'rare', 'epic', 'legendary'];
     $validType = in_array($rewardType, $validTypes) ? $rewardType : 'none';
     $rewardBrl = getRewardByType($validType);
     
-    // Registrar evento
+    // Registrar evento - USANDO COLUNAS EXISTENTES
+    // event_type = tipo do asteroide (rare, epic, etc)
+    // event_data = JSON com detalhes
+    // earnings_brl = valor da recompensa
+    $eventData = json_encode([
+        'asteroid_id' => $asteroidId,
+        'reward_type' => $validType,
+        'client_timestamp' => $timestamp
+    ]);
+    
     $stmt = $pdo->prepare("
         INSERT INTO game_events (
-            session_id, google_uid, asteroid_id, 
-            reward_type, reward_amount, reward_amount_brl, 
-            client_timestamp, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), NOW())
+            session_id, google_uid, event_type, event_data, earnings_brl, created_at
+        ) VALUES (?, ?, ?, ?, ?, NOW())
     ");
     $stmt->execute([
         $sessionId, 
         $session['google_uid'], 
-        $asteroidId, 
-        $validType, 
-        $rewardBrl, 
-        $rewardBrl, 
-        $timestamp
+        $validType,
+        $eventData,
+        $rewardBrl
     ]);
     $eventId = $pdo->lastInsertId();
     
-    // Atualizar sessão (usando prepared statements para segurança)
-    $updateFields = ["asteroids_destroyed = asteroids_destroyed + 1", "earnings_brl = earnings_brl + ?"];
-    $updateParams = [$rewardBrl];
+    // Atualizar sessão
+    $typeColumn = $validType . '_asteroids';
+    $validColumns = ['common_asteroids', 'rare_asteroids', 'epic_asteroids', 'legendary_asteroids'];
     
-    if (in_array($validType, ['common', 'rare', 'epic', 'legendary'])) {
-        $typeColumn = $validType . '_asteroids';
-        $updateFields[] = "$typeColumn = COALESCE($typeColumn, 0) + 1";
+    if (in_array($typeColumn, $validColumns)) {
+        $stmt = $pdo->prepare("
+            UPDATE game_sessions SET 
+                asteroids_destroyed = asteroids_destroyed + 1,
+                earnings_brl = earnings_brl + ?,
+                $typeColumn = $typeColumn + 1
+            WHERE id = ?
+        ");
+    } else {
+        $stmt = $pdo->prepare("
+            UPDATE game_sessions SET 
+                asteroids_destroyed = asteroids_destroyed + 1,
+                earnings_brl = earnings_brl + ?
+            WHERE id = ?
+        ");
     }
-    
-    $updateParams[] = $sessionId;
-    
-    $stmt = $pdo->prepare("UPDATE game_sessions SET " . implode(', ', $updateFields) . " WHERE id = ?");
-    $stmt->execute($updateParams);
+    $stmt->execute([$rewardBrl, $sessionId]);
     
     echo json_encode([
         'success' => true,
