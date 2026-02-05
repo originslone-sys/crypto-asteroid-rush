@@ -117,14 +117,14 @@ try {
 
         $stakesFormatted[] = [
             'id' => (int)$stake['id'],
-            'amount_brl' => round($amountBrl, 2),
+            'amount_brl' => round($amountBrl, 6),
             'apy' => STAKE_APY * 100,
             'start_date' => $startDate,
-            'total_earned_brl' => round($earnedBrl + $pendingReward, 4),
-            'earned_today_brl' => round($earnedToday, 4),
+            'total_earned_brl' => round($earnedBrl + $pendingReward, 6),
+            'earned_today_brl' => round($earnedToday, 6),
             'daily_rate_brl' => round($dailyRateBrl, 6),
             'days_staked' => round($totalDays, 2),
-            'pending_reward_brl' => round($pendingReward, 4),
+            'pending_reward_brl' => round($pendingReward, 6),
             'start_date_formatted' => date('d/m/Y H:i', $startTime)
         ];
 
@@ -145,14 +145,14 @@ try {
     echo json_encode([
         'success' => true,
         'stakes' => $stakesFormatted,
-        'total_earned_brl' => round($totalEarned, 4),
-        'pending_reward_brl' => round($totalPendingReward, 4),
+        'total_earned_brl' => round($totalEarned, 6),
+        'pending_reward_brl' => round($totalPendingReward, 6),
         'summary' => [
-            'total_staked_brl' => round($totalStaked, 2),
-            'total_earned_brl' => round($totalEarned, 4),
-            'today_earnings_brl' => round($totalEarnedToday, 4),
-            'pending_reward_brl' => round($totalPendingReward, 4),
-            'staked_balance_brl' => round($playerStakedBalance, 2)
+            'total_staked_brl' => round($totalStaked, 6),
+            'total_earned_brl' => round($totalEarned, 6),
+            'today_earnings_brl' => round($totalEarnedToday, 6),
+            'pending_reward_brl' => round($totalPendingReward, 6),
+            'staked_balance_brl' => round($playerStakedBalance, 6)
         ],
         'config' => [
             'apy_percent' => STAKE_APY * 100,
