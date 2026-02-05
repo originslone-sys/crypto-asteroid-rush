@@ -153,32 +153,220 @@ function clearReferralCode() {
 }
 
 // ============================================
-// BACKGROUND DE ESTRELAS
+// SPACE BACKGROUND AAA+ SYSTEM
 // ============================================
 
+const SpaceBGConfig = {
+    stars: { count: 50, countMobile: 25 },
+    meteors: { minInterval: 5000, maxInterval: 15000, enabled: true },
+    particles: { count: 15, countMobile: 8, duration: 20000 },
+    performance: { fpsThreshold: 30 }
+};
+
+const SpaceBGState = {
+    isMobile: window.matchMedia('(max-width: 768px)').matches,
+    isSmallScreen: window.matchMedia('(max-width: 480px)').matches,
+    isLowPower: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    meteorContainer: null,
+    meteorTimeout: null,
+    fps: 60,
+    frameCount: 0,
+    lastFrameTime: performance.now()
+};
+
 function createStars() {
-    const bg = document.querySelector('.cosmic-bg');
-    if (!bg) return;
+    // Não inicializa se preferir movimento reduzido
+    if (SpaceBGState.isLowPower) {
+        console.log('[SpaceBG] Reduced motion preference - skipping animations');
+        return;
+    }
     
-    const starCount = window.innerWidth < 768 ? 40 : 70;
+    createAmbientGlow();
+    createDistantGalaxies();
+    createStarField();
+    createParticleField();
+    createMeteorContainer();
     
+    // Primeiro meteoro após 3 segundos
+    setTimeout(() => scheduleMeteor(), 3000);
+    
+    // Monitor de performance
+    requestAnimationFrame(monitorSpacePerformance);
+    
+    // Pausa quando tab inativa
+    document.addEventListener('visibilitychange', handleSpaceVisibility);
+    
+    console.log('[SpaceBG] ✨ Space background AAA+ initialized');
+}
+
+// Star Field - Estrelas animadas
+function createStarField() {
+    if (document.querySelector('.star-field')) return;
+    
+    const container = document.createElement('div');
+    container.className = 'star-field';
+    document.body.appendChild(container);
+
+    const starCount = SpaceBGState.isMobile ? SpaceBGConfig.stars.countMobile : SpaceBGConfig.stars.count;
+    const animations = ['twinkle1', 'twinkle2', 'twinkle3'];
+
     for (let i = 0; i < starCount; i++) {
         const star = document.createElement('div');
-        star.classList.add('star');
         
-        const rand = Math.random();
-        if (rand < 0.6) star.classList.add('small');
-        else if (rand < 0.9) star.classList.add('medium');
-        else star.classList.add('large');
+        // Tamanho aleatório com peso para pequenas
+        const sizeRoll = Math.random();
+        const size = sizeRoll < 0.6 ? 'small' : (sizeRoll < 0.9 ? 'medium' : 'large');
         
+        // Cor aleatória (maioria branca)
+        const colorRoll = Math.random();
+        const color = colorRoll < 0.7 ? '' : (colorRoll < 0.85 ? 'cyan' : 'green');
+        
+        star.className = `star star--${size}${color ? ` star--${color}` : ''}`;
         star.style.left = `${Math.random() * 100}%`;
         star.style.top = `${Math.random() * 100}%`;
-        star.style.animationDuration = `${2 + Math.random() * 3}s`;
-        star.style.animationDelay = `${Math.random() * 2}s`;
         
-        bg.appendChild(star);
+        // Animação aleatória
+        const anim = animations[Math.floor(Math.random() * animations.length)];
+        const duration = 2 + Math.random() * 4;
+        const delay = Math.random() * 5;
+        
+        star.style.animation = `${anim} ${duration}s ease-in-out ${delay}s infinite`;
+        container.appendChild(star);
     }
 }
+
+// Meteor Container
+function createMeteorContainer() {
+    if (document.querySelector('.meteor-container')) return;
+    SpaceBGState.meteorContainer = document.createElement('div');
+    SpaceBGState.meteorContainer.className = 'meteor-container';
+    document.body.appendChild(SpaceBGState.meteorContainer);
+}
+
+// Spawn Meteor
+function spawnMeteor() {
+    if (!SpaceBGConfig.meteors.enabled || !SpaceBGState.meteorContainer) return;
+    
+    const meteor = document.createElement('div');
+    meteor.className = 'meteor';
+    
+    // Posição inicial aleatória
+    const startX = 50 + Math.random() * 50;
+    const startY = Math.random() * 40;
+    
+    meteor.style.left = `${startX}%`;
+    meteor.style.top = `${startY}%`;
+    
+    // Velocidade aleatória
+    const speedClass = Math.random() < 0.3 ? 'meteor--fast' : (Math.random() < 0.6 ? '' : 'meteor--slow');
+    if (speedClass) meteor.classList.add(speedClass);
+    
+    SpaceBGState.meteorContainer.appendChild(meteor);
+    
+    requestAnimationFrame(() => meteor.classList.add('meteor--active'));
+    setTimeout(() => meteor.remove(), 2500);
+    
+    scheduleMeteor();
+}
+
+function scheduleMeteor() {
+    if (SpaceBGState.meteorTimeout) clearTimeout(SpaceBGState.meteorTimeout);
+    
+    const delay = SpaceBGConfig.meteors.minInterval + 
+        Math.random() * (SpaceBGConfig.meteors.maxInterval - SpaceBGConfig.meteors.minInterval);
+    
+    SpaceBGState.meteorTimeout = setTimeout(spawnMeteor, delay);
+}
+
+// Particle Field - Poeira espacial
+function createParticleField() {
+    if (SpaceBGState.isSmallScreen || document.querySelector('.particle-field')) return;
+    
+    const container = document.createElement('div');
+    container.className = 'particle-field';
+    document.body.appendChild(container);
+
+    const particleCount = SpaceBGState.isMobile ? SpaceBGConfig.particles.countMobile : SpaceBGConfig.particles.count;
+
+    for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = `${Math.random() * 100}%`;
+        
+        const size = 1 + Math.random() * 2;
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+        particle.style.opacity = 0.2 + Math.random() * 0.3;
+        
+        const duration = SpaceBGConfig.particles.duration + Math.random() * 10000;
+        const delay = i * (SpaceBGConfig.particles.duration / particleCount);
+        particle.style.animation = `floatParticle ${duration}ms linear ${delay}ms infinite`;
+        
+        container.appendChild(particle);
+    }
+}
+
+// Ambient Glow
+function createAmbientGlow() {
+    if (document.querySelector('.ambient-glow')) return;
+    const glow = document.createElement('div');
+    glow.className = 'ambient-glow';
+    document.body.appendChild(glow);
+}
+
+// Distant Galaxies
+function createDistantGalaxies() {
+    if (SpaceBGState.isMobile) return;
+    
+    for (let i = 1; i <= 2; i++) {
+        if (document.querySelector(`.distant-galaxy--${i}`)) continue;
+        const galaxy = document.createElement('div');
+        galaxy.className = `distant-galaxy distant-galaxy--${i}`;
+        document.body.appendChild(galaxy);
+    }
+}
+
+// Performance Monitor
+function monitorSpacePerformance() {
+    const now = performance.now();
+    SpaceBGState.frameCount++;
+    
+    if (now - SpaceBGState.lastFrameTime >= 1000) {
+        SpaceBGState.fps = SpaceBGState.frameCount;
+        SpaceBGState.frameCount = 0;
+        SpaceBGState.lastFrameTime = now;
+        
+        // Desabilita meteoros se FPS muito baixo
+        if (SpaceBGState.fps < SpaceBGConfig.performance.fpsThreshold) {
+            SpaceBGConfig.meteors.enabled = false;
+            console.log('[SpaceBG] Low FPS detected, disabling meteors');
+        }
+    }
+    
+    requestAnimationFrame(monitorSpacePerformance);
+}
+
+// Visibility handler - pausa quando tab inativa
+function handleSpaceVisibility() {
+    if (document.hidden) {
+        if (SpaceBGState.meteorTimeout) {
+            clearTimeout(SpaceBGState.meteorTimeout);
+            SpaceBGState.meteorTimeout = null;
+        }
+    } else {
+        if (SpaceBGConfig.meteors.enabled && !SpaceBGState.meteorTimeout) {
+            scheduleMeteor();
+        }
+    }
+}
+
+// API Global para controle manual
+window.SpaceBG = {
+    config: SpaceBGConfig,
+    state: SpaceBGState,
+    spawnMeteor: () => { if (SpaceBGState.meteorContainer) spawnMeteor(); },
+    toggleMeteors: (enabled) => { SpaceBGConfig.meteors.enabled = enabled; }
+};
 
 // ============================================
 // UI - OVERLAY E HEADER
