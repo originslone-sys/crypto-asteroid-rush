@@ -1,7 +1,7 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Game Renderer v3.0
+   UNOBIX - Game Renderer v4.0
    File: js/game-renderer.js
-   Collision detection and rendering
+   CORRIGIDO: Logging melhorado, evento correto
    ============================================ */
 
 // Draw background with animated stars
@@ -207,16 +207,16 @@ function drawAsteroids() {
                 // Remove the asteroid that hit the ship
                 gameState.asteroids.splice(i, 1);
                 
-                animateLifeLost();
-                showNotification('⚠️ COLLISION!', `${gameState.lives} lives left`, true);
-                playSound('explosion.mp3', 0.8);
+                if (typeof animateLifeLost === 'function') animateLifeLost();
+                if (typeof showNotification === 'function') showNotification('⚠️ COLISÃO!', `${gameState.lives} vidas restantes`, true);
+                if (typeof playSound === 'function') playSound('explosion.mp3', 0.8);
                 
                 if (gameState.lives <= 0) {
                     gameOver();
                     return;
                 }
                 
-                updateUI();
+                if (typeof updateUI === 'function') updateUI();
                 continue;
             }
         }
@@ -244,23 +244,30 @@ function drawAsteroids() {
                 gameState.destroyedAsteroids.push(asteroid);
                 
                 // ============================================
-                // CRITICAL: Register event with server
+                // REGISTRAR EVENTO NO SERVIDOR
                 // ============================================
                 if (typeof SessionManager !== 'undefined' && SessionManager.hasActiveSession()) {
-                    // Determine reward type from asteroid type
-                    let rewardType = 'none';
-                    if (asteroid.type === 'LEGENDARY') {
-                        rewardType = 'legendary';
-                    } else if (asteroid.type === 'EPIC') {
-                        rewardType = 'epic';
-                    } else if (asteroid.type === 'RARE') {
-                        rewardType = 'rare';
-                    } else if (asteroid.reward > 0) {
-                        rewardType = 'common';
+                    // Determinar tipo de recompensa PELO TIPO DO ASTEROIDE
+                    // IMPORTANTE: Usar o .type do objeto, não o .reward
+                    let rewardType;
+                    switch (asteroid.type) {
+                        case 'LEGENDARY':
+                            rewardType = 'legendary';
+                            break;
+                        case 'EPIC':
+                            rewardType = 'epic';
+                            break;
+                        case 'RARE':
+                            rewardType = 'rare';
+                            break;
+                        case 'COMMON':
+                        default:
+                            rewardType = 'common';
+                            break;
                     }
                     
-                    // Add to queue (non-blocking)
-                    SessionManager.recordEvent(asteroid.id, rewardType);
+                    // Registrar evento (não-bloqueante)
+                    SessionManager.recordEvent(asteroid.id, rewardType, asteroid.reward);
                 }
                 
                 // Remove bullet and asteroid
@@ -268,7 +275,7 @@ function drawAsteroids() {
                 gameState.asteroids.splice(i, 1);
                 
                 // Update UI
-                updateUI();
+                if (typeof updateUI === 'function') updateUI();
                 break;
             }
         }
@@ -305,7 +312,7 @@ function gameLoop() {
     if (!gameState.gameActive) return;
     
     // Update ship position based on input
-    updateShipPosition();
+    if (typeof updateShipPosition === 'function') updateShipPosition();
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawBackground();
@@ -329,3 +336,5 @@ window.drawAsteroids = drawAsteroids;
 window.drawAsteroid = drawAsteroid;
 window.drawHitboxes = drawHitboxes;
 window.gameLoop = gameLoop;
+
+console.log('📦 game-renderer.js v4.0 carregado');
