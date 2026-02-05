@@ -487,12 +487,17 @@ if (!function_exists('getUserIdentifier')) {
 
 if (!function_exists('formatBRL')) {
     function formatBRL($value) {
-        return 'R$ ' . number_format((float)$value, 2, ',', '.');
+        return 'R$ ' . number_format((float)$value, 6, ',', '.');
     }
 }
 
 if (!function_exists('formatEarnings')) {
     function formatEarnings($value) {
-        return 'R$ ' . number_format((float)$value, 4, ',', '.');
+        return 'R$ ' . number_format((float)$value, 6, ',', '.');
     }
+}
+
+// Constante de precisão decimal padrão (6 casas)
+if (!defined('BRL_PRECISION')) {
+    define('BRL_PRECISION', 6);
 }
