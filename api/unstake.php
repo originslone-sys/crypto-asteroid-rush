@@ -139,8 +139,8 @@ try {
             WHERE id = :id
         ");
         $stmt->execute([
-            ':earnings' => round($stakeEarnings, 4),
-            ':total_earned_brl' => round($stakeEarnings, 4),
+            ':earnings' => round($stakeEarnings, 6),
+            ':total_earned_brl' => round($stakeEarnings, 6),
             ':id' => (int)$stake['id']
         ]);
     }
@@ -170,8 +170,8 @@ try {
     // ============================================
     $description = sprintf(
         'Unstake de R$ %s + rendimentos R$ %s (%d stake(s))',
-        number_format($totalPrincipal, 2, ',', '.'),
-        number_format($totalEarnings, 4, ',', '.'),
+        number_format($totalPrincipal, 6, ',', '.'),
+        number_format($totalEarnings, 6, ',', '.'),
         count($stakeIds)
     );
 
@@ -183,8 +183,8 @@ try {
     ");
     $stmt->execute([
         $googleUid,
-        round($totalToReceive, 4),
-        round($totalToReceive, 4),
+        round($totalToReceive, 6),
+        round($totalToReceive, 6),
         $description
     ]);
 
@@ -202,11 +202,11 @@ try {
         'success' => true,
         'message' => 'Unstake realizado com sucesso! O valor foi creditado no seu saldo.',
         'stakes_unstaked' => count($stakeIds),
-        'amount_staked_brl' => round($totalPrincipal, 2),
-        'reward_brl' => round($totalEarnings, 4),
-        'total_returned_brl' => round($totalToReceive, 4),
-        'new_balance_brl' => round($newBalance, 2),
-        'new_staked_brl' => round($newStaked, 2)
+        'amount_staked_brl' => round($totalPrincipal, 6),
+        'reward_brl' => round($totalEarnings, 6),
+        'total_returned_brl' => round($totalToReceive, 6),
+        'new_balance_brl' => round($newBalance, 6),
+        'new_staked_brl' => round($newStaked, 6)
     ]);
 
 } catch (Throwable $e) {
