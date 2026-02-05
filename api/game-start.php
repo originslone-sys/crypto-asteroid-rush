@@ -1,8 +1,7 @@
 <?php
 // ============================================
 // UNOBIX - Iniciar Sessão de Jogo
-// api/game-start.php v4.2
-// Adaptado para estrutura existente do banco
+// api/game-start.php v4.3
 // ============================================
 
 require_once __DIR__ . "/config.php";
@@ -19,9 +18,7 @@ if (empty($input['google_uid'])) {
 $googleUid = trim($input['google_uid']);
 
 // Permitir UID truncado com ...
-if (strpos($googleUid, '...') !== false) {
-    // OK, vamos buscar pelo padrão
-} elseif (!validateGoogleUid($googleUid)) {
+if (strpos($googleUid, '...') === false && !validateGoogleUid($googleUid)) {
     echo json_encode(['success' => false, 'error' => 'google_uid inválido']);
     exit;
 }
@@ -78,7 +75,7 @@ try {
     // Expirar sessões ativas do usuário
     $pdo->prepare("
         UPDATE game_sessions 
-        SET status = 'expired', ended_at = NOW() 
+        SET status = 'abandoned', ended_at = NOW() 
         WHERE google_uid = ? AND status = 'active'
     ")->execute([$realGoogleUid]);
     
@@ -106,13 +103,12 @@ try {
     // Criar token de sessão
     $sessionToken = hash('sha256', $realGoogleUid . '|' . time() . '|' . bin2hex(random_bytes(16)));
     
-    // Criar sessão - usando apenas colunas que existem
+    // Criar sessão - deixar status usar DEFAULT
     $stmt = $pdo->prepare("
         INSERT INTO game_sessions (
             google_uid, 
             session_token, 
             mission_number, 
-            status, 
             is_hard_mode,
             rare_asteroids_target, 
             epic_asteroid_target, 
@@ -128,7 +124,7 @@ try {
             legendary_asteroids,
             started_at, 
             created_at
-        ) VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, NOW(), NOW())
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, NOW(), NOW())
     ");
     
     $stmt->execute([
@@ -172,9 +168,8 @@ try {
     ]);
     
 } catch (Throwable $e) {
-    error_log("❌ GAME-START ERROR: " . $e->getMessage() . " | File: " . $e->getFile() . " | Line: " . $e->getLine());
+    error_log("❌ GAME-START ERROR: " . $e->getMessage() . " | Line: " . $e->getLine());
     http_response_code(500);
-    // Temporariamente mostrar erro detalhado para debug
     echo json_encode([
         'success' => false, 
         'error' => 'Erro interno',
