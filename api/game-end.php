@@ -1,8 +1,8 @@
 <?php
 // ============================================
 // UNOBIX - Finalizar Sessão de Jogo
-// api/game-end.php v4.1
-// Adaptado para estrutura existente do banco
+// api/game-end.php v4.5
+// Calcula ganhos baseado nos contadores da sessão
 // ============================================
 
 require_once __DIR__ . "/config.php";
@@ -84,40 +84,39 @@ try {
     }
     
     if (!empty($session['is_banned'])) {
-        $pdo->prepare("UPDATE game_sessions SET status = 'cancelled' WHERE id = ?")->execute([$sessionId]);
+        $pdo->prepare("UPDATE game_sessions SET status = 'abandoned', ended_at = NOW() WHERE id = ?")->execute([$sessionId]);
         echo json_encode(['success' => false, 'error' => 'Conta suspensa', 'banned' => true]);
         exit;
     }
     
     // ============================================
-    // 2. CALCULAR GANHOS DO SERVIDOR
+    // 2. CALCULAR GANHOS BASEADO NOS CONTADORES
     // ============================================
     
-    // Usar coluna earnings_brl da tabela game_events
-    $stmt = $pdo->prepare("
-        SELECT 
-            COUNT(*) as total_events,
-            COALESCE(SUM(earnings_brl), 0) as total_earnings
-        FROM game_events 
-        WHERE session_id = ?
-    ");
-    $stmt->execute([$sessionId]);
-    $eventStats = $stmt->fetch();
+    // Usar contadores da sessão ou stats enviados pelo cliente
+    $rareCount = (int)($session['rare_asteroids'] ?? $stats['rare'] ?? 0);
+    $epicCount = (int)($session['epic_asteroids'] ?? $stats['epic'] ?? 0);
+    $legendaryCount = (int)($session['legendary_asteroids'] ?? $stats['legendary'] ?? 0);
+    $commonCount = (int)($session['common_asteroids'] ?? $stats['common'] ?? 0);
     
-    $serverEarnings = (float)($eventStats['total_earnings'] ?? 0);
+    // Calcular ganhos no servidor
+    $serverEarnings = 
+        ($rareCount * REWARD_RARE) + 
+        ($epicCount * REWARD_EPIC) + 
+        ($legendaryCount * REWARD_LEGENDARY);
     
-    // Também usar earnings_brl acumulado na sessão
-    $sessionEarnings = (float)($session['earnings_brl'] ?? 0);
+    // Se cliente enviou earnings, usar o menor (segurança)
+    if ($clientEarnings > 0 && $clientEarnings < $serverEarnings) {
+        $finalEarnings = $clientEarnings;
+    } else {
+        $finalEarnings = $serverEarnings;
+    }
     
-    // Usar o maior entre eventos e sessão
-    $finalEarnings = max($serverEarnings, $sessionEarnings);
-    
-    // Stats da sessão
     $serverStats = [
-        'common' => (int)($session['common_asteroids'] ?? 0),
-        'rare' => (int)($session['rare_asteroids'] ?? 0),
-        'epic' => (int)($session['epic_asteroids'] ?? 0),
-        'legendary' => (int)($session['legendary_asteroids'] ?? 0)
+        'common' => $commonCount,
+        'rare' => $rareCount,
+        'epic' => $epicCount,
+        'legendary' => $legendaryCount
     ];
     
     // ============================================
@@ -137,7 +136,7 @@ try {
     // Verificar limites de segurança
     if ($finalEarnings > EARNINGS_BLOCK_BRL) {
         secureLog("⚠️ SUSPICIOUS | Session: $sessionId | Earnings: $finalEarnings | BLOCKED");
-        $pdo->prepare("UPDATE game_sessions SET status = 'suspicious', ended_at = NOW() WHERE id = ?")
+        $pdo->prepare("UPDATE game_sessions SET status = 'flagged', ended_at = NOW() WHERE id = ?")
             ->execute([$sessionId]);
         echo json_encode([
             'success' => false,
@@ -184,7 +183,7 @@ try {
         // 5a. Finalizar sessão
         $stmt = $pdo->prepare("
             UPDATE game_sessions SET 
-                status = ?,
+                status = 'completed',
                 earnings_brl = ?,
                 ended_at = NOW(),
                 common_asteroids = ?,
@@ -194,7 +193,6 @@ try {
             WHERE id = ?
         ");
         $stmt->execute([
-            $isVictory ? 'completed' : 'failed',
             $finalEarnings,
             $serverStats['common'],
             $serverStats['rare'],
@@ -248,12 +246,12 @@ try {
     // ============================================
     
     secureLog(sprintf(
-        "GAME_END | Session: %d | User: %s | Victory: %s | Earnings: %.4f | Credited: %s",
+        "GAME_END | Session: %d | Victory: %s | Earnings: %.4f | Credited: %s | Balance: %.4f",
         $sessionId,
-        substr($realGoogleUid, 0, 15) . '...',
         $isVictory ? 'YES' : 'NO',
         $finalEarnings,
-        $credited ? 'YES' : 'NO'
+        $credited ? 'YES' : 'NO',
+        $newBalance
     ));
     
     $response = [
@@ -283,5 +281,10 @@ try {
     error_log("game-end.php error: " . $e->getMessage() . " | Line: " . $e->getLine());
     
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Erro ao finalizar sessão']);
+    echo json_encode([
+        'success' => false, 
+        'error' => 'Erro ao finalizar sessão',
+        'debug_error' => $e->getMessage(),
+        'debug_line' => $e->getLine()
+    ]);
 }
