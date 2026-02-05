@@ -1,12 +1,13 @@
 /* ============================================
-   UNOBIX - Session Manager v6.0
+   UNOBIX - Session Manager v6.1
    js/game-session-manager.js
    ARQUITETURA SEGURA: Sem eventos individuais
-   Apenas início e fim de sessão
+   CORRIGIDO: Reenvia após CAPTCHA
    ============================================ */
 
 const SessionManager = {
     currentSession: null,
+    pendingEndSession: null, // Armazena dados para reenvio após CAPTCHA
     
     /**
      * Obter Google UID de várias fontes
@@ -75,6 +76,9 @@ const SessionManager = {
                     limits: result.limits || {}
                 };
                 
+                // Limpar pending anterior
+                this.pendingEndSession = null;
+                
                 // Salvar em gameState
                 if (typeof gameState !== 'undefined') {
                     gameState.sessionId = result.session_id;
@@ -110,25 +114,26 @@ const SessionManager = {
     
     /**
      * Registrar estatísticas localmente (NÃO envia ao servidor)
-     * Chamado durante o jogo para tracking local
      */
     recordLocalStat(asteroidType) {
         if (!this.currentSession) return;
-        
-        // Apenas para logging local, não envia nada
         console.log(`📝 Asteroide destruído: ${asteroidType}`);
     },
     
     /**
-     * Finalizar sessão - ÚNICA requisição ao servidor
+     * Finalizar sessão - envia ao servidor
      */
     async endSession(score, earnings, stats, destroyedAsteroids = null) {
-        if (!this.currentSession) {
+        // Se não tem sessão ativa, verificar se tem pending
+        if (!this.currentSession && !this.pendingEndSession) {
             console.warn('⚠️ Sem sessão ativa para finalizar');
             return null;
         }
         
-        const sessionToEnd = { ...this.currentSession };
+        // Usar sessão atual ou pending
+        const sessionToEnd = this.currentSession 
+            ? { ...this.currentSession }
+            : this.pendingEndSession.session;
         
         console.log('🏁 Finalizando sessão...', {
             id: sessionToEnd.id,
@@ -138,7 +143,6 @@ const SessionManager = {
         });
         
         try {
-            // Gerar hash de verificação (opcional, para anti-cheat adicional)
             const gameHash = this.generateGameHash(sessionToEnd, stats);
             
             const requestBody = {
@@ -148,7 +152,7 @@ const SessionManager = {
                 score: score,
                 earnings: earnings,
                 lives_remaining: typeof gameState !== 'undefined' ? gameState.lives : 0,
-                victory: typeof gameState !== 'undefined' ? gameState.lives > 0 : false,
+                victory: typeof gameState !== 'undefined' ? gameState.lives > 0 : true,
                 stats: stats,
                 game_hash: gameHash
             };
@@ -156,6 +160,7 @@ const SessionManager = {
             // Obter token CAPTCHA se disponível
             if (typeof CaptchaManager !== 'undefined' && CaptchaManager.isComplete()) {
                 requestBody.captcha_token = CaptchaManager.getToken() || '';
+                console.log('🔐 Enviando com token CAPTCHA');
             }
             
             const response = await fetch('api/game-end.php', {
@@ -167,14 +172,32 @@ const SessionManager = {
             const result = await response.json();
             
             if (result.success) {
+                // Verificar se precisa de CAPTCHA
+                if (result.captcha_required) {
+                    console.log('🔐 CAPTCHA necessário - aguardando...');
+                    
+                    // Salvar dados para reenvio após CAPTCHA
+                    this.pendingEndSession = {
+                        session: sessionToEnd,
+                        score: score,
+                        earnings: earnings,
+                        stats: stats,
+                        pendingEarnings: result.pending_earnings || earnings
+                    };
+                    
+                    // NÃO limpar sessão ainda
+                    return result;
+                }
+                
                 console.log('✅ Sessão finalizada:', {
                     earnings: result.final_earnings,
                     newBalance: result.new_balance,
                     credited: result.credited
                 });
                 
-                // Limpar sessão
+                // Limpar sessão e pending
                 this.currentSession = null;
+                this.pendingEndSession = null;
                 
                 if (typeof gameState !== 'undefined') {
                     gameState.sessionId = null;
@@ -189,18 +212,102 @@ const SessionManager = {
                 return result;
             } else {
                 console.error('❌ Falha ao finalizar:', result.error);
-                
-                // Se precisa de CAPTCHA, retornar para tratamento
-                if (result.captcha_required) {
-                    return result;
-                }
-                
                 throw new Error(result.error || 'Falha ao finalizar sessão');
             }
         } catch (error) {
             console.error('❌ Erro ao finalizar sessão:', error);
             throw error;
         }
+    },
+    
+    /**
+     * Reenviar após CAPTCHA ser completado
+     * Chamado pelo CaptchaManager ou game-ui após verificação
+     */
+    async resendAfterCaptcha(captchaToken) {
+        if (!this.pendingEndSession) {
+            console.warn('⚠️ Sem sessão pendente para reenviar');
+            return null;
+        }
+        
+        console.log('🔄 Reenviando após CAPTCHA...');
+        
+        const pending = this.pendingEndSession;
+        
+        try {
+            const requestBody = {
+                session_id: pending.session.id,
+                session_token: pending.session.token,
+                google_uid: pending.session.googleUid,
+                score: pending.score,
+                earnings: pending.earnings,
+                lives_remaining: typeof gameState !== 'undefined' ? gameState.lives : 0,
+                victory: true,
+                stats: pending.stats,
+                captcha_token: captchaToken
+            };
+            
+            const response = await fetch('api/game-end.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success && result.credited) {
+                console.log('✅ Ganhos creditados após CAPTCHA:', {
+                    earnings: result.final_earnings,
+                    newBalance: result.new_balance
+                });
+                
+                // Limpar tudo
+                this.currentSession = null;
+                this.pendingEndSession = null;
+                
+                if (typeof gameState !== 'undefined') {
+                    gameState.sessionId = null;
+                    gameState.sessionToken = null;
+                }
+                
+                // Atualizar saldo local
+                if (result.new_balance !== null && result.new_balance !== undefined) {
+                    localStorage.setItem('userBalance', result.new_balance.toString());
+                    
+                    // Atualizar UI se possível
+                    if (typeof updateBalanceDisplay === 'function') {
+                        updateBalanceDisplay(result.new_balance);
+                    }
+                }
+                
+                // Mostrar notificação de sucesso
+                if (typeof showNotification === 'function') {
+                    showNotification('💰 CREDITADO!', `+R$ ${result.final_earnings.toFixed(4)}`, true);
+                }
+                
+                return result;
+            } else {
+                console.error('❌ Falha no reenvio:', result);
+                return result;
+            }
+        } catch (error) {
+            console.error('❌ Erro no reenvio:', error);
+            throw error;
+        }
+    },
+    
+    /**
+     * Verificar se tem sessão pendente de CAPTCHA
+     */
+    hasPendingCaptcha() {
+        return this.pendingEndSession !== null;
+    },
+    
+    /**
+     * Obter ganhos pendentes
+     */
+    getPendingEarnings() {
+        return this.pendingEndSession?.pendingEarnings || 0;
     },
     
     /**
@@ -214,7 +321,6 @@ const SessionManager = {
                 stats: stats
             });
             
-            // Simple hash for verification
             let hash = 0;
             for (let i = 0; i < data.length; i++) {
                 const char = data.charCodeAt(i);
@@ -248,6 +354,7 @@ const SessionManager = {
     clearSession() {
         console.log('🧹 Sessão limpa');
         this.currentSession = null;
+        this.pendingEndSession = null;
         if (typeof gameState !== 'undefined') {
             gameState.sessionId = null;
             gameState.sessionToken = null;
@@ -258,4 +365,4 @@ const SessionManager = {
 // Exportar
 window.SessionManager = SessionManager;
 
-console.log('📦 SessionManager v6.0 carregado (sem eventos individuais)');
+console.log('📦 SessionManager v6.1 carregado (com reenvio após CAPTCHA)');
