@@ -1,8 +1,8 @@
 <?php
 // ============================================
 // UNOBIX - Iniciar Sessão de Jogo
-// api/game-start.php v4.0
-// Usa config.php, trata colunas opcionais
+// api/game-start.php v4.2
+// Adaptado para estrutura existente do banco
 // ============================================
 
 require_once __DIR__ . "/config.php";
@@ -17,7 +17,11 @@ if (empty($input['google_uid'])) {
 }
 
 $googleUid = trim($input['google_uid']);
-if (!validateGoogleUid($googleUid)) {
+
+// Permitir UID truncado com ...
+if (strpos($googleUid, '...') !== false) {
+    // OK, vamos buscar pelo padrão
+} elseif (!validateGoogleUid($googleUid)) {
     echo json_encode(['success' => false, 'error' => 'google_uid inválido']);
     exit;
 }
@@ -40,7 +44,7 @@ try {
         exit;
     }
     
-    // Verificar ban (se coluna existir)
+    // Verificar ban
     if (!empty($user['is_banned'])) {
         echo json_encode(['success' => false, 'error' => 'Conta suspensa: ' . ($user['ban_reason'] ?? 'Violação dos termos')]);
         exit;
@@ -84,7 +88,7 @@ try {
     $result = $stmt->fetch();
     $missionNumber = (int)($result['total'] ?? 0) + 1;
     
-    // Determinar hard mode (SERVIDOR é a fonte de verdade!)
+    // Determinar hard mode
     $isHardMode = isHardModeMission();
     
     // Configurar recompensas especiais
@@ -102,14 +106,29 @@ try {
     // Criar token de sessão
     $sessionToken = hash('sha256', $realGoogleUid . '|' . time() . '|' . bin2hex(random_bytes(16)));
     
-    // Criar sessão
+    // Criar sessão - usando apenas colunas que existem
     $stmt = $pdo->prepare("
         INSERT INTO game_sessions (
-            google_uid, session_token, mission_number, status, is_hard_mode,
-            rare_asteroids_target, epic_asteroid_target, rare_ids, epic_id,
-            ip_address, user_agent, earnings_brl, asteroids_destroyed,
-            started_at, created_at
-        ) VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, 0, 0, NOW(), NOW())
+            google_uid, 
+            session_token, 
+            mission_number, 
+            status, 
+            is_hard_mode,
+            rare_asteroids_target, 
+            epic_asteroid_target, 
+            rare_ids, 
+            epic_id,
+            ip_address, 
+            user_agent, 
+            earnings_brl, 
+            asteroids_destroyed,
+            common_asteroids,
+            rare_asteroids,
+            epic_asteroids,
+            legendary_asteroids,
+            started_at, 
+            created_at
+        ) VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, NOW(), NOW())
     ");
     
     $stmt->execute([
@@ -153,7 +172,13 @@ try {
     ]);
     
 } catch (Throwable $e) {
-    error_log("❌ GAME-START ERROR: " . $e->getMessage());
+    error_log("❌ GAME-START ERROR: " . $e->getMessage() . " | File: " . $e->getFile() . " | Line: " . $e->getLine());
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Erro interno']);
+    // Temporariamente mostrar erro detalhado para debug
+    echo json_encode([
+        'success' => false, 
+        'error' => 'Erro interno',
+        'debug_error' => $e->getMessage(),
+        'debug_line' => $e->getLine()
+    ]);
 }
