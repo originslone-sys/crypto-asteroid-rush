@@ -1,7 +1,8 @@
 /* ============================================
-   UNOBIX - Game Engine v6.0
+   UNOBIX - Game Engine v7.0
    File: js/game-engine.js
-   Corrigido: Formato BRL, google_uid
+   CORRIGIDO: Usa SessionManager.endSession,
+   não limpa sessão prematuramente
    ============================================ */
 
 let canvas, ctx;
@@ -184,7 +185,7 @@ function createExplosion(x, y, colors, asteroid) {
     
     if (typeof playSound === 'function') playSound('explosion.mp3', 0.6);
     
-    // CORRIGIDO: Notificações em português e formato BRL
+    // Notificações em português e formato BRL
     const rewardText = `+R$ ${asteroid.reward.toFixed(4)}`.replace('.', ',');
     
     if (asteroid.type === 'LEGENDARY') {
@@ -236,7 +237,6 @@ function handleShipCollision(asteroid) {
 // HELPER: Obter dados de sessão
 // ============================================
 function getSessionData() {
-    // Tentar obter do SessionManager primeiro
     if (typeof SessionManager !== 'undefined' && SessionManager.currentSession) {
         const session = SessionManager.currentSession;
         return {
@@ -246,7 +246,6 @@ function getSessionData() {
         };
     }
     
-    // Fallback para gameState
     return {
         sessionId: gameState.sessionId,
         sessionToken: gameState.sessionToken,
@@ -278,37 +277,32 @@ async function gameOver() {
     
     console.log('💀 GAME OVER - Perdeu R$' + lostEarnings.toFixed(4));
     
-    const sessionData = getSessionData();
-    
-    // Enviar fim de jogo ao servidor (vitória = false)
-    if (sessionData.sessionId && sessionData.sessionToken && sessionData.google_uid) {
+    // Usar SessionManager para finalizar (aguarda eventos)
+    if (typeof SessionManager !== 'undefined' && SessionManager.hasActiveSession()) {
         try {
-            const response = await fetch('api/game-end.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    session_id: sessionData.sessionId,
-                    session_token: sessionData.sessionToken,
-                    google_uid: sessionData.google_uid,
-                    score: gameState.score,
-                    earnings: 0,
-                    lives_remaining: 0,
-                    victory: false,
-                    stats: stats
-                })
-            });
+            const destroyedList = gameState.destroyedAsteroids.map(a => ({
+                id: a.id,
+                type: a.type,
+                reward: a.reward
+            }));
             
-            const result = await response.json();
-            console.log('✅ Game-over response:', result);
+            // endSession com victory = false
+            gameState.lives = 0; // Garantir que lives = 0
+            
+            const result = await SessionManager.endSession(
+                gameState.score,
+                0, // earnings = 0 em game over
+                stats,
+                destroyedList
+            );
+            
+            console.log('✅ Game-over enviado ao servidor:', result);
             
         } catch (e) {
-            console.error('❌ Error sending game-over:', e);
+            console.error('❌ Erro ao enviar game-over:', e);
+            // Limpar sessão mesmo com erro
+            SessionManager.clearSession();
         }
-    }
-    
-    // Limpar sessão
-    if (typeof SessionManager !== 'undefined') {
-        SessionManager.clearSession();
     }
     
     setTimeout(() => {
@@ -387,7 +381,7 @@ async function endGame() {
         legendary: gameState.destroyedAsteroids.filter(a => a.type === 'LEGENDARY').length
     };
     
-    // Recalcular earnings
+    // Recalcular earnings do lado do cliente
     const calculatedEarnings = gameState.destroyedAsteroids.reduce((sum, a) => sum + a.reward, 0);
     gameState.earnings = calculatedEarnings;
     
@@ -401,84 +395,60 @@ async function endGame() {
         reward: a.reward
     }));
     
-    const sessionData = getSessionData();
-    
     // Variáveis para resposta do servidor
     let serverEarnings = gameState.earnings;
     let serverBalance = null;
-    let captchaRequired = false;
     
-    if (sessionData.sessionId && sessionData.sessionToken && sessionData.google_uid) {
+    // Usar SessionManager para finalizar (aguarda eventos antes de enviar)
+    if (typeof SessionManager !== 'undefined' && SessionManager.hasActiveSession()) {
         try {
-            // Obter token do CAPTCHA se disponível
-            let captchaToken = '';
-            if (typeof CaptchaManager !== 'undefined' && CaptchaManager.isComplete()) {
-                captchaToken = CaptchaManager.getToken() || '';
+            if (typeof showNotification === 'function') {
+                showNotification('⏳ PROCESSANDO', 'Salvando resultados...', true);
             }
             
-            const response = await fetch('api/game-end.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    session_id: sessionData.sessionId,
-                    session_token: sessionData.sessionToken,
-                    google_uid: sessionData.google_uid,
-                    score: gameState.score,
-                    earnings: gameState.earnings,
-                    lives_remaining: gameState.lives,
-                    victory: true,
-                    stats: stats,
-                    destroyed_asteroids: destroyedList,
-                    captcha_token: captchaToken
-                })
-            });
+            const result = await SessionManager.endSession(
+                gameState.score,
+                gameState.earnings,
+                stats,
+                destroyedList
+            );
             
-            const result = await response.json();
-            console.log('✅ Game-end response:', result);
+            console.log('✅ Resultado do servidor:', result);
             
-            if (result.success) {
-                if (result.captcha_required) {
-                    // CAPTCHA necessário - mostrar tela de verificação
-                    captchaRequired = true;
-                    serverEarnings = result.final_earnings || gameState.earnings;
-                } else {
-                    serverEarnings = parseFloat(result.final_earnings) || gameState.earnings;
-                    serverBalance = parseFloat(result.new_balance) || null;
-                    
-                    console.log(`💰 Ganhos finais: R$${serverEarnings}`);
-                    console.log(`📦 Novo saldo: R$${serverBalance}`);
-                    
-                    gameState.earnings = serverEarnings;
-                    gameState.serverConfirmedEarnings = serverEarnings;
-                    gameState.newBalance = serverBalance;
-                    
-                    if (serverBalance !== null) {
-                        localStorage.setItem('userBalance', serverBalance.toString());
-                    }
+            if (result && result.success) {
+                serverEarnings = parseFloat(result.final_earnings) || gameState.earnings;
+                serverBalance = result.new_balance !== null ? parseFloat(result.new_balance) : null;
+                
+                console.log(`💰 Ganhos confirmados: R$${serverEarnings}`);
+                console.log(`📦 Novo saldo: R$${serverBalance}`);
+                
+                gameState.earnings = serverEarnings;
+                gameState.serverConfirmedEarnings = serverEarnings;
+                gameState.newBalance = serverBalance;
+                
+                if (serverBalance !== null) {
+                    localStorage.setItem('userBalance', serverBalance.toString());
                 }
                 
                 if (result.warning) {
-                    console.warn(`⚠️ Warning: ${result.warning}`);
+                    console.warn(`⚠️ Aviso: ${result.warning}`);
                 }
-            } else {
-                console.error('❌ Server error:', result.error);
+            } else if (result && result.error) {
+                console.error('❌ Erro do servidor:', result.error);
                 if (result.banned && typeof showNotification === 'function') {
                     showNotification('⛔ CONTA SUSPENSA', result.error, false);
                 }
             }
+            
         } catch (e) {
-            console.error('❌ Network error:', e);
+            console.error('❌ Erro ao finalizar:', e);
+            // Limpar sessão mesmo com erro
+            if (typeof SessionManager !== 'undefined') {
+                SessionManager.clearSession();
+            }
         }
     } else {
-        console.error('❌ Missing session data!', sessionData);
-        if (typeof showNotification === 'function') {
-            showNotification('⚠️ ERRO', 'Dados de sessão ausentes', true);
-        }
-    }
-    
-    // Limpar sessão
-    if (typeof SessionManager !== 'undefined') {
-        SessionManager.clearSession();
+        console.error('❌ Sem SessionManager ou sessão ativa!');
     }
     
     setTimeout(() => {
@@ -534,4 +504,4 @@ window.endGame = endGame;
 window.updateShipPosition = updateShipPosition;
 window.getSessionData = getSessionData;
 
-console.log('📦 game-engine.js v6.0 carregado (BRL)');
+console.log('📦 game-engine.js v7.0 carregado (BRL)');
