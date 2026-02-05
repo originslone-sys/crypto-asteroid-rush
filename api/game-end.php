@@ -1,16 +1,14 @@
 <?php
 // ============================================
 // UNOBIX - Finalizar Sessão de Jogo
-// api/game-end.php v4.0 - REESCRITO
-// Credita saldo, registra transação, finaliza sessão
+// api/game-end.php v4.1
+// Adaptado para estrutura existente do banco
 // ============================================
 
 require_once __DIR__ . "/config.php";
 
-// Headers
 setCorsHeaders();
 
-// Ler input
 $input = getRequestInput();
 
 $sessionId = (int)($input['session_id'] ?? 0);
@@ -21,10 +19,8 @@ $clientEarnings = (float)($input['earnings'] ?? 0);
 $livesRemaining = (int)($input['lives_remaining'] ?? 0);
 $victory = (bool)($input['victory'] ?? false);
 $stats = $input['stats'] ?? [];
-$destroyedAsteroids = $input['destroyed_asteroids'] ?? [];
 $captchaToken = $input['captcha_token'] ?? '';
 
-// Validar dados básicos
 if (!$sessionId || !$sessionToken) {
     echo json_encode(['success' => false, 'error' => 'Dados de sessão inválidos']);
     exit;
@@ -47,7 +43,6 @@ try {
     // 1. BUSCAR E VALIDAR SESSÃO
     // ============================================
     
-    // Permitir UID truncado
     if (strpos($googleUid, '...') !== false) {
         $stmt = $pdo->prepare("
             SELECT gs.*, u.id as user_id, u.balance_brl, u.is_banned
@@ -79,7 +74,6 @@ try {
         exit;
     }
     
-    // Verificar se já foi finalizada
     if ($session['status'] !== 'active') {
         echo json_encode([
             'success' => false, 
@@ -89,7 +83,6 @@ try {
         exit;
     }
     
-    // Verificar se usuário está banido
     if (!empty($session['is_banned'])) {
         $pdo->prepare("UPDATE game_sessions SET status = 'cancelled' WHERE id = ?")->execute([$sessionId]);
         echo json_encode(['success' => false, 'error' => 'Conta suspensa', 'banned' => true]);
@@ -97,42 +90,35 @@ try {
     }
     
     // ============================================
-    // 2. CALCULAR GANHOS DO SERVIDOR (fonte de verdade)
+    // 2. CALCULAR GANHOS DO SERVIDOR
     // ============================================
     
+    // Usar coluna earnings_brl da tabela game_events
     $stmt = $pdo->prepare("
         SELECT 
-            reward_type,
-            COUNT(*) as count,
-            SUM(reward_amount_brl) as total
+            COUNT(*) as total_events,
+            COALESCE(SUM(earnings_brl), 0) as total_earnings
         FROM game_events 
         WHERE session_id = ?
-        GROUP BY reward_type
     ");
     $stmt->execute([$sessionId]);
-    $eventStats = $stmt->fetchAll();
+    $eventStats = $stmt->fetch();
     
-    $serverEarnings = 0;
-    $serverStats = [
-        'common' => 0,
-        'rare' => 0,
-        'epic' => 0,
-        'legendary' => 0
-    ];
+    $serverEarnings = (float)($eventStats['total_earnings'] ?? 0);
     
-    foreach ($eventStats as $stat) {
-        $type = strtolower($stat['reward_type']);
-        if (isset($serverStats[$type])) {
-            $serverStats[$type] = (int)$stat['count'];
-        }
-        $serverEarnings += (float)$stat['total'];
-    }
-    
-    // Também pegar o earnings_brl acumulado na sessão
+    // Também usar earnings_brl acumulado na sessão
     $sessionEarnings = (float)($session['earnings_brl'] ?? 0);
     
-    // Usar o maior entre eventos calculados e sessão (proteção)
+    // Usar o maior entre eventos e sessão
     $finalEarnings = max($serverEarnings, $sessionEarnings);
+    
+    // Stats da sessão
+    $serverStats = [
+        'common' => (int)($session['common_asteroids'] ?? 0),
+        'rare' => (int)($session['rare_asteroids'] ?? 0),
+        'epic' => (int)($session['epic_asteroids'] ?? 0),
+        'legendary' => (int)($session['legendary_asteroids'] ?? 0)
+    ];
     
     // ============================================
     // 3. VERIFICAR VITÓRIA E APLICAR REGRAS
@@ -143,7 +129,6 @@ try {
     $newBalance = (float)($session['balance_brl'] ?? 0);
     $warning = null;
     
-    // Se perdeu todas as vidas, não ganha nada
     if (!$isVictory) {
         $finalEarnings = 0;
         $warning = 'Missão falhou - ganhos perdidos';
@@ -151,12 +136,9 @@ try {
     
     // Verificar limites de segurança
     if ($finalEarnings > EARNINGS_BLOCK_BRL) {
-        // Ganhos muito altos - possível fraude
         secureLog("⚠️ SUSPICIOUS | Session: $sessionId | Earnings: $finalEarnings | BLOCKED");
-        
         $pdo->prepare("UPDATE game_sessions SET status = 'suspicious', ended_at = NOW() WHERE id = ?")
             ->execute([$sessionId]);
-        
         echo json_encode([
             'success' => false,
             'error' => 'Ganhos suspeitos detectados. Sessão em análise.',
@@ -178,8 +160,6 @@ try {
         $captchaResult = verifyCaptcha($captchaToken);
         
         if (!$captchaResult['success']) {
-            // Não creditar sem CAPTCHA, mas não falhar a requisição
-            // O frontend pode pedir o CAPTCHA e enviar novamente
             echo json_encode([
                 'success' => true,
                 'captcha_required' => true,
@@ -199,7 +179,7 @@ try {
     $pdo->beginTransaction();
     
     try {
-        $realGoogleUid = $session['google_uid']; // UID completo do banco
+        $realGoogleUid = $session['google_uid'];
         
         // 5a. Finalizar sessão
         $stmt = $pdo->prepare("
@@ -256,19 +236,6 @@ try {
             $newBalance = (float)$stmt->fetchColumn();
         }
         
-        // 5e. Registrar no captcha_log se aplicável
-        if ($isVictory && !empty($captchaToken)) {
-            try {
-                $stmt = $pdo->prepare("
-                    INSERT INTO captcha_log (session_id, google_uid, is_success, ip_address, created_at)
-                    VALUES (?, ?, 1, ?, NOW())
-                ");
-                $stmt->execute([$sessionId, $realGoogleUid, getClientIP()]);
-            } catch (Exception $e) {
-                // Ignorar se tabela não existir
-            }
-        }
-        
         $pdo->commit();
         
     } catch (Exception $e) {
@@ -313,7 +280,7 @@ try {
     }
     
     secureLog("GAME_END_ERROR | " . $e->getMessage());
-    error_log("game-end.php error: " . $e->getMessage());
+    error_log("game-end.php error: " . $e->getMessage() . " | Line: " . $e->getLine());
     
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Erro ao finalizar sessão']);
