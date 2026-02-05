@@ -1,7 +1,8 @@
 /* ============================================
-   UNOBIX - CAPTCHA Manager v4.0
+   UNOBIX - CAPTCHA Manager v5.0
    File: js/captcha-manager.js
    CAPTCHA matemático simples (apenas soma)
+   INTEGRADO: Reenvia ao servidor após verificar
    ============================================ */
 
 const CaptchaManager = {
@@ -105,7 +106,7 @@ const CaptchaManager = {
     /**
      * Verificar resposta
      */
-    verify() {
+    async verify() {
         const input = document.getElementById('captchaInput');
         if (!input) return false;
         
@@ -118,13 +119,16 @@ const CaptchaManager = {
         
         if (userAnswer === this.currentAnswer) {
             this.isVerified = true;
-            this.showStatus('✅ Verificação concluída!', 'success');
-            this.enableClaimButton();
+            this.showStatus('✅ Verificação concluída! Processando...', 'success');
             
             // Desabilitar input após verificação
             input.disabled = true;
             
             console.log('✅ CAPTCHA verificado corretamente');
+            
+            // NOVO: Reenviar ao servidor automaticamente
+            await this.processAfterVerification();
+            
             return true;
         } else {
             this.showStatus('❌ Resposta incorreta. Tente novamente.', 'error');
@@ -134,6 +138,109 @@ const CaptchaManager = {
             // Gerar novo desafio após erro
             setTimeout(() => this.refresh(), 1500);
             return false;
+        }
+    },
+    
+    /**
+     * NOVO: Processar após verificação do CAPTCHA
+     * Reenvia ao servidor para creditar ganhos
+     */
+    async processAfterVerification() {
+        console.log('🔄 Processando crédito após CAPTCHA...');
+        
+        // Verificar se tem sessão pendente
+        if (typeof SessionManager !== 'undefined' && SessionManager.hasPendingCaptcha()) {
+            const token = this.getToken();
+            
+            if (token) {
+                this.showStatus('💰 Creditando ganhos...', 'info');
+                
+                try {
+                    const result = await SessionManager.resendAfterCaptcha(token);
+                    
+                    if (result && result.success && result.credited) {
+                        console.log('✅ Ganhos creditados!', result);
+                        
+                        this.showStatus(`✅ R$ ${result.final_earnings.toFixed(4)} creditados!`, 'success');
+                        this.enableClaimButton();
+                        
+                        // Atualizar exibição do saldo
+                        this.updateBalanceDisplay(result.new_balance);
+                        
+                        // Atualizar exibição de ganhos na tela de fim de jogo
+                        this.updateEarningsDisplay(result.final_earnings, true);
+                        
+                    } else if (result && result.error) {
+                        console.error('❌ Erro ao creditar:', result.error);
+                        this.showStatus('❌ Erro: ' + result.error, 'error');
+                    } else {
+                        this.showStatus('✅ Verificado! Clique para resgatar.', 'success');
+                        this.enableClaimButton();
+                    }
+                } catch (e) {
+                    console.error('❌ Erro no processamento:', e);
+                    this.showStatus('❌ Erro ao processar. Tente novamente.', 'error');
+                }
+            }
+        } else {
+            // Sem pendência, apenas habilitar botão
+            this.enableClaimButton();
+        }
+    },
+    
+    /**
+     * Atualizar exibição do saldo
+     */
+    updateBalanceDisplay(newBalance) {
+        if (newBalance === null || newBalance === undefined) return;
+        
+        // Tentar várias seletores comuns
+        const selectors = [
+            '#userBalance',
+            '#balance-display',
+            '.balance-value',
+            '.user-balance',
+            '[data-balance]'
+        ];
+        
+        for (const selector of selectors) {
+            const el = document.querySelector(selector);
+            if (el) {
+                el.textContent = `R$ ${parseFloat(newBalance).toFixed(2)}`;
+                break;
+            }
+        }
+        
+        // Também atualizar via função global se existir
+        if (typeof updateBalanceDisplay === 'function') {
+            updateBalanceDisplay(newBalance);
+        }
+        
+        // Salvar no localStorage
+        localStorage.setItem('userBalance', newBalance.toString());
+    },
+    
+    /**
+     * Atualizar exibição de ganhos
+     */
+    updateEarningsDisplay(earnings, credited = false) {
+        const selectors = [
+            '#endGameEarnings',
+            '.end-game-earnings',
+            '.earnings-value',
+            '.mission-earnings'
+        ];
+        
+        for (const selector of selectors) {
+            const el = document.querySelector(selector);
+            if (el) {
+                el.textContent = `R$ ${parseFloat(earnings).toFixed(4)}`;
+                if (credited) {
+                    el.classList.add('credited');
+                    el.style.color = '#4CAF50';
+                }
+                break;
+            }
         }
     },
     
@@ -159,7 +266,8 @@ const CaptchaManager = {
         const claimBtn = document.getElementById('claimRewardBtn');
         if (claimBtn) {
             claimBtn.disabled = false;
-            claimBtn.innerHTML = '<i class="fas fa-check"></i> <span>RESGATAR GANHOS</span>';
+            claimBtn.innerHTML = '<i class="fas fa-check"></i> <span>✅ GANHOS CREDITADOS</span>';
+            claimBtn.style.backgroundColor = '#4CAF50';
         }
     },
     
@@ -171,6 +279,7 @@ const CaptchaManager = {
         if (claimBtn) {
             claimBtn.disabled = true;
             claimBtn.innerHTML = '<i class="fas fa-calculator"></i> <span>RESOLVA O DESAFIO</span>';
+            claimBtn.style.backgroundColor = '';
         }
     },
     
@@ -249,4 +358,4 @@ if (document.readyState === 'loading') {
 
 window.CaptchaManager = CaptchaManager;
 
-console.log('🛡️ CaptchaManager v4.0 carregado (soma simples)');
+console.log('🛡️ CaptchaManager v5.0 carregado (integrado com SessionManager)');
