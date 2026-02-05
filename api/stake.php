@@ -79,7 +79,7 @@ try {
         echo json_encode([
             'success' => false,
             'error' => 'Saldo insuficiente',
-            'current_balance' => round($currentBalance, 2)
+            'current_balance' => round($currentBalance, 6)
         ]);
         exit;
     }
@@ -100,7 +100,7 @@ try {
         echo json_encode([
             'success' => false,
             'error' => 'Limite total de stake: R$ ' . number_format(MAX_STAKE_BRL, 2, ',', '.'),
-            'current_staked' => round($currentTotalStaked, 2)
+            'current_staked' => round($currentTotalStaked, 6)
         ]);
         exit;
     }
@@ -179,14 +179,14 @@ try {
         'success' => true,
         'message' => 'Stake criado com sucesso!',
         'stake_id' => $stakeId,
-        'amount_brl' => round($amount, 2),
+        'amount_brl' => round($amount, 6),
         'apy_percent' => STAKE_APY * 100,
-        'new_balance_brl' => round($newBalance, 2),
-        'total_staked_brl' => round($newStaked, 2),
+        'new_balance_brl' => round($newBalance, 6),
+        'total_staked_brl' => round($newStaked, 6),
         'projections' => [
-            'daily_brl' => round($projectedDaily, 4),
-            'monthly_brl' => round($projectedMonthly, 4),
-            'yearly_brl' => round($projectedYearly, 2)
+            'daily_brl' => round($projectedDaily, 6),
+            'monthly_brl' => round($projectedMonthly, 6),
+            'yearly_brl' => round($projectedYearly, 6)
         ],
         'config' => [
             'min_stake_brl' => MIN_STAKE_BRL,
