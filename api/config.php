@@ -115,8 +115,9 @@ if (!defined('MIN_WITHDRAW_BRL')) {
 // STAKING
 // ============================================
 if (!defined('STAKE_APY')) {
-    define('STAKE_APY', 0.05);
-    define('MIN_STAKE_BRL', 0.10);
+    define('STAKE_APY', 0.05);            // 5% ao ano
+    define('MIN_STAKE_BRL', 0.01);        // Mínimo R$ 0,01 (consistente com frontend)
+    define('MAX_STAKE_BRL', 10000.00);    // Máximo R$ 10.000,00 por usuário
 }
 
 // ============================================
