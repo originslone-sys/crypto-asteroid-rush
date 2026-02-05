@@ -1,19 +1,19 @@
 /* ============================================
-   UNOBIX - Session Manager v4.0
+   UNOBIX - Session Manager v5.0
    js/game-session-manager.js
-   CORRIGIDO: UID completo, fila de eventos
+   CORRIGIDO: Aguarda eventos, não limpa sessão prematuramente
    ============================================ */
 
 const SessionManager = {
     currentSession: null,
     eventQueue: [],
     isProcessingQueue: false,
+    pendingEventCount: 0,
     
     /**
      * Obter Google UID de várias fontes
      */
     getGoogleUid() {
-        // Tentar várias fontes
         const sources = [
             () => window.gameState?.googleUid,
             () => window.gameState?.user?.uid,
@@ -27,7 +27,6 @@ const SessionManager = {
             try {
                 const uid = source();
                 if (uid && typeof uid === 'string' && uid.length >= 10) {
-                    console.log('🔑 UID encontrado:', uid.substring(0, 15) + '...');
                     return uid;
                 }
             } catch (e) {}
@@ -43,7 +42,6 @@ const SessionManager = {
     async startSession(googleUidParam = null) {
         console.log('🎮 Iniciando nova sessão...');
         
-        // Obter UID
         const googleUid = googleUidParam || this.getGoogleUid();
         
         if (!googleUid) {
@@ -68,7 +66,6 @@ const SessionManager = {
             const result = await response.json();
             
             if (result.success) {
-                // Usar UID retornado pelo servidor (completo)
                 const serverUid = result.google_uid || googleUid;
                 
                 this.currentSession = {
@@ -76,19 +73,14 @@ const SessionManager = {
                     token: result.session_token,
                     googleUid: serverUid,
                     missionNumber: result.mission_number,
-                    rareCount: result.rare_count,
-                    hasEpic: result.has_epic,
-                    hasLegendary: result.has_legendary,
-                    rareIds: result.rare_ids,
-                    epicId: result.epic_id,
-                    legendaryId: result.legendary_id,
                     startTime: Date.now(),
-                    gameDuration: result.game_duration,
                     isHardMode: result.is_hard_mode || false
                 };
                 
-                // Limpar fila de eventos
+                // Resetar contadores
                 this.eventQueue = [];
+                this.pendingEventCount = 0;
+                this.isProcessingQueue = false;
                 
                 // Salvar em gameState
                 if (typeof gameState !== 'undefined') {
@@ -97,7 +89,6 @@ const SessionManager = {
                     gameState.googleUid = serverUid;
                 }
                 
-                // Atualizar missionStats
                 if (typeof missionStats !== 'undefined') {
                     missionStats.isHardMode = result.is_hard_mode || false;
                 }
@@ -126,6 +117,7 @@ const SessionManager = {
     
     /**
      * Registrar evento de asteroide destruído
+     * NOTA: Apenas adiciona à fila, não bloqueia
      */
     recordEvent(asteroidId, rewardType, rewardAmount = 0) {
         if (!this.currentSession) {
@@ -133,20 +125,26 @@ const SessionManager = {
             return;
         }
         
+        // Mapear tipo para lowercase
+        const normalizedType = (rewardType || 'none').toLowerCase();
+        
+        // Log para debug
+        console.log(`📝 Evento: asteroide ${asteroidId}, tipo: ${normalizedType}`);
+        
         const eventData = {
             session_id: this.currentSession.id,
             session_token: this.currentSession.token,
             google_uid: this.currentSession.googleUid,
             asteroid_id: asteroidId,
-            reward_type: (rewardType || 'none').toLowerCase(),
+            reward_type: normalizedType,
             reward_amount: rewardAmount,
             timestamp: Math.floor(Date.now() / 1000)
         };
         
-        // Adicionar à fila
+        this.pendingEventCount++;
         this.eventQueue.push({ data: eventData, attempts: 0 });
         
-        // Processar fila
+        // Processar fila de forma assíncrona
         this.processEventQueue();
     },
     
@@ -163,6 +161,7 @@ const SessionManager = {
             
             if (!event.data || !event.data.session_id || !event.data.google_uid) {
                 console.warn('⚠️ Evento inválido, ignorando');
+                this.pendingEventCount--;
                 continue;
             }
             
@@ -175,28 +174,33 @@ const SessionManager = {
                 
                 const result = await response.json();
                 
-                if (!result.success) {
+                if (result.success) {
+                    this.pendingEventCount--;
+                } else {
                     console.warn('⚠️ Evento falhou:', result.error);
                     
-                    // Se rate limited, colocar de volta na fila
-                    if (result.throttled && event.attempts < 3) {
+                    // Se rate limited ou erro temporário, tentar novamente
+                    if ((result.throttled || result.error === 'Sessão não encontrada') && event.attempts < 3) {
                         event.attempts++;
                         this.eventQueue.unshift(event);
-                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    } else {
+                        this.pendingEventCount--;
                     }
                 }
                 
-                // Esperar 300ms entre eventos
-                await new Promise(resolve => setTimeout(resolve, 300));
+                // Pequeno delay entre eventos
+                await new Promise(resolve => setTimeout(resolve, 100));
                 
             } catch (error) {
                 console.error('❌ Erro ao enviar evento:', error);
                 
-                // Tentar novamente se houver tentativas restantes
                 if (event.attempts < 3) {
                     event.attempts++;
                     this.eventQueue.unshift(event);
                     await new Promise(resolve => setTimeout(resolve, 500));
+                } else {
+                    this.pendingEventCount--;
                 }
             }
         }
@@ -205,7 +209,27 @@ const SessionManager = {
     },
     
     /**
+     * Aguardar todos os eventos pendentes
+     */
+    async waitForPendingEvents(maxWaitMs = 10000) {
+        const startTime = Date.now();
+        
+        while ((this.eventQueue.length > 0 || this.pendingEventCount > 0) && 
+               (Date.now() - startTime) < maxWaitMs) {
+            console.log(`⏳ Aguardando ${this.eventQueue.length} eventos na fila, ${this.pendingEventCount} pendentes...`);
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        
+        if (this.eventQueue.length > 0 || this.pendingEventCount > 0) {
+            console.warn(`⚠️ Timeout esperando eventos: ${this.eventQueue.length} na fila, ${this.pendingEventCount} pendentes`);
+        } else {
+            console.log('✅ Todos os eventos processados');
+        }
+    },
+    
+    /**
      * Finalizar sessão
+     * IMPORTANTE: Aguarda eventos antes de finalizar
      */
     async endSession(score, earnings, stats = null, destroyedAsteroids = null) {
         if (!this.currentSession) {
@@ -213,25 +237,19 @@ const SessionManager = {
             return null;
         }
         
+        // IMPORTANTE: Guardar referência antes de limpar
         const sessionToEnd = { ...this.currentSession };
         
         console.log('🏁 Finalizando sessão...', {
             id: sessionToEnd.id,
             score: score,
             earnings: earnings,
-            queuedEvents: this.eventQueue.length
+            queuedEvents: this.eventQueue.length,
+            pendingEvents: this.pendingEventCount
         });
         
-        // Aguardar eventos pendentes
-        if (this.eventQueue.length > 0) {
-            console.log(`⏳ Aguardando ${this.eventQueue.length} eventos...`);
-            let waitCount = 0;
-            while (this.eventQueue.length > 0 && waitCount < 30) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-                waitCount++;
-            }
-            console.log('✅ Fila de eventos processada');
-        }
+        // Aguardar eventos pendentes (máximo 10 segundos)
+        await this.waitForPendingEvents(10000);
         
         try {
             const requestBody = {
@@ -262,9 +280,10 @@ const SessionManager = {
                     credited: result.credited
                 });
                 
-                // Limpar sessão
+                // Limpar sessão APÓS sucesso
                 this.currentSession = null;
                 this.eventQueue = [];
+                this.pendingEventCount = 0;
                 
                 if (typeof gameState !== 'undefined') {
                     gameState.sessionId = null;
@@ -300,17 +319,18 @@ const SessionManager = {
      * Limpar sessão (emergência)
      */
     clearSession() {
+        console.log('🧹 Sessão limpa');
         this.currentSession = null;
         this.eventQueue = [];
+        this.pendingEventCount = 0;
         if (typeof gameState !== 'undefined') {
             gameState.sessionId = null;
             gameState.sessionToken = null;
         }
-        console.log('🧹 Sessão limpa');
     }
 };
 
 // Exportar
 window.SessionManager = SessionManager;
 
-console.log('📦 SessionManager v4.0 carregado');
+console.log('📦 SessionManager v5.0 carregado');
