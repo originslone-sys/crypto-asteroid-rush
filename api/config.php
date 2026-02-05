@@ -45,7 +45,7 @@ if (!defined('CAPTCHA_ENABLED')) {
     define('CAPTCHA_ENABLED', true);
     define('CAPTCHA_TYPE', 'math');
     define('HCAPTCHA_SECRET_KEY', getenv('HCAPTCHA_SECRET_KEY') ?: '');
-    define('CAPTCHA_REQUIRED_ON_VICTORY', true);
+    define('CAPTCHA_REQUIRED_ON_VICTORY', false);
 }
 
 // ============================================
