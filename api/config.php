@@ -55,7 +55,7 @@ if (!defined('GAME_DURATION')) {
     define('GAME_DURATION', 180);           // 3 minutos
     define('GAME_TOLERANCE', 30);           // 30 segundos tolerância (reduzido de 300!)
     define('INITIAL_LIVES', 6);
-    define('MAX_MISSIONS_PER_HOUR', 5);
+    define('MAX_MISSIONS_PER_HOUR', 10);
     define('HARD_MODE_PERCENTAGE', 40);
 }
 
