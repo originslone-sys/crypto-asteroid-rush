@@ -127,8 +127,8 @@ try {
                     updated_at = NOW()
                 WHERE id = :id
             ")->execute([
-                ':earnings' => round($newTotalEarnedBrl, 4),
-                ':total_earned_brl' => round($newTotalEarnedBrl, 4),
+                ':earnings' => round($newTotalEarnedBrl, 6),
+                ':total_earned_brl' => round($newTotalEarnedBrl, 6),
                 ':id' => $id
             ]);
 
@@ -154,7 +154,7 @@ try {
             $updatedCount++;
             $totalEarningsDistributed += $earningsBrl;
 
-            error_log("Stake {$id} atualizado: +R$ " . number_format($earningsBrl, 4, '.', '') . " ({$hoursPassed}h)");
+            error_log("Stake {$id} atualizado: +R$ " . number_format($earningsBrl, 6, '.', '') . " ({$hoursPassed}h)");
 
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
@@ -166,7 +166,7 @@ try {
     // Libera o lock
     $pdo->query("SELECT RELEASE_LOCK(" . $pdo->quote($lockName) . ")");
 
-    $message = "Stakes atualizados: {$updatedCount} | Total distribuído: R$ " . number_format($totalEarningsDistributed, 4);
+    $message = "Stakes atualizados: {$updatedCount} | Total distribuído: R$ " . number_format($totalEarningsDistributed, 6);
     error_log($message);
 
     // Retornar JSON se chamado via HTTP
@@ -175,7 +175,7 @@ try {
         echo json_encode([
             'success' => true,
             'updated_count' => $updatedCount,
-            'total_earnings_distributed_brl' => round($totalEarningsDistributed, 4),
+            'total_earnings_distributed_brl' => round($totalEarningsDistributed, 6),
             'apy' => STAKE_APY * 100 . '%'
         ]);
     } else {
