@@ -137,7 +137,7 @@ try {
         'withdrawal_id' => $withdrawalId,
         'amount_brl' => $amount,
         'payment_method' => 'pix',
-        'new_balance' => round($newBalance, 2),
+        'new_balance' => round($newBalance, 6),
         'status' => 'pending',
         'estimated_processing' => 'Saques são processados entre os dias 20-25 de cada mês'
     ]);
