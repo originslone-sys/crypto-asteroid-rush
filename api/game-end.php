@@ -298,6 +298,22 @@ try {
     }
     
     // ============================================
+    // 7f. ATUALIZAR PROGRESSO DE REFERRAL
+    // ============================================
+    if ($credited && !empty($realGoogleUid)) {
+        try {
+            require_once __DIR__ . '/referral-helper.php';
+            $refResult = updateReferralProgress($pdo, $realGoogleUid);
+            if ($refResult['completed']) {
+                secureLog("REFERRAL_QUALIFIED_VIA_GAME | Referred: {$realGoogleUid} | Referrer: {$refResult['referrer_google_uid']}");
+            }
+        } catch (Exception $e) {
+            // Não falhar o game-end por erro de referral
+            error_log("Referral progress error: " . $e->getMessage());
+        }
+    }
+    
+    // ============================================
     // 8. LOG E RESPOSTA
     // ============================================
     
