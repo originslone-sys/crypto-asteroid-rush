@@ -18,16 +18,11 @@ if (preg_match('~/(pages|includes)$~', $__scriptDir)) {
 $ADMIN_BASE_URL  = $__scriptDir;
 $ADMIN_INDEX_URL = $ADMIN_BASE_URL . '/index.php';
 
-// Configuração de autenticação (usar variáveis de ambiente)
-$adminUser = getenv('ADMIN_USER') ?: 'admin';
-$adminPass = getenv('ADMIN_PASSWORD') ?: 'admin123';
-
-if (!$adminPass) {
-    die('❌ ERRO: Senha de administração não configurada. Defina ADMIN_PASSWORD no .env');
-}
-
-define('ADMIN_USER', $adminUser);
-define('ADMIN_PASS', $adminPass);
+// ============================================
+// CREDENCIAIS DO ADMIN — altere aqui diretamente
+// ============================================
+define('ADMIN_USER', 'admin');
+define('ADMIN_PASS', 'admin123');
 
 // Logout
 if (isset($_GET['logout'])) {
@@ -188,4 +183,3 @@ if (file_exists($pageFile)) {
 // Incluir footer
 include __DIR__ . '/includes/footer.php';
 ?>
-
