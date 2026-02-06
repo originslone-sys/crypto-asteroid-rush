@@ -20,7 +20,7 @@ $ADMIN_INDEX_URL = $ADMIN_BASE_URL . '/index.php';
 
 // Configuração de autenticação (usar variáveis de ambiente)
 $adminUser = getenv('ADMIN_USER') ?: 'admin';
-$adminPass = getenv('ADMIN_PASSWORD');
+$adminPass = getenv('ADMIN_PASSWORD') ?: 'admin123';
 
 if (!$adminPass) {
     die('❌ ERRO: Senha de administração não configurada. Defina ADMIN_PASSWORD no .env');
@@ -188,3 +188,4 @@ if (file_exists($pageFile)) {
 // Incluir footer
 include __DIR__ . '/includes/footer.php';
 ?>
+
