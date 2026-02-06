@@ -51,8 +51,11 @@ body {
     background: var(--sidebar-bg);
     border-right: 1px solid var(--border-color);
     position: fixed;
+    top: 0;
+    left: 0;
     height: 100vh;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
     z-index: 100;
 }
 
@@ -96,6 +99,9 @@ body {
 
 .sidebar-nav {
     padding: 20px 0;
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 10px;
 }
 
 .nav-section {
@@ -157,10 +163,9 @@ body {
 }
 
 .sidebar-footer {
-    position: absolute;
-    bottom: 0;
+    flex-shrink: 0;
     width: 100%;
-    padding: 20px;
+    padding: 15px 20px;
     border-top: 1px solid var(--border-color);
     background: var(--sidebar-bg);
 }
