@@ -58,6 +58,9 @@ try {
             ");
             $stmt->execute([$googleUid, $email, $displayName]);
             
+            // Detectar se é novo usuário (INSERT vs UPDATE)
+            $isNewUser = ($stmt->rowCount() === 1);
+            
             // Buscar usuário
             $user = findPlayer($pdo, $googleUid);
             
@@ -74,17 +77,64 @@ try {
                 ], 403);
             }
             
+            // ============================================
+            // REFERRAL: registrar indicação se novo usuário com código
+            // ============================================
+            $referralCode = trim($input['referral_code'] ?? $input['ref'] ?? '');
+            if ($isNewUser && !empty($referralCode)) {
+                try {
+                    require_once __DIR__ . '/referral-helper.php';
+                    $refOwner = validateReferralCode($pdo, $referralCode);
+                    
+                    if ($refOwner && $refOwner['google_uid'] !== $googleUid) {
+                        // Verificar se já não foi registrado
+                        $checkStmt = $pdo->prepare("
+                            SELECT id FROM referrals WHERE referred_google_uid = ? LIMIT 1
+                        ");
+                        $checkStmt->execute([$googleUid]);
+                        
+                        if (!$checkStmt->fetch()) {
+                            $stmt = $pdo->prepare("
+                                INSERT INTO referrals (
+                                    referrer_google_uid, referred_google_uid,
+                                    referral_code, missions_at_register,
+                                    missions_completed, missions_required,
+                                    status, commission_brl, created_at
+                                ) VALUES (?, ?, ?, 0, 0, 100, 'pending', 1.000000, NOW())
+                            ");
+                            $stmt->execute([
+                                $refOwner['google_uid'],
+                                $googleUid,
+                                strtoupper($referralCode)
+                            ]);
+                            
+                            // Incrementar uses_count
+                            $pdo->prepare("
+                                UPDATE referral_codes SET uses_count = uses_count + 1
+                                WHERE code = ?
+                            ")->execute([strtoupper($referralCode)]);
+                            
+                            secureLog("REFERRAL_AUTO_REGISTERED | Referrer: {$refOwner['google_uid']} | Referred: {$googleUid} | Code: {$referralCode}");
+                        }
+                    }
+                } catch (Exception $e) {
+                    // Não falhar o login por erro de referral
+                    error_log("Referral auto-register error: " . $e->getMessage());
+                }
+            }
+            
             // Gerar session token
             $sessionToken = hash('sha256', 
                 $googleUid . '|' . $user['id'] . '|' . microtime(true) . '|' . bin2hex(random_bytes(16))
             );
             
-            secureLog("AUTH_LOGIN | User: {$user['id']} | UID: " . substr($googleUid, 0, 15));
+            secureLog("AUTH_LOGIN | User: {$user['id']} | UID: " . substr($googleUid, 0, 15) . ($isNewUser ? ' | NEW_USER' : ''));
             
             jsonResponse([
                 'success' => true,
                 'message' => 'Login realizado com sucesso',
                 'session_token' => $sessionToken,
+                'is_new_user' => $isNewUser,
                 'user' => [
                     'id' => (int)$user['id'],
                     'google_uid' => $user['google_uid'],
@@ -93,8 +143,6 @@ try {
                     'balance_brl' => (float)($user['balance_brl'] ?? 0),
                     'total_played' => (int)($user['total_played'] ?? 0),
                     'total_earned_brl' => (float)($user['total_earned_brl'] ?? 0),
-                    'is_admin' => (bool)($user['is_admin'] ?? false),
-                    'referral_code' => $user['referral_code'] ?? null,
                     'created_at' => $user['created_at'] ?? '',
                     'last_login' => $user['last_login'] ?? ''
                 ]
