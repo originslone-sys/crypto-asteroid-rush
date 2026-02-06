@@ -34,7 +34,7 @@ foreach ($candidates as $c) {
 if (!$googleUid) {
     echo json_encode([
         'success' => false,
-        'balance_brl' => '0.00',
+        'balance_brl' => '0.000000',
         'error' => 'Identificador inválido. Envie google_uid.'
     ]);
     exit;
@@ -62,11 +62,11 @@ try {
     if (!$player) {
         echo json_encode([
             'success' => true,
-            'balance_brl' => '0.00',
-            'staked_balance_brl' => '0.00',
-            'pending_stake_reward' => '0.00',
-            'total_earned_brl' => '0.00',
-            'total_withdrawn_brl' => '0.00',
+            'balance_brl' => '0.000000',
+            'staked_balance_brl' => '0.000000',
+            'pending_stake_reward' => '0.000000',
+            'total_earned_brl' => '0.000000',
+            'total_withdrawn_brl' => '0.000000',
             'total_played' => 0,
             'is_new_player' => true
         ]);
@@ -99,11 +99,11 @@ try {
     echo json_encode([
         'success' => true,
         'google_uid' => $googleUid,
-        'balance_brl' => number_format($balanceBrl, 2, '.', ''),
-        'staked_balance_brl' => number_format($stakedBrl, 2, '.', ''),
-        'pending_stake_reward' => number_format($stakeReward, 4, '.', ''),
-        'total_earned_brl' => number_format($totalEarnedBrl, 2, '.', ''),
-        'total_withdrawn_brl' => number_format($totalWithdrawnBrl, 2, '.', ''),
+        'balance_brl' => number_format($balanceBrl, 6, '.', ''),
+        'staked_balance_brl' => number_format($stakedBrl, 6, '.', ''),
+        'pending_stake_reward' => number_format($stakeReward, 6, '.', ''),
+        'total_earned_brl' => number_format($totalEarnedBrl, 6, '.', ''),
+        'total_withdrawn_brl' => number_format($totalWithdrawnBrl, 6, '.', ''),
         'total_played' => $totalPlayed,
         'is_banned' => $isBanned,
         'display_name' => $player['display_name'] ?? null,
@@ -115,7 +115,7 @@ try {
     error_log("balance.php error: " . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'balance_brl' => '0.00',
+        'balance_brl' => '0.000000',
         'error' => 'Erro no servidor'
     ]);
 }
