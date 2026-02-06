@@ -44,6 +44,9 @@ class AuthManager {
             this.isInitialized = true;
             console.log('🔐 AuthManager inicializado');
             
+            // Capturar código de referral da URL (se houver)
+            this.captureReferralCode();
+            
         } catch (error) {
             console.error('❌ Erro ao inicializar AuthManager:', error);
         }
@@ -192,7 +195,8 @@ class AuthManager {
                     action: 'login',
                     google_uid: user.uid,
                     email: user.email,
-                    display_name: user.displayName
+                    display_name: user.displayName,
+                    referral_code: this.getStoredReferralCode()
                 })
             });
             
@@ -225,12 +229,9 @@ class AuthManager {
                         google_uid: result.user.google_uid,
                         email: result.user.email,
                         display_name: result.user.display_name,
-                        wallet_address: result.user.wallet_address,
                         balance_brl: result.user.balance_brl,
                         total_played: result.user.total_played,
-                        total_earned_brl: result.user.total_earned_brl,
-                        is_admin: result.user.is_admin,
-                        referral_code: result.user.referral_code
+                        total_earned_brl: result.user.total_earned_brl
                     };
                     
                     localStorage.setItem('userData', JSON.stringify(userData));
@@ -241,8 +242,10 @@ class AuthManager {
                     }
                 }
                 
-                // Verificar referral
-                this.checkReferral(user.uid);
+                // Limpar referral code do localStorage se novo usuário (já registrado pelo backend)
+                if (result.is_new_user) {
+                    this.clearStoredReferralCode();
+                }
                 
             } else {
                 console.warn('⚠️ Aviso do backend:', result.error);
@@ -257,38 +260,45 @@ class AuthManager {
         }
     }
     
-    async checkReferral(googleUid) {
-        const params = new URLSearchParams(window.location.search);
-        const refCode = params.get('ref');
-        
-        if (refCode) {
-            try {
-                const response = await fetch('/api/apply-referral.php', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        google_uid: googleUid,
-                        referral_code: refCode
-                    })
-                });
+    /**
+     * Capturar e armazenar código de referral da URL (?ref=ABC123)
+     * Chamado na inicialização — armazena no localStorage para uso no login
+     */
+    captureReferralCode() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const refCode = (params.get('ref') || '').trim().toUpperCase();
+            
+            if (refCode && /^[A-Z0-9]{6}$/.test(refCode)) {
+                localStorage.setItem('unobix_referral_code', refCode);
+                console.log('🔗 Código de referral capturado:', refCode);
                 
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        console.log('✅ Código de indicação aplicado:', refCode);
-                    }
+                // Limpar ?ref= da URL sem recarregar
+                if (window.history.replaceState) {
+                    const cleanSearch = window.location.search
+                        .replace(/[?&]ref=[^&]+/, '')
+                        .replace(/^\?$/, '');
+                    const cleanUrl = window.location.pathname + cleanSearch + window.location.hash;
+                    window.history.replaceState(null, '', cleanUrl);
                 }
-                
-                window.history.replaceState({}, '', window.location.pathname);
-            } catch (error) {
-                console.error('Erro ao aplicar referral:', error);
             }
+        } catch (e) {
+            console.error('Erro ao capturar referral:', e);
         }
+    }
+    
+    /**
+     * Obter código de referral armazenado
+     */
+    getStoredReferralCode() {
+        return localStorage.getItem('unobix_referral_code') || '';
+    }
+    
+    /**
+     * Limpar código de referral após uso
+     */
+    clearStoredReferralCode() {
+        localStorage.removeItem('unobix_referral_code');
     }
     
     dispatchAuthEvent(user) {
