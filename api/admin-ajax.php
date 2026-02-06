@@ -1,7 +1,7 @@
 <?php
 // ===============================================================
 // UNOBIX - ADMIN AJAX API
-// v4.0 - Suporte a BRL, Google UID, novos métodos de pagamento
+// v6.0 - Tabela users, google_uid, BRL, game_settings
 // ===============================================================
 
 date_default_timezone_set('America/Sao_Paulo');
@@ -21,6 +21,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
+// ===============================================================
+// AUTENTICAÇÃO — verificar sessão admin
+// ===============================================================
+session_start();
+if (!isset($_SESSION['admin']) || $_SESSION['admin'] !== true) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Não autorizado. Faça login no painel admin.']);
+    exit;
+}
+
 $input = getRequestInput();
 $action = $input["action"] ?? "";
 $response = ["success" => false, "message" => "Ação inválida"];
@@ -33,6 +43,8 @@ try {
 
         // -------------------------------------------------------
         // LISTAR SAQUES
+        // Tabela: withdrawals (doc 3.4)
+        // JOIN: users via user_id
         // -------------------------------------------------------
         case "list_withdrawals":
             $status = $input['status'] ?? 'all';
@@ -40,23 +52,20 @@ try {
             $sql = "
                 SELECT 
                     w.id,
-                    w.google_uid,
-                    w.wallet_address,
-                    COALESCE(w.amount_brl, w.amount_usdt) AS amount,
+                    w.user_id,
                     w.amount_brl,
                     w.amount_usdt,
-                    w.payment_method,
-                    w.payment_details,
+                    w.wallet_address,
                     w.status,
+                    w.transaction_hash,
+                    w.admin_notes,
                     w.created_at,
-                    w.approved_at,
-                    p.email,
-                    p.display_name
+                    w.processed_at,
+                    u.google_uid,
+                    u.email,
+                    u.display_name
                 FROM withdrawals w
-                LEFT JOIN players p ON (
-                    (w.google_uid IS NOT NULL AND p.google_uid = w.google_uid) OR
-                    (w.google_uid IS NULL AND p.wallet_address = w.wallet_address)
-                )
+                LEFT JOIN users u ON w.user_id = u.id
             ";
             
             $params = [];
@@ -74,10 +83,11 @@ try {
 
         // -------------------------------------------------------
         // APROVAR SAQUE
+        // Tabela: withdrawals (doc 3.4) + users (doc 3.1)
         // -------------------------------------------------------
         case "approve_withdrawal":
             $id = intval($input["id"] ?? 0);
-            $txHash = $input["tx_hash"] ?? null;
+            $txHash = $input["transaction_hash"] ?? $input["tx_hash"] ?? null;
             
             if ($id <= 0) throw new Exception("ID inválido");
 
@@ -90,41 +100,38 @@ try {
             if (!$withdrawal) throw new Exception("Saque não encontrado");
             if ($withdrawal["status"] !== "pending") throw new Exception("Saque já processado");
 
-            // Atualizar status
+            // Atualizar status para completed (doc: status de saque)
             $stmt = $pdo->prepare("
                 UPDATE withdrawals 
-                SET status = 'approved', approved_at = NOW(), tx_hash = ?
+                SET status = 'completed', processed_at = NOW(), transaction_hash = ?
                 WHERE id = ?
             ");
             $stmt->execute([$txHash, $id]);
 
-            // Atualizar total_withdrawn do jogador
-            $amount = $withdrawal['amount_brl'] ?? $withdrawal['amount_usdt'] ?? 0;
-            $identifier = $withdrawal['google_uid'] ?? $withdrawal['wallet_address'];
-            $isGoogle = !empty($withdrawal['google_uid']);
+            // Atualizar total_withdrawn_brl do jogador
+            $amount = $withdrawal['amount_brl'] ?? 0;
+            $userId = $withdrawal['user_id'];
             
-            if ($withdrawal['amount_brl']) {
-                $sql = "UPDATE players SET total_withdrawn_brl = total_withdrawn_brl + ? WHERE " 
-                     . ($isGoogle ? "google_uid = ?" : "wallet_address = ?");
-            } else {
-                $sql = "UPDATE players SET total_withdrawn = total_withdrawn + ? WHERE "
-                     . ($isGoogle ? "google_uid = ?" : "wallet_address = ?");
-            }
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([$amount, $identifier]);
+            $stmt = $pdo->prepare("
+                UPDATE users SET total_withdrawn_brl = total_withdrawn_brl + ? WHERE id = ?
+            ");
+            $stmt->execute([$amount, $userId]);
 
             // Logar transação
+            // Buscar google_uid do user para a transação
+            $stmt = $pdo->prepare("SELECT google_uid FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch();
+            
             $stmt = $pdo->prepare("
                 INSERT INTO transactions 
-                (wallet_address, google_uid, type, amount, amount_brl, description, status, created_at)
-                VALUES (?, ?, 'withdrawal_approved', ?, ?, ?, 'completed', NOW())
+                (google_uid, type, amount_brl, description, status, created_at)
+                VALUES (?, 'withdraw', ?, ?, 'completed', NOW())
             ");
             $stmt->execute([
-                $withdrawal['wallet_address'],
-                $withdrawal['google_uid'],
-                $withdrawal['amount_usdt'] ?? 0,
-                $withdrawal['amount_brl'],
-                "Saque #{$id} aprovado via " . ($withdrawal['payment_method'] ?? 'N/A')
+                $user['google_uid'] ?? null,
+                -abs($amount),
+                "Saque #{$id} aprovado"
             ]);
 
             $pdo->commit();
@@ -133,6 +140,7 @@ try {
 
         // -------------------------------------------------------
         // REJEITAR SAQUE
+        // Tabela: withdrawals + users
         // -------------------------------------------------------
         case "reject_withdrawal":
             $id = intval($input["id"] ?? 0);
@@ -150,40 +158,33 @@ try {
             if ($withdrawal["status"] !== "pending") throw new Exception("Saque já processado");
 
             // Devolver saldo ao jogador
-            $identifier = $withdrawal['google_uid'] ?? $withdrawal['wallet_address'];
-            $isGoogle = !empty($withdrawal['google_uid']);
+            $userId = $withdrawal['user_id'];
+            $amount = $withdrawal['amount_brl'] ?? 0;
             
-            if ($withdrawal['amount_brl']) {
-                $sql = "UPDATE players SET balance_brl = balance_brl + ? WHERE "
-                     . ($isGoogle ? "google_uid = ?" : "wallet_address = ?");
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([$withdrawal['amount_brl'], $identifier]);
-            } else {
-                $sql = "UPDATE players SET balance_usdt = balance_usdt + ? WHERE "
-                     . ($isGoogle ? "google_uid = ?" : "wallet_address = ?");
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([$withdrawal['amount_usdt'], $identifier]);
-            }
+            $stmt = $pdo->prepare("UPDATE users SET balance_brl = balance_brl + ? WHERE id = ?");
+            $stmt->execute([$amount, $userId]);
 
-            // Atualizar status
+            // Atualizar status para rejected
             $stmt = $pdo->prepare("
                 UPDATE withdrawals 
-                SET status = 'rejected', approved_at = NOW(), notes = ?
+                SET status = 'rejected', processed_at = NOW(), admin_notes = ?
                 WHERE id = ?
             ");
             $stmt->execute([$reason, $id]);
 
-            // Logar transação
+            // Logar transação de estorno
+            $stmt = $pdo->prepare("SELECT google_uid FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch();
+            
             $stmt = $pdo->prepare("
                 INSERT INTO transactions 
-                (wallet_address, google_uid, type, amount, amount_brl, description, status, created_at)
-                VALUES (?, ?, 'withdrawal_rejected', ?, ?, ?, 'completed', NOW())
+                (google_uid, type, amount_brl, description, status, created_at)
+                VALUES (?, 'withdraw_reject', ?, ?, 'completed', NOW())
             ");
             $stmt->execute([
-                $withdrawal['wallet_address'],
-                $withdrawal['google_uid'],
-                $withdrawal['amount_usdt'] ?? 0,
-                $withdrawal['amount_brl'],
+                $user['google_uid'] ?? null,
+                $amount,
                 "Saque #{$id} rejeitado - saldo devolvido. Motivo: {$reason}"
             ]);
 
@@ -193,24 +194,25 @@ try {
 
         // -------------------------------------------------------
         // ESTATÍSTICAS ADMIN
+        // Tabelas: users, withdrawals, game_sessions, staking
         // -------------------------------------------------------
         case "get_stats":
             $stats = [];
             
-            // Total de jogadores
-            $stats["total_players"] = $pdo->query("SELECT COUNT(*) FROM players")->fetchColumn();
+            // Total de usuários
+            $stats["total_players"] = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
             
-            // Jogadores com Google Auth
-            $stats["google_players"] = $pdo->query("SELECT COUNT(*) FROM players WHERE google_uid IS NOT NULL")->fetchColumn();
+            // Usuários com Google Auth
+            $stats["google_players"] = $pdo->query("SELECT COUNT(*) FROM users WHERE google_uid IS NOT NULL")->fetchColumn();
             
             // Total de saques
             $stats["total_withdrawals"] = $pdo->query("SELECT COUNT(*) FROM withdrawals")->fetchColumn();
             $stats["pending_withdrawals"] = $pdo->query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'")->fetchColumn();
             
             // Valores em BRL
-            $stats["total_balance_brl"] = $pdo->query("SELECT COALESCE(SUM(balance_brl), 0) FROM players")->fetchColumn();
-            $stats["total_staked_brl"] = $pdo->query("SELECT COALESCE(SUM(staked_balance_brl), 0) FROM players")->fetchColumn();
-            $stats["total_withdrawn_brl"] = $pdo->query("SELECT COALESCE(SUM(amount_brl), 0) FROM withdrawals WHERE status = 'approved'")->fetchColumn();
+            $stats["total_balance_brl"] = $pdo->query("SELECT COALESCE(SUM(balance_brl), 0) FROM users")->fetchColumn();
+            $stats["total_staked_brl"] = $pdo->query("SELECT COALESCE(SUM(staked_balance_brl), 0) FROM users")->fetchColumn();
+            $stats["total_withdrawn_brl"] = $pdo->query("SELECT COALESCE(SUM(amount_brl), 0) FROM withdrawals WHERE status = 'completed'")->fetchColumn();
             
             // Sessões de jogo
             $stats["total_sessions"] = $pdo->query("SELECT COUNT(*) FROM game_sessions")->fetchColumn();
@@ -219,35 +221,27 @@ try {
             // Sessões hard mode
             $stats["hard_mode_sessions"] = $pdo->query("SELECT COUNT(*) FROM game_sessions WHERE is_hard_mode = 1")->fetchColumn();
             
-            // CAPTCHA stats
-            $stats["captcha_success"] = $pdo->query("SELECT COUNT(*) FROM captcha_log WHERE is_success = 1")->fetchColumn();
-            $stats["captcha_failed"] = $pdo->query("SELECT COUNT(*) FROM captcha_log WHERE is_success = 0")->fetchColumn();
-            
             $response = ["success" => true, "stats" => $stats];
             break;
 
         // -------------------------------------------------------
         // LISTAR TRANSAÇÕES
+        // Tabela: transactions + users
         // -------------------------------------------------------
         case "list_transactions":
             $stmt = $pdo->query("
                 SELECT 
                     t.id,
-                    t.wallet_address,
                     t.google_uid,
                     t.type,
-                    COALESCE(t.amount_brl, t.amount) AS amount,
                     t.amount_brl,
                     t.description,
                     t.status,
                     t.created_at,
-                    p.email,
-                    p.display_name
+                    u.email,
+                    u.display_name
                 FROM transactions t
-                LEFT JOIN players p ON (
-                    (t.google_uid IS NOT NULL AND p.google_uid = t.google_uid) OR
-                    (t.google_uid IS NULL AND p.wallet_address = t.wallet_address)
-                )
+                LEFT JOIN users u ON t.google_uid = u.google_uid
                 ORDER BY t.created_at DESC
                 LIMIT 200
             ");
@@ -256,15 +250,16 @@ try {
 
         // -------------------------------------------------------
         // LISTAR JOGADORES
+        // Tabela: users (doc 3.1)
         // -------------------------------------------------------
         case "list_players":
             $stmt = $pdo->query("
                 SELECT 
-                    id, google_uid, email, display_name, wallet_address,
-                    balance_brl, balance_usdt, staked_balance_brl,
+                    id, google_uid, email, display_name,
+                    balance_brl, staked_balance_brl,
                     total_earned_brl, total_withdrawn_brl, total_played,
-                    is_banned, ban_reason, created_at, updated_at
-                FROM players
+                    is_banned, ban_reason, created_at, last_login, updated_at
+                FROM users
                 ORDER BY created_at DESC
                 LIMIT 200
             ");
@@ -282,15 +277,14 @@ try {
             }
             
             $stmt = $pdo->prepare("
-                SELECT * FROM players 
+                SELECT * FROM users 
                 WHERE google_uid LIKE ? 
                 OR email LIKE ? 
                 OR display_name LIKE ?
-                OR wallet_address LIKE ?
                 LIMIT 20
             ");
             $searchTerm = "%{$query}%";
-            $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $searchTerm]);
+            $stmt->execute([$searchTerm, $searchTerm, $searchTerm]);
             
             $response = ["success" => true, "data" => $stmt->fetchAll()];
             break;
@@ -308,10 +302,10 @@ try {
             }
             
             if ($googleUid) {
-                $stmt = $pdo->prepare("UPDATE players SET is_banned = 1, ban_reason = ? WHERE google_uid = ?");
+                $stmt = $pdo->prepare("UPDATE users SET is_banned = 1, ban_reason = ? WHERE google_uid = ?");
                 $stmt->execute([$reason, $googleUid]);
             } else {
-                $stmt = $pdo->prepare("UPDATE players SET is_banned = 1, ban_reason = ? WHERE id = ?");
+                $stmt = $pdo->prepare("UPDATE users SET is_banned = 1, ban_reason = ? WHERE id = ?");
                 $stmt->execute([$reason, $playerId]);
             }
             
@@ -330,10 +324,10 @@ try {
             }
             
             if ($googleUid) {
-                $stmt = $pdo->prepare("UPDATE players SET is_banned = 0, ban_reason = NULL WHERE google_uid = ?");
+                $stmt = $pdo->prepare("UPDATE users SET is_banned = 0, ban_reason = NULL WHERE google_uid = ?");
                 $stmt->execute([$googleUid]);
             } else {
-                $stmt = $pdo->prepare("UPDATE players SET is_banned = 0, ban_reason = NULL WHERE id = ?");
+                $stmt = $pdo->prepare("UPDATE users SET is_banned = 0, ban_reason = NULL WHERE id = ?");
                 $stmt->execute([$playerId]);
             }
             
@@ -350,13 +344,14 @@ try {
 
         // -------------------------------------------------------
         // CONFIGURAÇÕES DO SISTEMA
+        // Tabela: game_settings (doc 3.9)
         // -------------------------------------------------------
         case "get_config":
-            $stmt = $pdo->query("SELECT config_key, config_value, description, is_public FROM system_config ORDER BY config_key");
+            $stmt = $pdo->query("SELECT setting_key, setting_value, description, is_public FROM game_settings ORDER BY setting_key");
             $configs = [];
             while ($row = $stmt->fetch()) {
-                $configs[$row['config_key']] = [
-                    'value' => json_decode($row['config_value'], true),
+                $configs[$row['setting_key']] = [
+                    'value' => json_decode($row['setting_value'], true) ?? $row['setting_value'],
                     'description' => $row['description'],
                     'is_public' => (bool)$row['is_public']
                 ];
