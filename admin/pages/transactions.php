@@ -39,7 +39,7 @@ try {
     $error = $e->getMessage();
 }
 
-function formatBRL($v) { return 'R$ ' . number_format($v ?? 0, 2, ',', '.'); }
+// formatBRL() já definida em config.php
 
 $typeLabels = [
     'game_earning' => ['Ganho Jogo', 'success'],
