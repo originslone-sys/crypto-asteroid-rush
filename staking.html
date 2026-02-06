@@ -231,22 +231,22 @@
     <section class="staking-grid">
         <div class="staking-card">
             <div class="staking-card-icon"><i class="fas fa-wallet"></i></div>
-            <div class="staking-card-value" id="stakingBalance">R$ 0,00</div>
+            <div class="staking-card-value" id="stakingBalance">R$ 0,000000</div>
             <div class="staking-card-label">Seu Saldo</div>
         </div>
         <div class="staking-card success">
             <div class="staking-card-icon"><i class="fas fa-lock"></i></div>
-            <div class="staking-card-value text-success" id="totalStaked">R$ 0,00</div>
+            <div class="staking-card-value text-success" id="totalStaked">R$ 0,000000</div>
             <div class="staking-card-label">Em Staking</div>
         </div>
         <div class="staking-card warning">
             <div class="staking-card-icon"><i class="fas fa-coins"></i></div>
-            <div class="staking-card-value text-warning" id="stakingEarned">R$ 0,00</div>
+            <div class="staking-card-value text-warning" id="stakingEarned">R$ 0,000000</div>
             <div class="staking-card-label">Total Ganho</div>
         </div>
         <div class="staking-card">
             <div class="staking-card-icon"><i class="fas fa-clock"></i></div>
-            <div class="staking-card-value text-primary" id="pendingReward">+R$ 0,00</div>
+            <div class="staking-card-value text-primary" id="pendingReward">+R$ 0,000000</div>
             <div class="staking-card-label">Rendimento Pendente</div>
         </div>
     </section>
@@ -260,7 +260,7 @@
                 <p>Será creditado automaticamente ao fazer unstake</p>
             </div>
         </div>
-        <div class="pending-value" id="pendingRewardValue">+R$ 0,00</div>
+        <div class="pending-value" id="pendingRewardValue">+R$ 0,000000</div>
     </div>
     
     <!-- Formulário de Stake -->
@@ -363,7 +363,11 @@ let userStaked = 0;
 // Formatar valores em BRL (6 casas decimais)
 function formatBRL(value) {
     const num = parseFloat(value) || 0;
-    return 'R$ ' + num.toFixed(6).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const fixed = num.toFixed(6);
+    const parts = fixed.split('.');
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const decPart = parts[1];
+    return 'R$ ' + intPart + ',' + decPart;
 }
 
 // Atualizar projeções
