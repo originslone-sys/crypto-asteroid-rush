@@ -57,12 +57,12 @@
     <section class="stats-grid">
         <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-wallet"></i></div>
-            <div class="stat-value" id="statBalance">R$ 0,00</div>
+            <div class="stat-value" id="statBalance">R$ 0,000000</div>
             <div class="stat-label">Saldo Disponível</div>
         </div>
         <div class="stat-card success">
             <div class="stat-icon"><i class="fas fa-coins"></i></div>
-            <div class="stat-value" id="statEarned">R$ 0,00</div>
+            <div class="stat-value" id="statEarned">R$ 0,000000</div>
             <div class="stat-label">Total Ganho</div>
         </div>
         <div class="stat-card warning">
@@ -72,7 +72,7 @@
         </div>
         <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-lock"></i></div>
-            <div class="stat-value" id="statStaked">R$ 0,00</div>
+            <div class="stat-value" id="statStaked">R$ 0,000000</div>
             <div class="stat-label">Em Staking</div>
         </div>
     </section>
@@ -176,12 +176,14 @@
 <script src="js/main.js"></script>
 
 <script>
-// Formatar valores em BRL
+// Formatar valores em BRL (6 casas decimais)
 function formatBRL(value) {
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    }).format(value || 0);
+    const num = parseFloat(value) || 0;
+    const fixed = num.toFixed(6);
+    const parts = fixed.split('.');
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const decPart = parts[1];
+    return 'R$ ' + intPart + ',' + decPart;
 }
 
 // Carregar dados do dashboard
