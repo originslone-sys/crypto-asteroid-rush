@@ -2,7 +2,7 @@
 // ============================================
 // UNOBIX - Painel Administrativo
 // Arquivo: admin/index.php
-// ATUALIZADO: Google Auth, BRL, Ads Manager
+// v6.0 - Google Auth, BRL, Ads Manager
 // ============================================
 
 session_start();
@@ -117,9 +117,9 @@ require_once __DIR__ . '/../api/config.php';
 
 $debugMode = false;
 
-// Conectar ao banco
+// Conectar ao banco (usa getDatabaseConnection() do config.php — Regra de Ouro)
 try {
-    $pdo = getDBConnection();
+    $pdo = getDatabaseConnection();
     $pdo->exec("SET time_zone = '-03:00'");
 } catch (Exception $e) {
     die('<div style="background:#0a0a0f;color:#ff4757;padding:50px;text-align:center;font-family:Arial;">
@@ -132,7 +132,7 @@ try {
 $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
 
 // ============================================
-// LISTA DE PÁGINAS PERMITIDAS - ATUALIZADO
+// LISTA DE PÁGINAS PERMITIDAS
 // ============================================
 $allowedPages = [
     'dashboard', 
@@ -145,7 +145,7 @@ $allowedPages = [
     'logs', 
     'settings',
     'referrals',
-    'ads'  // NOVA PÁGINA DE ANÚNCIOS
+    'ads'
 ];
 
 if (!in_array($page, $allowedPages)) {
