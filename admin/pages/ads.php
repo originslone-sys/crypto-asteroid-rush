@@ -35,9 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'ads_endgame_show_on_gameover' => isset($_POST['endgame_show_on_gameover']) ? 'true' : 'false',
                 ];
                 
-                $stmt = $pdo->prepare("INSERT INTO system_config (config_key, config_value, is_public, updated_at) 
+                $stmt = $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) 
                                        VALUES (?, ?, 1, NOW()) 
-                                       ON DUPLICATE KEY UPDATE config_value = VALUES(config_value), updated_at = NOW()");
+                                       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW()");
                 
                 foreach ($configs as $key => $value) {
                     $stmt->execute([$key, $value]);
@@ -116,10 +116,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Carregar configurações
 $config = [];
 try {
-    $stmt = $pdo->query("SELECT config_key, config_value FROM system_config WHERE config_key LIKE 'ads_%'");
+    $stmt = $pdo->query("SELECT setting_key, setting_value FROM game_settings WHERE setting_key LIKE 'ads_%'");
     while ($row = $stmt->fetch()) {
-        $key = str_replace('ads_', '', $row['config_key']);
-        $value = $row['config_value'];
+        $key = str_replace('ads_', '', $row['setting_key']);
+        $value = $row['setting_value'];
         if ($value === 'true') $value = true;
         elseif ($value === 'false') $value = false;
         elseif (is_numeric($value)) $value = strpos($value, '.') !== false ? (float)$value : (int)$value;
