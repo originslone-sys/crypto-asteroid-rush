@@ -12,8 +12,8 @@ try {
                p1.display_name as referrer_name, p1.email as referrer_email,
                p2.display_name as referred_name, p2.email as referred_email, p2.total_played
         FROM referrals r
-        LEFT JOIN players p1 ON r.referrer_google_uid = p1.google_uid
-        LEFT JOIN players p2 ON r.referred_google_uid = p2.google_uid
+        LEFT JOIN users p1 ON r.referrer_google_uid = p1.google_uid
+        LEFT JOIN users p2 ON r.referred_google_uid = p2.google_uid
         ORDER BY r.created_at DESC LIMIT 100
     ")->fetchAll();
     
@@ -21,7 +21,7 @@ try {
         SELECT 
             COUNT(*) as total,
             SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+            SUM(CASE WHEN status = 'qualified' THEN 1 ELSE 0 END) as completed,
             SUM(CASE WHEN status = 'claimed' THEN 1 ELSE 0 END) as claimed,
             SUM(CASE WHEN status = 'claimed' THEN commission_brl ELSE 0 END) as total_paid
         FROM referrals
@@ -78,7 +78,7 @@ function formatBRL($v) { return 'R$ ' . number_format($v ?? 0, 2, ',', '.'); }
                     <?php foreach ($referrals as $r): ?>
                     <?php 
                         $progress = min(100, ($r['total_played'] ?? 0));
-                        $statusLabels = ['pending' => ['Em Progresso', 'warning'], 'completed' => ['Completado', 'success'], 'claimed' => ['Resgatado', 'primary']];
+                        $statusLabels = ['pending' => ['Em Progresso', 'warning'], 'qualified' => ['Qualificado', 'success'], 'claimed' => ['Resgatado', 'primary']];
                         $label = $statusLabels[$r['status']] ?? [$r['status'], 'info'];
                     ?>
                     <tr>
