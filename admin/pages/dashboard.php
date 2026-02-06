@@ -94,12 +94,12 @@ try {
     $error = $e->getMessage();
 }
 
-function formatBRL($value) {
-    return 'R$ ' . number_format($value ?? 0, 6, ',', '.');
-}
+// formatBRL() já definida em config.php (Regra de Ouro: 6 decimais)
 
-function formatBRLShort($value) {
-    return 'R$ ' . number_format($value ?? 0, 2, ',', '.');
+if (!function_exists('formatBRLShort')) {
+    function formatBRLShort($value) {
+        return 'R$ ' . number_format($value ?? 0, 2, ',', '.');
+    }
 }
 ?>
 
