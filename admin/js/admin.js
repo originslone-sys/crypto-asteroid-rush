@@ -1,16 +1,8 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Admin JavaScript
+   UNOBIX - Admin JavaScript
    Arquivo: admin/js/admin.js
+   v6.0 - BRL, Google UID, sem MetaMask
    ============================================ */
-
-// ============================================
-// CONFIGURAÇÃO USDT BSC
-// ============================================
-const USDT_CONFIG = {
-    CONTRACT_ADDRESS: '0x55d398326f99059fF775485246999027B3197955',
-    DECIMALS: 18,
-    BSC_CHAIN_ID: '0x38'
-};
 
 // ============================================
 // TOGGLE SIDEBAR (MOBILE)
@@ -60,212 +52,66 @@ function confirmAction(message) {
 }
 
 // ============================================
-// FUNÇÕES DE PAGAMENTO METAMASK
+// FUNÇÕES DE SAQUES (BRL/PIX)
 // ============================================
 
-// Verificar MetaMask
-function checkMetaMask() {
-    if (typeof window.ethereum === 'undefined') {
-        showToast('MetaMask não detectada! Instale a extensão.', 'error');
+/**
+ * Aprovar saque (marca como aprovado no sistema)
+ * O pagamento real é feito manualmente via PIX/PayPal
+ */
+async function approveWithdrawal(id, amount) {
+    const amountFormatted = formatBRL(amount);
+    
+    if (!confirm(`✅ APROVAR SAQUE #${id}\n\nValor: ${amountFormatted}\n\nVocê confirma que já realizou o pagamento?`)) {
         return false;
     }
-    return true;
-}
-
-// Conectar carteira
-async function connectWallet() {
-    if (!checkMetaMask()) return null;
     
     try {
-        const accounts = await window.ethereum.request({
-            method: 'eth_requestAccounts'
-        });
-        return accounts[0] || null;
-    } catch (error) {
-        showToast('Erro ao conectar carteira: ' + error.message, 'error');
-        return null;
-    }
-}
-
-// Garantir rede BSC
-async function ensureBSCNetwork() {
-    try {
-        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        showToast('Processando...', 'warning');
         
-        if (chainId !== USDT_CONFIG.BSC_CHAIN_ID) {
-            try {
-                await window.ethereum.request({
-                    method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: USDT_CONFIG.BSC_CHAIN_ID }]
-                });
-            } catch (switchError) {
-                if (switchError.code === 4902) {
-                    await window.ethereum.request({
-                        method: 'wallet_addEthereumChain',
-                        params: [{
-                            chainId: USDT_CONFIG.BSC_CHAIN_ID,
-                            chainName: 'BNB Smart Chain',
-                            nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
-                            rpcUrls: ['https://bsc-dataseed.binance.org/'],
-                            blockExplorerUrls: ['https://bscscan.com/']
-                        }]
-                    });
-                } else {
-                    throw switchError;
-                }
-            }
-        }
-        return true;
-    } catch (error) {
-        showToast('Erro ao conectar à BSC: ' + error.message, 'error');
-        return false;
-    }
-}
-
-// Verificar saldo BNB
-async function checkBNBBalance(address) {
-    try {
-        const balance = await window.ethereum.request({
-            method: 'eth_getBalance',
-            params: [address, 'latest']
-        });
-        return parseInt(balance) / 1e18;
-    } catch (error) {
-        return 0;
-    }
-}
-
-// Verificar saldo USDT
-async function checkUSDTBalance(address) {
-    try {
-        const data = '0x70a08231' + address.toLowerCase().replace('0x', '').padStart(64, '0');
-        
-        const result = await window.ethereum.request({
-            method: 'eth_call',
-            params: [{ to: USDT_CONFIG.CONTRACT_ADDRESS, data: data }, 'latest']
+        const response = await adminAjax({
+            action: 'approve_withdrawal',
+            id: id
         });
         
-        return Number(BigInt(result)) / Math.pow(10, 18);
-    } catch (error) {
-        console.error('Erro ao verificar saldo USDT:', error);
-        return 0;
-    }
-}
-
-// Enviar USDT
-async function sendUSDT(fromAddress, toAddress, amountUSD) {
-    // Converter para 18 decimais
-    const amountStr = amountUSD.toFixed(18);
-    const [intPart, decPart = ''] = amountStr.split('.');
-    const paddedDec = decPart.padEnd(18, '0').slice(0, 18);
-    const fullNumber = intPart + paddedDec;
-    const amountWei = BigInt(fullNumber).toString(16);
-    
-    // Codificar transfer(address,uint256)
-    const data = '0xa9059cbb' + 
-                 toAddress.toLowerCase().replace('0x', '').padStart(64, '0') +
-                 amountWei.padStart(64, '0');
-    
-    console.log('Enviando USDT:', { amount: amountUSD, to: toAddress, data });
-    
-    const txHash = await window.ethereum.request({
-        method: 'eth_sendTransaction',
-        params: [{
-            from: fromAddress,
-            to: USDT_CONFIG.CONTRACT_ADDRESS,
-            value: '0x0',
-            data: data,
-            gas: '0x186A0'
-        }]
-    });
-    
-    return txHash;
-}
-
-// Processar pagamento de saque
-async function processWithdrawalPayment(id, walletAddress, amount) {
-    if (!checkMetaMask()) return false;
-    
-    try {
-        // 1. Conectar
-        const adminAddress = await connectWallet();
-        if (!adminAddress) return false;
-        
-        // 2. Verificar rede
-        if (!await ensureBSCNetwork()) return false;
-        
-        // 3. Verificar saldos
-        const bnbBalance = await checkBNBBalance(adminAddress);
-        const usdtBalance = await checkUSDTBalance(adminAddress);
-        
-        if (bnbBalance < 0.0005) {
-            showToast(`Saldo BNB insuficiente: ${bnbBalance.toFixed(6)} BNB`, 'error');
-            return false;
-        }
-        
-        if (usdtBalance < amount) {
-            showToast(`Saldo USDT insuficiente: $${usdtBalance.toFixed(6)}`, 'error');
-            return false;
-        }
-        
-        // 4. Confirmar
-        if (!confirm(`💸 CONFIRMAR PAGAMENTO\n\nValor: $${amount.toFixed(6)} USDT\nPara: ${walletAddress}\n\nSaldo BNB: ${bnbBalance.toFixed(6)}\nSaldo USDT: $${usdtBalance.toFixed(6)}\n\nContinuar?`)) {
-            return false;
-        }
-        
-        // 5. Enviar
-        showToast('Processando pagamento...', 'warning');
-        const txHash = await sendUSDT(adminAddress, walletAddress, amount);
-        
-        // 6. Registrar no sistema
-        const formData = new FormData();
-        formData.append('action', 'approve_withdrawal');
-        formData.append('id', id);
-        formData.append('tx_hash', txHash);
-        
-        const response = await fetch('../api/admin-ajax.php', { method: 'POST', body: formData });
-        const result = await response.json();
-        
-        if (result.success) {
-            showToast('Pagamento enviado com sucesso!', 'success');
-            setTimeout(() => location.reload(), 2000);
-            return true;
-        } else {
-            showToast('Pagamento enviado, mas erro ao registrar: ' + result.message, 'warning');
-            return true;
-        }
-        
-    } catch (error) {
-        console.error('Erro:', error);
-        if (error.code === 4001) {
-            showToast('Transação cancelada', 'warning');
-        } else {
-            showToast('Erro: ' + error.message, 'error');
-        }
-        return false;
-    }
-}
-
-// Rejeitar saque
-async function rejectWithdrawal(id) {
-    if (!confirm('Rejeitar este saque?\n\nO saldo será devolvido ao jogador.')) {
-        return false;
-    }
-    
-    try {
-        const formData = new FormData();
-        formData.append('action', 'reject_withdrawal');
-        formData.append('id', id);
-        
-        const response = await fetch('../api/admin-ajax.php', { method: 'POST', body: formData });
-        const result = await response.json();
-        
-        if (result.success) {
-            showToast('Saque rejeitado!', 'success');
+        if (response.success) {
+            showToast('Saque aprovado com sucesso!', 'success');
             setTimeout(() => location.reload(), 1500);
             return true;
         } else {
-            showToast('Erro: ' + result.message, 'error');
+            showToast('Erro: ' + (response.error || response.message), 'error');
+            return false;
+        }
+    } catch (error) {
+        showToast('Erro de conexão: ' + error.message, 'error');
+        return false;
+    }
+}
+
+/**
+ * Rejeitar saque (devolve saldo ao jogador)
+ */
+async function rejectWithdrawal(id) {
+    const reason = prompt('Motivo da rejeição:');
+    if (!reason) return false;
+    
+    if (!confirm(`❌ Rejeitar saque #${id}?\n\nMotivo: ${reason}\nO saldo será devolvido ao jogador.`)) {
+        return false;
+    }
+    
+    try {
+        const response = await adminAjax({
+            action: 'reject_withdrawal',
+            id: id,
+            reason: reason
+        });
+        
+        if (response.success) {
+            showToast('Saque rejeitado e saldo devolvido!', 'success');
+            setTimeout(() => location.reload(), 1500);
+            return true;
+        } else {
+            showToast('Erro: ' + (response.error || response.message), 'error');
             return false;
         }
     } catch (error) {
@@ -278,32 +124,32 @@ async function rejectWithdrawal(id) {
 // FUNÇÕES DE SEGURANÇA
 // ============================================
 
-// Banir wallet
-async function banWallet(wallet, reason = '') {
+/**
+ * Banir jogador por Google UID
+ */
+async function banPlayer(googleUid, reason = '') {
     if (!reason) {
         reason = prompt('Motivo do banimento:');
         if (!reason) return false;
     }
     
-    if (!confirm(`Banir wallet ${wallet.substring(0, 10)}...?\n\nMotivo: ${reason}`)) {
+    if (!confirm(`Banir jogador?\n\nGoogle UID: ${googleUid.substring(0, 15)}...\nMotivo: ${reason}`)) {
         return false;
     }
     
     try {
-        const formData = new FormData();
-        formData.append('action', 'ban_wallet');
-        formData.append('wallet', wallet);
-        formData.append('reason', reason);
+        const response = await adminAjax({
+            action: 'ban_player',
+            google_uid: googleUid,
+            reason: reason
+        });
         
-        const response = await fetch('../api/admin-ajax.php', { method: 'POST', body: formData });
-        const result = await response.json();
-        
-        if (result.success) {
-            showToast('Wallet banida!', 'success');
+        if (response.success) {
+            showToast('Jogador banido!', 'success');
             setTimeout(() => location.reload(), 1500);
             return true;
         } else {
-            showToast('Erro: ' + result.message, 'error');
+            showToast('Erro: ' + (response.error || response.message), 'error');
             return false;
         }
     } catch (error) {
@@ -312,26 +158,26 @@ async function banWallet(wallet, reason = '') {
     }
 }
 
-// Desbanir wallet
-async function unbanWallet(wallet) {
-    if (!confirm(`Desbanir wallet ${wallet.substring(0, 10)}...?`)) {
+/**
+ * Desbanir jogador por Google UID
+ */
+async function unbanPlayer(googleUid) {
+    if (!confirm(`Desbanir jogador?\n\nGoogle UID: ${googleUid.substring(0, 15)}...`)) {
         return false;
     }
     
     try {
-        const formData = new FormData();
-        formData.append('action', 'unban_wallet');
-        formData.append('wallet', wallet);
+        const response = await adminAjax({
+            action: 'unban_player',
+            google_uid: googleUid
+        });
         
-        const response = await fetch('../api/admin-ajax.php', { method: 'POST', body: formData });
-        const result = await response.json();
-        
-        if (result.success) {
-            showToast('Wallet desbanida!', 'success');
+        if (response.success) {
+            showToast('Jogador desbanido!', 'success');
             setTimeout(() => location.reload(), 1500);
             return true;
         } else {
-            showToast('Erro: ' + result.message, 'error');
+            showToast('Erro: ' + (response.error || response.message), 'error');
             return false;
         }
     } catch (error) {
@@ -340,75 +186,81 @@ async function unbanWallet(wallet) {
     }
 }
 
-// Blacklist IP
-async function blacklistIP(ip, hours = null) {
-    const reason = prompt('Motivo do bloqueio:');
-    if (!reason) return false;
+// ============================================
+// AJAX HELPER (chamadas ao admin-ajax.php)
+// ============================================
+
+/**
+ * Função centralizada para chamadas AJAX ao admin
+ * Usa JSON e inclui tratamento de erros
+ */
+async function adminAjax(data) {
+    const response = await fetch('../api/admin-ajax.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'same-origin'  // Envia cookies de sessão
+    });
     
-    if (!confirm(`Bloquear IP ${ip}?\n\nMotivo: ${reason}\nDuração: ${hours ? hours + ' horas' : 'Permanente'}`)) {
-        return false;
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
-    try {
-        const formData = new FormData();
-        formData.append('action', 'blacklist_ip');
-        formData.append('ip', ip);
-        formData.append('reason', reason);
-        if (hours) formData.append('hours', hours);
-        
-        const response = await fetch('../api/admin-ajax.php', { method: 'POST', body: formData });
-        const result = await response.json();
-        
-        if (result.success) {
-            showToast('IP bloqueado!', 'success');
-            setTimeout(() => location.reload(), 1500);
-            return true;
-        } else {
-            showToast('Erro: ' + result.message, 'error');
-            return false;
-        }
-    } catch (error) {
-        showToast('Erro: ' + error.message, 'error');
-        return false;
-    }
+    return await response.json();
 }
 
 // ============================================
 // FUNÇÕES UTILITÁRIAS
 // ============================================
 
-// Formatar data
+/**
+ * Formatar data no padrão brasileiro
+ */
 function formatDate(dateStr) {
     const date = new Date(dateStr);
     return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR');
 }
 
-// Formatar moeda
-function formatCurrency(value, decimals = 6) {
-    return '$' + parseFloat(value).toFixed(decimals);
+/**
+ * Formatar valor em BRL (6 casas decimais)
+ */
+function formatBRL(value) {
+    const num = parseFloat(value) || 0;
+    return 'R$ ' + num.toFixed(6).replace('.', ',');
 }
 
-// Truncar wallet
-function truncateWallet(wallet) {
-    return wallet.substring(0, 6) + '...' + wallet.substring(wallet.length - 4);
+/**
+ * Formatar valor em BRL resumido (2 casas)
+ */
+function formatBRLShort(value) {
+    const num = parseFloat(value) || 0;
+    return 'R$ ' + num.toFixed(2).replace('.', ',');
+}
+
+/**
+ * Truncar Google UID para exibição
+ */
+function truncateUid(uid) {
+    if (!uid || uid.length <= 12) return uid;
+    return uid.substring(0, 8) + '...' + uid.substring(uid.length - 4);
 }
 
 // ============================================
 // INICIALIZAÇÃO
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
-    // Auto-refresh para páginas específicas
+    // Auto-refresh para páginas específicas (desabilitado por padrão)
     const autoRefreshPages = ['withdrawals', 'security'];
     const currentPage = new URLSearchParams(window.location.search).get('page');
     
     if (autoRefreshPages.includes(currentPage)) {
         setInterval(() => {
             // Recarregar apenas se não houver interação recente
-            if (!document.querySelector(':focus')) {
+            if (!document.querySelector(':focus') && !document.querySelector('.modal-overlay.active')) {
                 // location.reload();
             }
         }, 60000); // 1 minuto
     }
     
-    console.log('🚀 Admin Panel initialized');
+    console.log('🚀 UNOBIX Admin Panel v6.0 initialized');
 });
