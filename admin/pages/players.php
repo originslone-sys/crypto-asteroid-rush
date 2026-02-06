@@ -106,9 +106,7 @@ try {
     $error = $e->getMessage();
 }
 
-function formatBRL($value) {
-    return 'R$ ' . number_format($value ?? 0, 2, ',', '.');
-}
+// formatBRL() já definida em config.php
 ?>
 
 <div class="main-content">
