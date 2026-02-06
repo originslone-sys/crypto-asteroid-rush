@@ -1,7 +1,7 @@
 <?php
 // ===============================================================
 // UNOBIX - ADMIN SECURITY API
-// v4.0 - Suporte a Google UID e novos sistemas
+// v6.0 - Tabela users, google_uid, game_settings
 // ===============================================================
 
 date_default_timezone_set('America/Sao_Paulo');
@@ -55,7 +55,7 @@ try {
             $stats = [];
             
             // Jogadores banidos
-            $stats['banned_players'] = $pdo->query("SELECT COUNT(*) FROM players WHERE is_banned = 1")->fetchColumn();
+            $stats['banned_players'] = $pdo->query("SELECT COUNT(*) FROM users WHERE is_banned = 1")->fetchColumn();
             
             // IPs na blacklist
             $stats['blacklisted_ips'] = $pdo->query("
@@ -90,44 +90,25 @@ try {
                 SELECT COUNT(*) FROM game_sessions 
                 WHERE is_hard_mode = 1 AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
             ")->fetchColumn();
-            
-            // CAPTCHA stats
-            $stats['captcha_verified_24h'] = $pdo->query("
-                SELECT COUNT(*) FROM captcha_log 
-                WHERE is_success = 1 AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
-            ")->fetchColumn();
-            $stats['captcha_failed_24h'] = $pdo->query("
-                SELECT COUNT(*) FROM captcha_log 
-                WHERE is_success = 0 AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
-            ")->fetchColumn();
 
             echo json_encode(['success' => true, 'stats' => $stats]);
             break;
 
         // =======================================================
-        // BANIR JOGADOR (por Google UID ou Wallet)
+        // BANIR JOGADOR (por Google UID)
+        // Tabela: users (doc 3.1)
         // =======================================================
         case 'ban_player':
             $googleUid = $input['google_uid'] ?? null;
-            $wallet = strtolower(trim($input['wallet'] ?? ''));
             $reason = $input['reason'] ?? 'Banimento manual';
             
-            if (!$googleUid && !$wallet) {
-                echo json_encode(['success' => false, 'error' => 'google_uid ou wallet é obrigatório']);
+            if (!$googleUid) {
+                echo json_encode(['success' => false, 'error' => 'google_uid é obrigatório']);
                 exit;
             }
             
-            if ($googleUid) {
-                $stmt = $pdo->prepare("UPDATE players SET is_banned = 1, ban_reason = ? WHERE google_uid = ?");
-                $stmt->execute([$reason, $googleUid]);
-            } else {
-                if (!validateWallet($wallet)) {
-                    echo json_encode(['success' => false, 'error' => 'Wallet inválida']);
-                    exit;
-                }
-                $stmt = $pdo->prepare("UPDATE players SET is_banned = 1, ban_reason = ? WHERE wallet_address = ?");
-                $stmt->execute([$reason, $wallet]);
-            }
+            $stmt = $pdo->prepare("UPDATE users SET is_banned = 1, ban_reason = ? WHERE google_uid = ?");
+            $stmt->execute([$reason, $googleUid]);
             
             $affected = $stmt->rowCount();
             echo json_encode([
@@ -141,20 +122,14 @@ try {
         // =======================================================
         case 'unban_player':
             $googleUid = $input['google_uid'] ?? null;
-            $wallet = strtolower(trim($input['wallet'] ?? ''));
             
-            if (!$googleUid && !$wallet) {
-                echo json_encode(['success' => false, 'error' => 'google_uid ou wallet é obrigatório']);
+            if (!$googleUid) {
+                echo json_encode(['success' => false, 'error' => 'google_uid é obrigatório']);
                 exit;
             }
             
-            if ($googleUid) {
-                $stmt = $pdo->prepare("UPDATE players SET is_banned = 0, ban_reason = NULL WHERE google_uid = ?");
-                $stmt->execute([$googleUid]);
-            } else {
-                $stmt = $pdo->prepare("UPDATE players SET is_banned = 0, ban_reason = NULL WHERE wallet_address = ?");
-                $stmt->execute([$wallet]);
-            }
+            $stmt = $pdo->prepare("UPDATE users SET is_banned = 0, ban_reason = NULL WHERE google_uid = ?");
+            $stmt->execute([$googleUid]);
             
             $affected = $stmt->rowCount();
             echo json_encode([
@@ -210,11 +185,12 @@ try {
 
         // =======================================================
         // LISTAR JOGADORES BANIDOS
+        // Tabela: users (doc 3.1)
         // =======================================================
         case 'list_banned':
             $stmt = $pdo->query("
-                SELECT id, google_uid, email, display_name, wallet_address, ban_reason, created_at, updated_at
-                FROM players
+                SELECT id, google_uid, email, display_name, ban_reason, created_at, updated_at
+                FROM users
                 WHERE is_banned = 1
                 ORDER BY updated_at DESC
                 LIMIT 100
@@ -238,20 +214,18 @@ try {
 
         // =======================================================
         // LISTAR SESSÕES FLAGGED
+        // Tabelas: game_sessions + users
         // =======================================================
         case 'list_flagged':
             $stmt = $pdo->query("
                 SELECT 
-                    gs.id, gs.google_uid, gs.wallet_address, gs.mission_number,
-                    gs.asteroids_destroyed, gs.earnings_brl, gs.earnings_usdt,
-                    gs.is_hard_mode, gs.captcha_verified,
-                    gs.validation_errors, gs.created_at,
-                    p.email, p.display_name
+                    gs.id, gs.google_uid, gs.mission_number,
+                    gs.asteroids_destroyed, gs.earnings_brl,
+                    gs.is_hard_mode,
+                    gs.created_at,
+                    u.email, u.display_name
                 FROM game_sessions gs
-                LEFT JOIN players p ON (
-                    (gs.google_uid IS NOT NULL AND p.google_uid = gs.google_uid) OR
-                    (gs.google_uid IS NULL AND p.wallet_address = gs.wallet_address)
-                )
+                LEFT JOIN users u ON gs.google_uid = u.google_uid
                 WHERE gs.status = 'flagged'
                 ORDER BY gs.created_at DESC
                 LIMIT 100
@@ -261,15 +235,16 @@ try {
 
         // =======================================================
         // LISTAR ATIVIDADES SUSPEITAS
+        // Tabela: suspicious_activity (doc 3.8) + users
         // =======================================================
         case 'list_suspicious':
             $stmt = $pdo->query("
                 SELECT 
-                    sa.wallet_address, sa.activity_type, sa.activity_data,
-                    sa.ip_address, sa.devtools_detected, sa.created_at,
-                    p.google_uid, p.email, p.display_name
+                    sa.id, sa.user_id, sa.activity_type, sa.details,
+                    sa.ip_address, sa.severity, sa.created_at,
+                    u.google_uid, u.email, u.display_name
                 FROM suspicious_activity sa
-                LEFT JOIN players p ON p.wallet_address = sa.wallet_address
+                LEFT JOIN users u ON sa.user_id = u.id
                 ORDER BY sa.created_at DESC
                 LIMIT 200
             ");
@@ -280,20 +255,20 @@ try {
         // BUSCAR JOGADOR DETALHADO
         // =======================================================
         case 'search_player':
-            $query = trim($input['query'] ?? $input['wallet'] ?? $input['google_uid'] ?? '');
+            $query = trim($input['query'] ?? $input['google_uid'] ?? '');
             
             if (strlen($query) < 3) {
                 echo json_encode(['success' => false, 'error' => 'Busca muito curta']);
                 exit;
             }
 
-            // Buscar jogador
+            // Buscar jogador na tabela users
             $stmt = $pdo->prepare("
-                SELECT * FROM players 
-                WHERE google_uid = ? OR wallet_address = ? OR email LIKE ? OR display_name LIKE ?
+                SELECT * FROM users 
+                WHERE google_uid = ? OR email LIKE ? OR display_name LIKE ?
                 LIMIT 1
             ");
-            $stmt->execute([$query, $query, "%{$query}%", "%{$query}%"]);
+            $stmt->execute([$query, "%{$query}%", "%{$query}%"]);
             $player = $stmt->fetch();
 
             if (!$player) {
@@ -304,35 +279,35 @@ try {
             // Últimas sessões
             $stmt = $pdo->prepare("
                 SELECT id, mission_number, status, asteroids_destroyed,
-                       earnings_brl, earnings_usdt, is_hard_mode, captcha_verified, created_at
+                       earnings_brl, is_hard_mode, created_at
                 FROM game_sessions
-                WHERE google_uid = ? OR wallet_address = ?
+                WHERE google_uid = ?
                 ORDER BY created_at DESC
                 LIMIT 20
             ");
-            $stmt->execute([$player['google_uid'], $player['wallet_address']]);
+            $stmt->execute([$player['google_uid']]);
             $sessions = $stmt->fetchAll();
 
             // Atividades suspeitas
             $stmt = $pdo->prepare("
-                SELECT activity_type, activity_data, ip_address, created_at
+                SELECT activity_type, details, ip_address, severity, created_at
                 FROM suspicious_activity
-                WHERE wallet_address = ?
+                WHERE user_id = ?
                 ORDER BY created_at DESC
                 LIMIT 20
             ");
-            $stmt->execute([$player['wallet_address']]);
+            $stmt->execute([$player['id']]);
             $suspicious = $stmt->fetchAll();
 
             // Saques
             $stmt = $pdo->prepare("
-                SELECT id, amount_brl, amount_usdt, payment_method, status, created_at
+                SELECT id, amount_brl, status, created_at, processed_at
                 FROM withdrawals
-                WHERE google_uid = ? OR wallet_address = ?
+                WHERE user_id = ?
                 ORDER BY created_at DESC
                 LIMIT 10
             ");
-            $stmt->execute([$player['google_uid'], $player['wallet_address']]);
+            $stmt->execute([$player['id']]);
             $withdrawals = $stmt->fetchAll();
 
             echo json_encode([
