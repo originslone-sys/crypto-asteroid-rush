@@ -73,12 +73,12 @@ try {
     echo json_encode([
         'success' => true,
         'google_uid' => $googleUid,
-        'balance_brl' => round($balanceBrl, 2),
-        'total_earned_brl' => round($totalEarnedBrl, 2),
-        'total_withdrawn_brl' => round($totalWithdrawnBrl, 2),
-        'pending_withdrawal_brl' => round($pendingWithdrawalBrl, 2),
-        'staked_balance_brl' => round($stakedBalanceBrl, 2),
-        'pending_stake_reward_brl' => round($pendingStakeReward, 4),
+        'balance_brl' => round($balanceBrl, 6),
+        'total_earned_brl' => round($totalEarnedBrl, 6),
+        'total_withdrawn_brl' => round($totalWithdrawnBrl, 6),
+        'pending_withdrawal_brl' => round($pendingWithdrawalBrl, 6),
+        'staked_balance_brl' => round($stakedBalanceBrl, 6),
+        'pending_stake_reward_brl' => round($pendingStakeReward, 6),
         'total_played' => $totalPlayed,
         'player' => [
             'id' => (int)$player['id'],
