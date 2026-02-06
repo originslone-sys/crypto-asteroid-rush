@@ -16,14 +16,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'ban_player':
                 $googleUid = $_POST['google_uid'];
                 $reason = $_POST['reason'] ?? 'Ban manual';
-                $pdo->prepare("UPDATE players SET is_banned = 1, ban_reason = ? WHERE google_uid = ?")
+                $pdo->prepare("UPDATE users SET is_banned = 1, ban_reason = ? WHERE google_uid = ?")
                     ->execute([$reason, $googleUid]);
                 $message = "Jogador banido com sucesso!";
                 break;
                 
             case 'unban_player':
                 $googleUid = $_POST['google_uid'];
-                $pdo->prepare("UPDATE players SET is_banned = 0, ban_reason = NULL WHERE google_uid = ?")
+                $pdo->prepare("UPDATE users SET is_banned = 0, ban_reason = NULL WHERE google_uid = ?")
                     ->execute([$googleUid]);
                 $message = "Jogador desbanido!";
                 break;
@@ -35,10 +35,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $description = $_POST['description'] ?? 'Ajuste manual';
                 
                 if ($type === 'add') {
-                    $pdo->prepare("UPDATE players SET balance_brl = balance_brl + ? WHERE google_uid = ?")
+                    $pdo->prepare("UPDATE users SET balance_brl = balance_brl + ? WHERE google_uid = ?")
                         ->execute([$amount, $googleUid]);
                 } else {
-                    $pdo->prepare("UPDATE players SET balance_brl = GREATEST(0, balance_brl - ?) WHERE google_uid = ?")
+                    $pdo->prepare("UPDATE users SET balance_brl = GREATEST(0, balance_brl - ?) WHERE google_uid = ?")
                         ->execute([$amount, $googleUid]);
                 }
                 
@@ -59,7 +59,7 @@ $filter = $_GET['filter'] ?? 'all';
 $sort = $_GET['sort'] ?? 'balance';
 
 try {
-    $sql = "SELECT * FROM players WHERE 1=1";
+    $sql = "SELECT * FROM users WHERE 1=1";
     $params = [];
     
     if ($search) {
@@ -99,7 +99,7 @@ try {
             SUM(balance_brl) as total_balance,
             SUM(total_earned_brl) as total_earned,
             SUM(total_played) as total_games
-        FROM players
+        FROM users
     ")->fetch();
     
 } catch (Exception $e) {
