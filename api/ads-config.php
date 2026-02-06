@@ -2,14 +2,14 @@
 // ============================================
 // UNOBIX - Ads Config (Public Endpoint)
 // api/ads-config.php
-// Redireciona para admin/admin-ads.php
+// v6.0 - Redireciona para admin-ads.php
 // ============================================
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 
-// Tentar chamar o endpoint correto
-$adminAdsPath = __DIR__ . '/../admin/admin-ads.php';
+// Chamar o endpoint correto (admin-ads.php fica na pasta api/)
+$adminAdsPath = __DIR__ . '/admin-ads.php';
 
 if (file_exists($adminAdsPath)) {
     // Definir ação pública
