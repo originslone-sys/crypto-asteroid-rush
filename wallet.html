@@ -413,22 +413,22 @@
     <section class="balance-cards">
         <div class="balance-card primary">
             <div class="balance-icon"><i class="fas fa-wallet"></i></div>
-            <div class="balance-value" id="walletBalance">R$ 0,00</div>
+            <div class="balance-value" id="walletBalance">R$ 0,000000</div>
             <div class="balance-label">Saldo Disponível</div>
         </div>
         <div class="balance-card">
             <div class="balance-icon" style="color: var(--success);"><i class="fas fa-coins"></i></div>
-            <div class="balance-value" id="walletEarned" style="color: var(--success);">R$ 0,00</div>
+            <div class="balance-value" id="walletEarned" style="color: var(--success);">R$ 0,000000</div>
             <div class="balance-label">Total Ganho</div>
         </div>
         <div class="balance-card">
             <div class="balance-icon" style="color: var(--warning);"><i class="fas fa-arrow-up"></i></div>
-            <div class="balance-value" id="walletWithdrawn" style="color: var(--warning);">R$ 0,00</div>
+            <div class="balance-value" id="walletWithdrawn" style="color: var(--warning);">R$ 0,000000</div>
             <div class="balance-label">Total Sacado</div>
         </div>
         <div class="balance-card">
             <div class="balance-icon" style="color: var(--danger);"><i class="fas fa-clock"></i></div>
-            <div class="balance-value" id="walletPending" style="color: var(--danger);">R$ 0,00</div>
+            <div class="balance-value" id="walletPending" style="color: var(--danger);">R$ 0,000000</div>
             <div class="balance-label">Saque Pendente</div>
         </div>
     </section>
@@ -515,12 +515,14 @@
 <script>
 let selectedPaymentMethod = 'pix';
 
-// Formatar valores em BRL
+// Formatar valores em BRL (6 casas decimais)
 function formatBRL(value) {
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    }).format(value || 0);
+    const num = parseFloat(value) || 0;
+    const fixed = num.toFixed(6);
+    const parts = fixed.split('.');
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const decPart = parts[1];
+    return 'R$ ' + intPart + ',' + decPart;
 }
 
 // Selecionar método de pagamento
