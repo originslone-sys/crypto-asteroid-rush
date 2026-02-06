@@ -282,7 +282,7 @@ const SessionManager = {
                 
                 // Mostrar notificação de sucesso
                 if (typeof showNotification === 'function') {
-                    showNotification('💰 CREDITADO!', `+R$ ${result.final_earnings.toFixed(4)}`, true);
+                    showNotification('💰 CREDITADO!', `+R$ ${result.final_earnings.toFixed(6)}`, true);
                 }
                 
                 return result;
