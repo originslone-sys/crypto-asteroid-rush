@@ -1,9 +1,10 @@
 <?php
 /**
  * UNOBIX - Admin Ads Management API
- * Gerenciamento completo de anúncios
+ * Arquivo: api/admin-ads.php
+ * v6.0 - getDatabaseConnection(), game_settings, setting_key/setting_value
  * 
- * Ações:
+ * Ações Admin (requer autenticação):
  * - get_config: Obter configuração atual
  * - save_config: Salvar configuração geral
  * - list_slots: Listar slots de anúncios
@@ -13,6 +14,11 @@
  * - reorder_slots: Reordenar slots
  * - get_stats: Estatísticas de visualizações
  * - toggle_slot: Ativar/desativar slot
+ * 
+ * Ações Públicas (sem autenticação):
+ * - get_public_config: Config pública + slots ativos
+ * - log_impression: Registrar impressão
+ * - log_click: Registrar clique
  */
 
 header('Content-Type: application/json');
@@ -30,24 +36,22 @@ require_once __DIR__ . '/../config.php';
 session_start();
 $isAdmin = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
 
-// Para requisições GET públicas (get_public_config), não precisa de admin
+// Para requisições GET/POST
 $input = json_decode(file_get_contents('php://input'), true) ?? $_GET;
 $action = $input['action'] ?? $_GET['action'] ?? '';
 
 // Ações públicas (não precisam de admin)
-$publicActions = ['get_public_config'];
+$publicActions = ['get_public_config', 'log_impression', 'log_click'];
 
 if (!in_array($action, $publicActions) && !$isAdmin) {
-    // Verificar senha de admin no request
-    $adminPassword = $input['admin_password'] ?? '';
-    if ($adminPassword !== getenv('ADMIN_PASSWORD') && $adminPassword !== 'UNOBIX_ADMIN_2026') {
-        echo json_encode(['success' => false, 'error' => 'Acesso não autorizado']);
-        exit;
-    }
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Acesso não autorizado. Faça login no admin.']);
+    exit;
 }
 
 try {
-    $pdo = getDBConnection();
+    // Regra de Ouro: getDatabaseConnection() (config.php)
+    $pdo = getDatabaseConnection();
     
     switch ($action) {
         case 'get_config':
@@ -99,7 +103,7 @@ try {
             break;
             
         default:
-            echo json_encode(['success' => false, 'error' => 'Ação inválida']);
+            echo json_encode(['success' => false, 'error' => 'Ação inválida: ' . $action]);
     }
     
 } catch (Exception $e) {
@@ -113,10 +117,10 @@ try {
 
 /**
  * Obter configuração completa de ads (admin)
+ * Tabela: game_settings (doc 3.6) — colunas: setting_key, setting_value
  */
 function getAdsConfig($pdo) {
-    // Buscar configuração do banco
-    $stmt = $pdo->prepare("SELECT config_key, config_value FROM system_config WHERE config_key LIKE 'ads_%'");
+    $stmt = $pdo->prepare("SELECT setting_key, setting_value FROM game_settings WHERE setting_key LIKE 'ads_%'");
     $stmt->execute();
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -127,42 +131,42 @@ function getAdsConfig($pdo) {
         
         // Tela de carregamento (pré-jogo)
         'pregame_enabled' => true,
-        'pregame_total_duration' => 10,        // Duração total em segundos
-        'pregame_min_duration' => 5,           // Duração mínima (não pode pular antes)
-        'pregame_skip_enabled' => false,       // Permitir pular após min_duration
-        'pregame_skip_after' => 5,             // Segundos até poder pular
-        'pregame_rotation_interval' => 5,      // Intervalo de rotação entre ads
-        'pregame_max_slots' => 3,              // Máximo de slots ativos
+        'pregame_total_duration' => 10,
+        'pregame_min_duration' => 5,
+        'pregame_skip_enabled' => false,
+        'pregame_skip_after' => 5,
+        'pregame_rotation_interval' => 5,
+        'pregame_max_slots' => 3,
         
         // Tela final (pós-jogo)
         'endgame_enabled' => true,
-        'endgame_display_mode' => 'grid',      // grid, carousel, stacked
-        'endgame_max_slots' => 4,              // Máximo de slots
-        'endgame_auto_rotate' => true,         // Rotação automática
-        'endgame_rotation_interval' => 8,      // Intervalo de rotação
-        'endgame_show_on_gameover' => true,    // Mostrar também no game over
+        'endgame_display_mode' => 'grid',
+        'endgame_max_slots' => 4,
+        'endgame_auto_rotate' => true,
+        'endgame_rotation_interval' => 8,
+        'endgame_show_on_gameover' => true,
         
         // Intersticial (entre ações)
         'interstitial_enabled' => false,
-        'interstitial_frequency' => 3,         // A cada X jogos
-        'interstitial_duration' => 5,          // Duração em segundos
-        'interstitial_skip_after' => 3,        // Pode pular após X segundos
+        'interstitial_frequency' => 3,
+        'interstitial_duration' => 5,
+        'interstitial_skip_after' => 3,
         
         // Banner fixo
         'banner_enabled' => false,
-        'banner_position' => 'bottom',         // top, bottom
+        'banner_position' => 'bottom',
         'banner_pages' => ['dashboard', 'wallet', 'staking'],
         
         // Configurações avançadas
-        'cache_duration' => 300,               // Cache de config em segundos
-        'fallback_enabled' => true,            // Mostrar placeholder se sem ads
-        'tracking_enabled' => true,            // Rastrear impressões/cliques
+        'cache_duration' => 300,
+        'fallback_enabled' => true,
+        'tracking_enabled' => true,
     ];
     
     // Sobrescrever com valores do banco
     foreach ($rows as $row) {
-        $key = str_replace('ads_', '', $row['config_key']);
-        $value = $row['config_value'];
+        $key = str_replace('ads_', '', $row['setting_key']);
+        $value = $row['setting_value'];
         
         // Converter tipos
         if ($value === 'true') $value = true;
@@ -185,14 +189,14 @@ function getAdsConfig($pdo) {
  * Obter configuração pública (sem dados sensíveis)
  */
 function getPublicAdsConfig($pdo) {
-    $stmt = $pdo->prepare("SELECT config_key, config_value FROM system_config WHERE config_key LIKE 'ads_%'");
+    $stmt = $pdo->prepare("SELECT setting_key, setting_value FROM game_settings WHERE setting_key LIKE 'ads_%'");
     $stmt->execute();
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $config = [];
     foreach ($rows as $row) {
-        $key = str_replace('ads_', '', $row['config_key']);
-        $value = $row['config_value'];
+        $key = str_replace('ads_', '', $row['setting_key']);
+        $value = $row['setting_value'];
         
         if ($value === 'true') $value = true;
         elseif ($value === 'false') $value = false;
@@ -236,6 +240,7 @@ function getPublicAdsConfig($pdo) {
 
 /**
  * Salvar configuração de ads
+ * Upsert em game_settings com setting_key/setting_value
  */
 function saveAdsConfig($pdo, $input) {
     $config = $input['config'] ?? [];
@@ -249,7 +254,7 @@ function saveAdsConfig($pdo, $input) {
     
     try {
         foreach ($config as $key => $value) {
-            $configKey = 'ads_' . $key;
+            $settingKey = 'ads_' . $key;
             
             // Converter valor para string
             if (is_bool($value)) {
@@ -260,13 +265,13 @@ function saveAdsConfig($pdo, $input) {
                 $value = (string)$value;
             }
             
-            // Upsert
+            // Upsert na tabela game_settings
             $stmt = $pdo->prepare("
-                INSERT INTO system_config (config_key, config_value, is_public, updated_at)
+                INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at)
                 VALUES (?, ?, 1, NOW())
-                ON DUPLICATE KEY UPDATE config_value = VALUES(config_value), updated_at = NOW()
+                ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW()
             ");
-            $stmt->execute([$configKey, $value]);
+            $stmt->execute([$settingKey, $value]);
         }
         
         $pdo->commit();
@@ -350,8 +355,8 @@ function addAdSlot($pdo, $input) {
         INSERT INTO ad_slots (
             slot_name, slot_type, position, script_code, 
             width, height, display_order, duration_seconds,
-            custom_css, custom_js, is_active, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            custom_css, custom_js, notes, provider, is_active, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     ");
     
     $stmt->execute([
@@ -365,6 +370,8 @@ function addAdSlot($pdo, $input) {
         $input['duration_seconds'] ?? 5,
         $input['custom_css'] ?? null,
         $input['custom_js'] ?? null,
+        $input['notes'] ?? null,
+        $input['provider'] ?? null,
         $input['is_active'] ?? 1
     ]);
     
@@ -394,7 +401,7 @@ function updateAdSlot($pdo, $input) {
     $allowedFields = [
         'slot_name', 'slot_type', 'position', 'script_code',
         'width', 'height', 'display_order', 'duration_seconds',
-        'custom_css', 'custom_js', 'is_active'
+        'custom_css', 'custom_js', 'notes', 'provider', 'is_active'
     ];
     
     foreach ($allowedFields as $field) {
@@ -505,7 +512,7 @@ function reorderAdSlots($pdo, $input) {
  * Estatísticas de anúncios
  */
 function getAdStats($pdo, $input) {
-    $period = $input['period'] ?? 30; // dias
+    $period = $input['period'] ?? 30;
     $slotId = $input['slot_id'] ?? null;
     
     // Stats gerais
@@ -595,7 +602,7 @@ function getAdStats($pdo, $input) {
 }
 
 /**
- * Registrar impressão de anúncio
+ * Registrar impressão de anúncio (ação pública)
  */
 function logAdImpression($pdo, $input) {
     $slotId = $input['slot_id'] ?? 0;
@@ -626,7 +633,7 @@ function logAdImpression($pdo, $input) {
 }
 
 /**
- * Registrar clique em anúncio
+ * Registrar clique em anúncio (ação pública)
  */
 function logAdClick($pdo, $input) {
     $slotId = $input['slot_id'] ?? 0;
