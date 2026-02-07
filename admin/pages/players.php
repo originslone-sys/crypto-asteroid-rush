@@ -220,7 +220,7 @@ try {
                             <tr>
                                 <td>
                                     <div style="display: flex; align-items: center; gap: 10px;">
-                                        <?php if ($p['photo_url']): ?>
+                                        <?php if (!empty($p['photo_url'] ?? '')): ?>
                                             <img src="<?php echo htmlspecialchars($p['photo_url']); ?>" 
                                                  style="width: 35px; height: 35px; border-radius: 50%;">
                                         <?php else: ?>
