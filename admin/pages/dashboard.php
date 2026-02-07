@@ -32,14 +32,18 @@ try {
         FROM withdrawals
     ")->fetch();
 
-    // Estatísticas de staking — tabela: staking (doc 3.5)
-    $stakeStats = $pdo->query("
-        SELECT 
-            COUNT(CASE WHEN status = 'active' THEN 1 END) as active_stakes,
-            SUM(CASE WHEN status = 'active' THEN amount_brl ELSE 0 END) as total_staked,
-            SUM(earned_brl) as total_rewards
-        FROM staking
-    ")->fetch();
+    // Estatísticas de staking — tabela: staking
+    // Schema real: earnings (não earned_brl), apy (não apy_rate), start_date (não staked_at)
+    $stakeStats = ['active_stakes' => 0, 'total_staked' => 0, 'total_rewards' => 0];
+    try {
+        $stakeStats = $pdo->query("
+            SELECT 
+                COUNT(CASE WHEN status = 'active' THEN 1 END) as active_stakes,
+                COALESCE(SUM(CASE WHEN status = 'active' THEN amount_brl ELSE 0 END), 0) as total_staked,
+                COALESCE(SUM(earnings), 0) as total_rewards
+            FROM staking
+        ")->fetch() ?: $stakeStats;
+    } catch (Exception $e) {}
 
     // Estatísticas de sessões (hoje) — tabela: game_sessions (doc 3.3)
     $sessionStats = $pdo->query("
@@ -53,15 +57,18 @@ try {
         WHERE DATE(created_at) = CURDATE()
     ")->fetch();
 
-    // Estatísticas de referrals — tabela: referrals (doc 3.6)
-    // Status: pending → qualified → claimed
-    $referralStats = $pdo->query("
-        SELECT 
-            COUNT(*) as total,
-            COUNT(CASE WHEN status = 'qualified' THEN 1 END) as qualified,
-            SUM(CASE WHEN status = 'claimed' THEN commission_brl ELSE 0 END) as total_paid
-        FROM referrals
-    ")->fetch();
+    // Estatísticas de referrals — tabela: referrals
+    // Schema real: status pending/qualified/paid/cancelled
+    $referralStats = ['total' => 0, 'qualified' => 0, 'total_paid' => 0];
+    try {
+        $referralStats = $pdo->query("
+            SELECT 
+                COUNT(*) as total,
+                COUNT(CASE WHEN status = 'qualified' THEN 1 END) as qualified,
+                COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_brl ELSE 0 END), 0) as total_paid
+            FROM referrals
+        ")->fetch() ?: $referralStats;
+    } catch (Exception $e) {}
 
     // Estatísticas de anúncios (últimos 7 dias)
     $adStats = ['impressions' => 0, 'clicks' => 0];
