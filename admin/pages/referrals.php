@@ -2,6 +2,8 @@
 // ============================================
 // UNOBIX - Afiliados
 // Arquivo: admin/pages/referrals.php
+// v6.1 - Schema real: status pending/qualified/paid/cancelled
+//        commission_paid_at, missions_completed, missions_required
 // ============================================
 
 $pageTitle = 'Afiliados';
@@ -21,9 +23,9 @@ try {
         SELECT 
             COUNT(*) as total,
             SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-            SUM(CASE WHEN status = 'qualified' THEN 1 ELSE 0 END) as completed,
-            SUM(CASE WHEN status = 'claimed' THEN 1 ELSE 0 END) as claimed,
-            SUM(CASE WHEN status = 'claimed' THEN commission_brl ELSE 0 END) as total_paid
+            SUM(CASE WHEN status = 'qualified' THEN 1 ELSE 0 END) as qualified,
+            SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid,
+            COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_brl ELSE 0 END), 0) as total_paid
         FROM referrals
     ")->fetch();
 } catch (Exception $e) {
@@ -51,12 +53,12 @@ try {
         </div>
         <div class="stat-card">
             <div class="icon success"><i class="fas fa-check"></i></div>
-            <div class="value"><?php echo ($stats['completed'] ?? 0) + ($stats['claimed'] ?? 0); ?></div>
+            <div class="value"><?php echo ($stats['qualified'] ?? 0) + ($stats['paid'] ?? 0); ?></div>
             <div class="label">Completadas</div>
         </div>
         <div class="stat-card">
             <div class="icon danger"><i class="fas fa-coins"></i></div>
-            <div class="value"><?php echo formatBRL($stats['total_paid']); ?></div>
+            <div class="value"><?php echo formatBRL($stats['total_paid'] ?? 0); ?></div>
             <div class="label">Comissões Pagas</div>
         </div>
     </div>
@@ -77,8 +79,15 @@ try {
                     <tbody>
                     <?php foreach ($referrals as $r): ?>
                     <?php 
-                        $progress = min(100, ($r['total_played'] ?? 0));
-                        $statusLabels = ['pending' => ['Em Progresso', 'warning'], 'qualified' => ['Qualificado', 'success'], 'claimed' => ['Resgatado', 'primary']];
+                        $required = (int)($r['missions_required'] ?? 100);
+                        $completed = (int)($r['missions_completed'] ?? 0);
+                        $progress = $required > 0 ? min(100, round(($completed / $required) * 100)) : 0;
+                        $statusLabels = [
+                            'pending'   => ['Em Progresso', 'warning'], 
+                            'qualified' => ['Qualificado', 'success'], 
+                            'paid'      => ['Pago', 'primary'],
+                            'cancelled' => ['Cancelado', 'danger']
+                        ];
                         $label = $statusLabels[$r['status']] ?? [$r['status'], 'info'];
                     ?>
                     <tr>
@@ -92,7 +101,7 @@ try {
                             <small style="color: var(--text-dim);"><?php echo htmlspecialchars($r['referred_email'] ?? ''); ?></small>
                         </td>
                         <td>
-                            <div><?php echo $r['missions_completed'] ?? 0; ?>/100</div>
+                            <div><?php echo $completed; ?>/<?php echo $required; ?></div>
                             <div style="background: rgba(255,255,255,0.1); border-radius: 5px; height: 6px; margin-top: 5px;">
                                 <div style="background: var(--primary); width: <?php echo $progress; ?>%; height: 100%; border-radius: 5px;"></div>
                             </div>
