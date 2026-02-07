@@ -22,7 +22,7 @@ $ADMIN_INDEX_URL = $ADMIN_BASE_URL . '/index.php';
 // CREDENCIAIS DO ADMIN — altere aqui diretamente
 // ============================================
 define('ADMIN_USER', 'admin');
-define('ADMIN_PASS', 'UNOBIX_ADMIN_2026');
+define('ADMIN_PASS', 'admin123');
 
 // Logout
 if (isset($_GET['logout'])) {
@@ -190,3 +190,4 @@ if (file_exists($pageFile)) {
 // Incluir footer
 include __DIR__ . '/includes/footer.php';
 ?>
+
