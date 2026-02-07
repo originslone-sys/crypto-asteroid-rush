@@ -2,7 +2,9 @@
 // ============================================
 // UNOBIX - Gerenciamento de Staking
 // Arquivo: admin/pages/stakes.php
-// v6.0 - Tabela staking, google_uid, BRL 6 decimais
+// v6.1 - Colunas alinhadas com schema real
+// Schema: id, user_id, google_uid, amount, amount_brl, apy, 
+//         start_date, end_date, status, earnings, total_earned_brl
 // ============================================
 
 $pageTitle = 'Staking';
@@ -16,37 +18,33 @@ $stats = [
 ];
 
 try {
-    // Buscar stakes — tabela: staking (doc 3.5)
-    // JOIN com users via google_uid
     $stakes = $pdo->query("
         SELECT 
             s.id,
             s.google_uid,
             s.amount_brl,
-            s.earned_brl,
-            s.apy_rate,
+            s.earnings,
+            s.apy,
             s.status,
-            s.staked_at,
-            s.min_unstake_at,
-            s.last_compound_at,
-            s.unstaked_at,
+            s.start_date,
+            s.end_date,
+            s.total_earned_brl,
             s.created_at,
             u.display_name,
             u.email,
             u.balance_brl
         FROM staking s 
-        LEFT JOIN users u ON s.google_uid = u.google_uid 
+        LEFT JOIN users u ON s.user_id = u.id 
         ORDER BY s.created_at DESC 
         LIMIT 100
     ")->fetchAll(PDO::FETCH_ASSOC);
     
-    // Estatísticas
     $statsQuery = $pdo->query("
         SELECT 
             COUNT(*) as total,
             SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
             COALESCE(SUM(CASE WHEN status = 'active' THEN amount_brl ELSE 0 END), 0) as total_staked,
-            COALESCE(SUM(earned_brl), 0) as total_earned
+            COALESCE(SUM(earnings), 0) as total_earned
         FROM staking
     ")->fetch(PDO::FETCH_ASSOC);
     
@@ -63,7 +61,7 @@ try {
     $error = $e->getMessage();
 }
 
-// formatBRL() já definida em config.php (Regra de Ouro: 6 decimais)
+// formatBRL() já definida em config.php
 
 if (!function_exists('formatBRLShort')) {
     function formatBRLShort($value) {
@@ -130,7 +128,7 @@ if (!function_exists('formatBRLShort')) {
                                 <th>Rendimento</th>
                                 <th>Status</th>
                                 <th>Início</th>
-                                <th>Resgate Mín.</th>
+                                <th>Fim</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -144,9 +142,9 @@ if (!function_exists('formatBRLShort')) {
                             <td style="color: var(--success); font-weight: 600;">
                                 <?php echo formatBRL($s['amount_brl']); ?>
                             </td>
-                            <td><?php echo number_format($s['apy_rate'] ?? 0, 2); ?>%</td>
+                            <td><?php echo number_format($s['apy'] ?? 0, 2); ?>%</td>
                             <td style="color: var(--warning);">
-                                <?php echo formatBRL($s['earned_brl']); ?>
+                                <?php echo formatBRL($s['earnings']); ?>
                             </td>
                             <td>
                                 <?php 
@@ -158,10 +156,10 @@ if (!function_exists('formatBRLShort')) {
                                 </span>
                             </td>
                             <td style="color: var(--text-dim);">
-                                <?php echo $s['staked_at'] ? date('d/m/Y H:i', strtotime($s['staked_at'])) : '-'; ?>
+                                <?php echo $s['start_date'] ? date('d/m/Y H:i', strtotime($s['start_date'])) : '-'; ?>
                             </td>
                             <td style="color: var(--text-dim);">
-                                <?php echo $s['min_unstake_at'] ? date('d/m/Y', strtotime($s['min_unstake_at'])) : '-'; ?>
+                                <?php echo $s['end_date'] ? date('d/m/Y', strtotime($s['end_date'])) : '-'; ?>
                             </td>
                         </tr>
                         <?php endforeach; ?>
