@@ -1,7 +1,11 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Ship Renderer v3.0
+   CRYPTO ASTEROID RUSH - Ship Renderer v3.1
    File: js/ship-renderer.js
    Sleek, aerodynamic fighter ships
+   
+   v3.1: iOS optimization
+   - shadowBlur capped via DeviceProfile
+   - Reduced gradient creation on low-end
    ============================================ */
 
 let shipCache = {
@@ -9,6 +13,17 @@ let shipCache = {
     gradients: {},
     time: 0
 };
+
+// Helper: safe shadowBlur (respects device limits)
+function _safeShadow(color, blur) {
+    if (typeof DeviceProfile !== 'undefined' && DeviceProfile.maxShadowBlur !== undefined) {
+        ctx.shadowColor = color;
+        ctx.shadowBlur = Math.min(blur, DeviceProfile.maxShadowBlur);
+    } else {
+        ctx.shadowColor = color;
+        ctx.shadowBlur = blur;
+    }
+}
 
 function drawShipAAA() {
     if (!gameState.ship || !gameState.ship.design) return;
@@ -101,8 +116,7 @@ function drawMainEngines(design, time) {
         ctx.fill();
     });
     
-    ctx.shadowColor = design.engineGlow;
-    ctx.shadowBlur = 20 * enginePulse;
+    _safeShadow(design.engineGlow, 20 * enginePulse);
 }
 
 function drawWings(design, time) {
@@ -304,8 +318,7 @@ function drawWeaponPods(design, time) {
         ctx.arc(x, -34, 1.2, 0, Math.PI * 2);
         ctx.fill();
         
-        ctx.shadowColor = design.accent;
-        ctx.shadowBlur = 6 * chargePulse;
+        _safeShadow(design.accent, 6 * chargePulse);
         ctx.beginPath();
         ctx.arc(x, -34, 0.8, 0, Math.PI * 2);
         ctx.fill();
@@ -318,37 +331,32 @@ function drawNavigationLights(design, time) {
     const fastBlink = Math.floor(time * 4) % 2 === 0;
     
     ctx.fillStyle = blink ? '#00ff00' : '#003300';
-    ctx.shadowColor = '#00ff00';
-    ctx.shadowBlur = blink ? 8 : 0;
+    if (blink) _safeShadow('#00ff00', 8); else ctx.shadowBlur = 0;
     ctx.beginPath();
     ctx.arc(42, -2, 2, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.fillStyle = blink ? '#ff0000' : '#330000';
-    ctx.shadowColor = '#ff0000';
-    ctx.shadowBlur = blink ? 8 : 0;
+    if (blink) _safeShadow('#ff0000', 8); else ctx.shadowBlur = 0;
     ctx.beginPath();
     ctx.arc(-42, -2, 2, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = '#ffffff';
-    ctx.shadowBlur = 6;
+    _safeShadow('#ffffff', 6);
     ctx.beginPath();
     ctx.arc(0, -36, 1.5, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.fillStyle = fastBlink ? '#ffaa00' : '#442200';
-    ctx.shadowColor = '#ffaa00';
-    ctx.shadowBlur = fastBlink ? 6 : 0;
+    if (fastBlink) _safeShadow('#ffaa00', 6); else ctx.shadowBlur = 0;
     ctx.beginPath();
     ctx.arc(0, 26, 1.5, 0, Math.PI * 2);
     ctx.fill();
     
     [44, -44].forEach(x => {
         ctx.fillStyle = design.accent + (blink ? 'cc' : '44');
-        ctx.shadowColor = design.accent;
-        ctx.shadowBlur = blink ? 5 : 0;
+        if (blink) _safeShadow(design.accent, 5); else ctx.shadowBlur = 0;
         ctx.beginPath();
         ctx.arc(x, 2, 1.5, 0, Math.PI * 2);
         ctx.fill();
