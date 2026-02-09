@@ -439,7 +439,11 @@ function _displayResultsFinal(stats, displayEarnings, serverBalance) {
     const finalReward = document.getElementById('finalReward');
     const breakdownContainer = document.getElementById('asteroidsBreakdown');
     
-    if (finalScore) finalScore.textContent = gameState.score;
+    if (finalScore) {
+        // Calcular total de asteroides destruídos a partir dos stats
+        const totalDestroyed = (stats.common || 0) + (stats.rare || 0) + (stats.epic || 0) + (stats.legendary || 0);
+        finalScore.textContent = totalDestroyed;
+    }
     if (finalReward) finalReward.textContent = formatEarningsBRL(displayEarnings);
     
     let breakdownHTML = `
@@ -450,28 +454,28 @@ function _displayResultsFinal(stats, displayEarnings, serverBalance) {
                     <span class="dot"></span>
                     Comum
                 </span>
-                <span class="breakdown-count">${stats.common}</span>
+                <span class="breakdown-count">${stats.common || 0}</span>
             </div>
             <div class="breakdown-item rare">
                 <span class="breakdown-type rare">
                     <span class="dot"></span>
                     Raro
                 </span>
-                <span class="breakdown-count">${stats.rare} <small>(+${formatEarningsBRL(stats.rare * CONFIG.REWARDS.RARE)})</small></span>
+                <span class="breakdown-count">${stats.rare || 0} <small>(+${formatEarningsBRL((stats.rare || 0) * CONFIG.REWARDS.RARE)})</small></span>
             </div>
             <div class="breakdown-item epic">
                 <span class="breakdown-type epic">
                     <span class="dot"></span>
                     Épico
                 </span>
-                <span class="breakdown-count">${stats.epic} <small>(+${formatEarningsBRL(stats.epic * CONFIG.REWARDS.EPIC)})</small></span>
+                <span class="breakdown-count">${stats.epic || 0} <small>(+${formatEarningsBRL((stats.epic || 0) * CONFIG.REWARDS.EPIC)})</small></span>
             </div>
             <div class="breakdown-item legendary">
                 <span class="breakdown-type legendary">
                     <span class="dot"></span>
                     Lendário
                 </span>
-                <span class="breakdown-count">${stats.legendary} <small>(+${formatEarningsBRL(stats.legendary * CONFIG.REWARDS.LEGENDARY)})</small></span>
+                <span class="breakdown-count">${stats.legendary || 0} <small>(+${formatEarningsBRL((stats.legendary || 0) * CONFIG.REWARDS.LEGENDARY)})</small></span>
             </div>
         </div>
     `;
