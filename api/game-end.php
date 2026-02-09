@@ -273,13 +273,12 @@ try {
             
             $stmt = $pdo->prepare("
                 INSERT INTO transactions (
-                    google_uid, type, amount, amount_brl, 
+                    google_uid, type, amount_brl, 
                     description, status, created_at
-                ) VALUES (?, 'game_earning', ?, ?, ?, 'completed', NOW())
+                ) VALUES (?, 'game_earning', ?, ?, 'completed', NOW())
             ");
             $stmt->execute([
                 $realGoogleUid,
-                $finalEarnings,
                 $finalEarnings,
                 $description
             ]);
