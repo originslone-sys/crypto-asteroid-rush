@@ -100,6 +100,19 @@ const SessionManager = {
             } else {
                 console.error('❌ Falha ao criar sessão:', result.error);
                 
+                // Avisos nativos ao usuário
+                if (typeof NotificationSystem !== 'undefined') {
+                    if (result.banned) {
+                        NotificationSystem.banned(result.error);
+                    } else if (result.blocked) {
+                        NotificationSystem.error('Acesso Bloqueado', result.error);
+                    } else if (result.wait_seconds) {
+                        NotificationSystem.rateLimit(result.wait_seconds);
+                    } else {
+                        NotificationSystem.warning('Aviso', result.error || 'Falha ao iniciar sessão');
+                    }
+                }
+                
                 if (result.wait_seconds) {
                     throw new Error(`Aguarde ${Math.ceil(result.wait_seconds / 60)} minuto(s) antes de jogar novamente`);
                 }
@@ -157,10 +170,17 @@ const SessionManager = {
                 game_hash: gameHash
             };
             
-            // Obter token CAPTCHA se disponível
-            if (typeof CaptchaManager !== 'undefined' && CaptchaManager.isComplete()) {
-                requestBody.captcha_token = CaptchaManager.getToken() || '';
-                console.log('🔐 Enviando com token CAPTCHA');
+            // Obter token reCAPTCHA v3 (invisível, não precisa de interação)
+            if (typeof CaptchaManager !== 'undefined' && CaptchaManager.isAvailable()) {
+                try {
+                    const recaptchaToken = await CaptchaManager.getToken('game_end');
+                    if (recaptchaToken) {
+                        requestBody.captcha_token = recaptchaToken;
+                        console.log('🛡️ Token reCAPTCHA v3 incluído');
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Falha ao obter token reCAPTCHA:', e);
+                }
             }
             
             const response = await fetch('api/game-end.php', {
@@ -174,9 +194,31 @@ const SessionManager = {
             if (result.success) {
                 // Verificar se precisa de CAPTCHA
                 if (result.captcha_required) {
-                    console.log('🔐 CAPTCHA necessário - aguardando...');
+                    console.log('🛡️ Verificação de segurança necessária...');
                     
-                    // Salvar dados para reenvio após CAPTCHA
+                    // Com reCAPTCHA v3, tentar resolver automaticamente
+                    if (typeof CaptchaManager !== 'undefined' && CaptchaManager.isAvailable()) {
+                        console.log('🔄 Tentando resolver automaticamente com reCAPTCHA v3...');
+                        
+                        this.pendingEndSession = {
+                            session: sessionToEnd,
+                            score: score,
+                            earnings: earnings,
+                            stats: stats,
+                            pendingEarnings: result.pending_earnings || earnings
+                        };
+                        
+                        // Tentar reenviar automaticamente
+                        const retryToken = await CaptchaManager.getToken('game_end');
+                        if (retryToken) {
+                            const retryResult = await this.resendAfterCaptcha(retryToken);
+                            if (retryResult && retryResult.success && retryResult.credited) {
+                                return retryResult;
+                            }
+                        }
+                    }
+                    
+                    // Se não conseguiu resolver automaticamente, salvar como pending
                     this.pendingEndSession = {
                         session: sessionToEnd,
                         score: score,
@@ -185,7 +227,13 @@ const SessionManager = {
                         pendingEarnings: result.pending_earnings || earnings
                     };
                     
-                    // NÃO limpar sessão ainda
+                    if (typeof NotificationSystem !== 'undefined') {
+                        NotificationSystem.warning(
+                            'Verificação Necessária',
+                            'Complete a verificação de segurança para receber seus ganhos.'
+                        );
+                    }
+                    
                     return result;
                 }
                 
@@ -194,6 +242,24 @@ const SessionManager = {
                     newBalance: result.new_balance,
                     credited: result.credited
                 });
+                
+                // Avisos nativos baseados na resposta
+                if (typeof NotificationSystem !== 'undefined') {
+                    if (result.flagged) {
+                        NotificationSystem.warning(
+                            'Sessão Marcada',
+                            'Esta sessão foi marcada para revisão. Se você acredita que é um erro, entre em contato com o suporte.'
+                        );
+                    } else if (result.captcha_suspicious) {
+                        // Não mostrar ao usuário que o score foi baixo (segurança)
+                        console.log('⚠️ Sessão com score reCAPTCHA baixo:', result.captcha_score);
+                    } else if (result.credited && result.final_earnings > 0) {
+                        NotificationSystem.success(
+                            'Missão Completa!',
+                            `R$ ${result.final_earnings.toFixed(4)} creditados ao seu saldo`
+                        );
+                    }
+                }
                 
                 // Limpar sessão e pending
                 this.currentSession = null;
