@@ -1,7 +1,7 @@
 /* ============================================
    UNOBIX - Ship Designs v4.0
    File: js/game-ships.js
-   7 Naves com identidade visual única
+   8 Naves com identidade visual única
    
    v4.0: Redesign completo
    - Cores totalmente distintas entre si
@@ -180,6 +180,34 @@ const SHIP_DESIGNS = {
             <circle cx="-10" cy="24" r="3.5" fill="ENG" opacity="0.9"/>
             <circle cx="10" cy="24" r="3.5" fill="ENG" opacity="0.9"/>
         `
+    },
+    
+    // Ship 8: Solar Hawk — Explorador solar
+    // Silhueta: Asas duplas em X (X-wing style, painéis solares)
+    HAWK: {
+        id: 'HAWK',
+        primary: '#B8860B',
+        secondary: '#FFD700',
+        accent: '#FFF176',
+        details: '#FFF8DC',
+        engineGlow: '#FFAB00',
+        cockpitTint: '#80D8FF',
+        name: 'Solar Hawk',
+        number: 8,
+        description: 'Explorador solar, alcance máximo',
+        shipShape: 'xwing',
+        svgPreview: `
+            <polygon points="0,-36 10,22 -10,22" fill="PRIM" stroke="SEC" stroke-width="2"/>
+            <polygon points="-8,-8 -40,-22 -36,-14" fill="PRIM" opacity="0.85"/>
+            <polygon points="8,-8 40,-22 36,-14" fill="PRIM" opacity="0.85"/>
+            <polygon points="-8,10 -38,20 -34,26" fill="PRIM" opacity="0.75"/>
+            <polygon points="8,10 38,20 34,26" fill="PRIM" opacity="0.75"/>
+            <line x1="-40" y1="-22" x2="-38" y2="20" stroke="SEC" stroke-width="1.5" opacity="0.6"/>
+            <line x1="40" y1="-22" x2="38" y2="20" stroke="SEC" stroke-width="1.5" opacity="0.6"/>
+            <ellipse cx="0" cy="-12" rx="5" ry="9" fill="COCK" opacity="0.6"/>
+            <circle cx="-5" cy="26" r="3" fill="ENG" opacity="0.9"/>
+            <circle cx="5" cy="26" r="3" fill="ENG" opacity="0.9"/>
+        `
     }
 };
 
@@ -311,4 +339,4 @@ window.updateShipSelectionUI = updateShipSelectionUI;
 window.addShipSelectionUI = addShipSelectionUI;
 window.clearShipSelection = clearShipSelection;
 
-console.log('📦 game-ships.js v4.0 carregado (7 naves únicas)');
+console.log('📦 game-ships.js v4.0 carregado (8 naves únicas)');
