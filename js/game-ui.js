@@ -62,7 +62,7 @@ function showPreGameLoading(show) {
     
     if (show) {
         preGameScreen.classList.add('active');
-        startLoadingAnimation();
+        startLoadingWithAds();
     } else {
         preGameScreen.classList.remove('active');
     }
@@ -71,7 +71,11 @@ function showPreGameLoading(show) {
 let loadingProgress = 0;
 let loadingInterval = null;
 
-function startLoadingAnimation() {
+/**
+ * Iniciar loading com anúncios integrados
+ * Fluxo: mostrar anúncio pré-jogo → countdown → iniciar jogo
+ */
+async function startLoadingWithAds() {
     loadingProgress = 0;
     const loadingBar = document.getElementById('loadingBar');
     const loadingPercent = document.getElementById('loadingPercent');
@@ -83,6 +87,52 @@ function startLoadingAnimation() {
     if (gameTip && typeof getRandomTip === 'function') {
         gameTip.textContent = getRandomTip();
     }
+    
+    // Tentar mostrar anúncio pré-jogo
+    let adShown = false;
+    if (typeof AdsManager !== 'undefined' && AdsManager.isEnabled?.()) {
+        try {
+            if (loadingStatus) loadingStatus.textContent = 'Carregando...';
+            
+            // showPreGameAd retorna uma Promise que resolve quando o timer do ad termina
+            await AdsManager.showPreGameAd('adContainer');
+            adShown = true;
+            console.log('📺 Anúncio pré-jogo finalizado');
+        } catch (e) {
+            console.warn('📺 Erro no anúncio pré-jogo:', e.message);
+        }
+    }
+    
+    // Se o anúncio foi mostrado, o countdown do ad já rolou — ir direto pro jogo
+    if (adShown) {
+        if (loadingBar) loadingBar.style.width = '100%';
+        if (loadingPercent) loadingPercent.textContent = '100%';
+        if (loadingStatus) loadingStatus.textContent = 'Pronto para lançamento!';
+        
+        setTimeout(() => {
+            showPreGameLoading(false);
+            if (typeof actualStartGame === 'function') {
+                actualStartGame();
+            }
+        }, 300);
+        return;
+    }
+    
+    // Fallback: animação de loading normal (sem anúncio)
+    startLoadingAnimationFallback();
+}
+
+/**
+ * Animação de loading padrão (quando não há anúncios)
+ */
+function startLoadingAnimationFallback() {
+    loadingProgress = 0;
+    const loadingBar = document.getElementById('loadingBar');
+    const loadingPercent = document.getElementById('loadingPercent');
+    const loadingStatus = document.getElementById('loadingStatus');
+    const gameTip = document.getElementById('gameTip');
+    
+    if (!loadingBar || !loadingPercent) return;
     
     const statuses = [
         'Carregando recursos...',
@@ -360,6 +410,31 @@ function showGameOver(lostEarnings) {
     }
     
     showModal('gameOverModal');
+    
+    // Mostrar anúncios no game over (se configurado endgame_show_on_gameover)
+    if (typeof AdsManager !== 'undefined' && AdsManager.isEnabled?.()) {
+        try {
+            let gameoverAdContainer = document.getElementById('gameoverAdContainer');
+            if (!gameoverAdContainer) {
+                const goModal = document.querySelector('.gameover-modal');
+                if (goModal) {
+                    gameoverAdContainer = document.createElement('div');
+                    gameoverAdContainer.id = 'gameoverAdContainer';
+                    gameoverAdContainer.className = 'endgame-ad-container';
+                    const btnGroup = goModal.querySelector('.btn-group');
+                    if (btnGroup) {
+                        goModal.insertBefore(gameoverAdContainer, btnGroup);
+                    } else {
+                        goModal.appendChild(gameoverAdContainer);
+                    }
+                }
+            }
+            
+            AdsManager.showEndGameAd('gameoverAdContainer');
+        } catch (e) {
+            console.warn('📺 Erro no anúncio gameover:', e.message);
+        }
+    }
 }
 
 // ============================================
@@ -447,6 +522,33 @@ function showEndGameResults(stats, serverEarnings = null, serverBalance = null) 
     }
     
     showModal('endGameModal');
+    
+    // Mostrar anúncios pós-jogo (endgame)
+    if (typeof AdsManager !== 'undefined' && AdsManager.isEnabled?.()) {
+        try {
+            // Criar container de ads se não existir
+            let endgameAdContainer = document.getElementById('endgameAdContainer');
+            if (!endgameAdContainer) {
+                const endModal = document.querySelector('.end-modal');
+                if (endModal) {
+                    endgameAdContainer = document.createElement('div');
+                    endgameAdContainer.id = 'endgameAdContainer';
+                    endgameAdContainer.className = 'endgame-ad-container';
+                    // Inserir antes dos botões
+                    const btnGroup = endModal.querySelector('.btn-group');
+                    if (btnGroup) {
+                        endModal.insertBefore(endgameAdContainer, btnGroup);
+                    } else {
+                        endModal.appendChild(endgameAdContainer);
+                    }
+                }
+            }
+            
+            AdsManager.showEndGameAd('endgameAdContainer');
+        } catch (e) {
+            console.warn('📺 Erro no anúncio endgame:', e.message);
+        }
+    }
 }
 
 // Atualizar info da nave selecionada
