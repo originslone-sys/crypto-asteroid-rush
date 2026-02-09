@@ -335,31 +335,54 @@
     } catch (e) {}
     
     let adsReady = false;
+    let rotationTimer = null;
     
-    // Carregar anúncio endgame
+    // Renderizar um slot no container
+    function renderSlot(type) {
+        if (typeof AdsManager === 'undefined' || !AdsManager.isEnabled?.()) return;
+        
+        try {
+            const slot = AdsManager.getNextSlot?.(type);
+            if (slot) {
+                adContainer.innerHTML = AdsManager.getSlotHTML?.(slot) || '';
+                if (typeof AdsManager.executeScripts === 'function') {
+                    AdsManager.executeScripts(adContainer);
+                }
+                AdsManager.trackImpression?.(slot.id);
+                const label = document.createElement('span');
+                label.className = 'ad-label';
+                label.textContent = 'Publicidade';
+                adContainer.appendChild(label);
+            }
+        } catch (e) {
+            console.warn('📺 Erro ao renderizar slot:', e.message);
+        }
+    }
+    
+    // Carregar anúncio endgame e iniciar rotação
     async function loadAd() {
         try {
             if (typeof AdsManager !== 'undefined') {
                 await AdsManager.init();
                 
                 if (AdsManager.isEnabled?.()) {
-                    const slot = AdsManager.getNextSlot?.('endgame');
-                    if (slot) {
-                        adContainer.innerHTML = AdsManager.getSlotHTML?.(slot) || '';
-                        if (typeof AdsManager.executeScripts === 'function') {
-                            AdsManager.executeScripts(adContainer);
-                        }
-                        AdsManager.trackImpression?.(slot.id);
-                        const label = document.createElement('span');
-                        label.className = 'ad-label';
-                        label.textContent = 'Publicidade';
-                        adContainer.appendChild(label);
+                    const slots = AdsManager.getSlots?.()?.endgame || [];
+                    if (slots.length > 0) {
                         adsReady = true;
+                        
+                        // Renderizar primeiro slot
+                        renderSlot('endgame');
+                        
+                        // Se tem mais de 1 slot, rotacionar
+                        if (slots.length > 1) {
+                            const rotInterval = (AdsManager.getConfig?.()?.endgame_rotation_interval || 8) * 1000;
+                            rotationTimer = setInterval(() => renderSlot('endgame'), rotInterval);
+                        }
                     }
                 }
             }
         } catch (e) {
-            console.warn('📺 Erro ao carregar ad:', e.message);
+            console.warn('📺 Erro ao carregar ads:', e.message);
         }
     }
     
@@ -393,17 +416,16 @@
                 tipText.textContent = tips[tipIndex];
             }
             
-            if (progress >= 100) {
-                clearInterval(interval);
-                
-                // Sinalizar que loading pós-jogo terminou
-                sessionStorage.setItem('postgameComplete', 'true');
-                
-                // Voltar para game.html para mostrar resultados
-                setTimeout(() => {
-                    window.location.href = 'game.html?results=true';
-                }, 300);
-            }
+        if (progress >= 100) {
+            clearInterval(interval);
+            if (rotationTimer) clearInterval(rotationTimer);
+            
+            sessionStorage.setItem('postgameComplete', 'true');
+            
+            setTimeout(() => {
+                window.location.href = 'game.html?results=true';
+            }, 300);
+        }
         }, 100);
     }
     
