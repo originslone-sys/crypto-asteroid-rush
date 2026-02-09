@@ -7,14 +7,26 @@
 
 require_once __DIR__ . "/config.php";
 
-// Carregar rate limiter
+// Carregar rate limiter (opcional — só se arquivo existir)
+$_rateLimiterLoaded = false;
 if (file_exists(__DIR__ . "/rate-limiter.php")) {
-    require_once __DIR__ . "/rate-limiter.php";
+    try {
+        require_once __DIR__ . "/rate-limiter.php";
+        $_rateLimiterLoaded = class_exists('RateLimiter');
+    } catch (Throwable $e) {
+        error_log("rate-limiter load error: " . $e->getMessage());
+    }
 }
 
-// Carregar proxy check
+// Carregar proxy check (opcional — só se arquivo existir)
+$_proxyCheckLoaded = false;
 if (file_exists(__DIR__ . "/proxy-check.php")) {
-    require_once __DIR__ . "/proxy-check.php";
+    try {
+        require_once __DIR__ . "/proxy-check.php";
+        $_proxyCheckLoaded = function_exists('checkProxyVPN');
+    } catch (Throwable $e) {
+        error_log("proxy-check load error: " . $e->getMessage());
+    }
 }
 
 setCorsHeaders();
@@ -62,56 +74,49 @@ try {
     $realGoogleUid = $user['google_uid'];
     
     // ============================================
-    // VPN / PROXY CHECK (fail-open: erro não bloqueia)
+    // VPN / PROXY CHECK (opcional, fail-open)
     // ============================================
-    try {
-        if (function_exists('checkProxyVPN')) {
+    if ($_proxyCheckLoaded) {
+        try {
             $proxyResult = checkProxyVPN($pdo);
-            
-            if (!$proxyResult['allowed']) {
-                $proxyType = $proxyResult['type'] ?? 'VPN/Proxy';
+            if (isset($proxyResult['allowed']) && !$proxyResult['allowed']) {
                 echo json_encode([
                     'success' => false, 
                     'error' => 'VPN ou proxy detectado. Desative para jogar.',
-                    'proxy_detected' => true,
-                    'proxy_type' => $proxyType
+                    'proxy_detected' => true
                 ]);
                 exit;
             }
+        } catch (Throwable $e) {
+            error_log("proxy-check error (non-blocking): " . $e->getMessage());
         }
-    } catch (Exception $e) {
-        // Proxy check falhou — não bloquear o jogador
-        error_log("proxy-check error (non-blocking): " . $e->getMessage());
     }
     
     // ============================================
-    // RATE LIMITER (fail-open: erro não bloqueia)
+    // RATE LIMITER: blacklist + intervalo (opcional, fail-open)
     // ============================================
-    try {
-        if (class_exists('RateLimiter')) {
+    if ($_rateLimiterLoaded) {
+        try {
             $limiter = new RateLimiter($pdo, null, $realGoogleUid);
             
-            // Verificar IP na blacklist
             $blacklistCheck = $limiter->checkIPBlacklist();
-            if (!$blacklistCheck['allowed']) {
+            if (isset($blacklistCheck['allowed']) && !$blacklistCheck['allowed']) {
                 echo json_encode(['success' => false, 'error' => 'Acesso bloqueado', 'blocked' => true]);
                 exit;
             }
             
-            // Verificar intervalo entre jogos (3 min)
             $intervalCheck = $limiter->checkGameInterval();
-            if (!$intervalCheck['allowed']) {
+            if (isset($intervalCheck['allowed']) && !$intervalCheck['allowed']) {
                 echo json_encode([
                     'success' => false,
-                    'error' => $intervalCheck['error'],
+                    'error' => $intervalCheck['error'] ?? 'Aguarde antes de jogar novamente',
                     'wait_seconds' => $intervalCheck['wait_seconds'] ?? 180
                 ]);
                 exit;
             }
+        } catch (Throwable $e) {
+            error_log("rate-limiter error (non-blocking): " . $e->getMessage());
         }
-    } catch (Exception $e) {
-        // Rate limiter falhou — não bloquear o jogador
-        error_log("rate-limiter error (non-blocking): " . $e->getMessage());
     }
     
     // Verificar limite por IP
@@ -189,14 +194,14 @@ try {
     
     $sessionId = (int)$pdo->lastInsertId();
     
-    // Registrar no rate limiter
-    try {
-        if (class_exists('RateLimiter')) {
+    // Registrar no rate limiter (opcional)
+    if ($_rateLimiterLoaded) {
+        try {
             $limiter = new RateLimiter($pdo, null, $realGoogleUid);
             $limiter->logAction('game_start');
+        } catch (Throwable $e) {
+            error_log("rate-limiter logAction error: " . $e->getMessage());
         }
-    } catch (Exception $e) {
-        error_log("rate-limiter logAction error: " . $e->getMessage());
     }
     
     secureLog("GAME_START | Session: $sessionId | User: $userId | Mission: $missionNumber | HardMode: " . ($isHardMode ? 'YES' : 'NO'));
