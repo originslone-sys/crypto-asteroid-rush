@@ -62,58 +62,56 @@ try {
     $realGoogleUid = $user['google_uid'];
     
     // ============================================
-    // VPN / PROXY CHECK
+    // VPN / PROXY CHECK (fail-open: erro não bloqueia)
     // ============================================
-    if (function_exists('checkProxyVPN')) {
-        $proxyResult = checkProxyVPN($pdo);
-        
-        if (!$proxyResult['allowed']) {
-            $proxyType = $proxyResult['type'] ?? 'VPN/Proxy';
-            echo json_encode([
-                'success' => false, 
-                'error' => 'VPN ou proxy detectado. Desative para jogar.',
-                'proxy_detected' => true,
-                'proxy_type' => $proxyType
-            ]);
-            exit;
-        }
-        
-        // Se é VPN/Proxy mas permitido (ex: residencial), logar no rate limiter
-        if (!empty($proxyResult['is_vpn']) || !empty($proxyResult['is_proxy'])) {
-            if (class_exists('RateLimiter')) {
-                $limiter = new RateLimiter($pdo, null, $realGoogleUid);
-                $limiter->logAction('vpn_detected', json_encode([
-                    'type' => $proxyResult['type'] ?? '',
-                    'provider' => $proxyResult['provider'] ?? '',
-                    'risk' => $proxyResult['risk'] ?? 0
-                ]));
+    try {
+        if (function_exists('checkProxyVPN')) {
+            $proxyResult = checkProxyVPN($pdo);
+            
+            if (!$proxyResult['allowed']) {
+                $proxyType = $proxyResult['type'] ?? 'VPN/Proxy';
+                echo json_encode([
+                    'success' => false, 
+                    'error' => 'VPN ou proxy detectado. Desative para jogar.',
+                    'proxy_detected' => true,
+                    'proxy_type' => $proxyType
+                ]);
+                exit;
             }
         }
+    } catch (Exception $e) {
+        // Proxy check falhou — não bloquear o jogador
+        error_log("proxy-check error (non-blocking): " . $e->getMessage());
     }
     
     // ============================================
-    // RATE LIMITER: IP blacklist + intervalo entre jogos
+    // RATE LIMITER (fail-open: erro não bloqueia)
     // ============================================
-    if (class_exists('RateLimiter')) {
-        $limiter = new RateLimiter($pdo, null, $realGoogleUid);
-        
-        // Verificar IP na blacklist
-        $blacklistCheck = $limiter->checkIPBlacklist();
-        if (!$blacklistCheck['allowed']) {
-            echo json_encode(['success' => false, 'error' => 'Acesso bloqueado', 'blocked' => true]);
-            exit;
+    try {
+        if (class_exists('RateLimiter')) {
+            $limiter = new RateLimiter($pdo, null, $realGoogleUid);
+            
+            // Verificar IP na blacklist
+            $blacklistCheck = $limiter->checkIPBlacklist();
+            if (!$blacklistCheck['allowed']) {
+                echo json_encode(['success' => false, 'error' => 'Acesso bloqueado', 'blocked' => true]);
+                exit;
+            }
+            
+            // Verificar intervalo entre jogos (3 min)
+            $intervalCheck = $limiter->checkGameInterval();
+            if (!$intervalCheck['allowed']) {
+                echo json_encode([
+                    'success' => false,
+                    'error' => $intervalCheck['error'],
+                    'wait_seconds' => $intervalCheck['wait_seconds'] ?? 180
+                ]);
+                exit;
+            }
         }
-        
-        // Verificar intervalo entre jogos (3 min)
-        $intervalCheck = $limiter->checkGameInterval();
-        if (!$intervalCheck['allowed']) {
-            echo json_encode([
-                'success' => false,
-                'error' => $intervalCheck['error'],
-                'wait_seconds' => $intervalCheck['wait_seconds'] ?? 180
-            ]);
-            exit;
-        }
+    } catch (Exception $e) {
+        // Rate limiter falhou — não bloquear o jogador
+        error_log("rate-limiter error (non-blocking): " . $e->getMessage());
     }
     
     // Verificar limite por IP
@@ -192,9 +190,13 @@ try {
     $sessionId = (int)$pdo->lastInsertId();
     
     // Registrar no rate limiter
-    if (class_exists('RateLimiter')) {
-        $limiter = new RateLimiter($pdo, null, $realGoogleUid);
-        $limiter->logAction('game_start');
+    try {
+        if (class_exists('RateLimiter')) {
+            $limiter = new RateLimiter($pdo, null, $realGoogleUid);
+            $limiter->logAction('game_start');
+        }
+    } catch (Exception $e) {
+        error_log("rate-limiter logAction error: " . $e->getMessage());
     }
     
     secureLog("GAME_START | Session: $sessionId | User: $userId | Mission: $missionNumber | HardMode: " . ($isHardMode ? 'YES' : 'NO'));
