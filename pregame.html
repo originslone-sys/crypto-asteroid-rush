@@ -281,33 +281,55 @@
     const adContainer = document.getElementById('adContainer');
     
     let adsReady = false;
+    let rotationTimer = null;
     
-    // Carregar anúncio
+    // Renderizar um slot no container
+    function renderSlot(type) {
+        if (typeof AdsManager === 'undefined' || !AdsManager.isEnabled?.()) return;
+        
+        try {
+            const slot = AdsManager.getNextSlot?.(type);
+            if (slot) {
+                adContainer.innerHTML = AdsManager.getSlotHTML?.(slot) || '';
+                if (typeof AdsManager.executeScripts === 'function') {
+                    AdsManager.executeScripts(adContainer);
+                }
+                AdsManager.trackImpression?.(slot.id);
+                // Manter label
+                const label = document.createElement('span');
+                label.className = 'ad-label';
+                label.textContent = 'Publicidade';
+                adContainer.appendChild(label);
+            }
+        } catch (e) {
+            console.warn('📺 Erro ao renderizar slot:', e.message);
+        }
+    }
+    
+    // Carregar anúncio e iniciar rotação
     async function loadAd() {
         try {
-            // Esperar AdsManager inicializar
             if (typeof AdsManager !== 'undefined') {
                 await AdsManager.init();
                 
                 if (AdsManager.isEnabled?.()) {
-                    const slot = AdsManager.getNextSlot?.('pregame');
-                    if (slot) {
-                        adContainer.innerHTML = AdsManager.getSlotHTML?.(slot) || '';
-                        if (typeof AdsManager.executeScripts === 'function') {
-                            AdsManager.executeScripts(adContainer);
-                        }
-                        AdsManager.trackImpression?.(slot.id);
-                        // Manter label
-                        const label = document.createElement('span');
-                        label.className = 'ad-label';
-                        label.textContent = 'Publicidade';
-                        adContainer.appendChild(label);
+                    const slots = AdsManager.getSlots?.()?.pregame || [];
+                    if (slots.length > 0) {
                         adsReady = true;
+                        
+                        // Renderizar primeiro slot
+                        renderSlot('pregame');
+                        
+                        // Se tem mais de 1 slot, rotacionar
+                        if (slots.length > 1) {
+                            const rotInterval = (AdsManager.getConfig?.()?.pregame_rotation_interval || 5) * 1000;
+                            rotationTimer = setInterval(() => renderSlot('pregame'), rotInterval);
+                        }
                     }
                 }
             }
         } catch (e) {
-            console.warn('📺 Erro ao carregar ad:', e.message);
+            console.warn('📺 Erro ao carregar ads:', e.message);
         }
     }
     
@@ -347,14 +369,12 @@
                 tipText.textContent = tips[tipIndex];
             }
             
-            // Concluído → redirecionar
             if (progress >= 100) {
                 clearInterval(interval);
+                if (rotationTimer) clearInterval(rotationTimer);
                 
-                // Sinalizar que loading foi completo
                 sessionStorage.setItem('loadingComplete', 'true');
                 
-                // Redirecionar para o jogo
                 setTimeout(() => {
                     window.location.href = 'game.html?start=true';
                 }, 300);
