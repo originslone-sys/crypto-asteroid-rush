@@ -87,6 +87,42 @@ try {
     }
     
     // ============================================
+    // 1b. VALIDAR GAME HASH (integridade)
+    // ============================================
+    
+    if (defined('GAME_HASH_REQUIRED') && GAME_HASH_REQUIRED && !empty($gameHash)) {
+        $expectedHash = generateServerGameHash(
+            $session['session_token'],
+            $session['session_seed'] ?? '',
+            $clientStats
+        );
+        
+        if ($expectedHash && $gameHash !== $expectedHash) {
+            // Hash não bate — possível tampering
+            secureLog("HASH_MISMATCH | Session: {$sessionId} | Client: {$gameHash} | Server: {$expectedHash}");
+            
+            // Não bloquear imediatamente, mas marcar como suspeito
+            // (hash pode divergir por race conditions legítimas)
+            try {
+                $pdo->prepare("
+                    INSERT INTO suspicious_activity 
+                    (user_id, ip_address, activity_type, details, severity, created_at)
+                    VALUES (?, ?, 'HASH_MISMATCH', ?, 'medium', NOW())
+                ")->execute([
+                    $session['user_id'] ?? null,
+                    getClientIP(),
+                    json_encode([
+                        'session_id' => $sessionId,
+                        'client_hash' => $gameHash,
+                        'expected_hash' => $expectedHash,
+                        'stats' => $clientStats
+                    ])
+                ]);
+            } catch (Exception $e) {}
+        }
+    }
+    
+    // ============================================
     // 2. CALCULAR DURAÇÃO E VALIDAR TEMPO
     // ============================================
     
