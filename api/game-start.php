@@ -7,6 +7,11 @@
 
 require_once __DIR__ . "/config.php";
 
+// Carregar rate limiter
+if (file_exists(__DIR__ . "/rate-limiter.php")) {
+    require_once __DIR__ . "/rate-limiter.php";
+}
+
 setCorsHeaders();
 
 $input = getRequestInput();
@@ -44,12 +49,37 @@ try {
     
     // Verificar ban
     if (!empty($user['is_banned'])) {
-        echo json_encode(['success' => false, 'error' => 'Conta suspensa: ' . ($user['ban_reason'] ?? 'Violação dos termos')]);
+        echo json_encode(['success' => false, 'error' => 'Conta suspensa: ' . ($user['ban_reason'] ?? 'Violação dos termos'), 'banned' => true]);
         exit;
     }
     
     $userId = (int)$user['id'];
     $realGoogleUid = $user['google_uid'];
+    
+    // ============================================
+    // RATE LIMITER: IP blacklist + intervalo entre jogos
+    // ============================================
+    if (class_exists('RateLimiter')) {
+        $limiter = new RateLimiter($pdo, null, $realGoogleUid);
+        
+        // Verificar IP na blacklist
+        $blacklistCheck = $limiter->checkIPBlacklist();
+        if (!$blacklistCheck['allowed']) {
+            echo json_encode(['success' => false, 'error' => 'Acesso bloqueado', 'blocked' => true]);
+            exit;
+        }
+        
+        // Verificar intervalo entre jogos (3 min)
+        $intervalCheck = $limiter->checkGameInterval();
+        if (!$intervalCheck['allowed']) {
+            echo json_encode([
+                'success' => false,
+                'error' => $intervalCheck['error'],
+                'wait_seconds' => $intervalCheck['wait_seconds'] ?? 180
+            ]);
+            exit;
+        }
+    }
     
     // Verificar limite por IP
     $stmt = $pdo->prepare("
@@ -125,6 +155,12 @@ try {
     ]);
     
     $sessionId = (int)$pdo->lastInsertId();
+    
+    // Registrar no rate limiter
+    if (class_exists('RateLimiter')) {
+        $limiter = new RateLimiter($pdo, null, $realGoogleUid);
+        $limiter->logAction('game_start');
+    }
     
     secureLog("GAME_START | Session: $sessionId | User: $userId | Mission: $missionNumber | HardMode: " . ($isHardMode ? 'YES' : 'NO'));
     
