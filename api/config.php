@@ -27,7 +27,7 @@ if (!defined('DB_HOST')) {
     
     define('DB_NAME', getenv('MYSQLDATABASE') ?: 'unobix_db');
     define('DB_USER', getenv('MYSQLUSER') ?: 'unobix_user');
-    define('DB_PASS', getenv('MYSQLPASSWORD') ?: '');
+    define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'YyZD3H)dndSo*A/N');
 }
 
 // ============================================
@@ -35,7 +35,7 @@ if (!defined('DB_HOST')) {
 // ============================================
 if (!defined('FIREBASE_PROJECT_ID')) {
     define('FIREBASE_PROJECT_ID', getenv('FIREBASE_PROJECT_ID') ?: 'unobix-oauth-a69cd');
-    define('FIREBASE_API_KEY', getenv('FIREBASE_API_KEY') ?: '');
+    define('FIREBASE_API_KEY', getenv('FIREBASE_API_KEY') ?: 'AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U');
 }
 
 // ============================================
