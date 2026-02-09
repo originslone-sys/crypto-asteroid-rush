@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/config.php';
 
 // Verificar autenticação admin
 session_start();
