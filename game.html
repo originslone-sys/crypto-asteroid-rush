@@ -237,6 +237,37 @@
     </div>
 </div>
 
+<!-- Tela Pós-Jogo (loading + anúncios antes dos resultados) -->
+<div id="postGameScreen" class="modal-overlay">
+    <div class="pregame-container">
+        <div class="pregame-header">
+            <i class="fas fa-flag-checkered"></i>
+            <span>MISSÃO FINALIZADA</span>
+        </div>
+        
+        <!-- Container de Anúncio Pós-Jogo -->
+        <div id="postGameAdContainer" class="ad-container">
+            <div class="ad-placeholder">
+                <i class="fas fa-ad"></i>
+                <span>Espaço para Anúncio</span>
+            </div>
+        </div>
+        
+        <div class="pregame-loading">
+            <div class="loading-bar-container">
+                <div id="postGameLoadingBar" class="loading-bar"></div>
+            </div>
+            <div id="postGameLoadingPercent" class="loading-percent">0%</div>
+            <div id="postGameLoadingStatus" class="loading-status">Calculando resultados...</div>
+        </div>
+        
+        <div class="pregame-tips">
+            <i class="fas fa-lightbulb"></i>
+            <span id="postGameTip">DICA: Faça staking dos seus ganhos para rendimento automático!</span>
+        </div>
+    </div>
+</div>
+
 <!-- Modal: Fim de Jogo (Vitória) -->
 <div id="endGameModal" class="modal-overlay">
     <div class="modal-container end-modal">
@@ -332,6 +363,9 @@
                 <span>Ganhos Perdidos: <strong id="lostEarnings">R$ 0,00</strong></span>
             </div>
         </div>
+        
+        <!-- Container de Anúncio no Game Over -->
+        <div id="gameoverAdContainer" class="ad-container" style="margin: 15px 0;"></div>
         
         <div class="btn-group">
             <button id="retryBtn" class="btn btn-primary btn-glow">
