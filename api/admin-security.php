@@ -18,22 +18,50 @@ if (file_exists(__DIR__ . "/rate-limiter.php")) {
 }
 
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+
+// CORS restrito (mesma origem)
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowedOrigins = [
+    'https://' . ($_SERVER['HTTP_HOST'] ?? ''),
+    'http://' . ($_SERVER['HTTP_HOST'] ?? ''),
+];
+if (in_array($origin, $allowedOrigins)) {
+    header("Access-Control-Allow-Origin: {$origin}");
+} else {
+    header("Access-Control-Allow-Origin: " . $allowedOrigins[0]);
+}
 header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Credentials: true');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
 // ===============================================================
-// Autenticação via Bearer Token
+// Autenticação via Bearer Token OU sessão admin
 // ===============================================================
-$adminPassword = getenv('ADMIN_PASSWORD') ?: 'MUDE_ESTA_SENHA_123!';
-$authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-$providedPassword = str_replace('Bearer ', '', $authHeader);
 
-if ($providedPassword !== $adminPassword) {
+$isAuthenticated = false;
+
+// Método 1: Sessão PHP (admin logado no painel)
+session_start();
+if (isset($_SESSION['admin']) && $_SESSION['admin'] === true) {
+    $isAuthenticated = true;
+}
+
+// Método 2: Bearer Token (API externa)
+if (!$isAuthenticated) {
+    $adminPassword = getenv('ADMIN_API_TOKEN') ?: getenv('ADMIN_PASSWORD') ?: '';
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $providedPassword = str_replace('Bearer ', '', $authHeader);
+    
+    if (!empty($adminPassword) && !empty($providedPassword) && $providedPassword === $adminPassword) {
+        $isAuthenticated = true;
+    }
+}
+
+if (!$isAuthenticated) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'Não autorizado']);
     exit;
