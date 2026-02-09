@@ -624,7 +624,7 @@ body {
 }
 
 /* ============================================
-   SHIP SELECTOR
+   SHIP SELECTOR — Card Grid v4.0
    ============================================ */
 #shipSelectorContainer {
     margin-bottom: var(--spacing-md);
@@ -644,45 +644,111 @@ body {
 
 .ship-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 6px;
 }
 
-.ship-btn {
-    aspect-ratio: 1;
-    min-height: 50px;
-    max-height: 65px;
-    background: rgba(0, 0, 0, 0.3);
-    border: 2px solid var(--border-color);
+/* Ship Card */
+.ship-card {
+    position: relative;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1.5px solid var(--border-color);
     border-radius: var(--radius-md);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.25s ease;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 2px;
-    padding: 4px;
+    padding: 6px 4px 4px;
+    overflow: hidden;
+    min-height: 70px;
 }
 
-.ship-btn:hover { border-color: var(--primary); background: rgba(0, 229, 204, 0.1); }
-.ship-btn.selected { border-color: var(--success); background: rgba(0, 255, 136, 0.15); box-shadow: 0 0 15px rgba(0, 255, 136, 0.3); }
-.ship-btn.locked { opacity: 0.4; cursor: not-allowed; }
+.ship-card:hover {
+    border-color: var(--primary);
+    background: rgba(0, 229, 204, 0.08);
+    transform: translateY(-2px);
+}
 
-.ship-preview {
-    width: 28px;
-    height: 28px;
+.ship-card.selected {
+    border-color: var(--success);
+    background: rgba(0, 255, 136, 0.12);
+    box-shadow: 0 0 12px rgba(0, 255, 136, 0.25), inset 0 0 20px rgba(0, 255, 136, 0.06);
+}
+
+.ship-card.selected::after {
+    content: '\2713';
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    font-size: 0.6rem;
+    color: var(--success);
+    font-weight: bold;
+}
+
+.ship-card.locked {
+    opacity: 0.35;
+    cursor: not-allowed;
+    filter: grayscale(0.6);
+}
+
+/* Preview SVG */
+.ship-card-preview {
+    width: 44px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-bottom: 2px;
 }
 
-.ship-number {
+.ship-svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+}
+
+/* Card info */
+.ship-card-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+}
+
+.ship-card-name {
     font-family: var(--font-primary);
-    font-size: 0.55rem;
-    color: var(--text-muted);
+    font-size: 0.5rem;
+    letter-spacing: 0.5px;
+    text-align: center;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 
+.ship-card-desc {
+    font-size: 0.42rem;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.1;
+    display: none;
+}
+
+/* Ship number badge */
+.ship-card-number {
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    font-family: var(--font-primary);
+    font-size: 0.45rem;
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+/* Selected ship info display */
 .selected-ship-info {
     margin-top: var(--spacing-sm);
     text-align: center;
@@ -892,14 +958,14 @@ body {
     border-radius: var(--radius-sm);
 }
 
-.breakdown-item.common { background: rgba(139, 105, 20, 0.2); }
-.breakdown-item.rare { background: rgba(30, 144, 255, 0.2); }
-.breakdown-item.epic { background: rgba(153, 50, 204, 0.2); }
-.breakdown-item.legendary { background: rgba(255, 215, 0, 0.2); }
+.breakdown-item.common { background: rgba(139, 105, 20, 0.15); border-left: 3px solid #B8860B; }
+.breakdown-item.rare { background: rgba(30, 144, 255, 0.15); border-left: 3px solid #1E90FF; }
+.breakdown-item.epic { background: rgba(153, 50, 204, 0.15); border-left: 3px solid #BA55D3; }
+.breakdown-item.legendary { background: rgba(255, 215, 0, 0.15); border-left: 3px solid #FFD700; }
 
 .breakdown-count {
     font-family: var(--font-primary);
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: bold;
 }
 
@@ -907,6 +973,28 @@ body {
 .breakdown-item.rare .breakdown-count { color: #1E90FF; }
 .breakdown-item.epic .breakdown-count { color: #BA55D3; }
 .breakdown-item.legendary .breakdown-count { color: #FFD700; }
+
+.breakdown-type {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.breakdown-type .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.breakdown-type.common .dot { background: #B8860B; }
+.breakdown-type.rare .dot { background: #1E90FF; }
+.breakdown-type.epic .dot { background: #BA55D3; }
+.breakdown-type.legendary .dot { background: #FFD700; }
 
 .breakdown-label {
     font-size: 0.55rem;
@@ -918,10 +1006,10 @@ body {
    GAME OVER MODAL
    ============================================ */
 .gameover-stats {
-    background: rgba(255, 71, 87, 0.1);
-    border: 1px solid rgba(255, 71, 87, 0.3);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-md);
+    background: rgba(255, 71, 87, 0.08);
+    border: 1px solid rgba(255, 71, 87, 0.25);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md) var(--spacing-lg);
     margin-bottom: var(--spacing-md);
     text-align: center;
 }
@@ -935,8 +1023,14 @@ body {
     font-size: 0.9rem;
 }
 
-.stat-lost i { font-size: 1.2rem; }
-.stat-lost strong { font-family: var(--font-primary); }
+.stat-lost i { font-size: 1.3rem; opacity: 0.8; }
+.stat-lost strong { font-family: var(--font-primary); font-size: 1.1rem; }
+
+/* Ad container within gameover */
+.ad-container {
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
 
 /* ============================================
    BALANCE UPDATE (após vitória)
@@ -1228,8 +1322,8 @@ body {
     .modal-subtitle { font-size: 0.75rem; }
     .wallet-info, .user-info { padding: 4px 8px; margin-bottom: var(--spacing-sm); }
     #shipSelectorContainer { margin-bottom: var(--spacing-sm); }
-    .ship-btn { min-height: 45px; max-height: 55px; }
-    .ship-preview { width: 22px; height: 22px; }
+    .ship-card { min-height: 60px; padding: 4px 3px 3px; }
+    .ship-card-preview { width: 36px; height: 30px; }
     .mission-info { padding: var(--spacing-xs); margin-bottom: var(--spacing-sm); gap: var(--spacing-sm); }
     .info-item { font-size: 0.65rem; }
     .btn-large { padding: var(--spacing-sm) var(--spacing-md); }
@@ -1239,15 +1333,17 @@ body {
 
 @media (max-width: 768px) {
     .ship-grid { grid-template-columns: repeat(4, 1fr); }
-    .breakdown-grid { grid-template-columns: repeat(2, 1fr); }
+    .ship-card-desc { display: none; }
+    .breakdown-grid { grid-template-columns: repeat(2, 1fr); gap: 4px; }
 }
 
 @media (max-width: 380px) {
     .modal-container { padding: 10px; }
-    .ship-grid { gap: 4px; }
-    .ship-btn { min-height: 40px; max-height: 50px; }
-    .ship-preview { width: 20px; height: 20px; }
-    .ship-number { font-size: 0.5rem; }
+    .ship-grid { gap: 4px; grid-template-columns: repeat(4, 1fr); }
+    .ship-card { min-height: 55px; padding: 3px 2px 2px; }
+    .ship-card-preview { width: 32px; height: 26px; }
+    .ship-card-name { font-size: 0.42rem; }
+    .ship-card-number { font-size: 0.4rem; }
     .control-btn { width: 60px; height: 60px; }
     .fire-btn { width: 80px; height: 80px; }
 }
