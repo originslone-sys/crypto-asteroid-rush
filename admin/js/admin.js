@@ -187,6 +187,205 @@ async function unbanPlayer(googleUid) {
 }
 
 // ============================================
+// GERENCIAMENTO DE ALERTAS (NOVO v7.0)
+// ============================================
+
+/**
+ * Excluir alerta individual
+ */
+async function deleteAlert(alertId) {
+    if (!confirm(`Excluir alerta #${alertId}?`)) return false;
+    
+    try {
+        const response = await adminAjax({ action: 'delete_alert', id: alertId });
+        if (response.success) {
+            showToast('Alerta excluído!', 'success');
+            const row = document.querySelector(`tr[data-alert-id="${alertId}"]`);
+            if (row) row.remove();
+            return true;
+        } else {
+            showToast('Erro: ' + (response.error || response.message), 'error');
+        }
+    } catch (error) {
+        showToast('Erro: ' + error.message, 'error');
+    }
+    return false;
+}
+
+/**
+ * Marcar alerta como revisado
+ */
+async function reviewAlert(alertId) {
+    try {
+        const response = await adminAjax({ action: 'review_alert', id: alertId });
+        if (response.success) {
+            showToast('Alerta marcado como revisado', 'success');
+            const row = document.querySelector(`tr[data-alert-id="${alertId}"]`);
+            if (row) {
+                row.classList.add('reviewed');
+                const btn = row.querySelector('.btn-review');
+                if (btn) {
+                    btn.innerHTML = '<i class="fas fa-check-double"></i>';
+                    btn.title = 'Revisado';
+                    btn.disabled = true;
+                    btn.classList.add('btn-success');
+                }
+            }
+            return true;
+        } else {
+            showToast('Erro: ' + (response.error || response.message), 'error');
+        }
+    } catch (error) {
+        showToast('Erro: ' + error.message, 'error');
+    }
+    return false;
+}
+
+/**
+ * Excluir alertas em massa (selecionados)
+ */
+async function bulkDeleteAlerts() {
+    const checkboxes = document.querySelectorAll('.alert-checkbox:checked');
+    if (checkboxes.length === 0) {
+        showToast('Selecione pelo menos um alerta', 'warning');
+        return false;
+    }
+    
+    if (!confirm(`Excluir ${checkboxes.length} alerta(s) selecionado(s)?`)) return false;
+    
+    const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    try {
+        const response = await adminAjax({ action: 'bulk_delete_alerts', ids: ids });
+        if (response.success) {
+            showToast(`${response.deleted} alertas excluídos`, 'success');
+            setTimeout(() => location.reload(), 1000);
+            return true;
+        } else {
+            showToast('Erro: ' + (response.error || response.message), 'error');
+        }
+    } catch (error) {
+        showToast('Erro: ' + error.message, 'error');
+    }
+    return false;
+}
+
+/**
+ * Revisar alertas em massa (selecionados)
+ */
+async function bulkReviewAlerts() {
+    const checkboxes = document.querySelectorAll('.alert-checkbox:checked');
+    if (checkboxes.length === 0) {
+        showToast('Selecione pelo menos um alerta', 'warning');
+        return false;
+    }
+    
+    const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    try {
+        const response = await adminAjax({ action: 'bulk_review_alerts', ids: ids });
+        if (response.success) {
+            showToast(`${response.reviewed} alertas revisados`, 'success');
+            setTimeout(() => location.reload(), 1000);
+            return true;
+        } else {
+            showToast('Erro: ' + (response.error || response.message), 'error');
+        }
+    } catch (error) {
+        showToast('Erro: ' + error.message, 'error');
+    }
+    return false;
+}
+
+/**
+ * Excluir alertas revisados antigos
+ */
+async function deleteReviewedAlerts(days = 30) {
+    if (!confirm(`Excluir todos os alertas revisados com mais de ${days} dias?`)) return false;
+    
+    const dateTo = new Date();
+    dateTo.setDate(dateTo.getDate() - days);
+    const dateStr = dateTo.toISOString().split('T')[0];
+    
+    try {
+        const response = await adminAjax({
+            action: 'bulk_delete_alerts',
+            date_to: dateStr,
+            only_reviewed: true
+        });
+        if (response.success) {
+            showToast(`${response.deleted} alertas antigos excluídos`, 'success');
+            setTimeout(() => location.reload(), 1000);
+        }
+    } catch (error) {
+        showToast('Erro: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Selecionar/deselecionar todos os checkboxes
+ */
+function toggleSelectAllAlerts(checkbox) {
+    const checkboxes = document.querySelectorAll('.alert-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+}
+
+// ============================================
+// GERENCIAMENTO DE IP BLACKLIST (NOVO v7.0)
+// ============================================
+
+/**
+ * Adicionar IP à blacklist
+ */
+async function blacklistIP(ip = '', reason = '', hours = null) {
+    if (!ip) ip = prompt('Endereço IP para bloquear:');
+    if (!ip) return false;
+    
+    if (!reason) reason = prompt('Motivo do bloqueio:') || 'Bloqueio manual';
+    
+    const hoursStr = prompt('Duração em horas (vazio = permanente):', '');
+    hours = hoursStr ? parseInt(hoursStr) : null;
+    
+    try {
+        const data = { action: 'blacklist_ip', ip, reason };
+        if (hours) data.hours = hours;
+        
+        const response = await adminAjax(data);
+        if (response.success) {
+            showToast(`IP ${ip} bloqueado!`, 'success');
+            setTimeout(() => location.reload(), 1500);
+            return true;
+        } else {
+            showToast('Erro: ' + (response.error || response.message), 'error');
+        }
+    } catch (error) {
+        showToast('Erro: ' + error.message, 'error');
+    }
+    return false;
+}
+
+/**
+ * Remover IP da blacklist
+ */
+async function unblacklistIP(ip) {
+    if (!confirm(`Desbloquear IP ${ip}?`)) return false;
+    
+    try {
+        const response = await adminAjax({ action: 'unblacklist_ip', ip });
+        if (response.success) {
+            showToast(`IP ${ip} desbloqueado!`, 'success');
+            setTimeout(() => location.reload(), 1500);
+            return true;
+        } else {
+            showToast('Erro: ' + (response.error || response.message), 'error');
+        }
+    } catch (error) {
+        showToast('Erro: ' + error.message, 'error');
+    }
+    return false;
+}
+
+// ============================================
 // AJAX HELPER (chamadas ao admin-ajax.php)
 // ============================================
 
