@@ -1,232 +1,334 @@
-<?php
-// ============================================
-// UNOBIX - Iniciar Sessão de Jogo
-// api/game-start.php v5.0 - Arquitetura Segura
-// Gera seed para verificação de integridade
-// ============================================
+   UNOBIX - Game Start v4.1
+   File: js/game-start.js
+   Google Auth, BRL currency
+   FIX: Passa googleUid corretamente para SessionManager
+   UNOBIX - Game Start v4.2
+   js/game-start.js
+   CORRIGIDO: UID handling
+   ============================================ */
 
-require_once __DIR__ . "/config.php";
+// Start game with loading screen
+/**
+ * Iniciar jogo com tela de carregamento
+ */
+function startGameWithLoading() {
+    console.log('🎮 Starting game...');
+    console.log('🎮 Iniciando jogo...');
 
-// Carregar rate limiter
-if (file_exists(__DIR__ . "/rate-limiter.php")) {
-    require_once __DIR__ . "/rate-limiter.php";
-}
-
-// Carregar proxy check
-if (file_exists(__DIR__ . "/proxy-check.php")) {
-    require_once __DIR__ . "/proxy-check.php";
-}
-
-setCorsHeaders();
-
-$input = getRequestInput();
-
-if (empty($input['google_uid'])) {
-    echo json_encode(['success' => false, 'error' => 'google_uid não fornecido']);
-    exit;
-}
-
-$googleUid = trim($input['google_uid']);
-
-// Permitir UID truncado com ...
-if (strpos($googleUid, '...') === false && !validateGoogleUid($googleUid)) {
-    echo json_encode(['success' => false, 'error' => 'google_uid inválido']);
-    exit;
-}
-
-$clientIP = getClientIP();
-
-try {
-    $pdo = getDatabaseConnection();
-    if (!$pdo) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Erro de conexão']);
-        exit;
+    // Determine if this mission is hard mode (hidden from user)
+    // Determinar hard mode (oculto do jogador)
+    if (typeof determineHardMode === 'function') {
+        determineHardMode();
     }
-    
-    // Buscar usuário
-    $user = findPlayer($pdo, $googleUid);
-    
-    if (!$user) {
-        echo json_encode(['success' => false, 'error' => 'Usuário não encontrado. Faça login primeiro.']);
-        exit;
-    }
-    
-    // Verificar ban
-    if (!empty($user['is_banned'])) {
-        echo json_encode(['success' => false, 'error' => 'Conta suspensa: ' . ($user['ban_reason'] ?? 'Violação dos termos'), 'banned' => true]);
-        exit;
-    }
-    
-    $userId = (int)$user['id'];
-    $realGoogleUid = $user['google_uid'];
-    
-    // ============================================
-    // VPN / PROXY CHECK (fail-open: erro não bloqueia)
-    // ============================================
+
+    // Go to actual start
+    actualStartGame();
+}
+
+// Actually start the game
+/**
+ * Efetivamente iniciar o jogo
+ */
+async function actualStartGame() {
+    console.log('🚀 Starting mission', (missionStats?.totalMissions || 0) + 1);
+    const missionNum = (typeof missionStats !== 'undefined' ? missionStats.totalMissions : 0) + 1;
+    console.log('🚀 Iniciando missão', missionNum);
+
+    // Start server session
     try {
-        if (function_exists('checkProxyVPN')) {
-            $proxyResult = checkProxyVPN($pdo);
-            
-            if (!$proxyResult['allowed']) {
-                $proxyType = $proxyResult['type'] ?? 'VPN/Proxy';
-                echo json_encode([
-                    'success' => false, 
-                    'error' => 'VPN ou proxy detectado. Desative para jogar.',
-                    'proxy_detected' => true,
-                    'proxy_type' => $proxyType
-                ]);
-                exit;
+        if (typeof showNotification === 'function') {
+            showNotification('PREPARANDO', 'Criando sessão da missão...', true);
+        }
+
+        // Buscar googleUid de várias fontes
+        const googleUid = gameState.googleUid 
+            || gameState.user?.uid 
+            || window.authManager?.currentUser?.uid
+            || window.authManager?.getUserId()
+            || localStorage.getItem('googleUid');
+        // Obter Google UID
+        const googleUid = getGoogleUidFromSources();
+
+        console.log('🔑 Google UID encontrado:', googleUid ? googleUid.substring(0, 10) + '...' : 'NENHUM');
+        console.log('🔑 Google UID:', googleUid ? googleUid.substring(0, 15) + '...' : 'NENHUM');
+
+        if (!googleUid) {
+            throw new Error('Usuário não autenticado. Faça login novamente.');
+        }
+
+        // Garantir que gameState tem o googleUid
+        gameState.googleUid = googleUid;
+        // Salvar no gameState
+        if (typeof gameState !== 'undefined') {
+            gameState.googleUid = googleUid;
+        }
+
+        // IMPORTANTE: Passar googleUid, NÃO wallet!
+        // Criar sessão no servidor
+        const sessionResult = await SessionManager.startSession(googleUid);
+
+        if (!sessionResult || !sessionResult.success) {
+            throw new Error(sessionResult?.error || 'Falha ao criar sessão');
+        }
+
+        console.log('✅ Server session created:', sessionResult.session_id);
+        console.log('✅ Sessão criada:', sessionResult.session_id);
+
+        // Update mission stats
+        // Atualizar stats
+        if (typeof missionStats !== 'undefined') {
+            missionStats.totalMissions = sessionResult.mission_number;
+            localStorage.setItem('totalMissions', missionStats.totalMissions.toString());
+
+            // Check if server says this is hard mode
+            if (sessionResult.is_hard_mode !== undefined) {
+                missionStats.isHardMode = sessionResult.is_hard_mode;
             }
         }
-    } catch (Exception $e) {
-        // Proxy check falhou — não bloquear o jogador
-        error_log("proxy-check error (non-blocking): " . $e->getMessage());
+
+    } catch (error) {
+        console.error('❌ Failed to start session:', error);
+        console.error('❌ Falha ao iniciar sessão:', error);
+        
+        if (typeof gameAlert === 'function') {
+            await gameAlert('Falha ao iniciar missão: ' + error.message, 'error', 'ERRO');
+        } else {
+            alert('Erro: ' + error.message);
+        }
+        
+        if (typeof showModal === 'function') {
+            showModal('gameMenuModal');
+        }
+        return;
     }
-    
-    // ============================================
-    // RATE LIMITER (fail-open: erro não bloqueia)
-    // ============================================
-    try {
-        if (class_exists('RateLimiter')) {
-            $limiter = new RateLimiter($pdo, null, $realGoogleUid);
-            
-            // Verificar IP na blacklist
-            $blacklistCheck = $limiter->checkIPBlacklist();
-            if (!$blacklistCheck['allowed']) {
-                echo json_encode(['success' => false, 'error' => 'Acesso bloqueado', 'blocked' => true]);
-                exit;
-            }
-            
-            // Verificar intervalo entre jogos (3 min)
-            $intervalCheck = $limiter->checkGameInterval();
-            if (!$intervalCheck['allowed']) {
-                echo json_encode([
-                    'success' => false,
-                    'error' => $intervalCheck['error'],
-                    'wait_seconds' => $intervalCheck['wait_seconds'] ?? 180
-                ]);
-                exit;
+
+    // Reset mission stats
+    // Resetar stats da missão
+    if (typeof missionStats !== 'undefined') {
+        missionStats.rareCount = 0;
+        missionStats.epicCount = 0;
+        missionStats.legendaryCount = 0;
+    }
+
+    // Create initial asteroids
+    gameState.asteroids = [];
+    const initialAsteroids = CONFIG?.INITIAL_ASTEROIDS || 5;
+    for (let i = 0; i < initialAsteroids; i++) {
+        if (typeof createAsteroid === 'function') {
+            const asteroid = createAsteroid(i, false);
+            asteroid.y = -50 - (i * 80);
+            gameState.asteroids.push(asteroid);
+    // Criar asteroides iniciais
+    if (typeof gameState !== 'undefined') {
+        gameState.asteroids = [];
+        const initialAsteroids = typeof CONFIG !== 'undefined' ? CONFIG.INITIAL_ASTEROIDS : 5;
+        
+        for (let i = 0; i < initialAsteroids; i++) {
+            if (typeof createAsteroid === 'function') {
+                const asteroid = createAsteroid(i, false);
+                asteroid.y = -50 - (i * 80);
+                gameState.asteroids.push(asteroid);
             }
         }
-    } catch (Exception $e) {
-        // Rate limiter falhou — não bloquear o jogador
-        error_log("rate-limiter error (non-blocking): " . $e->getMessage());
-    }
-    
-    // Verificar limite por IP
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) as count 
-        FROM game_sessions 
-        WHERE ip_address = ? 
-        AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-    ");
-    $stmt->execute([$clientIP]);
-    $ipCheck = $stmt->fetch();
-    
-    if ($ipCheck['count'] >= MAX_MISSIONS_PER_HOUR) {
-        echo json_encode([
-            'success' => false,
-            'error' => 'Limite de ' . MAX_MISSIONS_PER_HOUR . ' missões por hora atingido',
-            'wait_seconds' => 3600,
-            'missions_remaining' => 0
-        ]);
-        exit;
-    }
-    
-    $missionsRemaining = MAX_MISSIONS_PER_HOUR - $ipCheck['count'] - 1;
-    
-    // Expirar sessões ativas do usuário
-    $pdo->prepare("
-        UPDATE game_sessions 
-        SET status = 'abandoned', ended_at = NOW() 
-        WHERE google_uid = ? AND status = 'active'
-    ")->execute([$realGoogleUid]);
-    
-    // Calcular número da missão
-    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM game_sessions WHERE google_uid = ?");
-    $stmt->execute([$realGoogleUid]);
-    $result = $stmt->fetch();
-    $missionNumber = (int)($result['total'] ?? 0) + 1;
-    
-    // Determinar hard mode (servidor decide, não cliente)
-    $isHardMode = isHardModeMission();
-    
-    // Gerar tokens de segurança
-    $sessionToken = hash('sha256', $realGoogleUid . '|' . time() . '|' . bin2hex(random_bytes(16)));
-    $sessionSeed = generateSessionSeed(); // Novo: seed para verificação
-    
-    // Criar sessão
-    $stmt = $pdo->prepare("
-        INSERT INTO game_sessions (
-            google_uid, 
-            session_token,
-            session_uuid,
-            mission_number, 
-            is_hard_mode,
-            ip_address, 
-            user_agent, 
-            earnings_brl, 
-            asteroids_destroyed,
-            common_asteroids,
-            rare_asteroids,
-            epic_asteroids,
-            legendary_asteroids,
-            started_at, 
-            created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, NOW(), NOW())
-    ");
-    
-    $stmt->execute([
-        $realGoogleUid, 
-        $sessionToken,
-        $sessionSeed, // Armazena seed no campo session_uuid
-        $missionNumber, 
-        $isHardMode ? 1 : 0,
-        $clientIP, 
-        substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500)
-    ]);
-    
-    $sessionId = (int)$pdo->lastInsertId();
-    
-    // Registrar no rate limiter
-    try {
-        if (class_exists('RateLimiter')) {
-            $limiter = new RateLimiter($pdo, null, $realGoogleUid);
-            $limiter->logAction('game_start');
+        
+        gameState.asteroidSpawnCounter = initialAsteroids;
+        
+        // Resetar estado do jogo
+        gameState.gameActive = true;
+        gameState.score = 0;
+        gameState.earnings = 0;
+        gameState.lives = typeof CONFIG !== 'undefined' ? CONFIG.INITIAL_LIVES : 6;
+        gameState.invincibilityFrames = 0;
+        gameState.destroyedAsteroids = [];
+        gameState.bullets = [];
+        gameState.particles = [];
+        gameState.lastFireTime = 0;
+        gameState.keys = { left: false, right: false, fire: false };
+        
+        // Nave
+        const shipDesign = typeof getShipForGame === 'function' ? getShipForGame() : { name: 'Default Ship' };
+        gameState.currentSessionShip = shipDesign;
+        
+        console.log('🚀 Usando nave:', shipDesign.name);
+        
+        if (typeof canvas !== 'undefined') {
+            gameState.ship = {
+                x: canvas.width / 2,
+                y: canvas.height - 120,
+                width: 80,
+                height: 70,
+                speed: typeof CONFIG !== 'undefined' ? CONFIG.SHIP_SPEED : 8,
+                design: shipDesign
+            };
+            gameState.lastX = gameState.ship.x;
         }
-    } catch (Exception $e) {
-        error_log("rate-limiter logAction error: " . $e->getMessage());
+    }
+
+    gameState.asteroidSpawnCounter = initialAsteroids;
+    
+    // Reset game state
+    gameState.gameActive = true;
+    gameState.score = 0;
+    gameState.earnings = 0;
+    gameState.lives = CONFIG?.INITIAL_LIVES || 6;
+    gameState.invincibilityFrames = 0;
+    gameState.destroyedAsteroids = [];
+    gameState.bullets = [];
+    gameState.particles = [];
+    gameState.lastFireTime = 0;
+    gameState.keys = { left: false, right: false, fire: false };
+    
+    // Get ship for this mission
+    const shipDesign = typeof getShipForGame === 'function' ? getShipForGame() : { name: 'Default Ship' };
+    gameState.currentSessionShip = shipDesign;
+    
+    console.log('🚀 Using ship:', shipDesign.name);
+    
+    gameState.ship = {
+        x: canvas.width / 2,
+        y: canvas.height - 120,
+        width: 80,
+        height: 70,
+        speed: CONFIG?.SHIP_SPEED || 8,
+        design: shipDesign
+    };
+    gameState.lastX = gameState.ship.x;
+    
+    if (typeof showNotification === 'function') {
+        showNotification('NAVE PRONTA', shipDesign.name, true);
+        showNotification('NAVE PRONTA', gameState?.currentSessionShip?.name || 'Pronto', true);
     }
     
-    secureLog("GAME_START | Session: $sessionId | User: $userId | Mission: $missionNumber | HardMode: " . ($isHardMode ? 'YES' : 'NO'));
+    if (typeof showModal === 'function') {
+        showModal('');
+    }
+
+    // Update lives display
+    if (typeof resetLivesDisplay === 'function') {
+        resetLivesDisplay();
+    }
+    if (typeof updateUI === 'function') {
+        updateUI();
+    }
     
-    echo json_encode([
-        'success' => true,
-        'session_id' => $sessionId,
-        'session_token' => $sessionToken,
-        'session_seed' => $sessionSeed, // Enviado ao cliente para gerar hash
-        'google_uid' => $realGoogleUid,
-        'user_id' => $userId,
-        'mission_number' => $missionNumber,
-        'is_hard_mode' => $isHardMode,
-        'game_duration' => GAME_DURATION,
-        'initial_lives' => INITIAL_LIVES,
-        'missions_remaining' => $missionsRemaining,
-        // Limites para o cliente saber
-        'limits' => [
-            'max_asteroids' => MAX_ASTEROIDS_PER_GAME,
-            'max_legendary' => MAX_LEGENDARY_PER_GAME,
-            'max_epic' => MAX_EPIC_PER_GAME,
-            'max_rare' => MAX_RARE_PER_GAME
-        ]
-    ]);
+    // Start timers
+    if (typeof startGameTimer === 'function') {
+        startGameTimer();
+    }
+    if (typeof startSpawnTimer === 'function') {
+        startSpawnTimer();
+    }
+    // Atualizar UI
+    if (typeof resetLivesDisplay === 'function') resetLivesDisplay();
+    if (typeof updateUI === 'function') updateUI();
+    if (typeof startGameTimer === 'function') startGameTimer();
+    if (typeof startSpawnTimer === 'function') startSpawnTimer();
+    if (typeof gameLoop === 'function') gameLoop();
+
+    // Start game loop
+    if (typeof gameLoop === 'function') {
+        gameLoop();
+    }
     
-} catch (Throwable $e) {
-    error_log("❌ GAME-START ERROR: " . $e->getMessage() . " | Line: " . $e->getLine());
-    http_response_code(500);
-    echo json_encode([
-        'success' => false, 
-        'error' => 'Erro interno'
-    ]);
+    // Audio
+    if (gameState.audioEnabled) {
+    // Áudio
+    if (typeof gameState !== 'undefined' && gameState.audioEnabled) {
+        setTimeout(() => {
+            if (typeof isAudioUnlocked !== 'undefined' && !isAudioUnlocked) {
+                if (typeof unlockAudio === 'function') unlockAudio();
+                setTimeout(() => {
+                    if (typeof isAudioUnlocked !== 'undefined' && isAudioUnlocked && 
+                        typeof backgroundMusic !== 'undefined' && backgroundMusic === null &&
+                        typeof playBackgroundMusic === 'function') {
+                        playBackgroundMusic();
+                    }
+                }, 300);
+            } else if (typeof backgroundMusic !== 'undefined' && backgroundMusic === null &&
+                       typeof playBackgroundMusic === 'function') {
+            if (typeof playBackgroundMusic === 'function') {
+                playBackgroundMusic();
+            }
+        }, 500);
+    }
+
+    // Show mission info
+    // Info da missão
+    if (typeof showMissionStartInfo === 'function') {
+        showMissionStartInfo();
+    }
 }
+
+// Reset lives display
+/**
+ * Obter Google UID de várias fontes
+ */
+function getGoogleUidFromSources() {
+    const sources = [
+        () => gameState?.googleUid,
+        () => gameState?.user?.uid,
+        () => window.authManager?.currentUser?.uid,
+        () => window.authManager?.getUserId?.(),
+        () => localStorage.getItem('googleUid'),
+        () => sessionStorage.getItem('googleUid')
+    ];
+    
+    for (const source of sources) {
+        try {
+            const uid = source();
+            if (uid && typeof uid === 'string' && uid.length >= 10) {
+                return uid;
+            }
+        } catch (e) {}
+    }
+    
+    return null;
+}
+
+/**
+ * Resetar display de vidas
+ */
+function resetLivesDisplay() {
+    const livesContainer = document.getElementById('lives');
+    if (!livesContainer) return;
+
+    const initialLives = CONFIG?.INITIAL_LIVES || 6;
+    const initialLives = typeof CONFIG !== 'undefined' ? CONFIG.INITIAL_LIVES : 6;
+    livesContainer.innerHTML = '';
+    
+    for (let i = 0; i < initialLives; i++) {
+        const life = document.createElement('span');
+        life.className = 'life active';
+        livesContainer.appendChild(life);
+    }
+}
+
+// Show mission start info
+/**
+ * Mostrar info de início da missão
+ */
+function showMissionStartInfo() {
+    const missionNum = missionStats?.totalMissions || 1;
+    const missionNum = typeof missionStats !== 'undefined' ? missionStats.totalMissions : 1;
+    
+    if (typeof showNotification === 'function') {
+        showNotification(`MISSÃO #${missionNum}`, 'Boa sorte, Comandante!', true);
+    }
+
+    console.log('📊 Mission started:', { 
+    console.log('📊 Missão iniciada:', { 
+        number: missionNum,
+        hardMode: missionStats?.isHardMode || false
+        hardMode: typeof missionStats !== 'undefined' ? missionStats.isHardMode : false
+    });
+}
+
+// Export functions
+// Exportar funções
+window.startGameWithLoading = startGameWithLoading;
+window.actualStartGame = actualStartGame;
+window.resetLivesDisplay = resetLivesDisplay;
+window.showMissionStartInfo = showMissionStartInfo;
+window.getGoogleUidFromSources = getGoogleUidFromSources;
+
+console.log('📦 game-start.js v4.2 carregado');
