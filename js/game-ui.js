@@ -445,33 +445,33 @@ function _displayResultsFinal(stats, displayEarnings, serverBalance) {
     let breakdownHTML = `
         <div class="breakdown-title">ASTEROIDES DESTRUÍDOS</div>
         <div class="breakdown-grid">
-            <div class="breakdown-item">
+            <div class="breakdown-item common">
                 <span class="breakdown-type common">
                     <span class="dot"></span>
                     Comum
                 </span>
                 <span class="breakdown-count">${stats.common}</span>
             </div>
-            <div class="breakdown-item">
+            <div class="breakdown-item rare">
                 <span class="breakdown-type rare">
                     <span class="dot"></span>
                     Raro
                 </span>
-                <span class="breakdown-count">${stats.rare} (+${formatEarningsBRL(stats.rare * CONFIG.REWARDS.RARE)})</span>
+                <span class="breakdown-count">${stats.rare} <small>(+${formatEarningsBRL(stats.rare * CONFIG.REWARDS.RARE)})</small></span>
             </div>
-            <div class="breakdown-item">
+            <div class="breakdown-item epic">
                 <span class="breakdown-type epic">
                     <span class="dot"></span>
                     Épico
                 </span>
-                <span class="breakdown-count">${stats.epic} (+${formatEarningsBRL(stats.epic * CONFIG.REWARDS.EPIC)})</span>
+                <span class="breakdown-count">${stats.epic} <small>(+${formatEarningsBRL(stats.epic * CONFIG.REWARDS.EPIC)})</small></span>
             </div>
-            <div class="breakdown-item">
+            <div class="breakdown-item legendary">
                 <span class="breakdown-type legendary">
                     <span class="dot"></span>
                     Lendário
                 </span>
-                <span class="breakdown-count">${stats.legendary} (+${formatEarningsBRL(stats.legendary * CONFIG.REWARDS.LEGENDARY)})</span>
+                <span class="breakdown-count">${stats.legendary} <small>(+${formatEarningsBRL(stats.legendary * CONFIG.REWARDS.LEGENDARY)})</small></span>
             </div>
         </div>
     `;
