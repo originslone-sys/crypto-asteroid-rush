@@ -69,11 +69,21 @@ try {
     }
     
     if ($session['status'] !== 'active') {
-        // Sessão já finalizada - retornar dados anteriores
+        // Sessão já finalizada - retornar dados anteriores completos
+        $prevBalance = (float)($session['user_balance'] ?? 0);
         echo json_encode([
             'success' => true,
             'already_completed' => true,
+            'credited' => ($session['status'] === 'completed' && (float)$session['earnings_brl'] > 0),
             'final_earnings' => (float)$session['earnings_brl'],
+            'new_balance' => $prevBalance,
+            'victory' => ($session['status'] === 'completed'),
+            'stats' => [
+                'common' => (int)($session['common_asteroids'] ?? 0),
+                'rare' => (int)($session['rare_asteroids'] ?? 0),
+                'epic' => (int)($session['epic_asteroids'] ?? 0),
+                'legendary' => (int)($session['legendary_asteroids'] ?? 0)
+            ],
             'message' => 'Sessão já foi finalizada anteriormente'
         ]);
         exit;
