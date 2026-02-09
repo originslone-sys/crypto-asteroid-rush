@@ -43,9 +43,20 @@ if (!defined('FIREBASE_PROJECT_ID')) {
 // ============================================
 if (!defined('CAPTCHA_ENABLED')) {
     define('CAPTCHA_ENABLED', true);
-    define('CAPTCHA_TYPE', 'math');
+    define('CAPTCHA_TYPE', 'recaptcha_v3');
+    
+    // reCAPTCHA v3 Google
+    define('RECAPTCHA_SITE_KEY', getenv('RECAPTCHA_SITE_KEY') ?: '6Lck0GUsAAAAAPOseYXhn0G_QH6XqLTza0mZMNeg');
+    define('RECAPTCHA_SECRET_KEY', getenv('RECAPTCHA_SECRET_KEY') ?: '6Lck0GUsAAAAAPjgW1Ntcoo3ZhsBLVHkHfjpjSHv');
+    define('RECAPTCHA_SCORE_THRESHOLD', 0.5);   // Abaixo disso = suspeito
+    define('RECAPTCHA_SCORE_BLOCK', 0.3);        // Abaixo disso = bloqueia
+    
+    // Quando exigir verificação
+    define('CAPTCHA_REQUIRED_ON_VICTORY', true);  // Verificar em toda vitória
+    define('CAPTCHA_REQUIRED_ON_LOGIN', false);    // Verificar no login (futuro)
+    
+    // Legacy (manter para compatibilidade)
     define('HCAPTCHA_SECRET_KEY', getenv('HCAPTCHA_SECRET_KEY') ?: '');
-    define('CAPTCHA_REQUIRED_ON_VICTORY', false);
 }
 
 // ============================================
@@ -235,10 +246,26 @@ if (!function_exists('isHardModeMission')) {
 }
 
 if (!function_exists('verifyCaptcha')) {
-    function verifyCaptcha($token, $ip = null) {
-        if (!CAPTCHA_ENABLED) return ['success' => true];
-        if (empty($token)) return ['success' => false, 'message' => 'Token CAPTCHA ausente'];
+    /**
+     * Verificar token CAPTCHA
+     * Suporta reCAPTCHA v3 (principal) e math (fallback legacy)
+     * 
+     * @return array ['success' => bool, 'score' => float, 'message' => string]
+     */
+    function verifyCaptcha($token, $ip = null, $expectedAction = 'game_end') {
+        if (!CAPTCHA_ENABLED) return ['success' => true, 'score' => 1.0];
+        if (empty($token)) return ['success' => false, 'score' => 0, 'message' => 'Token CAPTCHA ausente'];
         
+        // ============================================
+        // reCAPTCHA v3 Google
+        // ============================================
+        if (CAPTCHA_TYPE === 'recaptcha_v3') {
+            return verifyRecaptchaV3($token, $ip, $expectedAction);
+        }
+        
+        // ============================================
+        // Math CAPTCHA (legacy fallback)
+        // ============================================
         if (CAPTCHA_TYPE === 'math') {
             try {
                 $decoded = base64_decode($token);
@@ -246,17 +273,102 @@ if (!function_exists('verifyCaptcha')) {
                     $parts = explode('_', $decoded);
                     if (count($parts) >= 3) {
                         $timestamp = (int)end($parts);
-                        if (time() - ($timestamp / 1000) < 600) return ['success' => true];
-                        return ['success' => false, 'message' => 'Token expirado'];
+                        if (time() - ($timestamp / 1000) < 600) return ['success' => true, 'score' => 0.7];
+                        return ['success' => false, 'score' => 0, 'message' => 'Token expirado'];
                     }
                 }
-                return ['success' => false, 'message' => 'Token inválido'];
+                return ['success' => false, 'score' => 0, 'message' => 'Token inválido'];
             } catch (Exception $e) {
-                return ['success' => false, 'message' => 'Erro ao validar token'];
+                return ['success' => false, 'score' => 0, 'message' => 'Erro ao validar token'];
             }
         }
         
-        return ['success' => true];
+        return ['success' => true, 'score' => 1.0];
+    }
+}
+
+if (!function_exists('verifyRecaptchaV3')) {
+    /**
+     * Verificar token reCAPTCHA v3 com API Google
+     * Retorna score 0.0 (bot) a 1.0 (humano)
+     */
+    function verifyRecaptchaV3($token, $ip = null, $expectedAction = 'game_end') {
+        if (empty(RECAPTCHA_SECRET_KEY)) {
+            secureLog("RECAPTCHA_ERROR | Secret key não configurada");
+            return ['success' => true, 'score' => 0.5, 'message' => 'reCAPTCHA não configurado'];
+        }
+        
+        $postData = [
+            'secret' => RECAPTCHA_SECRET_KEY,
+            'response' => $token
+        ];
+        if ($ip) $postData['remoteip'] = $ip;
+        
+        $options = [
+            'http' => [
+                'header' => "Content-type: application/x-www-form-urlencoded\r\n",
+                'method' => 'POST',
+                'content' => http_build_query($postData),
+                'timeout' => 10
+            ]
+        ];
+        
+        $context = stream_context_create($options);
+        $result = @file_get_contents('https://www.google.com/recaptcha/api/siteverify', false, $context);
+        
+        if ($result === false) {
+            secureLog("RECAPTCHA_ERROR | Falha ao contatar API Google");
+            // Não bloquear se API estiver fora — fail-open
+            return ['success' => true, 'score' => 0.5, 'message' => 'Erro de comunicação com reCAPTCHA'];
+        }
+        
+        $response = json_decode($result, true);
+        
+        if (!$response) {
+            secureLog("RECAPTCHA_ERROR | Resposta inválida da API");
+            return ['success' => true, 'score' => 0.5, 'message' => 'Resposta inválida do reCAPTCHA'];
+        }
+        
+        $isSuccess = !empty($response['success']);
+        $score = (float)($response['score'] ?? 0);
+        $action = $response['action'] ?? '';
+        $errorCodes = $response['error-codes'] ?? [];
+        
+        // Log para debug
+        if ($score < RECAPTCHA_SCORE_THRESHOLD) {
+            secureLog("RECAPTCHA_LOW_SCORE | Score: {$score} | Action: {$action} | IP: " . ($ip ?? getClientIP()));
+        }
+        
+        // Verificar action match (se esperado)
+        if ($expectedAction && $action && $action !== $expectedAction) {
+            secureLog("RECAPTCHA_ACTION_MISMATCH | Expected: {$expectedAction} | Got: {$action}");
+        }
+        
+        if (!$isSuccess) {
+            return [
+                'success' => false,
+                'score' => $score,
+                'message' => 'Verificação reCAPTCHA falhou',
+                'errors' => $errorCodes
+            ];
+        }
+        
+        // Score abaixo do limiar de bloqueio
+        if ($score < RECAPTCHA_SCORE_BLOCK) {
+            return [
+                'success' => false,
+                'score' => $score,
+                'message' => 'Score de reCAPTCHA muito baixo',
+                'blocked' => true
+            ];
+        }
+        
+        return [
+            'success' => true,
+            'score' => $score,
+            'suspicious' => $score < RECAPTCHA_SCORE_THRESHOLD,
+            'message' => $score < RECAPTCHA_SCORE_THRESHOLD ? 'Score baixo — atividade suspeita' : 'OK'
+        ];
     }
 }
 
