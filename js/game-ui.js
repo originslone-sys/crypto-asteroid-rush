@@ -396,10 +396,11 @@ function showEndGameResults(stats, serverEarnings = null, serverBalance = null) 
         ? serverEarnings 
         : gameState.earnings;
     
-    // Verificar se estamos voltando do postgame (já com dados prontos)
-    // Nesse caso, exibir direto sem redirecionar de novo
-    const params = new URLSearchParams(window.location.search);
-    const isReturning = params.get('results') === 'true';
+    // Verificar se estamos voltando do postgame.html (flag setado pelo game-main.js)
+    const isReturning = sessionStorage.getItem('_showResultsDirect') === 'true';
+    if (isReturning) {
+        sessionStorage.removeItem('_showResultsDirect');
+    }
     
     if (isReturning || !_shouldShowPostgameAds()) {
         // Exibir resultados direto (sem redirecionar)
