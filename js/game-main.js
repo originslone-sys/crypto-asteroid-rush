@@ -206,15 +206,8 @@ async function startGameSession() {
     startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Preparando...</span>';
     
     try {
-        // Show pre-game loading (with ads)
-        if (typeof showPreGameLoading === 'function') {
-            showPreGameLoading(true);
-        } else {
-            // Fallback: iniciar jogo diretamente
-            if (typeof startGameWithLoading === 'function') {
-                startGameWithLoading();
-            }
-        }
+        // Redirecionar para página de loading pré-jogo (com anúncios)
+        window.location.href = 'pregame.html';
         
     } catch (error) {
         console.error('❌ Erro:', error);
@@ -445,12 +438,35 @@ document.addEventListener('DOMContentLoaded', () => {
             
             updateUserUI(user);
             
-            // Check if should auto-start
+            // Check if should auto-start (voltando do pregame.html)
             const params = new URLSearchParams(window.location.search);
             const shouldStart = params.get('start') === 'true';
             const loadingComplete = sessionStorage.getItem('loadingComplete') === 'true';
             
-            if (shouldStart && loadingComplete) {
+            // Check if returning from postgame.html with results
+            const showResults = params.get('results') === 'true';
+            const postgameComplete = sessionStorage.getItem('postgameComplete') === 'true';
+            
+            if (showResults && postgameComplete) {
+                // Voltando do postgame.html — exibir resultados
+                sessionStorage.removeItem('postgameComplete');
+                window.history.replaceState({}, '', 'game.html');
+                
+                try {
+                    const pgData = JSON.parse(sessionStorage.getItem('postgameData') || '{}');
+                    sessionStorage.removeItem('postgameData');
+                    
+                    if (pgData.stats && typeof showEndGameResults === 'function') {
+                        console.log('📊 Exibindo resultados do postgame');
+                        showEndGameResults(pgData.stats, pgData.serverEarnings, pgData.serverBalance);
+                    } else {
+                        showModal('gameMenuModal');
+                    }
+                } catch (e) {
+                    console.error('Erro ao restaurar resultados:', e);
+                    showModal('gameMenuModal');
+                }
+            } else if (shouldStart && loadingComplete) {
                 sessionStorage.removeItem('loadingComplete');
                 window.history.replaceState({}, '', 'game.html');
                 console.log('🎮 Auto-starting game');
