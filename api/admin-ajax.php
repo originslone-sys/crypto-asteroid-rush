@@ -698,6 +698,13 @@ try {
                 $deleted += $stmt;
             } catch (Exception $e) {}
             
+            // Limpar proxy_cache expirado
+            try {
+                $cacheHours = defined('PROXY_CHECK_CACHE_HOURS') ? PROXY_CHECK_CACHE_HOURS : 6;
+                $stmt = $pdo->exec("DELETE FROM proxy_cache WHERE created_at < DATE_SUB(NOW(), INTERVAL {$cacheHours} HOUR)");
+                $deleted += $stmt;
+            } catch (Exception $e) {}
+            
             // Tentar stored procedure se existir
             try {
                 $pdo->exec("CALL sp_cleanup_old_data()");
