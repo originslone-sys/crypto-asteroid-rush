@@ -12,6 +12,11 @@ if (file_exists(__DIR__ . "/rate-limiter.php")) {
     require_once __DIR__ . "/rate-limiter.php";
 }
 
+// Carregar proxy check
+if (file_exists(__DIR__ . "/proxy-check.php")) {
+    require_once __DIR__ . "/proxy-check.php";
+}
+
 setCorsHeaders();
 
 $input = getRequestInput();
@@ -55,6 +60,36 @@ try {
     
     $userId = (int)$user['id'];
     $realGoogleUid = $user['google_uid'];
+    
+    // ============================================
+    // VPN / PROXY CHECK
+    // ============================================
+    if (function_exists('checkProxyVPN')) {
+        $proxyResult = checkProxyVPN($pdo);
+        
+        if (!$proxyResult['allowed']) {
+            $proxyType = $proxyResult['type'] ?? 'VPN/Proxy';
+            echo json_encode([
+                'success' => false, 
+                'error' => 'VPN ou proxy detectado. Desative para jogar.',
+                'proxy_detected' => true,
+                'proxy_type' => $proxyType
+            ]);
+            exit;
+        }
+        
+        // Se é VPN/Proxy mas permitido (ex: residencial), logar no rate limiter
+        if (!empty($proxyResult['is_vpn']) || !empty($proxyResult['is_proxy'])) {
+            if (class_exists('RateLimiter')) {
+                $limiter = new RateLimiter($pdo, null, $realGoogleUid);
+                $limiter->logAction('vpn_detected', json_encode([
+                    'type' => $proxyResult['type'] ?? '',
+                    'provider' => $proxyResult['provider'] ?? '',
+                    'risk' => $proxyResult['risk'] ?? 0
+                ]));
+            }
+        }
+    }
     
     // ============================================
     // RATE LIMITER: IP blacklist + intervalo entre jogos
