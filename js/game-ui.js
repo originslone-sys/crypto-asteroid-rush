@@ -62,7 +62,7 @@ function showPreGameLoading(show) {
     
     if (show) {
         preGameScreen.classList.add('active');
-        startPreGameLoadingWithAds();
+        startLoadingAnimation();
     } else {
         preGameScreen.classList.remove('active');
     }
@@ -71,68 +71,18 @@ function showPreGameLoading(show) {
 let loadingProgress = 0;
 let loadingInterval = null;
 
-// Dicas do jogo para rotação
-const gameTips = [
-    'DICA: Destrua asteroides raros para ganhar mais R$!',
-    'DICA: Asteroides épicos valem muito mais que os comuns!',
-    'DICA: Lendários são raros mas valem uma fortuna!',
-    'DICA: Faça staking dos seus ganhos para rendimento automático!',
-    'DICA: Indique amigos e ganhe comissão por indicação!',
-    'DICA: Quanto mais missões completar, maiores as recompensas!',
-    'DICA: Evite colisões para manter suas vidas intactas!',
-    'DICA: Use a carteira para acompanhar seus ganhos!',
-];
-
-const postGameTips = [
-    'Faça staking dos seus ganhos para rendimento automático!',
-    'Indique amigos e ganhe comissão quando eles jogarem!',
-    'Quanto mais missões, melhores suas recompensas!',
-    'Saque seus ganhos direto para Pix quando quiser!',
-    'Mude sua nave na tela inicial para variar o gameplay!',
-    'Jogue diariamente para maximizar seus ganhos!',
-];
-
-function getRandomTipFromList(list) {
-    return list[Math.floor(Math.random() * list.length)];
-}
-
-/**
- * PRÉ-JOGO: Loading com barra de progresso + dicas + anúncios rodando juntos
- */
-function startPreGameLoadingWithAds() {
+function startLoadingAnimation() {
     loadingProgress = 0;
     const loadingBar = document.getElementById('loadingBar');
     const loadingPercent = document.getElementById('loadingPercent');
     const loadingStatus = document.getElementById('loadingStatus');
     const gameTip = document.getElementById('gameTip');
-    const adContainer = document.getElementById('adContainer');
     
     if (!loadingBar || !loadingPercent) return;
     
-    // Definir dica inicial
-    if (gameTip) gameTip.textContent = typeof getRandomTip === 'function' ? getRandomTip() : getRandomTipFromList(gameTips);
-    
-    // Iniciar anúncio no container (não bloqueia, roda em paralelo)
-    if (typeof AdsManager !== 'undefined' && AdsManager.isEnabled?.() && adContainer) {
-        try {
-            const slot = AdsManager.getNextSlot?.('pregame');
-            if (slot) {
-                adContainer.innerHTML = AdsManager.getSlotHTML?.(slot) || '';
-                AdsManager.executeScripts?.(adContainer);
-                AdsManager.trackImpression?.(slot.id);
-            }
-        } catch (e) {
-            console.warn('📺 Erro ao renderizar ad pregame:', e.message);
-        }
+    if (gameTip && typeof getRandomTip === 'function') {
+        gameTip.textContent = getRandomTip();
     }
-    
-    // Determinar duração total baseada na config de ads
-    const adDuration = (typeof AdsManager !== 'undefined' && AdsManager.isEnabled?.()) 
-        ? (AdsManager.getConfig?.()?.pregame_total_duration || 10) 
-        : 3; // sem ads = loading rápido de 3s
-    
-    const totalSteps = adDuration * 10; // 10 updates por segundo
-    let step = 0;
     
     const statuses = [
         'Carregando recursos...',
@@ -146,32 +96,35 @@ function startPreGameLoadingWithAds() {
     if (loadingInterval) clearInterval(loadingInterval);
     
     loadingInterval = setInterval(() => {
-        step++;
-        loadingProgress = Math.min(100, (step / totalSteps) * 100);
+        loadingProgress += Math.random() * 15 + 5;
         
-        loadingBar.style.width = loadingProgress + '%';
-        loadingPercent.textContent = Math.floor(loadingProgress) + '%';
-        
-        // Atualizar status
-        const statusIndex = Math.min(Math.floor(loadingProgress / 20), statuses.length - 1);
-        if (loadingStatus) loadingStatus.textContent = statuses[statusIndex];
-        
-        // Rotacionar dicas
-        if (step % 30 === 0 && gameTip) {
-            gameTip.textContent = typeof getRandomTip === 'function' ? getRandomTip() : getRandomTipFromList(gameTips);
-        }
-        
-        // Concluído
         if (loadingProgress >= 100) {
+            loadingProgress = 100;
             clearInterval(loadingInterval);
-            loadingInterval = null;
             
             setTimeout(() => {
                 showPreGameLoading(false);
                 if (typeof actualStartGame === 'function') {
                     actualStartGame();
                 }
-            }, 400);
+            }, 500);
+        }
+        
+        loadingBar.style.width = loadingProgress + '%';
+        loadingPercent.textContent = Math.floor(loadingProgress) + '%';
+        
+        const statusIndex = Math.min(
+            Math.floor(loadingProgress / 20),
+            statuses.length - 1
+        );
+        if (loadingStatus) {
+            loadingStatus.textContent = statuses[statusIndex];
+        }
+        
+        if (loadingProgress > 30 && loadingProgress < 80 && Math.random() < 0.1) {
+            if (gameTip && typeof getRandomTip === 'function') {
+                gameTip.textContent = getRandomTip();
+            }
         }
     }, 100);
 }
@@ -405,20 +358,21 @@ function showGameOver(lostEarnings) {
         lostEarningsEl.textContent = formatEarningsBRL(lostEarnings);
     }
     
-    // Renderizar anúncio no game over (direto na tela)
+    // Renderizar anúncio direto na tela de game over
     const goAdContainer = document.getElementById('gameoverAdContainer');
     if (goAdContainer && typeof AdsManager !== 'undefined' && AdsManager.isEnabled?.()) {
         try {
             const slot = AdsManager.getNextSlot?.('endgame');
             if (slot) {
                 goAdContainer.innerHTML = AdsManager.getSlotHTML?.(slot) || '';
-                AdsManager.executeScripts?.(goAdContainer);
+                if (typeof AdsManager.executeScripts === 'function') {
+                    AdsManager.executeScripts(goAdContainer);
+                }
                 AdsManager.trackImpression?.(slot.id);
             } else {
                 goAdContainer.innerHTML = '';
             }
         } catch (e) {
-            console.warn('📺 Erro ad gameover:', e.message);
             goAdContainer.innerHTML = '';
         }
     }
@@ -428,12 +382,9 @@ function showGameOver(lostEarnings) {
 
 // ============================================
 // TELA DE FIM DE JOGO (vitória)
-// Fluxo: loading pós-jogo com ads → resultados
+// Redireciona para postgame.html (loading + ads)
+// Depois volta para game.html?results=true
 // ============================================
-
-// Armazena dados para exibir após o loading pós-jogo
-let pendingEndGameData = null;
-
 function showEndGameResults(stats, serverEarnings = null, serverBalance = null) {
     console.log('📊 showEndGameResults:', { 
         displayEarnings: serverEarnings || gameState.earnings,
@@ -441,111 +392,51 @@ function showEndGameResults(stats, serverEarnings = null, serverBalance = null) 
         stats: stats 
     });
     
-    // Salvar dados para exibir depois
-    pendingEndGameData = { stats, serverEarnings, serverBalance };
-    
-    // Se ads estão habilitadas, mostrar tela de loading pós-jogo com anúncios
-    if (typeof AdsManager !== 'undefined' && AdsManager.isEnabled?.()) {
-        showPostGameLoading();
-    } else {
-        // Sem ads → ir direto para resultados
-        displayEndGameResultsFinal();
-    }
-}
-
-/**
- * PÓS-JOGO: Tela de loading com anúncios antes dos resultados
- */
-function showPostGameLoading() {
-    const postGameScreen = document.getElementById('postGameScreen');
-    if (!postGameScreen) {
-        // Se o elemento não existe, ir direto pros resultados
-        displayEndGameResultsFinal();
-        return;
-    }
-    
-    postGameScreen.classList.add('active');
-    
-    const loadingBar = document.getElementById('postGameLoadingBar');
-    const loadingPercent = document.getElementById('postGameLoadingPercent');
-    const loadingStatus = document.getElementById('postGameLoadingStatus');
-    const tipEl = document.getElementById('postGameTip');
-    const adContainer = document.getElementById('postGameAdContainer');
-    
-    // Renderizar anúncio endgame
-    if (adContainer && typeof AdsManager !== 'undefined') {
-        try {
-            const slot = AdsManager.getNextSlot?.('endgame');
-            if (slot) {
-                adContainer.innerHTML = AdsManager.getSlotHTML?.(slot) || '';
-                AdsManager.executeScripts?.(adContainer);
-                AdsManager.trackImpression?.(slot.id);
-            }
-        } catch (e) {
-            console.warn('📺 Erro ad postgame:', e.message);
-        }
-    }
-    
-    // Dica inicial
-    if (tipEl) tipEl.textContent = getRandomTipFromList(postGameTips);
-    
-    // Duração da tela pós-jogo (baseada na config de endgame)
-    const duration = AdsManager.getConfig?.()?.endgame_rotation_interval || 8;
-    const totalSteps = duration * 10;
-    let step = 0;
-    let progress = 0;
-    
-    const postGameStatuses = [
-        'Calculando resultados...',
-        'Verificando asteroides destruídos...',
-        'Processando recompensas...',
-        'Atualizando ranking...',
-        'Finalizando...',
-        'Resultados prontos!'
-    ];
-    
-    const postGameInterval = setInterval(() => {
-        step++;
-        progress = Math.min(100, (step / totalSteps) * 100);
-        
-        if (loadingBar) loadingBar.style.width = progress + '%';
-        if (loadingPercent) loadingPercent.textContent = Math.floor(progress) + '%';
-        
-        const statusIndex = Math.min(Math.floor(progress / 20), postGameStatuses.length - 1);
-        if (loadingStatus) loadingStatus.textContent = postGameStatuses[statusIndex];
-        
-        // Rotacionar dicas
-        if (step % 30 === 0 && tipEl) {
-            tipEl.textContent = getRandomTipFromList(postGameTips);
-        }
-        
-        if (progress >= 100) {
-            clearInterval(postGameInterval);
-            
-            setTimeout(() => {
-                postGameScreen.classList.remove('active');
-                displayEndGameResultsFinal();
-            }, 400);
-        }
-    }, 100);
-}
-
-/**
- * Exibir resultados finais (após loading pós-jogo)
- */
-function displayEndGameResultsFinal() {
-    if (!pendingEndGameData) return;
-    
-    const { stats, serverEarnings, serverBalance } = pendingEndGameData;
-    pendingEndGameData = null;
-    
-    const finalScore = document.getElementById('finalScore');
-    const finalReward = document.getElementById('finalReward');
-    const breakdownContainer = document.getElementById('asteroidsBreakdown');
-    
     const displayEarnings = (serverEarnings !== null && !isNaN(serverEarnings)) 
         ? serverEarnings 
         : gameState.earnings;
+    
+    // Verificar se estamos voltando do postgame (já com dados prontos)
+    // Nesse caso, exibir direto sem redirecionar de novo
+    const params = new URLSearchParams(window.location.search);
+    const isReturning = params.get('results') === 'true';
+    
+    if (isReturning || !_shouldShowPostgameAds()) {
+        // Exibir resultados direto (sem redirecionar)
+        _displayResultsFinal(stats, displayEarnings, serverBalance);
+        return;
+    }
+    
+    // Salvar dados no sessionStorage para postgame.html recuperar
+    sessionStorage.setItem('postgameData', JSON.stringify({
+        stats: stats,
+        score: gameState.score,
+        earnings: displayEarnings,
+        serverEarnings: serverEarnings,
+        serverBalance: serverBalance
+    }));
+    
+    // Redirecionar para página de loading pós-jogo com anúncios
+    window.location.href = 'postgame.html';
+}
+
+/**
+ * Verificar se deve mostrar tela de ads pós-jogo
+ */
+function _shouldShowPostgameAds() {
+    if (typeof AdsManager === 'undefined') return false;
+    if (!AdsManager.isEnabled?.()) return false;
+    const slots = AdsManager.getSlots?.()?.endgame || [];
+    return slots.length > 0;
+}
+
+/**
+ * Exibir resultados finais (chamado após retorno do postgame.html ou direto)
+ */
+function _displayResultsFinal(stats, displayEarnings, serverBalance) {
+    const finalScore = document.getElementById('finalScore');
+    const finalReward = document.getElementById('finalReward');
+    const breakdownContainer = document.getElementById('asteroidsBreakdown');
     
     if (finalScore) finalScore.textContent = gameState.score;
     if (finalReward) finalReward.textContent = formatEarningsBRL(displayEarnings);
