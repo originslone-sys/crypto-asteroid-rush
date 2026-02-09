@@ -180,7 +180,7 @@ function drawMainEngines(design, time) {
         // === FLAME LAYER 1: Core (white-hot) ===
         const coreGrad = ctx.createLinearGradient(ox, 33, ox, 33 + flameLen * 0.45);
         coreGrad.addColorStop(0, '#ffffffee');
-        coreGrad.addColorStop(0.2, '#ccffffff');
+        coreGrad.addColorStop(0.2, '#ccffffcc');
         coreGrad.addColorStop(0.5, design.engineGlow + 'cc');
         coreGrad.addColorStop(1, 'transparent');
         
