@@ -11,6 +11,7 @@
    - stealth: Angular facetado (Nebula)
    - viper: Estreito e longo (Viper)
    - brawler: Largo com escudos (Wolf)
+   - xwing: Asas X com painéis solares (Hawk)
    ============================================ */
 
 let shipCache = { lastDesign: null, gradients: {}, time: 0 };
@@ -55,6 +56,7 @@ function drawShipAAA() {
         case 'stealth':  drawShipStealth(design, time); break;
         case 'viper':    drawShipViper(design, time); break;
         case 'brawler':  drawShipBrawler(design, time); break;
+        case 'xwing':    drawShipXWing(design, time); break;
         default:         drawShipFighter(design, time); break;
     }
     
@@ -628,6 +630,112 @@ function drawShipBrawler(design, time) {
 }
 
 // ============================================
+// SHIP 8: X-WING (Hawk) — Asas duplas em X, painéis solares
+// ============================================
+function drawShipXWing(design, time) {
+    // Dual engines
+    [-6, 6].forEach((ox, i) => {
+        ctx.fillStyle = '#1a1a24';
+        ctx.beginPath();
+        ctx.roundRect(ox - 4, 20, 8, 10, 2);
+        ctx.fill();
+        _drawEngineFlame(ox, 30, 26 + Math.sin(time * 11 + i) * 5, design, time, i);
+    });
+    
+    // Upper X-wings (sweep upward)
+    [1, -1].forEach(s => {
+        const wGrad = ctx.createLinearGradient(0, -8, s * 42, -22);
+        wGrad.addColorStop(0, design.primary);
+        wGrad.addColorStop(1, shadeColor(design.primary, -30));
+        ctx.fillStyle = wGrad;
+        ctx.beginPath();
+        ctx.moveTo(s * 8, -8);
+        ctx.lineTo(s * 42, -24);
+        ctx.lineTo(s * 38, -16);
+        ctx.lineTo(s * 8, -2);
+        ctx.closePath();
+        ctx.fill();
+    });
+    
+    // Lower X-wings (sweep downward)
+    [1, -1].forEach(s => {
+        const wGrad = ctx.createLinearGradient(0, 10, s * 40, 22);
+        wGrad.addColorStop(0, design.primary);
+        wGrad.addColorStop(1, shadeColor(design.primary, -25));
+        ctx.fillStyle = wGrad;
+        ctx.beginPath();
+        ctx.moveTo(s * 8, 10);
+        ctx.lineTo(s * 40, 20);
+        ctx.lineTo(s * 36, 26);
+        ctx.lineTo(s * 8, 18);
+        ctx.closePath();
+        ctx.fill();
+    });
+    
+    // Solar panel struts (connecting upper/lower wings)
+    [1, -1].forEach(s => {
+        ctx.strokeStyle = design.secondary + '99';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(s * 40, -22);
+        ctx.lineTo(s * 38, 22);
+        ctx.stroke();
+        
+        // Solar panel glow
+        const sp = Math.sin(time * 3 + (s > 0 ? 0 : 1.5)) * 0.2 + 0.8;
+        ctx.fillStyle = design.secondary + Math.floor(sp * 50).toString(16).padStart(2, '0');
+        ctx.beginPath();
+        ctx.moveTo(s * 40, -20);
+        ctx.lineTo(s * 42, -10);
+        ctx.lineTo(s * 40, 0);
+        ctx.lineTo(s * 38, -10);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.moveTo(s * 39, 4);
+        ctx.lineTo(s * 41, 12);
+        ctx.lineTo(s * 39, 20);
+        ctx.lineTo(s * 37, 12);
+        ctx.closePath();
+        ctx.fill();
+    });
+    
+    // Wingtip cannons
+    [1, -1].forEach((s, i) => {
+        const cp = Math.sin(time * 7 + i) * 0.3 + 0.7;
+        // Upper
+        ctx.fillStyle = '#2a2a35';
+        ctx.beginPath();
+        ctx.arc(s * 42, -24, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = design.accent + Math.floor(cp * 180).toString(16).padStart(2, '0');
+        ctx.beginPath();
+        ctx.arc(s * 42, -24, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        // Lower
+        ctx.fillStyle = '#2a2a35';
+        ctx.beginPath();
+        ctx.arc(s * 40, 20, 2, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    
+    // Fuselage - slim
+    _fillBody([[0,-36],[10,-6],[10,22],[-10,22],[-10,-6]], design);
+    
+    // Center ridge
+    ctx.fillStyle = design.secondary + '66';
+    ctx.beginPath();
+    ctx.moveTo(0, -32); ctx.lineTo(2, -20); ctx.lineTo(2, 16);
+    ctx.lineTo(0, 20); ctx.lineTo(-2, 16); ctx.lineTo(-2, -20);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Cockpit - round bubble
+    _drawCockpitGlass(0, -16, 5, 10, design, time);
+}
+
+// ============================================
 // NAVIGATION LIGHTS (universal)
 // ============================================
 function drawNavLights(design, time) {
@@ -691,4 +799,4 @@ window.drawShipAAA = drawShipAAA;
 window.shadeColor = shadeColor;
 window.lightenColor = lightenColor;
 
-console.log('📦 ship-renderer.js v4.0 carregado (7 silhuetas únicas)');
+console.log('📦 ship-renderer.js v4.0 carregado (8 silhuetas únicas)');
