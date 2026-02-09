@@ -1,107 +1,185 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Ship Designs v3.1
+   UNOBIX - Ship Designs v4.0
    File: js/game-ships.js
-   7 Unique Fighter Ships
-   FIX: Seleção de nave persiste corretamente
+   7 Naves com identidade visual única
+   
+   v4.0: Redesign completo
+   - Cores totalmente distintas entre si
+   - Propriedade shipShape define silhueta única
+   - SVG previews melhorados na seleção
+   - Descrições em PT-BR
    ============================================ */
 
 const SHIP_DESIGNS = {
-    // Ship 1: Phoenix Crimson - Red & Gold Fighter
+    // Ship 1: Phoenix Crimson — Caça equilibrado
+    // Silhueta: Fighter clássico (nariz fino, asas angulares)
     PHOENIX: {
         id: 'PHOENIX',
-        primary: '#cc2233',
-        secondary: '#ffcc00',
-        accent: '#ff6644',
-        details: '#ffeedd',
-        engineGlow: '#ff4400',
-        cockpitTint: '#44aaff',
+        primary: '#C42030',
+        secondary: '#FFB800',
+        accent: '#FF6B35',
+        details: '#FFE0CC',
+        engineGlow: '#FF4400',
+        cockpitTint: '#44AAFF',
         name: 'Phoenix Crimson',
         number: 1,
-        description: 'Balanced fighter with good speed'
+        description: 'Caça equilibrado e versátil',
+        shipShape: 'fighter',
+        // Preview SVG customizado
+        svgPreview: `
+            <polygon points="0,-38 12,20 -12,20" fill="PRIM" stroke="SEC" stroke-width="2"/>
+            <polygon points="-10,5 -42,-8 -36,18" fill="PRIM" opacity="0.9"/>
+            <polygon points="10,5 42,-8 36,18" fill="PRIM" opacity="0.9"/>
+            <ellipse cx="0" cy="-12" rx="6" ry="10" fill="COCK" opacity="0.6"/>
+            <circle cx="-10" cy="24" r="3" fill="ENG" opacity="0.9"/>
+            <circle cx="10" cy="24" r="3" fill="ENG" opacity="0.9"/>
+        `
     },
     
-    // Ship 2: Forest Guardian - Military Green
+    // Ship 2: Forest Guardian — Tanque resistente
+    // Silhueta: Bombardeiro largo (corpo largo, asas curtas e grossas)
     GUARDIAN: {
         id: 'GUARDIAN',
-        primary: '#2d5a27',
-        secondary: '#8b6914',
-        accent: '#4a7c3f',
-        details: '#c4b998',
-        engineGlow: '#88cc44',
-        cockpitTint: '#66ffaa',
+        primary: '#2B6B35',
+        secondary: '#C8A84E',
+        accent: '#5DAF4C',
+        details: '#D4CAA0',
+        engineGlow: '#88CC44',
+        cockpitTint: '#66FFAA',
         name: 'Forest Guardian',
         number: 2,
-        description: 'Durable hull for tough missions'
+        description: 'Blindagem pesada, resistente a danos',
+        shipShape: 'bomber',
+        svgPreview: `
+            <polygon points="0,-30 18,22 -18,22" fill="PRIM" stroke="SEC" stroke-width="2"/>
+            <rect x="-30" y="0" width="20" height="14" rx="3" fill="PRIM" opacity="0.9"/>
+            <rect x="10" y="0" width="20" height="14" rx="3" fill="PRIM" opacity="0.9"/>
+            <rect x="-6" y="-18" width="12" height="14" rx="2" fill="COCK" opacity="0.5"/>
+            <circle cx="-8" cy="26" r="4" fill="ENG" opacity="0.9"/>
+            <circle cx="8" cy="26" r="4" fill="ENG" opacity="0.9"/>
+        `
     },
     
-    // Ship 3: Thunder Strike - Electric Blue
+    // Ship 3: Thunder Strike — Interceptor veloz
+    // Silhueta: Asa delta (triangular, aerodinâmico)
     THUNDER: {
         id: 'THUNDER',
-        primary: '#1a4a8a',
-        secondary: '#00d4ff',
-        accent: '#4488ff',
-        details: '#aaddff',
-        engineGlow: '#00ccff',
-        cockpitTint: '#00ffff',
+        primary: '#1654A8',
+        secondary: '#00D4FF',
+        accent: '#4C8CFF',
+        details: '#B0DDFF',
+        engineGlow: '#00CCFF',
+        cockpitTint: '#00FFFF',
         name: 'Thunder Strike',
         number: 3,
-        description: 'High-speed interceptor'
+        description: 'Interceptor de alta velocidade',
+        shipShape: 'delta',
+        svgPreview: `
+            <polygon points="0,-36 38,22 -38,22" fill="PRIM" stroke="SEC" stroke-width="2"/>
+            <polygon points="0,-36 8,10 -8,10" fill="SEC" opacity="0.3"/>
+            <ellipse cx="0" cy="-10" rx="5" ry="12" fill="COCK" opacity="0.6"/>
+            <circle cx="0" cy="24" r="4" fill="ENG" opacity="0.9"/>
+        `
     },
     
-    // Ship 4: Inferno Blaze - Volcanic Orange
+    // Ship 4: Inferno Blaze — Canhão de fogo
+    // Silhueta: Caça pesado (corpo robusto, canhões laterais)
     INFERNO: {
         id: 'INFERNO',
-        primary: '#cc4400',
-        secondary: '#ff2200',
-        accent: '#ffaa00',
-        details: '#ffddaa',
-        engineGlow: '#ff6600',
-        cockpitTint: '#ffcc44',
+        primary: '#D44800',
+        secondary: '#FF2200',
+        accent: '#FFB300',
+        details: '#FFE0AA',
+        engineGlow: '#FF6600',
+        cockpitTint: '#FFCC44',
         name: 'Inferno Blaze',
         number: 4,
-        description: 'Powerful engines, fast attacks'
+        description: 'Poder de fogo devastador',
+        shipShape: 'heavy',
+        svgPreview: `
+            <polygon points="0,-32 14,24 -14,24" fill="PRIM" stroke="SEC" stroke-width="2"/>
+            <rect x="-24" y="-20" width="6" height="34" rx="2" fill="ACC" opacity="0.8"/>
+            <rect x="18" y="-20" width="6" height="34" rx="2" fill="ACC" opacity="0.8"/>
+            <circle cx="-21" cy="-22" r="2.5" fill="ENG" opacity="0.9"/>
+            <circle cx="21" cy="-22" r="2.5" fill="ENG" opacity="0.9"/>
+            <ellipse cx="0" cy="-12" rx="6" ry="8" fill="COCK" opacity="0.6"/>
+            <circle cx="-7" cy="26" r="3" fill="ENG" opacity="0.9"/>
+            <circle cx="7" cy="26" r="3" fill="ENG" opacity="0.9"/>
+        `
     },
     
-    // Ship 5: Nebula Phantom - Cosmic Purple
+    // Ship 5: Nebula Phantom — Nave furtiva
+    // Silhueta: Stealth (angular, facetado, assimétrico)
     NEBULA: {
         id: 'NEBULA',
-        primary: '#4a1a6b',
-        secondary: '#8844cc',
-        accent: '#cc44ff',
-        details: '#ddaaff',
-        engineGlow: '#aa22ff',
-        cockpitTint: '#ff44ff',
+        primary: '#6B1FA0',
+        secondary: '#B44CFF',
+        accent: '#E066FF',
+        details: '#E0BBFF',
+        engineGlow: '#AA22FF',
+        cockpitTint: '#FF44FF',
         name: 'Nebula Phantom',
         number: 5,
-        description: 'Agile and hard to hit'
+        description: 'Nave furtiva, difícil de atingir',
+        shipShape: 'stealth',
+        svgPreview: `
+            <polygon points="0,-36 30,8 22,22 -22,22 -30,8" fill="PRIM" stroke="SEC" stroke-width="1.5"/>
+            <polygon points="0,-36 6,0 -6,0" fill="SEC" opacity="0.3"/>
+            <polygon points="-30,8 -40,14 -22,22" fill="PRIM" opacity="0.7"/>
+            <polygon points="30,8 40,14 22,22" fill="PRIM" opacity="0.7"/>
+            <ellipse cx="0" cy="-8" rx="5" ry="8" fill="COCK" opacity="0.5"/>
+            <circle cx="-12" cy="24" r="2.5" fill="ENG" opacity="0.9"/>
+            <circle cx="12" cy="24" r="2.5" fill="ENG" opacity="0.9"/>
+        `
     },
     
-    // Ship 6: Toxic Viper - Toxic Green
+    // Ship 6: Toxic Viper — Serpente ágil
+    // Silhueta: Estreita e longa (corpo fino, asas swept-back)
     VIPER: {
         id: 'VIPER',
-        primary: '#1a4a2a',
-        secondary: '#00ff66',
-        accent: '#88ff44',
-        details: '#ccffaa',
-        engineGlow: '#44ff00',
-        cockpitTint: '#00ff88',
+        primary: '#0D803A',
+        secondary: '#00FF66',
+        accent: '#A8FF44',
+        details: '#CCFFAA',
+        engineGlow: '#44FF00',
+        cockpitTint: '#00FF88',
         name: 'Toxic Viper',
         number: 6,
-        description: 'Nimble serpent-class fighter'
+        description: 'Serpente ágil, manobras rápidas',
+        shipShape: 'viper',
+        svgPreview: `
+            <polygon points="0,-40 8,24 -8,24" fill="PRIM" stroke="SEC" stroke-width="2"/>
+            <polygon points="-6,8 -36,18 -30,24 -8,18" fill="PRIM" opacity="0.85"/>
+            <polygon points="6,8 36,18 30,24 8,18" fill="PRIM" opacity="0.85"/>
+            <ellipse cx="0" cy="-16" rx="4" ry="10" fill="COCK" opacity="0.6"/>
+            <circle cx="0" cy="28" r="3" fill="ENG" opacity="0.9"/>
+        `
     },
     
-    // Ship 7: Steel Wolf - Metallic Gray
+    // Ship 7: Steel Wolf — Assalto pesado
+    // Silhueta: Brawler (largo, simétrico, escudos laterais)
     WOLF: {
         id: 'WOLF',
-        primary: '#3a3a4a',
-        secondary: '#6a6a7a',
-        accent: '#8a8a9a',
-        details: '#cacada',
-        engineGlow: '#6688ff',
-        cockpitTint: '#88aaff',
+        primary: '#404058',
+        secondary: '#8888AA',
+        accent: '#A0A0C0',
+        details: '#D0D0E8',
+        engineGlow: '#6688FF',
+        cockpitTint: '#88AAFF',
         name: 'Steel Wolf',
         number: 7,
-        description: 'Heavy assault fighter'
+        description: 'Assalto pesado, máxima destruição',
+        shipShape: 'brawler',
+        svgPreview: `
+            <polygon points="0,-28 20,20 -20,20" fill="PRIM" stroke="SEC" stroke-width="2"/>
+            <rect x="-34" y="-4" width="14" height="22" rx="4" fill="SEC" opacity="0.5"/>
+            <rect x="20" y="-4" width="14" height="22" rx="4" fill="SEC" opacity="0.5"/>
+            <polygon points="-20,4 -34,0 -34,14 -20,18" fill="PRIM" opacity="0.7"/>
+            <polygon points="20,4 34,0 34,14 20,18" fill="PRIM" opacity="0.7"/>
+            <rect x="-5" y="-16" width="10" height="12" rx="3" fill="COCK" opacity="0.5"/>
+            <circle cx="-10" cy="24" r="3.5" fill="ENG" opacity="0.9"/>
+            <circle cx="10" cy="24" r="3.5" fill="ENG" opacity="0.9"/>
+        `
     }
 };
 
@@ -112,109 +190,108 @@ function getRandomShipDesign() {
 }
 
 // Select ship for current session
-// FIX: Agora salva no localStorage para persistir entre recarregamentos
 function selectShipForSession(designKey) {
     if (SHIP_DESIGNS[designKey]) {
         gameState.selectedShipDesign = SHIP_DESIGNS[designKey];
-        
-        // FIX: Salvar no localStorage
         localStorage.setItem('selectedShipKey', designKey);
-        
         updateShipSelectionUI(designKey);
         updateSelectedShipInfo(gameState.selectedShipDesign);
-        showNotification('SHIP SELECTED', gameState.selectedShipDesign.name, true);
+        showNotification('NAVE SELECIONADA', gameState.selectedShipDesign.name, true);
         console.log('🚀 Ship selected:', gameState.selectedShipDesign.name);
     }
 }
 
 // Get ship for game
-// FIX: Verifica localStorage se gameState.selectedShipDesign estiver null
 function getShipForGame() {
-    // Primeiro, verificar se há uma nave selecionada no gameState
     if (gameState.selectedShipDesign) {
-        console.log('🎮 Using selected ship:', gameState.selectedShipDesign.name);
         return gameState.selectedShipDesign;
     }
     
-    // FIX: Verificar localStorage como fallback
     const savedShipKey = localStorage.getItem('selectedShipKey');
     if (savedShipKey && SHIP_DESIGNS[savedShipKey]) {
-        console.log('🎮 Using saved ship from localStorage:', SHIP_DESIGNS[savedShipKey].name);
         gameState.selectedShipDesign = SHIP_DESIGNS[savedShipKey];
         return SHIP_DESIGNS[savedShipKey];
     }
     
-    // Se nada foi selecionado, usar aleatória
     const randomDesign = getRandomShipDesign();
-    console.log('🎮 Using random ship:', randomDesign.name);
     return randomDesign;
 }
 
 // Update ship selection UI
 function updateShipSelectionUI(selectedKey) {
-    document.querySelectorAll('.ship-btn').forEach(btn => {
-        const key = btn.dataset.design;
+    document.querySelectorAll('.ship-card').forEach(card => {
+        const key = card.dataset.design;
         if (key === selectedKey) {
-            btn.classList.add('selected');
+            card.classList.add('selected');
         } else {
-            btn.classList.remove('selected');
+            card.classList.remove('selected');
         }
     });
 }
 
-// FIX: Limpar seleção de nave (chamar APENAS quando o jogador voltar ao menu)
+// Clear ship selection
 function clearShipSelection() {
     gameState.selectedShipDesign = null;
     localStorage.removeItem('selectedShipKey');
     updateShipSelectionUI(null);
-    console.log('🧹 Ship selection cleared');
 }
 
-// Create ship selection UI
+/**
+ * Gera SVG preview com cores aplicadas
+ */
+function _buildShipSVG(design) {
+    let svg = design.svgPreview || '';
+    svg = svg.replace(/PRIM/g, design.primary);
+    svg = svg.replace(/SEC/g, design.secondary);
+    svg = svg.replace(/ACC/g, design.accent);
+    svg = svg.replace(/COCK/g, design.cockpitTint);
+    svg = svg.replace(/ENG/g, design.engineGlow);
+    return svg;
+}
+
+/**
+ * Create ship selection UI — Cards com preview e info
+ */
 function addShipSelectionUI() {
     const shipSelection = document.getElementById('shipSelection');
     if (!shipSelection) return;
     
     shipSelection.innerHTML = Object.entries(SHIP_DESIGNS).map(([key, design]) => `
-        <div class="ship-btn" data-design="${key}"
-             style="background: linear-gradient(135deg, ${design.primary}, ${shadeColor(design.primary, -20)});"
-             title="${design.name} - ${design.description}">
-            <svg class="ship-preview" viewBox="-50 -50 100 100">
-                <!-- Mini ship preview -->
-                <polygon points="0,-35 15,25 -15,25" fill="${design.primary}" stroke="${design.secondary}" stroke-width="2"/>
-                <polygon points="-8,5 -40,-5 -35,18" fill="${design.primary}" opacity="0.9"/>
-                <polygon points="8,5 40,-5 35,18" fill="${design.primary}" opacity="0.9"/>
-                <ellipse cx="0" cy="-15" rx="8" ry="6" fill="${design.cockpitTint}" opacity="0.7"/>
-                <circle cx="0" cy="30" r="4" fill="${design.engineGlow}"/>
-            </svg>
-            <span class="ship-number">${design.number}</span>
+        <div class="ship-card" data-design="${key}" title="${design.name}">
+            <div class="ship-card-preview">
+                <svg viewBox="-50 -50 100 80" class="ship-svg">
+                    ${_buildShipSVG(design)}
+                </svg>
+            </div>
+            <div class="ship-card-info">
+                <span class="ship-card-name" style="color: ${design.secondary}">${design.name}</span>
+                <span class="ship-card-desc">${design.description}</span>
+            </div>
+            <div class="ship-card-number">${design.number}</div>
         </div>
     `).join('');
     
-    // Add event listeners
-    document.querySelectorAll('.ship-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+    // Event listeners
+    document.querySelectorAll('.ship-card').forEach(card => {
+        card.addEventListener('click', (e) => {
             e.stopPropagation();
-            const key = btn.dataset.design;
-            selectShipForSession(key);
+            selectShipForSession(card.dataset.design);
         });
     });
     
-    // FIX: Restaurar seleção do localStorage se existir
+    // Restaurar seleção do localStorage
     const savedShipKey = localStorage.getItem('selectedShipKey');
     if (savedShipKey && SHIP_DESIGNS[savedShipKey]) {
         gameState.selectedShipDesign = SHIP_DESIGNS[savedShipKey];
         updateShipSelectionUI(savedShipKey);
         updateSelectedShipInfo(SHIP_DESIGNS[savedShipKey]);
-        console.log('🚀 Restored ship selection:', SHIP_DESIGNS[savedShipKey].name);
     } else {
-        // Nenhuma nave salva, não selecionar nada
         gameState.selectedShipDesign = null;
         updateSelectedShipInfo(null);
     }
 }
 
-// Helper function for ship preview
+// Helper function
 function shadeColor(color, percent) {
     if (!color || color.length < 7) return color;
     const num = parseInt(color.replace('#', ''), 16);
@@ -225,7 +302,7 @@ function shadeColor(color, percent) {
     return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
 }
 
-// Export functions
+// Export
 window.SHIP_DESIGNS = SHIP_DESIGNS;
 window.getRandomShipDesign = getRandomShipDesign;
 window.selectShipForSession = selectShipForSession;
@@ -233,3 +310,5 @@ window.getShipForGame = getShipForGame;
 window.updateShipSelectionUI = updateShipSelectionUI;
 window.addShipSelectionUI = addShipSelectionUI;
 window.clearShipSelection = clearShipSelection;
+
+console.log('📦 game-ships.js v4.0 carregado (7 naves únicas)');
