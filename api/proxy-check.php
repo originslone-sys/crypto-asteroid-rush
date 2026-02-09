@@ -5,7 +5,8 @@
 // v7.0 - proxycheck.io com cache em banco
 // ============================================
 
-require_once __DIR__ . "/config.php";
+// config.php já deve estar carregado pelo arquivo que inclui proxy-check.php
+// require_once __DIR__ . "/config.php";
 
 /**
  * Verificar se IP é VPN/Proxy/TOR
