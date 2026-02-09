@@ -87,42 +87,6 @@ try {
     }
     
     // ============================================
-    // 1b. VALIDAR GAME HASH (integridade)
-    // ============================================
-    
-    if (defined('GAME_HASH_REQUIRED') && GAME_HASH_REQUIRED && !empty($gameHash)) {
-        $expectedHash = generateServerGameHash(
-            $session['session_token'],
-            $session['session_seed'] ?? '',
-            $clientStats
-        );
-        
-        if ($expectedHash && $gameHash !== $expectedHash) {
-            // Hash não bate — possível tampering
-            secureLog("HASH_MISMATCH | Session: {$sessionId} | Client: {$gameHash} | Server: {$expectedHash}");
-            
-            // Não bloquear imediatamente, mas marcar como suspeito
-            // (hash pode divergir por race conditions legítimas)
-            try {
-                $pdo->prepare("
-                    INSERT INTO suspicious_activity 
-                    (user_id, ip_address, activity_type, details, severity, created_at)
-                    VALUES (?, ?, 'HASH_MISMATCH', ?, 'medium', NOW())
-                ")->execute([
-                    $session['user_id'] ?? null,
-                    getClientIP(),
-                    json_encode([
-                        'session_id' => $sessionId,
-                        'client_hash' => $gameHash,
-                        'expected_hash' => $expectedHash,
-                        'stats' => $clientStats
-                    ])
-                ]);
-            } catch (Exception $e) {}
-        }
-    }
-    
-    // ============================================
     // 2. CALCULAR DURAÇÃO E VALIDAR TEMPO
     // ============================================
     
@@ -204,30 +168,25 @@ try {
     }
     
     // ============================================
-    // 6. VERIFICAR reCAPTCHA v3 (score-based)
+    // 6. VERIFICAR CAPTCHA (se necessário e configurado)
     // ============================================
     
-    $captchaScore = null;
-    $captchaSuspicious = false;
-    
-    if ($isVictory && $finalEarnings > 0 && CAPTCHA_REQUIRED_ON_VICTORY) {
-        $captchaResult = verifyCaptcha($captchaToken, getClientIP(), 'game_end');
-        $captchaScore = $captchaResult['score'] ?? null;
+    if ($isVictory && $finalEarnings > 0 && defined('CAPTCHA_REQUIRED_ON_VICTORY') && CAPTCHA_REQUIRED_ON_VICTORY) {
+        $captchaResult = verifyCaptcha($captchaToken, getClientIP());
         
         if (!$captchaResult['success']) {
-            // Token ausente ou bloqueado
+            // Verificar se foi bloqueado (reCAPTCHA v3 score muito baixo)
             if (!empty($captchaResult['blocked'])) {
-                // Score muito baixo → provável bot → não credita
-                secureLog("RECAPTCHA_BLOCKED | Session: {$sessionId} | Score: {$captchaScore}");
+                secureLog("CAPTCHA_BLOCKED | Session: {$sessionId} | Score: " . ($captchaResult['score'] ?? 'N/A'));
                 $isFlagged = true;
-                $flagReason = ($flagReason ? $flagReason . '; ' : '') . "reCAPTCHA score bloqueado ({$captchaScore})";
+                $flagReason = ($flagReason ? $flagReason . '; ' : '') . 'CAPTCHA bloqueado';
                 $finalEarnings = 0;
             } else {
-                // Sem token → pedir verificação ao frontend
+                // Sem token ou falha — pedir verificação
                 echo json_encode([
                     'success' => true,
                     'captcha_required' => true,
-                    'message' => 'Verificação de segurança necessária',
+                    'message' => 'Complete a verificação para resgatar os ganhos',
                     'pending_earnings' => $finalEarnings,
                     'session_id' => $sessionId,
                     'credited' => false
@@ -235,23 +194,8 @@ try {
                 exit;
             }
         } elseif (!empty($captchaResult['suspicious'])) {
-            // Score baixo mas não bloqueante → flaggar sessão para revisão
-            $captchaSuspicious = true;
-            secureLog("RECAPTCHA_SUSPICIOUS | Session: {$sessionId} | Score: {$captchaScore}");
-            
-            // Registrar atividade suspeita
-            try {
-                $stmtSusp = $pdo->prepare("
-                    INSERT INTO suspicious_activity 
-                    (user_id, ip_address, activity_type, details, severity, created_at)
-                    VALUES (?, ?, 'LOW_RECAPTCHA_SCORE', ?, 'medium', NOW())
-                ");
-                $stmtSusp->execute([
-                    $session['user_id'] ?? null,
-                    getClientIP(),
-                    json_encode(['session_id' => $sessionId, 'score' => $captchaScore, 'earnings' => $finalEarnings])
-                ]);
-            } catch (Exception $e) {}
+            // Score baixo mas não bloqueante — logar
+            secureLog("CAPTCHA_SUSPICIOUS | Session: {$sessionId} | Score: " . ($captchaResult['score'] ?? 'N/A'));
         }
     }
     
@@ -409,11 +353,6 @@ try {
     if ($isFlagged) {
         $response['flagged'] = true;
         $response['flag_reason'] = 'Atividade suspeita detectada';
-    }
-    
-    if ($captchaSuspicious) {
-        $response['captcha_suspicious'] = true;
-        $response['captcha_score'] = $captchaScore;
     }
     
     if (!empty($validation['warnings']) && !$isFlagged) {
