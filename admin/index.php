@@ -19,10 +19,41 @@ $ADMIN_BASE_URL  = $__scriptDir;
 $ADMIN_INDEX_URL = $ADMIN_BASE_URL . '/index.php';
 
 // ============================================
-// CREDENCIAIS DO ADMIN — altere aqui diretamente
 // ============================================
-define('ADMIN_USER', 'admin');
-define('ADMIN_PASS', 'admin123');
+// CREDENCIAIS DO ADMIN — via env vars ou .env
+// Para gerar hash: php -r "echo password_hash('SUA_SENHA', PASSWORD_BCRYPT);"
+// Depois: export ADMIN_PASS_HASH='$2y$10$...'
+// ============================================
+$adminUser = getenv('ADMIN_USER') ?: 'admin';
+$adminPassHash = getenv('ADMIN_PASS_HASH') ?: '';
+$adminPassPlain = getenv('ADMIN_PASS') ?: '';
+
+if (empty($adminPassHash) && empty($adminPassPlain)) {
+    $adminPassPlain = 'admin123';
+    error_log('[UNOBIX] AVISO: Usando senha admin padrão! Configure ADMIN_PASS_HASH.');
+}
+
+define('ADMIN_USER', $adminUser);
+
+/**
+ * Verificar senha do admin
+ * Suporta: password_hash (bcrypt) ou texto plano (fallback)
+ */
+function verifyAdminPassword($password) {
+    global $adminPassHash, $adminPassPlain;
+    
+    // Prioridade 1: Hash bcrypt (seguro)
+    if (!empty($adminPassHash)) {
+        return password_verify($password, $adminPassHash);
+    }
+    
+    // Prioridade 2: Texto plano via env (inseguro mas funcional)
+    if (!empty($adminPassPlain)) {
+        return $password === $adminPassPlain;
+    }
+    
+    return false;
+}
 
 // Logout
 if (isset($_GET['logout'])) {
@@ -41,7 +72,7 @@ if (!isset($_SESSION['admin'])) {
         $username = $_POST['username'] ?? '';
         $password = $_POST['password'] ?? '';
         
-        if ($username === ADMIN_USER && $password === ADMIN_PASS) {
+        if ($username === ADMIN_USER && verifyAdminPassword($password)) {
             $_SESSION['admin'] = true;
             $_SESSION['admin_name'] = $username;
             $_SESSION['admin_logged_in'] = true;
@@ -190,4 +221,3 @@ if (file_exists($pageFile)) {
 // Incluir footer
 include __DIR__ . '/includes/footer.php';
 ?>
-
