@@ -458,6 +458,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     if (pgData.stats && typeof showEndGameResults === 'function') {
                         console.log('📊 Exibindo resultados do postgame');
+                        // Flag para showEndGameResults NÃO redirecionar de volta
+                        sessionStorage.setItem('_showResultsDirect', 'true');
                         showEndGameResults(pgData.stats, pgData.serverEarnings, pgData.serverBalance);
                     } else {
                         showModal('gameMenuModal');
