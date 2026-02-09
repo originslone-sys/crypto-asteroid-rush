@@ -191,13 +191,13 @@ class RateLimiter {
             return ['allowed' => true];
         }
         
-        // Buscar por google_uid OU wallet
+        // Buscar por google_uid (tabela users - doc 3.1)
         $stmt = $this->pdo->prepare("
-            SELECT is_banned, ban_reason FROM players
-            WHERE google_uid = ? OR wallet_address = ?
+            SELECT is_banned, ban_reason FROM users
+            WHERE google_uid = ?
             LIMIT 1
         ");
-        $stmt->execute([$this->googleUid, $this->wallet]);
+        $stmt->execute([$this->googleUid]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($result && $result['is_banned']) {
@@ -343,19 +343,10 @@ class RateLimiter {
     public static function banUser($pdo, $googleUid = null, $wallet = null, $reason = 'Manual ban') {
         if ($googleUid) {
             $stmt = $pdo->prepare("
-                UPDATE players SET is_banned = 1, ban_reason = ?
+                UPDATE users SET is_banned = 1, ban_reason = ?, updated_at = NOW()
                 WHERE google_uid = ?
             ");
             $stmt->execute([$reason, $googleUid]);
-        }
-        
-        if ($wallet) {
-            $wallet = strtolower(trim($wallet));
-            $stmt = $pdo->prepare("
-                UPDATE players SET is_banned = 1, ban_reason = ?
-                WHERE wallet_address = ?
-            ");
-            $stmt->execute([$reason, $wallet]);
         }
         
         return true;
@@ -364,19 +355,10 @@ class RateLimiter {
     public static function unbanUser($pdo, $googleUid = null, $wallet = null) {
         if ($googleUid) {
             $stmt = $pdo->prepare("
-                UPDATE players SET is_banned = 0, ban_reason = NULL
+                UPDATE users SET is_banned = 0, ban_reason = NULL, updated_at = NOW()
                 WHERE google_uid = ?
             ");
             $stmt->execute([$googleUid]);
-        }
-        
-        if ($wallet) {
-            $wallet = strtolower(trim($wallet));
-            $stmt = $pdo->prepare("
-                UPDATE players SET is_banned = 0, ban_reason = NULL
-                WHERE wallet_address = ?
-            ");
-            $stmt->execute([$wallet]);
         }
         
         return true;
@@ -417,7 +399,7 @@ class RateLimiter {
         $stats['unique_ips_last_hour'] = $result['count'];
         
         $result = $pdo->query("
-            SELECT COUNT(*) as count FROM players WHERE is_banned = 1
+            SELECT COUNT(*) as count FROM users WHERE is_banned = 1
         ")->fetch(PDO::FETCH_ASSOC);
         $stats['banned_users'] = $result['count'];
         
