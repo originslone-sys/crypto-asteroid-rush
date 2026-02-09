@@ -27,7 +27,7 @@ if (!defined('DB_HOST')) {
     
     define('DB_NAME', getenv('MYSQLDATABASE') ?: 'unobix_db');
     define('DB_USER', getenv('MYSQLUSER') ?: 'unobix_user');
-    define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'YyZD3H)dndSo*A/N');
+    define('DB_PASS', getenv('MYSQLPASSWORD') ?: '');
 }
 
 // ============================================
@@ -35,7 +35,7 @@ if (!defined('DB_HOST')) {
 // ============================================
 if (!defined('FIREBASE_PROJECT_ID')) {
     define('FIREBASE_PROJECT_ID', getenv('FIREBASE_PROJECT_ID') ?: 'unobix-oauth-a69cd');
-    define('FIREBASE_API_KEY', getenv('FIREBASE_API_KEY') ?: 'AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U');
+    define('FIREBASE_API_KEY', getenv('FIREBASE_API_KEY') ?: '');
 }
 
 // ============================================
@@ -57,6 +57,30 @@ if (!defined('CAPTCHA_ENABLED')) {
     
     // Legacy (manter para compatibilidade)
     define('HCAPTCHA_SECRET_KEY', getenv('HCAPTCHA_SECRET_KEY') ?: '');
+}
+
+// ============================================
+// VPN / PROXY DETECTION (proxycheck.io)
+// ============================================
+if (!defined('PROXY_CHECK_ENABLED')) {
+    define('PROXY_CHECK_ENABLED', true);
+    define('PROXY_CHECK_API_KEY', getenv('PROXYCHECK_API_KEY') ?: '');  // Chave gratuita: 1000 req/dia
+    define('PROXY_CHECK_BLOCK_VPN', true);         // Bloquear VPNs
+    define('PROXY_CHECK_BLOCK_PROXY', true);        // Bloquear proxies
+    define('PROXY_CHECK_BLOCK_TOR', true);          // Bloquear TOR
+    define('PROXY_CHECK_ALLOW_RESIDENTIAL', true);  // Permitir VPNs residenciais
+    define('PROXY_CHECK_CACHE_HOURS', 6);           // Cache de resultados por IP
+    define('PROXY_CHECK_LOG_ONLY', false);           // true = apenas logar, não bloquear
+}
+
+// ============================================
+// GAME HASH - Integridade de sessão
+// ============================================
+if (!defined('GAME_HASH_SECRET')) {
+    // Chave secreta para validação de hash de integridade do jogo
+    // IMPORTANTE: Trocar por uma chave única do seu servidor
+    define('GAME_HASH_SECRET', getenv('GAME_HASH_SECRET') ?: 'UNOBIX_HASH_SECRET_CHANGE_ME_2026');
+    define('GAME_HASH_REQUIRED', true);
 }
 
 // ============================================
@@ -369,6 +393,37 @@ if (!function_exists('verifyRecaptchaV3')) {
             'suspicious' => $score < RECAPTCHA_SCORE_THRESHOLD,
             'message' => $score < RECAPTCHA_SCORE_THRESHOLD ? 'Score baixo — atividade suspeita' : 'OK'
         ];
+    }
+}
+
+if (!function_exists('generateServerGameHash')) {
+    /**
+     * Gerar hash de integridade do jogo no servidor
+     * Deve produzir o mesmo resultado que generateGameHash() no frontend
+     * quando usando a mesma lógica
+     */
+    function generateServerGameHash($sessionToken, $sessionSeed, $stats) {
+        if (!defined('GAME_HASH_SECRET') || empty(GAME_HASH_SECRET)) {
+            return null;
+        }
+        
+        // Replicar lógica do frontend: JSON stringify + shift-and-xor
+        $data = json_encode([
+            'token' => $sessionToken,
+            'seed' => $sessionSeed,
+            'stats' => $stats
+        ]);
+        
+        // Mesma lógica de hash do game-session-manager.js
+        $hash = 0;
+        for ($i = 0; $i < strlen($data); $i++) {
+            $char = ord($data[$i]);
+            $hash = (($hash << 5) - $hash) + $char;
+            $hash = $hash & 0xFFFFFFFF; // Simular 32-bit int do JS
+            if ($hash > 0x7FFFFFFF) $hash -= 0x100000000; // Simular signed int
+        }
+        
+        return dechex(abs($hash));
     }
 }
 
