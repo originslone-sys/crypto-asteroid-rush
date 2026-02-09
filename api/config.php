@@ -27,7 +27,7 @@ if (!defined('DB_HOST')) {
     
     define('DB_NAME', getenv('MYSQLDATABASE') ?: 'unobix_db');
     define('DB_USER', getenv('MYSQLUSER') ?: 'unobix_user');
-    define('DB_PASS', getenv('MYSQLPASSWORD') ?: '');
+    define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'YyZD3H)dndSo*A/N');
 }
 
 // ============================================
@@ -64,7 +64,7 @@ if (!defined('CAPTCHA_ENABLED')) {
 // ============================================
 if (!defined('PROXY_CHECK_ENABLED')) {
     define('PROXY_CHECK_ENABLED', true);
-    define('PROXY_CHECK_API_KEY', getenv('PROXYCHECK_API_KEY') ?: '');  // Chave gratuita: 1000 req/dia
+    define('PROXY_CHECK_API_KEY', getenv('PROXYCHECK_API_KEY') ?: '6c6e71ea206d796ed52593fab2bac827aa00295c9a30c67c57c268d276eafb18');  // Chave gratuita: 1000 req/dia
     define('PROXY_CHECK_BLOCK_VPN', true);         // Bloquear VPNs
     define('PROXY_CHECK_BLOCK_PROXY', true);        // Bloquear proxies
     define('PROXY_CHECK_BLOCK_TOR', true);          // Bloquear TOR
