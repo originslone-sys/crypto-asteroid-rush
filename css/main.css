@@ -1143,7 +1143,9 @@ body {
         top: 70px;
         left: 0;
         width: 100%;
-        background: var(--space-dark);
+        background: rgba(15, 16, 24, 0.98);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         flex-direction: column;
         padding: 20px;
         gap: 15px;
@@ -1152,6 +1154,7 @@ body {
         visibility: hidden;
         transition: all 0.3s ease;
         border-bottom: 1px solid var(--border-color);
+        z-index: 999;
     }
     
     .nav.active {
