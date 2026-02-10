@@ -1,13 +1,13 @@
 /* ============================================
-   UNOBIX - Session Manager v6.1
+   UNOBIX - Session Manager v7.0
    js/game-session-manager.js
-   ARQUITETURA SEGURA: Sem eventos individuais
-   CORRIGIDO: Reenvia após CAPTCHA
+   BARREIRA PRÉ-JOGO: Verifica tudo ANTES de iniciar
+   Feedback claro para cada tipo de bloqueio
    ============================================ */
 
 const SessionManager = {
     currentSession: null,
-    pendingEndSession: null, // Armazena dados para reenvio após CAPTCHA
+    pendingEndSession: null,
     
     /**
      * Obter Google UID de várias fontes
@@ -35,15 +35,17 @@ const SessionManager = {
         return null;
     },
     
-    /**
-     * Iniciar nova sessão de jogo
-     */
+    // ============================================
+    // INICIAR SESSÃO — BARREIRA PRÉ-JOGO
+    // Todas as verificações acontecem AQUI, ANTES do jogo
+    // ============================================
     async startSession(googleUidParam = null) {
         console.log('🎮 Iniciando nova sessão...');
         
         const googleUid = googleUidParam || this.getGoogleUid();
         
         if (!googleUid) {
+            this._notifyBlock('auth_required', { error: 'Usuário não autenticado. Faça login novamente.' });
             throw new Error('Usuário não autenticado. Faça login novamente.');
         }
         
@@ -65,6 +67,7 @@ const SessionManager = {
             const result = await response.json();
             
             if (result.success) {
+                // ✅ Todas as verificações passaram — sessão criada
                 this.currentSession = {
                     id: result.session_id,
                     token: result.session_token,
@@ -76,10 +79,8 @@ const SessionManager = {
                     limits: result.limits || {}
                 };
                 
-                // Limpar pending anterior
                 this.pendingEndSession = null;
                 
-                // Salvar em gameState
                 if (typeof gameState !== 'undefined') {
                     gameState.sessionId = result.session_id;
                     gameState.sessionToken = result.session_token;
@@ -90,38 +91,215 @@ const SessionManager = {
                     missionStats.isHardMode = result.is_hard_mode || false;
                 }
                 
-                console.log('✅ Sessão criada:', {
-                    id: result.session_id,
-                    mission: result.mission_number,
-                    hardMode: result.is_hard_mode
-                });
+                // Mostrar avisos não-bloqueantes (ex: atividade suspeita leve)
+                if (result.warnings && result.warnings.length > 0) {
+                    result.warnings.forEach(warning => {
+                        if (typeof NotificationSystem !== 'undefined') {
+                            NotificationSystem.warning('Aviso', warning);
+                        }
+                    });
+                }
                 
-                return result;
-            } else {
-                console.error('❌ Falha ao criar sessão:', result.error);
-                
-                // Avisos nativos ao usuário
-                if (typeof NotificationSystem !== 'undefined') {
-                    if (result.banned) {
-                        NotificationSystem.banned(result.error);
-                    } else if (result.blocked) {
-                        NotificationSystem.error('Acesso Bloqueado', result.error);
-                    } else if (result.wait_seconds) {
-                        NotificationSystem.rateLimit(result.wait_seconds);
-                    } else {
-                        NotificationSystem.warning('Aviso', result.error || 'Falha ao iniciar sessão');
+                // Mostrar missões restantes se poucas
+                if (result.missions_remaining !== undefined && result.missions_remaining <= 2) {
+                    if (typeof NotificationSystem !== 'undefined') {
+                        const remaining = result.missions_remaining;
+                        NotificationSystem.info(
+                            'Missões Restantes',
+                            remaining === 0 
+                                ? 'Esta é sua última missão desta hora!' 
+                                : `Você tem mais ${remaining} missão(ões) esta hora.`
+                        );
                     }
                 }
                 
-                if (result.wait_seconds) {
-                    throw new Error(`Aguarde ${Math.ceil(result.wait_seconds / 60)} minuto(s) antes de jogar novamente`);
-                }
+                console.log('✅ Sessão criada:', {
+                    id: result.session_id,
+                    mission: result.mission_number,
+                    hardMode: result.is_hard_mode,
+                    remaining: result.missions_remaining
+                });
                 
-                throw new Error(result.error || 'Falha ao iniciar sessão');
+                return result;
+                
+            } else {
+                // ❌ Barreira pré-jogo BLOQUEOU — mostrar feedback específico
+                console.warn('🚫 Sessão bloqueada:', result.block_reason, result.error);
+                
+                this._notifyBlock(result.block_reason, result);
+                
+                // Lançar erro com mensagem amigável
+                throw new Error(result.error || 'Não foi possível iniciar a missão');
             }
         } catch (error) {
-            console.error('❌ Erro ao iniciar sessão:', error);
+            // Se não é um erro nosso (ex: rede), mostrar erro genérico
+            if (!error._handled) {
+                console.error('❌ Erro ao iniciar sessão:', error);
+            }
             throw error;
+        }
+    },
+    
+    // ============================================
+    // SISTEMA DE NOTIFICAÇÕES PRÉ-JOGO
+    // Cada block_reason tem seu próprio feedback visual
+    // ============================================
+    _notifyBlock(blockReason, result) {
+        if (typeof NotificationSystem === 'undefined') {
+            // Fallback se NotificationSystem não está disponível
+            alert(result.error || 'Não é possível iniciar o jogo.');
+            return;
+        }
+        
+        const error = result.error || '';
+        
+        switch (blockReason) {
+            
+            // ── CONTA BANIDA ──
+            case 'banned':
+                NotificationSystem.banned(result.ban_reason || error);
+                break;
+            
+            // ── IP BLOQUEADO ──
+            case 'ip_blocked':
+                NotificationSystem.modal(
+                    'Acesso Bloqueado',
+                    error || 'Seu acesso foi bloqueado temporariamente. Se acredita que é um erro, entre em contato com o suporte.',
+                    { icon: '🚫', btnText: 'Entendi', btnClass: 'danger', dismissable: false }
+                );
+                break;
+            
+            // ── VPN / PROXY / TOR ──
+            case 'vpn_detected':
+                NotificationSystem.modal(
+                    'VPN/Proxy Detectado',
+                    error || 'Detectamos que você está usando VPN ou proxy. Desative para jogar.',
+                    {
+                        icon: '🛡️',
+                        btnText: 'Entendi, vou desativar',
+                        btnClass: 'primary',
+                        dismissable: true,
+                        onClose: () => {
+                            NotificationSystem.info(
+                                'Dica',
+                                'Após desativar a VPN, recarregue a página e tente novamente.'
+                            );
+                        }
+                    }
+                );
+                break;
+            
+            // ── SESSÃO SIMULTÂNEA (OUTRO USUÁRIO NO MESMO IP) ──
+            case 'concurrent_session':
+                NotificationSystem.modal(
+                    'Sessão em Andamento',
+                    'Já existe uma sessão ativa neste dispositivo/rede. Aguarde a sessão atual terminar antes de iniciar outra.',
+                    {
+                        icon: '👥',
+                        btnText: 'OK',
+                        btnClass: 'primary'
+                    }
+                );
+                break;
+            
+            // ── PRÓPRIA SESSÃO ATIVA ──
+            case 'own_active_session':
+                const remaining = result.remaining_seconds || 180;
+                NotificationSystem.modal(
+                    'Você já está em uma missão',
+                    `Você tem uma sessão ativa. Termine a missão atual ou aguarde ${Math.ceil(remaining / 60)} minuto(s) para ela expirar.`,
+                    {
+                        icon: '🎮',
+                        btnText: 'Voltar ao jogo',
+                        btnClass: 'primary'
+                    }
+                );
+                break;
+            
+            // ── COOLDOWN ENTRE JOGOS ──
+            case 'cooldown':
+                NotificationSystem.rateLimit(result.wait_seconds || 180);
+                break;
+            
+            // ── LIMITE HORÁRIO ATINGIDO ──
+            case 'hourly_limit': {
+                const played = result.missions_played || '?';
+                const limit = result.missions_limit || MAX_MISSIONS_PER_HOUR || 10;
+                const waitMin = Math.ceil((result.wait_seconds || 3600) / 60);
+                
+                NotificationSystem.modal(
+                    'Limite de Missões Atingido',
+                    `Você jogou ${played}/${limit} missões esta hora. Descanse um pouco e volte em ~${waitMin} minutos!`,
+                    {
+                        icon: '⏰',
+                        btnText: 'OK',
+                        btnClass: 'primary',
+                        onClose: () => {
+                            // Iniciar countdown no banner
+                            if (result.wait_seconds) {
+                                NotificationSystem.banner(
+                                    `Próxima missão disponível em ${waitMin} min`,
+                                    'info',
+                                    (result.wait_seconds * 1000)
+                                );
+                            }
+                        }
+                    }
+                );
+                break;
+            }
+            
+            // ── ATIVIDADE SUSPEITA ──
+            case 'suspicious_activity':
+                NotificationSystem.modal(
+                    'Conta Temporariamente Restrita',
+                    'Detectamos atividade incomum na sua conta. Por segurança, aguarde 1 hora antes de jogar novamente. Se acredita que é um erro, entre em contato com o suporte.',
+                    {
+                        icon: '⚠️',
+                        btnText: 'Entendi',
+                        btnClass: 'danger'
+                    }
+                );
+                break;
+            
+            // ── LOGIN NECESSÁRIO ──
+            case 'auth_required':
+                NotificationSystem.modal(
+                    'Login Necessário',
+                    error || 'Você precisa estar logado para jogar. Faça login com sua conta Google.',
+                    {
+                        icon: '🔑',
+                        btnText: 'Fazer Login',
+                        btnClass: 'primary',
+                        onClose: () => {
+                            if (typeof showModal === 'function') {
+                                showModal('connectModal');
+                            }
+                        }
+                    }
+                );
+                break;
+            
+            // ── ERRO DE SERVIDOR ──
+            case 'server_error':
+                NotificationSystem.error(
+                    'Erro de Conexão',
+                    'Não foi possível conectar ao servidor. Tente novamente em alguns segundos.'
+                );
+                break;
+            
+            // ── FALLBACK GENÉRICO ──
+            default:
+                NotificationSystem.warning(
+                    'Não é possível jogar',
+                    error || 'Ocorreu um problema. Tente novamente.'
+                );
+                break;
+        }
+        
+        // Marcar como handled para não mostrar erro duplicado
+        if (typeof result === 'object') {
+            result._handled = true;
         }
     },
     
@@ -133,17 +311,15 @@ const SessionManager = {
         console.log(`📝 Asteroide destruído: ${asteroidType}`);
     },
     
-    /**
-     * Finalizar sessão - envia ao servidor
-     */
+    // ============================================
+    // FINALIZAR SESSÃO
+    // ============================================
     async endSession(score, earnings, stats, destroyedAsteroids = null) {
-        // Se não tem sessão ativa, verificar se tem pending
         if (!this.currentSession && !this.pendingEndSession) {
             console.warn('⚠️ Sem sessão ativa para finalizar');
             return null;
         }
         
-        // Usar sessão atual ou pending
         const sessionToEnd = this.currentSession 
             ? { ...this.currentSession }
             : this.pendingEndSession.session;
@@ -170,7 +346,7 @@ const SessionManager = {
                 game_hash: gameHash
             };
             
-            // Obter token reCAPTCHA v3 (invisível, não precisa de interação)
+            // reCAPTCHA v3
             if (typeof CaptchaManager !== 'undefined' && CaptchaManager.isAvailable()) {
                 try {
                     const recaptchaToken = await CaptchaManager.getToken('game_end');
@@ -192,11 +368,10 @@ const SessionManager = {
             const result = await response.json();
             
             if (result.success) {
-                // Verificar se precisa de CAPTCHA
+                // CAPTCHA required
                 if (result.captcha_required) {
                     console.log('🛡️ Verificação de segurança necessária...');
                     
-                    // Com reCAPTCHA v3, tentar resolver automaticamente
                     if (typeof CaptchaManager !== 'undefined' && CaptchaManager.isAvailable()) {
                         console.log('🔄 Tentando resolver automaticamente com reCAPTCHA v3...');
                         
@@ -208,7 +383,6 @@ const SessionManager = {
                             pendingEarnings: result.pending_earnings || earnings
                         };
                         
-                        // Tentar reenviar automaticamente
                         const retryToken = await CaptchaManager.getToken('game_end');
                         if (retryToken) {
                             const retryResult = await this.resendAfterCaptcha(retryToken);
@@ -218,7 +392,6 @@ const SessionManager = {
                         }
                     }
                     
-                    // Se não conseguiu resolver automaticamente, salvar como pending
                     this.pendingEndSession = {
                         session: sessionToEnd,
                         score: score,
@@ -243,25 +416,33 @@ const SessionManager = {
                     credited: result.credited
                 });
                 
-                // Avisos nativos baseados na resposta
+                // ── Notificações pós-jogo ──
                 if (typeof NotificationSystem !== 'undefined') {
-                    if (result.flagged) {
-                        NotificationSystem.warning(
-                            'Sessão Marcada',
-                            'Esta sessão foi marcada para revisão. Se você acredita que é um erro, entre em contato com o suporte.'
-                        );
-                    } else if (result.captcha_suspicious) {
-                        // Não mostrar ao usuário que o score foi baixo (segurança)
-                        console.log('⚠️ Sessão com score reCAPTCHA baixo:', result.captcha_score);
+                    if (result.banned) {
+                        // Ban detectado durante sessão
+                        NotificationSystem.banned(result.error || 'Conta suspensa');
+                    } else if (result.flagged) {
+                        // Sessão flagged — explicar claramente
+                        if (result.final_earnings === 0 || result.final_earnings === '0') {
+                            NotificationSystem.warning(
+                                'Sessão em Revisão',
+                                'Seus ganhos desta sessão estão sendo analisados pela nossa equipe. Se estiver tudo certo, serão creditados automaticamente.'
+                            );
+                        } else {
+                            NotificationSystem.warning(
+                                'Sessão Marcada',
+                                'Esta sessão foi marcada para revisão. Se você acredita que é um erro, entre em contato com o suporte.'
+                            );
+                        }
                     } else if (result.credited && result.final_earnings > 0) {
                         NotificationSystem.success(
                             'Missão Completa!',
-                            `R$ ${result.final_earnings.toFixed(4)} creditados ao seu saldo`
+                            `R$ ${parseFloat(result.final_earnings).toFixed(4)} creditados ao seu saldo`
                         );
                     }
                 }
                 
-                // Limpar sessão e pending
+                // Limpar sessão
                 this.currentSession = null;
                 this.pendingEndSession = null;
                 
@@ -270,7 +451,6 @@ const SessionManager = {
                     gameState.sessionToken = null;
                 }
                 
-                // Atualizar saldo local
                 if (result.new_balance !== null && result.new_balance !== undefined) {
                     localStorage.setItem('userBalance', result.new_balance.toString());
                 }
@@ -278,6 +458,16 @@ const SessionManager = {
                 return result;
             } else {
                 console.error('❌ Falha ao finalizar:', result.error);
+                
+                // Tratar erros específicos do game-end
+                if (typeof NotificationSystem !== 'undefined') {
+                    if (result.banned) {
+                        NotificationSystem.banned(result.error || 'Conta suspensa');
+                    } else if (result.error) {
+                        NotificationSystem.error('Erro', result.error);
+                    }
+                }
+                
                 throw new Error(result.error || 'Falha ao finalizar sessão');
             }
         } catch (error) {
@@ -287,8 +477,7 @@ const SessionManager = {
     },
     
     /**
-     * Reenviar após CAPTCHA ser completado
-     * Chamado pelo CaptchaManager ou game-ui após verificação
+     * Reenviar após CAPTCHA
      */
     async resendAfterCaptcha(captchaToken) {
         if (!this.pendingEndSession) {
@@ -327,7 +516,6 @@ const SessionManager = {
                     newBalance: result.new_balance
                 });
                 
-                // Limpar tudo
                 this.currentSession = null;
                 this.pendingEndSession = null;
                 
@@ -336,17 +524,13 @@ const SessionManager = {
                     gameState.sessionToken = null;
                 }
                 
-                // Atualizar saldo local
                 if (result.new_balance !== null && result.new_balance !== undefined) {
                     localStorage.setItem('userBalance', result.new_balance.toString());
-                    
-                    // Atualizar UI se possível
                     if (typeof updateBalanceDisplay === 'function') {
                         updateBalanceDisplay(result.new_balance);
                     }
                 }
                 
-                // Mostrar notificação de sucesso
                 if (typeof showNotification === 'function') {
                     showNotification('💰 CREDITADO!', `+R$ ${result.final_earnings.toFixed(6)}`, true);
                 }
@@ -400,23 +584,9 @@ const SessionManager = {
         }
     },
     
-    /**
-     * Obter sessão atual
-     */
-    getSession() {
-        return this.currentSession;
-    },
+    getSession() { return this.currentSession; },
+    hasActiveSession() { return this.currentSession !== null; },
     
-    /**
-     * Verificar se há sessão ativa
-     */
-    hasActiveSession() {
-        return this.currentSession !== null;
-    },
-    
-    /**
-     * Limpar sessão (emergência)
-     */
     clearSession() {
         console.log('🧹 Sessão limpa');
         this.currentSession = null;
@@ -431,4 +601,4 @@ const SessionManager = {
 // Exportar
 window.SessionManager = SessionManager;
 
-console.log('📦 SessionManager v6.1 carregado (com reenvio após CAPTCHA)');
+console.log('📦 SessionManager v7.0 carregado (barreira pré-jogo)');
