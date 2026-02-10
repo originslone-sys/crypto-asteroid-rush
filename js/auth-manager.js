@@ -250,8 +250,15 @@ class AuthManager {
             } else {
                 console.warn('⚠️ Aviso do backend:', result.error);
                 
-                if (result.error && result.error.includes('suspensa')) {
-                    alert('Sua conta foi suspensa. Entre em contato com o suporte.');
+                if (result.banned || (result.error && result.error.includes('suspensa'))) {
+                    // Usar NotificationSystem para feedback visual adequado
+                    if (typeof NotificationSystem !== 'undefined') {
+                        NotificationSystem.banned(
+                            result.error || 'Sua conta foi suspensa. Entre em contato com o suporte se acredita que houve um erro.'
+                        );
+                    } else {
+                        alert(result.error || 'Sua conta foi suspensa.');
+                    }
                     await this.signOut();
                 }
             }
