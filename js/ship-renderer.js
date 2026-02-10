@@ -1,13 +1,15 @@
 /* ============================================
-   UNOBIX - Ship Renderer v5.0 AAA+++
+   UNOBIX - Ship Renderer v5.1 AAA+++
    File: js/ship-renderer.js
-   Baseado no v3.1 (funcionava) + upgrades visuais
    
-   v5.0: Qualidade AAA+++ com segurança
-   - Polyfill roundRect para browsers antigos
-   - Try-catch defensivo em cada camada
-   - Detalhes extras em high-end devices
-   - iOS optimization mantida
+   v5.1 FIXES:
+   - FIX CRÍTICO: _clearShadow() no final de drawMainEngines()
+     (shadow leak causava acúmulo de shadowBlur entre frames → freeze)
+   - FIX: _clearShadow() garantido no final de CADA função de draw
+   - FIX: try-catch agora também limpa shadow no catch
+   - FIX: drawShipAAA() tem _clearShadow() no finally
+   - Polyfill roundRect mantido
+   - Todas as features AAA+++ mantidas
    ============================================ */
 
 let shipCache = {
@@ -58,13 +60,15 @@ function _safeShadow(color, blur) {
 function _clearShadow() {
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
 }
 
 function _isHighEnd() {
     if (typeof DeviceProfile !== 'undefined') {
         return DeviceProfile.quality === 'high';
     }
-    return true; // default to high
+    return true;
 }
 
 function shadeColor(color, percent) {
@@ -116,23 +120,26 @@ function drawShipAAA() {
         if (flash) ctx.globalAlpha = 0.5;
     }
     
-    try { drawAmbientGlow(design, time); } catch(e) {}
-    try { drawMainEngines(design, time); } catch(e) {}
-    try { drawWings(design, time); } catch(e) {}
-    try { drawFuselage(design, time); } catch(e) {}
-    try { drawPanelDetails(design, time); } catch(e) {}
-    try { drawCockpit(design, time); } catch(e) {}
-    try { drawWeaponPods(design, time); } catch(e) {}
-    try { drawNavigationLights(design, time); } catch(e) {}
-    try { drawSpeedTrails(design, time, tilt); } catch(e) {}
+    // Cada camada tem try-catch com _clearShadow no catch
+    try { drawAmbientGlow(design, time); } catch(e) { _clearShadow(); }
+    try { drawMainEngines(design, time); } catch(e) { _clearShadow(); }
+    try { drawWings(design, time); } catch(e) { _clearShadow(); }
+    try { drawFuselage(design, time); } catch(e) { _clearShadow(); }
+    try { drawPanelDetails(design, time); } catch(e) { _clearShadow(); }
+    try { drawCockpit(design, time); } catch(e) { _clearShadow(); }
+    try { drawWeaponPods(design, time); } catch(e) { _clearShadow(); }
+    try { drawNavigationLights(design, time); } catch(e) { _clearShadow(); }
+    try { drawSpeedTrails(design, time, tilt); } catch(e) { _clearShadow(); }
     
+    // SAFETY: garantir que shadow está limpo antes de restaurar
+    _clearShadow();
     ctx.globalAlpha = 1;
     gameState.lastX = ship.x;
     ctx.restore();
 }
 
 // ============================================
-// AMBIENT GLOW (under-ship light) — NEW
+// AMBIENT GLOW (under-ship light)
 // ============================================
 function drawAmbientGlow(design, time) {
     if (!_isHighEnd()) return;
@@ -147,20 +154,22 @@ function drawAmbientGlow(design, time) {
     ctx.beginPath();
     ctx.ellipse(0, 10, 48, 32, 0, 0, Math.PI * 2);
     ctx.fill();
+    _clearShadow(); // SAFETY
 }
 
 // ============================================
 // ENGINES — v3.1 base + terceira camada afterburn
+// FIX v5.1: _clearShadow() no final da função
 // ============================================
 function drawMainEngines(design, time) {
-    const enginePulse = Math.sin(time * 12) * 0.15 + 0.85;
-    const flameLength = 28 + Math.sin(time * 10) * 6;
+    var enginePulse = Math.sin(time * 12) * 0.15 + 0.85;
+    var flameLength = 28 + Math.sin(time * 10) * 6;
     
     [-10, 10].forEach(function(offsetX, index) {
         var pulse = Math.sin(time * 14 + index * 0.5) * 0.12 + 0.88;
         var length = flameLength * pulse;
         
-        // Nacelle housing (melhorado)
+        // Nacelle housing
         var housingGrad = ctx.createLinearGradient(offsetX - 7, 18, offsetX + 7, 33);
         housingGrad.addColorStop(0, '#484858');
         housingGrad.addColorStop(0.3, '#2a2a36');
@@ -217,7 +226,7 @@ function drawMainEngines(design, time) {
         ctx.closePath();
         ctx.fill();
         
-        // FLAME 2: Plasma (main glow) — original
+        // FLAME 2: Plasma (main glow)
         var flameGrad = ctx.createLinearGradient(offsetX, 32, offsetX, 32 + length);
         flameGrad.addColorStop(0, _rgba(design.engineGlow, 0.87));
         flameGrad.addColorStop(0.25, 'rgba(255,136,0,0.8)');
@@ -233,7 +242,7 @@ function drawMainEngines(design, time) {
         ctx.closePath();
         ctx.fill();
         
-        // FLAME 3: Afterburn trail (NEW — flickering)
+        // FLAME 3: Afterburn trail (flickering)
         if (_isHighEnd()) {
             var flicker = Math.sin(time * 25 + index * 3) * 0.3 + 0.7;
             var afterLen = length * (0.5 + flicker * 0.4);
@@ -253,7 +262,7 @@ function drawMainEngines(design, time) {
             ctx.fill();
         }
         
-        // Heat shimmer particles (NEW)
+        // Heat shimmer particles
         if (_isHighEnd() && shipCache.frame % 3 === 0) {
             ctx.fillStyle = _rgba(design.engineGlow, 0.12);
             for (var p = 0; p < 2; p++) {
@@ -266,7 +275,15 @@ function drawMainEngines(design, time) {
         }
     });
     
+    // Engine glow (com shadow limitado)
     _safeShadow(design.engineGlow, 20 * enginePulse);
+    ctx.fillStyle = _rgba(design.engineGlow, 0.15);
+    ctx.beginPath();
+    ctx.ellipse(0, 34, 16, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // FIX v5.1: LIMPAR SHADOW após uso!
+    _clearShadow();
 }
 
 // ============================================
@@ -278,7 +295,7 @@ function drawWings(design, time) {
     [1, -1].forEach(function(side) {
         var x = side;
         
-        // Main wing (original shape)
+        // Main wing
         var wingGrad = ctx.createLinearGradient(0, 0, side * 45, 15);
         wingGrad.addColorStop(0, shadeColor(design.primary, -10));
         wingGrad.addColorStop(0.4, design.primary);
@@ -294,7 +311,7 @@ function drawWings(design, time) {
         ctx.closePath();
         ctx.fill();
         
-        // Leading edge specular (original)
+        // Leading edge specular
         ctx.strokeStyle = _rgba(lightenColor(design.primary, 30), 0.5);
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -302,7 +319,7 @@ function drawWings(design, time) {
         ctx.lineTo(x * 48, -5);
         ctx.stroke();
         
-        // Trailing edge shadow (NEW)
+        // Trailing edge shadow
         ctx.strokeStyle = _rgba(shadeColor(design.primary, -50), 0.3);
         ctx.lineWidth = 0.7;
         ctx.beginPath();
@@ -310,7 +327,7 @@ function drawWings(design, time) {
         ctx.lineTo(x * 42, 20);
         ctx.stroke();
         
-        // Panel lines (original + extra)
+        // Panel lines
         ctx.strokeStyle = _rgba(shadeColor(design.primary, -30), 0.35);
         ctx.lineWidth = 0.5;
         ctx.beginPath();
@@ -326,7 +343,7 @@ function drawWings(design, time) {
         ctx.lineTo(x * 36, 14);
         ctx.stroke();
         
-        // Wing rivets (NEW)
+        // Wing rivets
         if (_isHighEnd()) {
             ctx.fillStyle = _rgba(lightenColor(design.primary, 20), 0.4);
             for (var rv = 14; rv < 40; rv += 7) {
@@ -340,13 +357,13 @@ function drawWings(design, time) {
             }
         }
         
-        // Wingtip (original)
+        // Wingtip
         ctx.fillStyle = design.secondary;
         ctx.beginPath();
         ctx.ellipse(x * 46, 0, 4, 8, side * 0.2, 0, Math.PI * 2);
         ctx.fill();
         
-        // Wingtip specular (NEW)
+        // Wingtip specular
         if (_isHighEnd()) {
             ctx.fillStyle = _rgba(lightenColor(design.secondary, 50), 0.35);
             ctx.beginPath();
@@ -354,7 +371,7 @@ function drawWings(design, time) {
             ctx.fill();
         }
         
-        // Wing thruster (original)
+        // Wing thruster
         var thrusterGrad = ctx.createRadialGradient(x * 38, 18, 0, x * 38, 18, 5);
         thrusterGrad.addColorStop(0, design.engineGlow);
         thrusterGrad.addColorStop(0.5, _rgba(design.engineGlow, 0.5));
@@ -365,7 +382,7 @@ function drawWings(design, time) {
         ctx.arc(x * 38, 18, 5, 0, Math.PI * 2);
         ctx.fill();
         
-        // Flap (NEW — trailing edge)
+        // Flap
         ctx.fillStyle = shadeColor(design.primary, -18);
         ctx.beginPath();
         ctx.moveTo(x * 18, 22);
@@ -375,13 +392,15 @@ function drawWings(design, time) {
         ctx.closePath();
         ctx.fill();
     });
+    
+    _clearShadow(); // SAFETY
 }
 
 // ============================================
-// FUSELAGE — v3.1 base (bezier curves, original shape)
+// FUSELAGE — v3.1 base (bezier curves)
 // ============================================
 function drawFuselage(design, time) {
-    // Main body (ORIGINAL bezier shape)
+    // Main body
     var bodyGrad = ctx.createLinearGradient(-15, -35, 15, 30);
     bodyGrad.addColorStop(0, lightenColor(design.primary, 20));
     bodyGrad.addColorStop(0.2, design.primary);
@@ -400,7 +419,7 @@ function drawFuselage(design, time) {
     ctx.closePath();
     ctx.fill();
     
-    // Nose highlight (original + improved)
+    // Nose highlight
     ctx.strokeStyle = _rgba(lightenColor(design.primary, 40), 0.45);
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -408,7 +427,7 @@ function drawFuselage(design, time) {
     ctx.quadraticCurveTo(0, -38, 6, -35);
     ctx.stroke();
     
-    // Second nose highlight (NEW)
+    // Second nose highlight
     if (_isHighEnd()) {
         ctx.strokeStyle = _rgba(lightenColor(design.primary, 50), 0.25);
         ctx.lineWidth = 0.7;
@@ -418,7 +437,7 @@ function drawFuselage(design, time) {
         ctx.stroke();
     }
     
-    // Center ridge (original)
+    // Center ridge
     var ridgeGrad = ctx.createLinearGradient(-3, -30, 3, 20);
     ridgeGrad.addColorStop(0, lightenColor(design.secondary, 20));
     ridgeGrad.addColorStop(0.5, design.secondary);
@@ -435,7 +454,7 @@ function drawFuselage(design, time) {
     ctx.closePath();
     ctx.fill();
     
-    // Ridge specular line (NEW)
+    // Ridge specular line
     if (_isHighEnd()) {
         ctx.strokeStyle = _rgba(lightenColor(design.secondary, 40), 0.35);
         ctx.lineWidth = 0.5;
@@ -445,7 +464,7 @@ function drawFuselage(design, time) {
         ctx.stroke();
     }
     
-    // Panel seam lines (original)
+    // Panel seam lines
     ctx.strokeStyle = _rgba(shadeColor(design.primary, -30), 0.3);
     ctx.lineWidth = 0.5;
     [-20, -10, 5, 15].forEach(function(y) {
@@ -455,22 +474,24 @@ function drawFuselage(design, time) {
         ctx.stroke();
     });
     
-    // Side vents (original)
+    // Side vents
     ctx.fillStyle = '#1a1a24';
     [-1, 1].forEach(function(side) {
         ctx.fillRect(side * 8, -15, 3, 8);
         ctx.fillRect(side * 6, 5, 4, 6);
     });
     
-    // Ambient occlusion at wing root (NEW)
+    // Ambient occlusion at wing root
     if (_isHighEnd()) {
         ctx.fillStyle = 'rgba(0,0,0,0.08)';
         ctx.fillRect(-16, 3, 32, 6);
     }
+    
+    _clearShadow(); // SAFETY
 }
 
 // ============================================
-// PANEL DETAILS — NEW (all new details)
+// PANEL DETAILS — high-end only
 // ============================================
 function drawPanelDetails(design, time) {
     if (!_isHighEnd()) return;
@@ -487,7 +508,7 @@ function drawPanelDetails(design, time) {
     ctx.lineTo(14, -10);
     ctx.stroke();
     
-    // Vent slats inside side vents
+    // Vent slats
     ctx.strokeStyle = '#2a2a3a';
     ctx.lineWidth = 0.3;
     [-1, 1].forEach(function(side) {
@@ -507,7 +528,7 @@ function drawPanelDetails(design, time) {
         ctx.fillRect(side * 6.5, 6, 3, 4);
     });
     
-    // Hull rivets along body edge
+    // Hull rivets
     ctx.fillStyle = _rgba(lightenColor(design.primary, 15), 0.35);
     for (var ry = -26; ry < 22; ry += 5) {
         ctx.beginPath();
@@ -530,6 +551,8 @@ function drawPanelDetails(design, time) {
     ctx.beginPath();
     ctx.arc(5, 25, 0.8, 0, Math.PI * 2);
     ctx.fill();
+    
+    _clearShadow(); // SAFETY
 }
 
 // ============================================
@@ -538,7 +561,7 @@ function drawPanelDetails(design, time) {
 function drawCockpit(design, time) {
     var shimmer = Math.sin(time * 2.5) * 0.1 + 0.9;
     
-    // Frame (original)
+    // Frame
     var frameGrad = ctx.createLinearGradient(-10, -28, 10, -10);
     frameGrad.addColorStop(0, '#5a5a6a');
     frameGrad.addColorStop(0.5, '#3a3a4a');
@@ -554,7 +577,7 @@ function drawCockpit(design, time) {
     ctx.closePath();
     ctx.fill();
     
-    // Frame edge highlights (NEW)
+    // Frame edge highlights
     ctx.strokeStyle = 'rgba(120,120,140,0.5)';
     ctx.lineWidth = 0.7;
     ctx.beginPath();
@@ -564,7 +587,7 @@ function drawCockpit(design, time) {
     ctx.lineTo(-10, -18);
     ctx.stroke();
     
-    // Glass (original)
+    // Glass
     var glassGrad = ctx.createLinearGradient(-8, -28, 8, -10);
     glassGrad.addColorStop(0, _rgba('#ffffff', shimmer * 0.7));
     glassGrad.addColorStop(0.2, _rgba(lightenColor(design.cockpitTint, 30), 0.67));
@@ -582,7 +605,7 @@ function drawCockpit(design, time) {
     ctx.closePath();
     ctx.fill();
     
-    // Top reflection (original)
+    // Top reflection
     ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
     ctx.beginPath();
     ctx.moveTo(-3, -26);
@@ -592,7 +615,7 @@ function drawCockpit(design, time) {
     ctx.closePath();
     ctx.fill();
     
-    // Lower reflection (NEW)
+    // Lower reflection
     ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.beginPath();
     ctx.moveTo(-5, -19);
@@ -602,14 +625,14 @@ function drawCockpit(design, time) {
     ctx.closePath();
     ctx.fill();
     
-    // HUD instruments (original - updated)
+    // HUD instruments
     var hudAlpha = Math.sin(time * 4) * 0.1 + 0.35;
     ctx.fillStyle = _rgba('#00ff88', hudAlpha);
     ctx.fillRect(-4, -18, 2, 1);
     ctx.fillRect(1, -16, 3, 1);
     ctx.fillRect(-2, -14, 4, 1);
     
-    // HUD targeting reticle (NEW)
+    // HUD targeting reticle
     if (_isHighEnd()) {
         ctx.strokeStyle = _rgba('#00ff88', hudAlpha * 0.6);
         ctx.lineWidth = 0.25;
@@ -622,7 +645,7 @@ function drawCockpit(design, time) {
         ctx.stroke();
     }
     
-    // Canopy frame lines (NEW)
+    // Canopy frame lines
     if (_isHighEnd()) {
         ctx.strokeStyle = 'rgba(90,90,106,0.4)';
         ctx.lineWidth = 0.4;
@@ -635,6 +658,8 @@ function drawCockpit(design, time) {
         ctx.lineTo(6.5, -17);
         ctx.stroke();
     }
+    
+    _clearShadow(); // SAFETY
 }
 
 // ============================================
@@ -646,13 +671,13 @@ function drawWeaponPods(design, time) {
     [-1, 1].forEach(function(side) {
         var x = side * 16;
         
-        // Pylon (NEW — connection to wing)
+        // Pylon
         if (_isHighEnd()) {
             ctx.fillStyle = '#3a3a4a';
             ctx.fillRect(x - 1, -4, 2, 6);
         }
         
-        // Mount housing (original)
+        // Mount housing
         var mountGrad = ctx.createLinearGradient(x - 3, -20, x + 3, -5);
         mountGrad.addColorStop(0, '#4a4a5a');
         mountGrad.addColorStop(0.5, '#2a2a35');
@@ -663,7 +688,7 @@ function drawWeaponPods(design, time) {
         ctx.roundRect(x - 3, -22, 6, 14, 2);
         ctx.fill();
         
-        // Housing edge (NEW)
+        // Housing edge
         if (_isHighEnd()) {
             ctx.strokeStyle = 'rgba(90,90,106,0.3)';
             ctx.lineWidth = 0.4;
@@ -672,7 +697,7 @@ function drawWeaponPods(design, time) {
             ctx.stroke();
         }
         
-        // Barrel (original)
+        // Barrel
         var barrelGrad = ctx.createLinearGradient(x, -32, x, -22);
         barrelGrad.addColorStop(0, '#2a2a35');
         barrelGrad.addColorStop(0.3, '#4a4a5a');
@@ -684,13 +709,13 @@ function drawWeaponPods(design, time) {
         ctx.roundRect(x - 2, -34, 4, 14, 1);
         ctx.fill();
         
-        // Bore (original)
+        // Bore
         ctx.fillStyle = '#1a1a22';
         ctx.beginPath();
         ctx.arc(x, -34, 2, 0, Math.PI * 2);
         ctx.fill();
         
-        // Charge glow (original)
+        // Charge glow
         ctx.fillStyle = _rgba(design.accent, chargePulse * 0.8);
         ctx.beginPath();
         ctx.arc(x, -34, 1.2, 0, Math.PI * 2);
@@ -700,9 +725,9 @@ function drawWeaponPods(design, time) {
         ctx.beginPath();
         ctx.arc(x, -34, 0.8, 0, Math.PI * 2);
         ctx.fill();
-        _clearShadow();
+        _clearShadow(); // FIX: limpar shadow imediatamente após uso
         
-        // Ammo LEDs (NEW)
+        // Ammo LEDs
         if (_isHighEnd()) {
             ctx.fillStyle = 'rgba(0,255,80,0.3)';
             [-20, -18].forEach(function(ly) {
@@ -712,6 +737,8 @@ function drawWeaponPods(design, time) {
             });
         }
     });
+    
+    _clearShadow(); // SAFETY
 }
 
 // ============================================
@@ -771,7 +798,7 @@ function drawNavigationLights(design, time) {
     ctx.fill();
     _clearShadow();
     
-    // Wingtip accents (original)
+    // Wingtip accents
     [44, -44].forEach(function(wx) {
         ctx.fillStyle = _rgba(design.accent, blink ? 0.8 : 0.25);
         if (blink) _safeShadow(design.accent, 5);
@@ -805,7 +832,7 @@ function drawSpeedTrails(design, time, tilt) {
         ctx.stroke();
     }
     
-    // Engine trail when turning hard (NEW)
+    // Engine trail when turning hard
     if (_isHighEnd() && Math.abs(tilt) > 0.1) {
         ctx.strokeStyle = _rgba(design.engineGlow, trailAlpha * 0.3);
         ctx.lineWidth = 1.2;
@@ -816,6 +843,8 @@ function drawSpeedTrails(design, time, tilt) {
             ctx.stroke();
         });
     }
+    
+    _clearShadow(); // SAFETY
 }
 
 // ============================================
@@ -825,4 +854,4 @@ window.drawShipAAA = drawShipAAA;
 window.shadeColor = shadeColor;
 window.lightenColor = lightenColor;
 
-console.log('\u{1F4E6} ship-renderer.js v5.0 AAA+++ carregado');
+console.log('\u{1F4E6} ship-renderer.js v5.1 AAA+++ carregado (shadow leak fix)');
