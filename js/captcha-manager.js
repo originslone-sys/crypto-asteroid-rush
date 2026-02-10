@@ -22,7 +22,6 @@ const CaptchaManager = {
     
     /**
      * Inicializar reCAPTCHA v3
-     * Carrega o script do Google se ainda não estiver presente
      */
     init() {
         if (this.isReady) {
@@ -31,7 +30,6 @@ const CaptchaManager = {
         }
         
         return new Promise((resolve, reject) => {
-            // Verificar se script já está carregado
             if (typeof grecaptcha !== 'undefined' && grecaptcha.ready) {
                 grecaptcha.ready(() => {
                     this.isReady = true;
@@ -41,7 +39,6 @@ const CaptchaManager = {
                 return;
             }
             
-            // Carregar script do Google
             if (!document.querySelector('script[src*="recaptcha/api.js"]')) {
                 const script = document.createElement('script');
                 script.src = `https://www.google.com/recaptcha/api.js?render=${this.siteKey}`;
@@ -56,20 +53,18 @@ const CaptchaManager = {
                             resolve();
                         });
                     } else {
-                        reject(new Error('grecaptcha não disponível após carregar script'));
+                        reject(new Error('grecaptcha não disponível'));
                     }
                 };
                 
                 script.onerror = () => {
                     console.error('❌ Falha ao carregar reCAPTCHA');
-                    // Não bloquear o jogo se reCAPTCHA falhar
                     this.isReady = false;
-                    resolve(); // resolve mesmo assim para não travar
+                    resolve(); // Não bloquear o jogo
                 };
                 
                 document.head.appendChild(script);
             } else {
-                // Script já existe, aguardar ready
                 const checkReady = setInterval(() => {
                     if (typeof grecaptcha !== 'undefined') {
                         clearInterval(checkReady);
@@ -81,12 +76,12 @@ const CaptchaManager = {
                     }
                 }, 200);
                 
-                // Timeout REDUZIDO de 10s para 3s
+                // Timeout REDUZIDO para 3s
                 setTimeout(() => {
                     clearInterval(checkReady);
                     if (!this.isReady) {
                         console.warn('⚠️ Timeout aguardando reCAPTCHA (3s)');
-                        resolve(); // Continuar sem reCAPTCHA
+                        resolve();
                     }
                 }, this.INIT_TIMEOUT);
             }
@@ -95,14 +90,11 @@ const CaptchaManager = {
     
     /**
      * Executar verificação reCAPTCHA v3 COM TIMEOUT
-     * @param {string} action - Nome da ação (game_end, login, withdraw)
-     * @returns {Promise<string|null>} Token reCAPTCHA ou null
      */
     async execute(action = 'game_end') {
         if (!this.isReady || typeof grecaptcha === 'undefined') {
             console.warn('⚠️ reCAPTCHA não está pronto, tentando inicializar...');
             try {
-                // Init com timeout
                 await Promise.race([
                     this.init(),
                     new Promise((_, reject) => 
@@ -144,13 +136,9 @@ const CaptchaManager = {
     
     /**
      * Obter token para enviar ao backend COM TIMEOUT
-     * @param {string} action - Ação para gerar token
-     * @returns {Promise<string|null>}
      */
     async getToken(action = 'game_end') {
         try {
-            // Tokens do reCAPTCHA v3 expiram em 2 minutos
-            // Sempre gerar um novo para garantir validade
             return await this.execute(action);
         } catch (e) {
             console.warn('⚠️ getToken falhou:', e.message);
@@ -158,18 +146,10 @@ const CaptchaManager = {
         }
     },
     
-    /**
-     * Obter token de forma síncrona (último token gerado)
-     * Usar apenas se já executou execute() recentemente
-     */
     getLastToken() {
         return this.lastToken;
     },
     
-    /**
-     * Verificar token com o backend (endpoint separado)
-     * Usado quando precisa de verificação explícita (ex: após CAPTCHA required)
-     */
     async verifyWithBackend(action = 'verify') {
         const token = await this.execute(action);
         if (!token) {
@@ -193,12 +173,11 @@ const CaptchaManager = {
             });
             
             clearTimeout(timeoutId);
-            
             const result = await response.json();
             
             if (result.success && result.verified) {
                 this.lastScore = result.score || null;
-                console.log(`✅ reCAPTCHA verificado pelo backend | Score: ${result.score}`);
+                console.log(`✅ reCAPTCHA verificado | Score: ${result.score}`);
                 return { verified: true, score: result.score };
             } else {
                 console.warn('❌ reCAPTCHA falhou no backend:', result.error);
@@ -207,37 +186,21 @@ const CaptchaManager = {
         } catch (error) {
             if (error.name === 'AbortError') {
                 console.error('❌ Timeout ao verificar com backend');
-                return { verified: false, error: 'Timeout na verificação' };
+                return { verified: false, error: 'Timeout' };
             }
-            console.error('❌ Erro ao verificar com backend:', error);
+            console.error('❌ Erro ao verificar:', error);
             return { verified: false, error: error.message };
         }
     },
     
-    /**
-     * Verificar se reCAPTCHA está disponível
-     */
     isAvailable() {
         return this.isReady && typeof grecaptcha !== 'undefined';
     },
     
-    /**
-     * Verificar se está completo (compatibilidade com código antigo)
-     */
     isComplete() {
         return this.isVerified;
     },
     
-    // ============================================
-    // MÉTODOS DE COMPATIBILIDADE COM UI ANTIGA
-    // reCAPTCHA v3 é invisível, mas mantemos
-    // interface para o modal de fim de jogo
-    // ============================================
-    
-    /**
-     * Renderizar estado no container (se existir)
-     * reCAPTCHA v3 é invisível, então mostra apenas status
-     */
     renderStatus(containerId = 'captchaWidget') {
         const container = document.getElementById(containerId);
         if (!container) return;
@@ -248,45 +211,30 @@ const CaptchaManager = {
                     <div style="color: #4CAF50; margin-bottom: 5px;">
                         <i class="fas fa-shield-alt"></i> Proteção ativa
                     </div>
-                    <small style="color: #999;">Verificação automática de segurança</small>
+                    <small style="color: #999;">Verificação automática</small>
                 </div>
             `;
         } else {
             container.innerHTML = `
                 <div class="recaptcha-status" style="text-align: center; padding: 10px;">
                     <div style="color: #FF9800; margin-bottom: 5px;">
-                        <i class="fas fa-spinner fa-spin"></i> Carregando verificação...
+                        <i class="fas fa-spinner fa-spin"></i> Carregando...
                     </div>
                 </div>
             `;
         }
     },
     
-    /**
-     * Habilitar botão de resgate (compatibilidade)
-     * Com reCAPTCHA v3, o botão já está habilitado por padrão
-     */
     enableClaimButton() {
         const claimBtn = document.getElementById('claimRewardBtn');
-        if (claimBtn) {
-            claimBtn.disabled = false;
-        }
+        if (claimBtn) claimBtn.disabled = false;
     },
     
-    /**
-     * Desabilitar botão de resgate (compatibilidade)
-     */
     disableClaimButton() {
         const claimBtn = document.getElementById('claimRewardBtn');
-        if (claimBtn) {
-            claimBtn.disabled = true;
-        }
+        if (claimBtn) claimBtn.disabled = true;
     },
     
-    /**
-     * Processar após verificação (compatibilidade com fluxo antigo)
-     * Chamado pelo SessionManager quando CAPTCHA é required
-     */
     async processAfterVerification() {
         console.log('🔄 Processando crédito com reCAPTCHA v3...');
         
@@ -300,11 +248,10 @@ const CaptchaManager = {
                     if (result && result.success && result.credited) {
                         console.log('✅ Ganhos creditados!', result);
                         
-                        // Notificação de sucesso
                         if (typeof NotificationSystem !== 'undefined') {
                             NotificationSystem.success(
                                 'Ganhos Creditados!',
-                                `R$ ${result.final_earnings.toFixed(4)} adicionados ao seu saldo`
+                                `R$ ${result.final_earnings.toFixed(4)} adicionados`
                             );
                         }
                         
@@ -321,12 +268,11 @@ const CaptchaManager = {
                 } catch (e) {
                     console.error('❌ Erro no processamento:', e);
                     if (typeof NotificationSystem !== 'undefined') {
-                        NotificationSystem.error('Erro', 'Falha ao processar. Tente novamente.');
+                        NotificationSystem.error('Erro', 'Falha ao processar.');
                     }
                 }
             } else {
-                console.warn('⚠️ Não foi possível gerar token reCAPTCHA');
-                // Habilitar botão mesmo assim - deixar servidor decidir
+                console.warn('⚠️ Não foi possível gerar token');
                 this.enableClaimButton();
             }
         } else {
@@ -334,9 +280,6 @@ const CaptchaManager = {
         }
     },
     
-    /**
-     * Atualizar exibição do saldo
-     */
     updateBalanceDisplay(newBalance) {
         if (newBalance === null || newBalance === undefined) return;
         
@@ -356,9 +299,6 @@ const CaptchaManager = {
         localStorage.setItem('userBalance', newBalance.toString());
     },
     
-    /**
-     * Atualizar exibição de ganhos
-     */
     updateEarningsDisplay(earnings, credited = false) {
         const selectors = ['#endGameEarnings', '.end-game-earnings', '.earnings-value', '.mission-earnings'];
         for (const selector of selectors) {
@@ -374,16 +314,12 @@ const CaptchaManager = {
         }
     },
     
-    /**
-     * Reset (compatibilidade)
-     */
     reset() {
         this.isVerified = false;
         this.lastToken = null;
         this.lastScore = null;
     },
     
-    // Helpers internos
     _getGoogleUid() {
         if (typeof window.gameState !== 'undefined' && window.gameState?.googleUid) return window.gameState.googleUid;
         if (typeof window.authManager !== 'undefined') return window.authManager?.getUserId?.() || null;
@@ -397,11 +333,7 @@ const CaptchaManager = {
     }
 };
 
-// ============================================
-// AUTO-INICIALIZAÇÃO
-// ============================================
-
-// Inicializar assim que o DOM estiver pronto
+// Auto-inicialização
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         CaptchaManager.init().catch(e => console.warn('reCAPTCHA init warning:', e));
@@ -410,7 +342,7 @@ if (document.readyState === 'loading') {
     CaptchaManager.init().catch(e => console.warn('reCAPTCHA init warning:', e));
 }
 
-// Observar modal de fim de jogo para renderizar status
+// Observer do modal de fim de jogo
 const observeEndGameModal = () => {
     const endGameModal = document.getElementById('endGameModal');
     if (endGameModal) {
@@ -418,9 +350,7 @@ const observeEndGameModal = () => {
             mutations.forEach((mutation) => {
                 if (mutation.attributeName === 'class' && endGameModal.classList.contains('active')) {
                     CaptchaManager.renderStatus();
-                    // Com reCAPTCHA v3, já podemos habilitar o botão
                     CaptchaManager.enableClaimButton();
-                    // Auto-processar se tem pending
                     if (typeof SessionManager !== 'undefined' && SessionManager.hasPendingCaptcha()) {
                         CaptchaManager.processAfterVerification();
                     }
@@ -429,10 +359,8 @@ const observeEndGameModal = () => {
         });
         observer.observe(endGameModal, { attributes: true });
     } else {
-        // Limitar retries para evitar loop infinito
         if (!observeEndGameModal._retries) observeEndGameModal._retries = 0;
         observeEndGameModal._retries++;
-        
         if (observeEndGameModal._retries < 10) {
             setTimeout(observeEndGameModal, 500);
         }
@@ -447,4 +375,4 @@ if (document.readyState === 'loading') {
 
 window.CaptchaManager = CaptchaManager;
 
-console.log('🛡️ CaptchaManager v7.1 carregado (timeout 3s em getToken/execute)');
+console.log('🛡️ CaptchaManager v7.1 carregado (timeout 3s)');
