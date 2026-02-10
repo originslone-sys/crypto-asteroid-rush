@@ -1,8 +1,12 @@
 /* ============================================
-   UNOBIX - Main Entry Point v4.1
+   UNOBIX - Main Entry Point v4.2
    File: js/game-main.js
-   Google Auth, Portuguese, Free-to-Play
-   Fix: Removidas referências a MetaMask
+   
+   MUDANÇAS v4.2:
+   - CRÍTICO: Resolver race condition do auth listener
+   - Auto-start agora usa waitForAuth() com polling
+   - Flags consumidas ANTES de qualquer processamento
+   - Evita loop de modais no mobile
    ============================================ */
 
 // Keyboard controls
@@ -241,9 +245,156 @@ function updateUserUI(user) {
     }
 }
 
-// Main initialization
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🎮 Unobix v4.1 - Inicializando...');
+// ============================================
+// NOVA ABORDAGEM: waitForAuth com polling
+// Resolve race condition do Firebase
+// ============================================
+
+/**
+ * Aguardar autenticação com timeout
+ * @param {number} maxWait - Tempo máximo de espera em ms
+ * @returns {Promise<object|null>} - User object ou null
+ */
+async function waitForAuth(maxWait = 5000) {
+    const start = Date.now();
+    
+    while (Date.now() - start < maxWait) {
+        // Verificar múltiplas fontes
+        const user = window.authManager?.currentUser;
+        
+        if (user && user.uid) {
+            console.log('✅ Auth resolvido:', user.displayName || user.email);
+            return user;
+        }
+        
+        // Aguardar 100ms antes de verificar novamente
+        await new Promise(r => setTimeout(r, 100));
+    }
+    
+    console.warn('⚠️ Timeout aguardando auth após', maxWait, 'ms');
+    return null;
+}
+
+/**
+ * Processar auto-start (vindo do pregame.html)
+ * @returns {Promise<boolean>} - true se auto-start foi executado
+ */
+async function handleAutoStart() {
+    const params = new URLSearchParams(window.location.search);
+    const shouldStart = params.get('start') === 'true';
+    const loadingComplete = sessionStorage.getItem('loadingComplete') === 'true';
+    
+    if (!shouldStart || !loadingComplete) {
+        return false;
+    }
+    
+    console.log('🎮 Detectado retorno do pregame, iniciando auto-start...');
+    
+    // CRÍTICO: Consumir flags IMEDIATAMENTE
+    window.history.replaceState({}, '', 'game.html');
+    sessionStorage.removeItem('loadingComplete');
+    
+    // Mostrar loading enquanto aguarda auth
+    if (typeof showLoading === 'function') {
+        showLoading(true);
+    }
+    
+    // Aguardar auth com timeout
+    const user = await waitForAuth(5000);
+    
+    if (typeof showLoading === 'function') {
+        showLoading(false);
+    }
+    
+    if (user) {
+        // Atualizar gameState
+        gameState.user = user;
+        gameState.googleUid = user.uid;
+        gameState.isConnected = true;
+        
+        updateUserUI(user);
+        
+        // Iniciar jogo
+        if (typeof startGameWithLoading === 'function') {
+            startGameWithLoading();
+        }
+        return true;
+    } else {
+        // Auth falhou, mostrar login
+        console.warn('⚠️ Auth não disponível, mostrando login');
+        showModal('connectModal');
+        return false;
+    }
+}
+
+/**
+ * Processar retorno do postgame.html (mostrar resultados)
+ * @returns {Promise<boolean>} - true se resultados foram exibidos
+ */
+async function handlePostgameResults() {
+    const params = new URLSearchParams(window.location.search);
+    const showResults = params.get('results') === 'true';
+    const postgameComplete = sessionStorage.getItem('postgameComplete') === 'true';
+    
+    if (!showResults || !postgameComplete) {
+        return false;
+    }
+    
+    console.log('📊 Detectado retorno do postgame, exibindo resultados...');
+    
+    // Consumir flags
+    window.history.replaceState({}, '', 'game.html');
+    sessionStorage.removeItem('postgameComplete');
+    
+    // Aguardar auth
+    const user = await waitForAuth(3000);
+    
+    if (user) {
+        gameState.user = user;
+        gameState.googleUid = user.uid;
+        gameState.isConnected = true;
+        updateUserUI(user);
+    }
+    
+    try {
+        const pgData = JSON.parse(sessionStorage.getItem('postgameData') || '{}');
+        sessionStorage.removeItem('postgameData');
+        
+        if (pgData.stats && typeof showEndGameResults === 'function') {
+            sessionStorage.setItem('_showResultsDirect', 'true');
+            showEndGameResults(pgData.stats, pgData.serverEarnings, pgData.serverBalance);
+            return true;
+        }
+    } catch (e) {
+        console.error('Erro ao restaurar resultados:', e);
+    }
+    
+    showModal('gameMenuModal');
+    return false;
+}
+
+/**
+ * Handler para auth state change (fluxo normal, sem auto-start)
+ */
+function handleNormalAuthChange(user) {
+    if (user) {
+        gameState.user = user;
+        gameState.googleUid = user.uid;
+        gameState.isConnected = true;
+        
+        updateUserUI(user);
+        showModal('gameMenuModal');
+    } else {
+        showModal('connectModal');
+    }
+}
+
+// ============================================
+// MAIN INITIALIZATION
+// ============================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🎮 Unobix v4.2 - Inicializando...');
     
     // Initialize UI elements
     if (typeof initUIElements === 'function') {
@@ -427,72 +578,30 @@ document.addEventListener('DOMContentLoaded', () => {
     // Setup mobile controls
     setupMobileControls();
     
-    // Listen for auth state changes
-    let _autoStartProcessed = false;
+    // ============================================
+    // FLUXO PRINCIPAL DE INICIALIZAÇÃO
+    // ============================================
+    
+    // 1. Verificar se é retorno do postgame (prioridade máxima)
+    const handledPostgame = await handlePostgameResults();
+    if (handledPostgame) {
+        console.log('✅ Resultados do postgame exibidos');
+        return;
+    }
+    
+    // 2. Verificar se é auto-start (vindo do pregame)
+    const handledAutoStart = await handleAutoStart();
+    if (handledAutoStart) {
+        console.log('✅ Auto-start executado');
+        return;
+    }
+    
+    // 3. Fluxo normal: escutar auth state
+    console.log('🔄 Fluxo normal: aguardando auth state...');
     
     document.addEventListener('authStateChanged', (e) => {
         const user = e.detail.user;
-        
-        if (user) {
-            gameState.user = user;
-            gameState.googleUid = user.uid;
-            gameState.isConnected = true;
-            
-            updateUserUI(user);
-            
-            // Ler flags
-            const params = new URLSearchParams(window.location.search);
-            const shouldStart = params.get('start') === 'true';
-            const loadingComplete = sessionStorage.getItem('loadingComplete') === 'true';
-            const showResults = params.get('results') === 'true';
-            const postgameComplete = sessionStorage.getItem('postgameComplete') === 'true';
-            
-            // CONSUMIR flags IMEDIATAMENTE para evitar re-processamento
-            if (shouldStart || showResults) {
-                window.history.replaceState({}, '', 'game.html');
-            }
-            if (loadingComplete) sessionStorage.removeItem('loadingComplete');
-            if (postgameComplete) sessionStorage.removeItem('postgameComplete');
-            
-            // Guard: não re-processar auto-start se auth dispara múltiplas vezes
-            if (_autoStartProcessed) {
-                showModal('gameMenuModal');
-                return;
-            }
-            
-            if (showResults && postgameComplete) {
-                _autoStartProcessed = true;
-                
-                try {
-                    const pgData = JSON.parse(sessionStorage.getItem('postgameData') || '{}');
-                    sessionStorage.removeItem('postgameData');
-                    
-                    if (pgData.stats && typeof showEndGameResults === 'function') {
-                        console.log('📊 Exibindo resultados do postgame');
-                        sessionStorage.setItem('_showResultsDirect', 'true');
-                        showEndGameResults(pgData.stats, pgData.serverEarnings, pgData.serverBalance);
-                    } else {
-                        showModal('gameMenuModal');
-                    }
-                } catch (e) {
-                    console.error('Erro ao restaurar resultados:', e);
-                    showModal('gameMenuModal');
-                }
-            } else if (shouldStart && loadingComplete) {
-                _autoStartProcessed = true;
-                console.log('🎮 Auto-starting game');
-                setTimeout(() => {
-                    if (typeof startGameWithLoading === 'function') {
-                        startGameWithLoading();
-                    }
-                }, 500);
-            } else {
-                showModal('gameMenuModal');
-            }
-        } else {
-            // Not logged in, show connect modal
-            showModal('connectModal');
-        }
+        handleNormalAuthChange(user);
     });
     
     // Unlock audio on any interaction
@@ -535,3 +644,6 @@ window.startGameSession = startGameSession;
 window.updateUserUI = updateUserUI;
 window.handleKeyDown = handleKeyDown;
 window.handleKeyUp = handleKeyUp;
+window.waitForAuth = waitForAuth;
+
+console.log('📦 game-main.js v4.2 carregado (race condition fix)');
