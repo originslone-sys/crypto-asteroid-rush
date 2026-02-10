@@ -1,7 +1,12 @@
 /* ============================================
-   UNOBIX - Notification System v7.0
+   UNOBIX - Notification System v8.0
    File: js/notification-system.js
-   Toasts, modais e banners nativos
+   
+   v8.0 CHANGES:
+   - Notificações in-game MINIMAL (compactas, não atrapalham gameplay)
+   - Toasts finos no canto superior, auto-dismiss rápido
+   - Modais e banners mantidos para fora do jogo
+   - Game notifications são inline, sem overlay
    ============================================ */
 
 const NotificationSystem = {
@@ -10,161 +15,181 @@ const NotificationSystem = {
     activeModal: null,
     maxToasts: 3,
     
-    /**
-     * Inicializar container de notificações
-     */
     init() {
         if (this.container) return;
         
-        // Container de toasts (canto superior direito)
         this.container = document.createElement('div');
         this.container.id = 'unobix-notifications';
         this.container.style.cssText = `
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 12px;
+            right: 12px;
             z-index: 99999;
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            max-width: 380px;
-            width: 100%;
+            gap: 6px;
+            max-width: 260px;
+            width: auto;
             pointer-events: none;
         `;
         document.body.appendChild(this.container);
         
-        // Injetar CSS
         if (!document.getElementById('unobix-notif-styles')) {
             const style = document.createElement('style');
             style.id = 'unobix-notif-styles';
             style.textContent = `
+                /* ==============================
+                   TOAST — Compact minimal style
+                   ============================== */
                 .unobix-toast {
-                    background: #1a1a2e;
-                    border-radius: 12px;
-                    padding: 16px 20px;
-                    color: #fff;
-                    font-family: 'Segoe UI', sans-serif;
-                    font-size: 14px;
-                    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+                    background: rgba(12, 12, 20, 0.88);
+                    backdrop-filter: blur(8px);
+                    -webkit-backdrop-filter: blur(8px);
+                    border-radius: 8px;
+                    padding: 8px 12px;
+                    color: #eee;
+                    font-family: 'Segoe UI', system-ui, sans-serif;
+                    font-size: 12px;
+                    box-shadow: 0 2px 12px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.06);
                     display: flex;
-                    align-items: flex-start;
-                    gap: 12px;
+                    align-items: center;
+                    gap: 8px;
                     pointer-events: all;
-                    animation: unobix-slideIn 0.3s ease-out;
-                    border-left: 4px solid #666;
+                    animation: ux-slideIn 0.25s cubic-bezier(0.22,1,0.36,1);
                     position: relative;
                     overflow: hidden;
+                    max-width: 260px;
+                    border-left: 3px solid #555;
                 }
-                .unobix-toast.success { border-left-color: #4CAF50; }
-                .unobix-toast.error { border-left-color: #f44336; }
-                .unobix-toast.warning { border-left-color: #FF9800; }
-                .unobix-toast.info { border-left-color: #2196F3; }
+                .unobix-toast.success { border-left-color: #34d399; }
+                .unobix-toast.error   { border-left-color: #f87171; }
+                .unobix-toast.warning { border-left-color: #fbbf24; }
+                .unobix-toast.info    { border-left-color: #60a5fa; }
                 
                 .unobix-toast-icon {
-                    font-size: 20px;
+                    font-size: 14px;
                     flex-shrink: 0;
-                    margin-top: 2px;
+                    line-height: 1;
                 }
-                .unobix-toast.success .unobix-toast-icon { color: #4CAF50; }
-                .unobix-toast.error .unobix-toast-icon { color: #f44336; }
-                .unobix-toast.warning .unobix-toast-icon { color: #FF9800; }
-                .unobix-toast.info .unobix-toast-icon { color: #2196F3; }
+                .unobix-toast.success .unobix-toast-icon { color: #34d399; }
+                .unobix-toast.error   .unobix-toast-icon { color: #f87171; }
+                .unobix-toast.warning .unobix-toast-icon { color: #fbbf24; }
+                .unobix-toast.info    .unobix-toast-icon { color: #60a5fa; }
                 
-                .unobix-toast-content { flex: 1; }
+                .unobix-toast-content {
+                    flex: 1;
+                    min-width: 0;
+                }
                 .unobix-toast-title {
                     font-weight: 600;
-                    margin-bottom: 4px;
-                    font-size: 14px;
+                    font-size: 11px;
+                    letter-spacing: 0.03em;
+                    text-transform: uppercase;
+                    opacity: 0.85;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
                 }
                 .unobix-toast-message {
-                    font-size: 13px;
+                    font-size: 12px;
                     color: #ccc;
-                    line-height: 1.4;
+                    line-height: 1.3;
+                    margin-top: 1px;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
                 }
                 
                 .unobix-toast-close {
                     background: none;
                     border: none;
-                    color: #888;
+                    color: #666;
                     cursor: pointer;
-                    font-size: 18px;
+                    font-size: 14px;
                     padding: 0;
                     line-height: 1;
                     flex-shrink: 0;
+                    opacity: 0;
+                    transition: opacity 0.15s;
                 }
+                .unobix-toast:hover .unobix-toast-close { opacity: 1; }
                 .unobix-toast-close:hover { color: #fff; }
                 
                 .unobix-toast-progress {
                     position: absolute;
                     bottom: 0;
                     left: 0;
-                    height: 3px;
-                    background: rgba(255,255,255,0.3);
-                    animation: unobix-progress linear forwards;
+                    height: 2px;
+                    background: rgba(255,255,255,0.15);
+                    animation: ux-progress linear forwards;
                 }
                 
                 .unobix-toast.removing {
-                    animation: unobix-slideOut 0.3s ease-in forwards;
+                    animation: ux-slideOut 0.2s cubic-bezier(0.55,0,1,0.45) forwards;
                 }
                 
-                @keyframes unobix-slideIn {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
+                @keyframes ux-slideIn {
+                    from { transform: translateX(40px); opacity: 0; }
+                    to   { transform: translateX(0); opacity: 1; }
                 }
-                @keyframes unobix-slideOut {
+                @keyframes ux-slideOut {
                     from { transform: translateX(0); opacity: 1; }
-                    to { transform: translateX(100%); opacity: 0; }
+                    to   { transform: translateX(40px); opacity: 0; }
                 }
-                @keyframes unobix-progress {
+                @keyframes ux-progress {
                     from { width: 100%; }
-                    to { width: 0%; }
+                    to   { width: 0%; }
                 }
                 
-                /* Modal Overlay */
+                /* ==============================
+                   MODAL — Clean, minimal
+                   ============================== */
                 .unobix-modal-overlay {
                     position: fixed;
                     top: 0; left: 0; right: 0; bottom: 0;
-                    background: rgba(0,0,0,0.7);
+                    background: rgba(0,0,0,0.65);
                     z-index: 100000;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    animation: unobix-fadeIn 0.2s ease;
+                    animation: ux-fadeIn 0.2s ease;
                 }
                 .unobix-modal {
-                    background: #1a1a2e;
-                    border-radius: 16px;
-                    padding: 30px;
-                    max-width: 420px;
+                    background: #141420;
+                    border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: 12px;
+                    padding: 24px;
+                    max-width: 380px;
                     width: 90%;
                     color: #fff;
                     text-align: center;
-                    box-shadow: 0 16px 64px rgba(0,0,0,0.5);
-                    animation: unobix-scaleIn 0.3s ease;
+                    box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+                    animation: ux-scaleIn 0.25s cubic-bezier(0.22,1,0.36,1);
                 }
                 .unobix-modal-icon {
-                    font-size: 48px;
-                    margin-bottom: 16px;
-                }
-                .unobix-modal-title {
-                    font-size: 20px;
-                    font-weight: 700;
+                    font-size: 36px;
                     margin-bottom: 12px;
                 }
+                .unobix-modal-title {
+                    font-size: 16px;
+                    font-weight: 700;
+                    margin-bottom: 8px;
+                    letter-spacing: 0.02em;
+                }
                 .unobix-modal-message {
-                    font-size: 14px;
-                    color: #ccc;
-                    line-height: 1.6;
-                    margin-bottom: 24px;
+                    font-size: 13px;
+                    color: #aaa;
+                    line-height: 1.5;
+                    margin-bottom: 20px;
                 }
                 .unobix-modal-btn {
-                    padding: 12px 32px;
+                    padding: 10px 28px;
                     border: none;
-                    border-radius: 8px;
-                    font-size: 14px;
+                    border-radius: 6px;
+                    font-size: 13px;
                     font-weight: 600;
                     cursor: pointer;
-                    transition: all 0.2s;
+                    transition: all 0.15s;
                 }
                 .unobix-modal-btn.primary {
                     background: #6C63FF;
@@ -172,79 +197,93 @@ const NotificationSystem = {
                 }
                 .unobix-modal-btn.primary:hover { background: #5a52d5; }
                 .unobix-modal-btn.danger {
-                    background: #f44336;
+                    background: #ef4444;
                     color: #fff;
                 }
                 
-                /* Banner (topo da tela) */
+                /* ==============================
+                   BANNER — Slim top bar
+                   ============================== */
                 .unobix-banner {
                     position: fixed;
                     top: 0; left: 0; right: 0;
                     z-index: 99998;
-                    padding: 12px 20px;
+                    padding: 8px 16px;
                     text-align: center;
-                    font-size: 14px;
+                    font-size: 12px;
                     font-weight: 600;
                     color: #fff;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    gap: 10px;
-                    animation: unobix-slideDown 0.3s ease;
+                    gap: 8px;
+                    animation: ux-slideDown 0.3s ease;
                 }
-                .unobix-banner.warning { background: #E65100; }
-                .unobix-banner.error { background: #B71C1C; }
-                .unobix-banner.info { background: #0D47A1; }
+                .unobix-banner.warning { background: #b45309; }
+                .unobix-banner.error   { background: #991b1b; }
+                .unobix-banner.info    { background: #1e40af; }
                 .unobix-banner .close-btn {
                     position: absolute;
-                    right: 16px;
+                    right: 12px;
                     background: none;
                     border: none;
                     color: #fff;
-                    font-size: 20px;
+                    font-size: 16px;
                     cursor: pointer;
-                    opacity: 0.7;
+                    opacity: 0.6;
                 }
                 .unobix-banner .close-btn:hover { opacity: 1; }
                 
-                @keyframes unobix-fadeIn { from { opacity: 0; } to { opacity: 1; } }
-                @keyframes unobix-scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-                @keyframes unobix-slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+                @keyframes ux-fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes ux-scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+                @keyframes ux-slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
                 
-                /* Rate limit countdown */
                 .unobix-countdown {
-                    font-size: 24px;
+                    font-size: 20px;
                     font-weight: 700;
-                    color: #FF9800;
+                    color: #fbbf24;
                     font-variant-numeric: tabular-nums;
+                }
+                
+                /* Mobile: even more compact */
+                @media (max-width: 480px) {
+                    #unobix-notifications {
+                        max-width: 200px !important;
+                        top: 8px !important;
+                        right: 8px !important;
+                        gap: 4px !important;
+                    }
+                    .unobix-toast {
+                        padding: 6px 10px;
+                        font-size: 11px;
+                        max-width: 200px;
+                    }
+                    .unobix-toast-icon { font-size: 12px; }
+                    .unobix-toast-title { font-size: 10px; }
+                    .unobix-toast-message { font-size: 11px; }
                 }
             `;
             document.head.appendChild(style);
         }
         
-        console.log('🔔 NotificationSystem inicializado');
+        console.log('🔔 NotificationSystem v8.0 inicializado (minimal)');
     },
     
     // ============================================
-    // TOASTS
+    // TOASTS — Compact, fast dismiss
     // ============================================
-    
-    /**
-     * Mostrar toast genérico
-     */
-    toast(title, message, type = 'info', duration = 5000) {
+    toast(title, message, type = 'info', duration = 3000) {
         this.init();
         
-        // Limitar número de toasts
         while (this.activeToasts.length >= this.maxToasts) {
             this.removeToast(this.activeToasts[0]);
         }
         
         const icons = {
-            success: '✅',
-            error: '❌',
-            warning: '⚠️',
-            info: 'ℹ️'
+            success: '✓',
+            error: '✗',
+            warning: '!',
+            info: 'i'
         };
         
         const toast = document.createElement('div');
@@ -262,7 +301,6 @@ const NotificationSystem = {
         this.container.appendChild(toast);
         this.activeToasts.push(toast);
         
-        // Auto-remover
         const timeoutId = setTimeout(() => this.removeToast(toast), duration);
         toast._timeoutId = timeoutId;
         
@@ -277,25 +315,21 @@ const NotificationSystem = {
         setTimeout(() => {
             if (toast.parentElement) toast.parentElement.removeChild(toast);
             this.activeToasts = this.activeToasts.filter(t => t !== toast);
-        }, 300);
+        }, 200);
     },
     
-    // Atalhos
-    success(title, message, duration = 4000) { return this.toast(title, message, 'success', duration); },
-    error(title, message, duration = 6000) { return this.toast(title, message, 'error', duration); },
-    warning(title, message, duration = 5000) { return this.toast(title, message, 'warning', duration); },
-    info(title, message, duration = 4000) { return this.toast(title, message, 'info', duration); },
+    // Atalhos — durations curtas para gameplay
+    success(title, message, duration = 2500) { return this.toast(title, message, 'success', duration); },
+    error(title, message, duration = 4000) { return this.toast(title, message, 'error', duration); },
+    warning(title, message, duration = 3000) { return this.toast(title, message, 'warning', duration); },
+    info(title, message, duration = 2500) { return this.toast(title, message, 'info', duration); },
     
     // ============================================
     // MODAIS
     // ============================================
-    
-    /**
-     * Mostrar modal
-     */
     modal(title, message, options = {}) {
         this.init();
-        this.closeModal(); // Fechar modal anterior
+        this.closeModal();
         
         const icon = options.icon || '⚠️';
         const btnText = options.btnText || 'Entendi';
@@ -322,7 +356,6 @@ const NotificationSystem = {
             if (onClose) onClose();
         });
         
-        // Fechar clicando fora (se permitido)
         if (options.dismissable !== false) {
             overlay.addEventListener('click', (e) => {
                 if (e.target === overlay) {
@@ -345,13 +378,9 @@ const NotificationSystem = {
     // ============================================
     // BANNERS
     // ============================================
-    
-    /**
-     * Mostrar banner no topo
-     */
     banner(message, type = 'warning', duration = 0) {
         this.init();
-        this.closeBanner(); // Remover banner anterior
+        this.closeBanner();
         
         const banner = document.createElement('div');
         banner.className = `unobix-banner ${type}`;
@@ -378,20 +407,14 @@ const NotificationSystem = {
     // ============================================
     // AVISOS ESPECÍFICOS DO JOGO
     // ============================================
-    
-    /**
-     * Aviso de conta banida — modal não dispensável
-     */
     banned(reason = '') {
         const message = reason || 'Sua conta foi suspensa por violação dos termos de uso. Entre em contato com o suporte se acredita que houve um erro.';
-        
         this.modal('Conta Suspensa', message, {
             icon: '🚫',
             btnText: 'Entendi',
             btnClass: 'danger',
             dismissable: false,
             onClose: () => {
-                // Redirecionar ou deslogar
                 if (typeof window.authManager !== 'undefined') {
                     window.authManager.signOut().catch(() => {});
                 }
@@ -399,15 +422,10 @@ const NotificationSystem = {
         });
     },
     
-    /**
-     * Aviso de rate limit com countdown
-     */
     rateLimit(waitSeconds) {
-        const minutes = Math.ceil(waitSeconds / 60);
-        
         this.modal(
             'Aguarde um momento',
-            `Você está jogando muito rápido! Aguarde antes de iniciar uma nova missão.`,
+            'Você está jogando muito rápido! Aguarde antes de iniciar uma nova missão.',
             {
                 icon: '⏳',
                 btnText: 'OK',
@@ -416,14 +434,13 @@ const NotificationSystem = {
             }
         );
         
-        // Adicionar countdown ao modal
         if (this.activeModal) {
             const modalContent = this.activeModal.querySelector('.unobix-modal-message');
             if (modalContent) {
                 let remaining = waitSeconds;
                 const countdownEl = document.createElement('div');
                 countdownEl.className = 'unobix-countdown';
-                countdownEl.style.marginTop = '12px';
+                countdownEl.style.marginTop = '8px';
                 modalContent.appendChild(countdownEl);
                 
                 const updateCountdown = () => {
@@ -434,14 +451,12 @@ const NotificationSystem = {
                     if (remaining <= 0) {
                         clearInterval(intervalId);
                         countdownEl.textContent = 'Pronto!';
-                        countdownEl.style.color = '#4CAF50';
+                        countdownEl.style.color = '#34d399';
                         
                         const btn = this.activeModal?.querySelector('.unobix-modal-btn');
                         if (btn) {
                             btn.textContent = 'Jogar Agora';
-                            btn.classList.remove('primary');
-                            btn.classList.add('primary');
-                            btn.style.background = '#4CAF50';
+                            btn.style.background = '#34d399';
                         }
                     }
                     remaining--;
@@ -453,19 +468,10 @@ const NotificationSystem = {
         }
     },
     
-    /**
-     * Aviso de sessão flagged
-     */
     flagged() {
-        this.warning(
-            'Sessão em Revisão',
-            'Esta sessão foi marcada para análise. Os ganhos serão creditados após revisão.'
-        );
+        this.warning('Sessão em Revisão', 'Os ganhos serão creditados após análise.');
     },
     
-    /**
-     * Aviso de manutenção
-     */
     maintenance(message = '') {
         this.banner(
             message || '🔧 Sistema em manutenção. Algumas funcionalidades podem estar indisponíveis.',
@@ -476,7 +482,6 @@ const NotificationSystem = {
     // ============================================
     // HELPERS
     // ============================================
-    
     _escape(str) {
         if (!str) return '';
         const div = document.createElement('div');
@@ -494,7 +499,7 @@ if (document.readyState === 'loading') {
 
 window.NotificationSystem = NotificationSystem;
 
-// Compatibilidade com função showNotification global (usada no SessionManager antigo)
+// Compatibilidade com showNotification global
 window.showNotification = function(title, message, isSuccess = true) {
     if (isSuccess) {
         NotificationSystem.success(title, message);
@@ -503,4 +508,4 @@ window.showNotification = function(title, message, isSuccess = true) {
     }
 };
 
-console.log('🔔 NotificationSystem v7.0 carregado');
+console.log('🔔 NotificationSystem v8.0 carregado (minimal)');
