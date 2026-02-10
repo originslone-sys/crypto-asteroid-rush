@@ -260,13 +260,9 @@ function getGameStats() {
 async function gameOver() {
     gameState.gameActive = false;
     
-    // ── PARAR TUDO PRIMEIRO — antes de qualquer await ──
     if (gameState.gameTimer) clearInterval(gameState.gameTimer);
     if (gameState.spawnTimer) clearInterval(gameState.spawnTimer);
-    if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-    }
+    if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
     
     if (typeof stopBackgroundMusic === 'function') stopBackgroundMusic();
     
@@ -277,30 +273,15 @@ async function gameOver() {
     
     console.log('💀 GAME OVER - Perdeu R$' + lostEarnings.toFixed(4));
     
-    // Finalizar sessão no servidor COM TIMEOUT
+    // Finalizar sessão no servidor com timeout
     if (typeof SessionManager !== 'undefined' && SessionManager.hasActiveSession()) {
         try {
             gameState.lives = 0;
             
-            const endPromise = SessionManager.endSession(
-                gameState.score,
-                0,
-                stats
-            );
-            
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Timeout')), 15000)
-            );
-            
-            const result = await Promise.race([endPromise, timeoutPromise]);
-            
-            console.log('✅ Game-over enviado ao servidor:', result);
-            
-            if (result && result.banned) {
-                if (typeof NotificationSystem !== 'undefined') {
-                    NotificationSystem.banned(result.error || 'Conta suspensa');
-                }
-            }
+            await Promise.race([
+                SessionManager.endSession(gameState.score, 0, stats),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
+            ]);
             
         } catch (e) {
             console.error('❌ Erro ao enviar game-over:', e.message);
@@ -371,14 +352,9 @@ function stopGameTimer() {
 // ============================================
 async function endGame() {
     gameState.gameActive = false;
-    
-    // ── PARAR TUDO PRIMEIRO — antes de qualquer await ──
     if (gameState.gameTimer) clearInterval(gameState.gameTimer);
     if (gameState.spawnTimer) clearInterval(gameState.spawnTimer);
-    if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-    }
+    if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
     
     if (typeof stopBackgroundMusic === 'function') stopBackgroundMusic();
     
@@ -396,40 +372,28 @@ async function endGame() {
     let serverEarnings = gameState.earnings;
     let serverBalance = null;
     
-    // ── Enviar ao servidor COM TIMEOUT — nunca travar a UI ──
+    // Enviar ao servidor (UMA ÚNICA requisição)
     if (typeof SessionManager !== 'undefined' && SessionManager.hasActiveSession()) {
         try {
             if (typeof showNotification === 'function') {
                 showNotification('⏳ PROCESSANDO', 'Salvando resultados...', true);
             }
             
-            // Timeout de 15s — se o servidor não responder, seguir com dados locais
-            const endSessionPromise = SessionManager.endSession(
-                gameState.score,
-                gameState.earnings,
-                stats
-            );
-            
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Timeout: servidor não respondeu')), 15000)
-            );
-            
-            const result = await Promise.race([endSessionPromise, timeoutPromise]);
+            const result = await Promise.race([
+                SessionManager.endSession(
+                    gameState.score,
+                    gameState.earnings,
+                    stats
+                ),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
+            ]);
             
             console.log('✅ Resultado do servidor:', result);
             
             if (result && result.success) {
-                // Ban durante sessão
-                if (result.banned) {
-                    console.error('🚫 Conta banida durante sessão');
-                    if (typeof NotificationSystem !== 'undefined') {
-                        NotificationSystem.banned(result.error || 'Conta suspensa');
-                    }
-                    serverEarnings = 0;
-                    serverBalance = null;
-                }
-                // CAPTCHA necessário
-                else if (result.captcha_required) {
+                // Verificar se precisa de CAPTCHA
+                if (result.captcha_required) {
+                    // CAPTCHA necessário - será tratado pela UI
                     serverEarnings = result.pending_earnings || gameState.earnings;
                 } else {
                     serverEarnings = parseFloat(result.final_earnings) || gameState.earnings;
@@ -449,42 +413,19 @@ async function endGame() {
                 
                 if (result.flagged) {
                     console.warn('🚩 Sessão marcada para revisão');
-                    if (typeof NotificationSystem !== 'undefined') {
-                        if (serverEarnings === 0 || result.final_earnings === 0) {
-                            NotificationSystem.warning(
-                                'Sessão em Revisão',
-                                'Seus ganhos desta sessão estão sendo analisados. Se estiver tudo certo, serão creditados.'
-                            );
-                        }
-                    }
                 }
             } else if (result && result.error) {
                 console.error('❌ Erro do servidor:', result.error);
-                if (result.banned && typeof NotificationSystem !== 'undefined') {
-                    NotificationSystem.banned(result.error || 'Conta suspensa');
-                }
             }
             
         } catch (e) {
-            console.error('❌ Erro ao finalizar:', e.message);
-            
-            // Timeout ou erro de rede — mostrar aviso mas não travar
-            if (typeof NotificationSystem !== 'undefined') {
-                if (e.message.includes('Timeout')) {
-                    NotificationSystem.warning(
-                        'Conexão Lenta',
-                        'O servidor demorou para responder. Seus ganhos serão processados em segundo plano.'
-                    );
-                }
-            }
-            
+            console.error('❌ Erro ao finalizar:', e);
             SessionManager.clearSession();
         }
     } else {
         console.error('❌ Sem SessionManager ou sessão ativa!');
     }
     
-    // ── Mostrar resultados — SEMPRE executa, mesmo se servidor falhou ──
     setTimeout(() => {
         if (typeof showEndGameResults === 'function') {
             showEndGameResults(stats, serverEarnings, serverBalance);
