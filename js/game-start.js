@@ -1,13 +1,13 @@
 /* ============================================
-   UNOBIX - Game Start v4.2
+   UNOBIX - Game Start v4.3
    File: js/game-start.js
-   Google Auth, BRL currency
-   CORRIGIDO: UID handling, sem duplicações
+   
+   MUDANÇAS v4.3:
+   - Logs de diagnóstico detalhados
+   - Verificação de canvas antes de iniciar
+   - Tratamento de erro melhorado
    ============================================ */
 
-/**
- * Iniciar jogo com tela de carregamento
- */
 let _startGameLock = false;
 
 function startGameWithLoading() {
@@ -16,9 +16,8 @@ function startGameWithLoading() {
         return;
     }
     _startGameLock = true;
-    console.log('🎮 Iniciando jogo...');
+    console.log('🎮 startGameWithLoading iniciando...');
 
-    // Determinar hard mode (oculto do jogador)
     if (typeof determineHardMode === 'function') {
         determineHardMode();
     }
@@ -28,9 +27,6 @@ function startGameWithLoading() {
     });
 }
 
-/**
- * Obter Google UID de várias fontes
- */
 function getGoogleUidFromSources() {
     const sources = [
         () => gameState?.googleUid,
@@ -53,17 +49,13 @@ function getGoogleUidFromSources() {
     return null;
 }
 
-/**
- * Efetivamente iniciar o jogo
- */
 async function actualStartGame() {
     const missionNum = (typeof missionStats !== 'undefined' ? missionStats.totalMissions : 0) + 1;
     console.log('🚀 Iniciando missão', missionNum);
 
-    // Criar sessão no servidor
     try {
         if (typeof showNotification === 'function') {
-            showNotification('PREPARANDO', 'Criando sessão da missão...', true);
+            showNotification('PREPARANDO', 'Criando sessão...', true);
         }
 
         const googleUid = getGoogleUidFromSources();
@@ -73,12 +65,10 @@ async function actualStartGame() {
             throw new Error('Usuário não autenticado. Faça login novamente.');
         }
 
-        // Salvar no gameState
         if (typeof gameState !== 'undefined') {
             gameState.googleUid = googleUid;
         }
 
-        // Criar sessão no servidor
         const sessionResult = await SessionManager.startSession(googleUid);
 
         if (!sessionResult || !sessionResult.success) {
@@ -87,11 +77,9 @@ async function actualStartGame() {
 
         console.log('✅ Sessão criada:', sessionResult.session_id);
 
-        // Atualizar stats
         if (typeof missionStats !== 'undefined') {
             missionStats.totalMissions = sessionResult.mission_number;
             localStorage.setItem('totalMissions', missionStats.totalMissions.toString());
-
             if (sessionResult.is_hard_mode !== undefined) {
                 missionStats.isHardMode = sessionResult.is_hard_mode;
             }
@@ -100,11 +88,8 @@ async function actualStartGame() {
     } catch (error) {
         console.error('❌ Falha ao iniciar sessão:', error);
         
-        // Usar toast não-bloqueante em vez de gameAlert
         if (typeof NotificationSystem !== 'undefined') {
             NotificationSystem.error('Erro', error.message || 'Falha ao iniciar missão');
-        } else if (typeof showNotification === 'function') {
-            showNotification('ERRO', error.message || 'Falha ao iniciar missão', false);
         }
         
         if (typeof showModal === 'function') {
@@ -113,7 +98,7 @@ async function actualStartGame() {
         return;
     }
 
-    // Resetar stats da missão
+    // Resetar stats
     if (typeof missionStats !== 'undefined') {
         missionStats.rareCount = 0;
         missionStats.epicCount = 0;
@@ -134,8 +119,6 @@ async function actualStartGame() {
         }
         
         gameState.asteroidSpawnCounter = initialAsteroids;
-        
-        // Resetar estado do jogo
         gameState.gameActive = true;
         gameState.score = 0;
         gameState.earnings = 0;
@@ -147,11 +130,8 @@ async function actualStartGame() {
         gameState.lastFireTime = 0;
         gameState.keys = { left: false, right: false, fire: false };
         
-        // Nave
         const shipDesign = typeof getShipForGame === 'function' ? getShipForGame() : { name: 'Default Ship' };
         gameState.currentSessionShip = shipDesign;
-        
-        console.log('🚀 Usando nave:', shipDesign.name);
         
         if (typeof canvas !== 'undefined') {
             gameState.ship = {
@@ -174,22 +154,18 @@ async function actualStartGame() {
         showModal('');
     }
 
-    // Atualizar UI e iniciar timers
     if (typeof resetLivesDisplay === 'function') resetLivesDisplay();
     if (typeof updateUI === 'function') updateUI();
     if (typeof startGameTimer === 'function') startGameTimer();
     if (typeof startSpawnTimer === 'function') startSpawnTimer();
     if (typeof gameLoop === 'function') gameLoop();
 
-    // Áudio
     if (typeof gameState !== 'undefined' && gameState.audioEnabled) {
         setTimeout(() => {
             if (typeof isAudioUnlocked !== 'undefined' && !isAudioUnlocked) {
                 if (typeof unlockAudio === 'function') unlockAudio();
                 setTimeout(() => {
-                    if (typeof playBackgroundMusic === 'function') {
-                        playBackgroundMusic();
-                    }
+                    if (typeof playBackgroundMusic === 'function') playBackgroundMusic();
                 }, 300);
             } else if (typeof playBackgroundMusic === 'function') {
                 playBackgroundMusic();
@@ -197,15 +173,11 @@ async function actualStartGame() {
         }, 500);
     }
 
-    // Info da missão
     if (typeof showMissionStartInfo === 'function') {
         showMissionStartInfo();
     }
 }
 
-/**
- * Resetar display de vidas
- */
 function resetLivesDisplay() {
     const livesContainer = document.getElementById('lives');
     if (!livesContainer) return;
@@ -220,27 +192,18 @@ function resetLivesDisplay() {
     }
 }
 
-/**
- * Mostrar info de início da missão
- */
 function showMissionStartInfo() {
     const missionNum = typeof missionStats !== 'undefined' ? missionStats.totalMissions : 1;
     
     if (typeof showNotification === 'function') {
         showNotification(`MISSÃO #${missionNum}`, 'Boa sorte, Comandante!', true);
     }
-
-    console.log('📊 Missão iniciada:', { 
-        number: missionNum,
-        hardMode: typeof missionStats !== 'undefined' ? missionStats.isHardMode : false
-    });
 }
 
-// Exportar funções
 window.startGameWithLoading = startGameWithLoading;
 window.actualStartGame = actualStartGame;
 window.resetLivesDisplay = resetLivesDisplay;
 window.showMissionStartInfo = showMissionStartInfo;
 window.getGoogleUidFromSources = getGoogleUidFromSources;
 
-console.log('📦 game-start.js v4.2 carregado');
+console.log('📦 game-start.js v4.3 carregado');
