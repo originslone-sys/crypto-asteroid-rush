@@ -428,8 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupMobileControls();
     
     // Listen for auth state changes
-    // Anti-loop: flag para evitar processamento duplicado de auto-start
-    let _autoStartHandled = false;
+    let _autoStartProcessed = false;
     
     document.addEventListener('authStateChanged', (e) => {
         const user = e.detail.user;
@@ -441,34 +440,28 @@ document.addEventListener('DOMContentLoaded', () => {
             
             updateUserUI(user);
             
-            // ── ANTI-LOOP: Ler e CONSUMIR flags ANTES de processar ──
-            // Isso garante que re-disparos do auth não re-executam
+            // Ler flags
             const params = new URLSearchParams(window.location.search);
             const shouldStart = params.get('start') === 'true';
             const loadingComplete = sessionStorage.getItem('loadingComplete') === 'true';
             const showResults = params.get('results') === 'true';
             const postgameComplete = sessionStorage.getItem('postgameComplete') === 'true';
             
-            // CONSUMIR IMEDIATAMENTE — antes de qualquer processamento
+            // CONSUMIR flags IMEDIATAMENTE para evitar re-processamento
             if (shouldStart || showResults) {
                 window.history.replaceState({}, '', 'game.html');
             }
-            if (loadingComplete) {
-                sessionStorage.removeItem('loadingComplete');
-            }
-            if (postgameComplete) {
-                sessionStorage.removeItem('postgameComplete');
-            }
+            if (loadingComplete) sessionStorage.removeItem('loadingComplete');
+            if (postgameComplete) sessionStorage.removeItem('postgameComplete');
             
-            // Se já tratamos o auto-start nesta sessão de página, ir direto ao menu
-            if (_autoStartHandled && (shouldStart || showResults)) {
-                console.log('⚠️ Auto-start já foi processado — mostrando menu');
+            // Guard: não re-processar auto-start se auth dispara múltiplas vezes
+            if (_autoStartProcessed) {
                 showModal('gameMenuModal');
                 return;
             }
             
             if (showResults && postgameComplete) {
-                _autoStartHandled = true;
+                _autoStartProcessed = true;
                 
                 try {
                     const pgData = JSON.parse(sessionStorage.getItem('postgameData') || '{}');
@@ -486,16 +479,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     showModal('gameMenuModal');
                 }
             } else if (shouldStart && loadingComplete) {
-                _autoStartHandled = true;
-                
-                console.log('🎮 Auto-starting game...');
-                // Usar timeout para garantir que todos os scripts carregaram
+                _autoStartProcessed = true;
+                console.log('🎮 Auto-starting game');
                 setTimeout(() => {
                     if (typeof startGameWithLoading === 'function') {
                         startGameWithLoading();
-                    } else {
-                        console.error('❌ startGameWithLoading não disponível');
-                        showModal('gameMenuModal');
                     }
                 }, 500);
             } else {
