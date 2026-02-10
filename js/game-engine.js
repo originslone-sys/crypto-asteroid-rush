@@ -287,6 +287,13 @@ async function gameOver() {
             
             console.log('✅ Game-over enviado ao servidor:', result);
             
+            // Tratar ban durante sessão
+            if (result && result.banned) {
+                if (typeof NotificationSystem !== 'undefined') {
+                    NotificationSystem.banned(result.error || 'Conta suspensa');
+                }
+            }
+            
         } catch (e) {
             console.error('❌ Erro ao enviar game-over:', e);
             SessionManager.clearSession();
@@ -391,8 +398,17 @@ async function endGame() {
             console.log('✅ Resultado do servidor:', result);
             
             if (result && result.success) {
+                // Verificar se conta foi banida durante a sessão
+                if (result.banned) {
+                    console.error('🚫 Conta banida durante sessão');
+                    if (typeof NotificationSystem !== 'undefined') {
+                        NotificationSystem.banned(result.error || 'Conta suspensa');
+                    }
+                    serverEarnings = 0;
+                    serverBalance = null;
+                }
                 // Verificar se precisa de CAPTCHA
-                if (result.captcha_required) {
+                else if (result.captcha_required) {
                     // CAPTCHA necessário - será tratado pela UI
                     serverEarnings = result.pending_earnings || gameState.earnings;
                 } else {
@@ -413,6 +429,14 @@ async function endGame() {
                 
                 if (result.flagged) {
                     console.warn('🚩 Sessão marcada para revisão');
+                    if (typeof NotificationSystem !== 'undefined') {
+                        if (serverEarnings === 0 || result.final_earnings === 0) {
+                            NotificationSystem.warning(
+                                'Sessão em Revisão',
+                                'Seus ganhos desta sessão estão sendo analisados. Se estiver tudo certo, serão creditados.'
+                            );
+                        }
+                    }
                 }
             } else if (result && result.error) {
                 console.error('❌ Erro do servidor:', result.error);
