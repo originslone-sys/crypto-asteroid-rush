@@ -2,14 +2,16 @@
 // ============================================
 // UNOBIX - Rate Limiter
 // Arquivo: api/rate-limiter.php
-// v2.0 - Google Auth + Wallet híbrido
+// v3.0 - Fix: ALTER TABLE para colunas faltantes
 // ============================================
 
 // Configurações de Rate Limit
-define('RATE_LIMIT_GAME_INTERVAL', 180);     // 3 minutos entre jogos
-define('RATE_LIMIT_REQUESTS_PER_MINUTE', 100); // 60 requests por minuto por IP
-define('RATE_LIMIT_REQUESTS_PER_HOUR', 500);  // 500 requests por hora por IP
-define('RATE_LIMIT_EVENTS_PER_SECOND', 50);   // 10 eventos de jogo por segundo
+if (!defined('RATE_LIMIT_GAME_INTERVAL')) {
+    define('RATE_LIMIT_GAME_INTERVAL', 180);     // 3 minutos entre jogos
+    define('RATE_LIMIT_REQUESTS_PER_MINUTE', 100);
+    define('RATE_LIMIT_REQUESTS_PER_HOUR', 500);
+    define('RATE_LIMIT_EVENTS_PER_SECOND', 50);
+}
 
 class RateLimiter {
     private $pdo;
@@ -40,6 +42,19 @@ class RateLimiter {
                 if (strpos($ip, ',') !== false) {
                     $ip = trim(explode(',', $ip)[0]);
                 }
+                if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                    return $ip;
+                }
+            }
+        }
+        
+        // Fallback: aceitar qualquer IP válido incluindo privado
+        foreach ($headers as $header) {
+            if (!empty($_SERVER[$header])) {
+                $ip = $_SERVER[$header];
+                if (strpos($ip, ',') !== false) {
+                    $ip = trim(explode(',', $ip)[0]);
+                }
                 if (filter_var($ip, FILTER_VALIDATE_IP)) {
                     return $ip;
                 }
@@ -50,21 +65,51 @@ class RateLimiter {
     }
     
     private function ensureTableExists() {
-        $this->pdo->exec("
-            CREATE TABLE IF NOT EXISTS rate_limits (
-                id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                ip_address VARCHAR(45) NOT NULL,
-                google_uid VARCHAR(128) DEFAULT NULL,
-                wallet_address VARCHAR(42) DEFAULT NULL,
-                action_type VARCHAR(30) NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_ip (ip_address),
-                INDEX idx_google_uid (google_uid),
-                INDEX idx_wallet (wallet_address),
-                INDEX idx_action (action_type),
-                INDEX idx_created (created_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        ");
+        static $checked = false;
+        if ($checked) return;
+        
+        try {
+            // Criar tabela se não existir
+            $this->pdo->exec("
+                CREATE TABLE IF NOT EXISTS rate_limits (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    ip_address VARCHAR(45) NOT NULL,
+                    google_uid VARCHAR(128) DEFAULT NULL,
+                    wallet_address VARCHAR(42) DEFAULT NULL,
+                    action_type VARCHAR(30) NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_ip (ip_address),
+                    INDEX idx_google_uid (google_uid),
+                    INDEX idx_wallet (wallet_address),
+                    INDEX idx_action (action_type),
+                    INDEX idx_created (created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+            
+            // ── FIX: Adicionar colunas que podem faltar em tabelas antigas ──
+            // Se a tabela já existia sem google_uid, o CREATE acima não adicionou
+            $columns = [];
+            $result = $this->pdo->query("SHOW COLUMNS FROM rate_limits");
+            while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
+                $columns[] = $row['Field'];
+            }
+            
+            if (!in_array('google_uid', $columns)) {
+                $this->pdo->exec("ALTER TABLE rate_limits ADD COLUMN google_uid VARCHAR(128) DEFAULT NULL AFTER ip_address");
+                $this->pdo->exec("ALTER TABLE rate_limits ADD INDEX idx_google_uid (google_uid)");
+                error_log("[UNOBIX] rate_limits: coluna google_uid adicionada via ALTER TABLE");
+            }
+            
+            if (!in_array('wallet_address', $columns)) {
+                $this->pdo->exec("ALTER TABLE rate_limits ADD COLUMN wallet_address VARCHAR(42) DEFAULT NULL AFTER google_uid");
+                $this->pdo->exec("ALTER TABLE rate_limits ADD INDEX idx_wallet (wallet_address)");
+                error_log("[UNOBIX] rate_limits: coluna wallet_address adicionada via ALTER TABLE");
+            }
+            
+            $checked = true;
+        } catch (Exception $e) {
+            error_log("[UNOBIX] ensureTableExists error: " . $e->getMessage());
+        }
     }
     
     /**
@@ -191,7 +236,6 @@ class RateLimiter {
             return ['allowed' => true];
         }
         
-        // Buscar por google_uid (tabela users - doc 3.1)
         $stmt = $this->pdo->prepare("
             SELECT is_banned, ban_reason FROM users
             WHERE google_uid = ?
@@ -280,57 +324,45 @@ class RateLimiter {
     // ============================================
     
     public function checkGameStart() {
-        // 1. IP blacklist
         $check = $this->checkIPBlacklist();
         if (!$check['allowed']) return $check;
         
-        // 2. Usuário banido
         $check = $this->checkUserBanned();
         if (!$check['allowed']) return $check;
         
-        // 3. Requests por minuto
         $check = $this->checkRequestsPerMinute();
         if (!$check['allowed']) return $check;
         
-        // 4. Intervalo entre jogos
         $check = $this->checkGameInterval();
         if (!$check['allowed']) return $check;
         
-        // Registrar ação
         $this->logAction('game_start');
         
         return ['allowed' => true];
     }
     
     public function checkGameEvent($sessionId) {
-        // 1. Requests por minuto
         $check = $this->checkRequestsPerMinute();
         if (!$check['allowed']) return $check;
         
-        // 2. Eventos por segundo
         $check = $this->checkEventsPerSecond($sessionId);
         if (!$check['allowed']) return $check;
         
-        // Registrar
         $this->logAction('game_event');
         
         return ['allowed' => true];
     }
     
     public function checkAPIRequest() {
-        // 1. IP blacklist
         $check = $this->checkIPBlacklist();
         if (!$check['allowed']) return $check;
         
-        // 2. Requests por minuto
         $check = $this->checkRequestsPerMinute();
         if (!$check['allowed']) return $check;
         
-        // 3. Requests por hora
         $check = $this->checkRequestsPerHour();
         if (!$check['allowed']) return $check;
         
-        // Registrar
         $this->logAction('api_request');
         
         return ['allowed' => true];
@@ -348,7 +380,6 @@ class RateLimiter {
             ");
             $stmt->execute([$reason, $googleUid]);
         }
-        
         return true;
     }
     
@@ -360,7 +391,6 @@ class RateLimiter {
             ");
             $stmt->execute([$googleUid]);
         }
-        
         return true;
     }
     
@@ -373,7 +403,6 @@ class RateLimiter {
             ON DUPLICATE KEY UPDATE reason = ?, expires_at = ?
         ");
         $stmt->execute([$ip, $reason, $expiresAt, $reason, $expiresAt]);
-        
         return true;
     }
     
