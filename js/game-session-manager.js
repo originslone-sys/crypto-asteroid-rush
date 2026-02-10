@@ -1,13 +1,20 @@
 /* ============================================
-   UNOBIX - Session Manager v7.0
+   UNOBIX - Session Manager v7.1
    js/game-session-manager.js
-   BARREIRA PRÉ-JOGO: Verifica tudo ANTES de iniciar
-   Feedback claro para cada tipo de bloqueio
+   
+   MUDANÇAS v7.1:
+   - CRÍTICO: Timeout de 3s no CaptchaManager.getToken()
+   - Timeout no fetch de 8s
+   - Logs de diagnóstico melhorados
    ============================================ */
 
 const SessionManager = {
     currentSession: null,
     pendingEndSession: null,
+    
+    // Timeouts configuráveis
+    CAPTCHA_TIMEOUT: 3000,   // 3s para obter token
+    FETCH_TIMEOUT: 8000,     // 8s para requisições HTTP
     
     /**
      * Obter Google UID de várias fontes
@@ -52,11 +59,18 @@ const SessionManager = {
         console.log('🔑 Usando Google UID:', googleUid.substring(0, 15) + '...');
         
         try {
+            // Fetch com timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this.FETCH_TIMEOUT);
+            
             const response = await fetch('api/game-start.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ google_uid: googleUid })
+                body: JSON.stringify({ google_uid: googleUid }),
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             if (!response.ok) {
                 const text = await response.text();
@@ -132,6 +146,12 @@ const SessionManager = {
                 throw new Error(result.error || 'Não foi possível iniciar a missão');
             }
         } catch (error) {
+            if (error.name === 'AbortError') {
+                console.error('❌ Timeout ao iniciar sessão');
+                this._notifyBlock('server_error', { error: 'Servidor demorou muito para responder. Tente novamente.' });
+                throw new Error('Timeout ao conectar com servidor');
+            }
+            
             // Se não é um erro nosso (ex: rede), mostrar erro genérico
             if (!error._handled) {
                 console.error('❌ Erro ao iniciar sessão:', error);
@@ -203,7 +223,7 @@ const SessionManager = {
                 break;
             
             // ── PRÓPRIA SESSÃO ATIVA ──
-            case 'own_active_session':
+            case 'own_active_session': {
                 const remaining = result.remaining_seconds || 180;
                 NotificationSystem.modal(
                     'Você já está em uma missão',
@@ -215,6 +235,7 @@ const SessionManager = {
                     }
                 );
                 break;
+            }
             
             // ── COOLDOWN ENTRE JOGOS ──
             case 'cooldown':
@@ -224,7 +245,7 @@ const SessionManager = {
             // ── LIMITE HORÁRIO ATINGIDO ──
             case 'hourly_limit': {
                 const played = result.missions_played || '?';
-                const limit = result.missions_limit || MAX_MISSIONS_PER_HOUR || 10;
+                const limit = result.missions_limit || 10;
                 const waitMin = Math.ceil((result.wait_seconds || 3600) / 60);
                 
                 NotificationSystem.modal(
@@ -346,24 +367,47 @@ const SessionManager = {
                 game_hash: gameHash
             };
             
-            // reCAPTCHA v3
+            // ============================================
+            // CRÍTICO: reCAPTCHA v3 COM TIMEOUT
+            // ============================================
             if (typeof CaptchaManager !== 'undefined' && CaptchaManager.isAvailable()) {
                 try {
-                    const recaptchaToken = await CaptchaManager.getToken('game_end');
+                    console.log('🛡️ Obtendo token reCAPTCHA...');
+                    
+                    // Timeout de 3 segundos para getToken
+                    const captchaPromise = CaptchaManager.getToken('game_end');
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('captcha_timeout')), this.CAPTCHA_TIMEOUT)
+                    );
+                    
+                    const recaptchaToken = await Promise.race([captchaPromise, timeoutPromise]);
+                    
                     if (recaptchaToken) {
                         requestBody.captcha_token = recaptchaToken;
                         console.log('🛡️ Token reCAPTCHA v3 incluído');
+                    } else {
+                        console.warn('⚠️ Token reCAPTCHA vazio, continuando sem');
                     }
                 } catch (e) {
-                    console.warn('⚠️ Falha ao obter token reCAPTCHA:', e);
+                    console.warn('⚠️ Falha/timeout ao obter token reCAPTCHA:', e.message);
+                    // Continuar sem token - servidor decidirá
                 }
             }
+            
+            // ============================================
+            // FETCH COM TIMEOUT
+            // ============================================
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this.FETCH_TIMEOUT);
             
             const response = await fetch('api/game-end.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
+                body: JSON.stringify(requestBody),
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             const result = await response.json();
             
@@ -383,12 +427,23 @@ const SessionManager = {
                             pendingEarnings: result.pending_earnings || earnings
                         };
                         
-                        const retryToken = await CaptchaManager.getToken('game_end');
-                        if (retryToken) {
-                            const retryResult = await this.resendAfterCaptcha(retryToken);
-                            if (retryResult && retryResult.success && retryResult.credited) {
-                                return retryResult;
+                        try {
+                            // Timeout para retry também
+                            const retryPromise = CaptchaManager.getToken('game_end');
+                            const retryTimeout = new Promise((_, reject) => 
+                                setTimeout(() => reject(new Error('retry_timeout')), this.CAPTCHA_TIMEOUT)
+                            );
+                            
+                            const retryToken = await Promise.race([retryPromise, retryTimeout]);
+                            
+                            if (retryToken) {
+                                const retryResult = await this.resendAfterCaptcha(retryToken);
+                                if (retryResult && retryResult.success && retryResult.credited) {
+                                    return retryResult;
+                                }
                             }
+                        } catch (e) {
+                            console.warn('⚠️ Retry de CAPTCHA falhou:', e.message);
                         }
                     }
                     
@@ -471,6 +526,11 @@ const SessionManager = {
                 throw new Error(result.error || 'Falha ao finalizar sessão');
             }
         } catch (error) {
+            if (error.name === 'AbortError') {
+                console.error('❌ Timeout ao finalizar sessão');
+                throw new Error('Timeout ao conectar com servidor');
+            }
+            
             console.error('❌ Erro ao finalizar sessão:', error);
             throw error;
         }
@@ -502,11 +562,17 @@ const SessionManager = {
                 captcha_token: captchaToken
             };
             
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this.FETCH_TIMEOUT);
+            
             const response = await fetch('api/game-end.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
+                body: JSON.stringify(requestBody),
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             const result = await response.json();
             
@@ -541,6 +607,11 @@ const SessionManager = {
                 return result;
             }
         } catch (error) {
+            if (error.name === 'AbortError') {
+                console.error('❌ Timeout no reenvio');
+                throw new Error('Timeout ao conectar com servidor');
+            }
+            
             console.error('❌ Erro no reenvio:', error);
             throw error;
         }
@@ -601,4 +672,4 @@ const SessionManager = {
 // Exportar
 window.SessionManager = SessionManager;
 
-console.log('📦 SessionManager v7.0 carregado (barreira pré-jogo)');
+console.log('📦 SessionManager v7.1 carregado (timeout em captcha e fetch)');
