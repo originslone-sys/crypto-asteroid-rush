@@ -1,11 +1,11 @@
 /* ============================================
-   UNOBIX - Game Start v4.3
+   UNOBIX - Game Start v4.4
    File: js/game-start.js
-   
-   MUDANÇAS v4.3:
-   - Logs de diagnóstico detalhados
-   - Verificação de canvas antes de iniciar
-   - Tratamento de erro melhorado
+
+   MUDANÇAS v4.4:
+   - FIX BUG-004: Aceitar sessão pré-criada pelo pregame.html
+   - Se preCreatedSession existe no sessionStorage, usa direto (skip HTTP)
+   - Fallback: cria sessão normalmente se pré-criação falhou
    ============================================ */
 
 let _startGameLock = false;
@@ -54,10 +54,6 @@ async function actualStartGame() {
     console.log('🚀 Iniciando missão', missionNum);
 
     try {
-        if (typeof showNotification === 'function') {
-            showNotification('PREPARANDO', 'Criando sessão...', true);
-        }
-
         const googleUid = getGoogleUidFromSources();
         console.log('🔑 Google UID:', googleUid ? googleUid.substring(0, 15) + '...' : 'NENHUM');
 
@@ -69,13 +65,76 @@ async function actualStartGame() {
             gameState.googleUid = googleUid;
         }
 
-        const sessionResult = await SessionManager.startSession(googleUid);
+        // ============================================
+        // FIX BUG-004: Verificar sessão pré-criada pelo pregame.html
+        // Se existe, usar direto (pula chamada HTTP, economiza 1-8s)
+        // ============================================
+        let sessionResult = null;
+        const preCreatedRaw = sessionStorage.getItem('preCreatedSession');
 
-        if (!sessionResult || !sessionResult.success) {
-            throw new Error(sessionResult?.error || 'Falha ao criar sessão');
+        if (preCreatedRaw) {
+            sessionStorage.removeItem('preCreatedSession');
+            try {
+                const preCreated = JSON.parse(preCreatedRaw);
+                if (preCreated && preCreated.success && preCreated.session_id) {
+                    console.log('🚀 Usando sessão pré-criada:', preCreated.session_id);
+
+                    // Inicializar SessionManager com a sessão pré-criada
+                    SessionManager.currentSession = {
+                        id: preCreated.session_id,
+                        token: preCreated.session_token,
+                        seed: preCreated.session_seed,
+                        googleUid: preCreated.google_uid || googleUid,
+                        missionNumber: preCreated.mission_number,
+                        startTime: Date.now(),
+                        isHardMode: preCreated.is_hard_mode || false,
+                        limits: preCreated.limits || {}
+                    };
+                    SessionManager.pendingEndSession = null;
+
+                    if (typeof gameState !== 'undefined') {
+                        gameState.sessionId = preCreated.session_id;
+                        gameState.sessionToken = preCreated.session_token;
+                        gameState.googleUid = SessionManager.currentSession.googleUid;
+                    }
+
+                    sessionResult = preCreated;
+
+                    if (typeof showNotification === 'function') {
+                        showNotification('PREPARANDO', 'Sessão pronta!', true);
+                    }
+                } else if (preCreated && !preCreated.success) {
+                    // Sessão pré-criada falhou (bloqueio, rate limit, etc.)
+                    // Notificar o jogador usando _notifyBlock se disponível
+                    console.warn('⚠️ Sessão pré-criada falhou:', preCreated.error);
+                    if (typeof SessionManager._notifyBlock === 'function') {
+                        SessionManager._notifyBlock(preCreated.block_reason, preCreated);
+                    }
+                    throw new Error(preCreated.error || 'Não foi possível iniciar a missão');
+                }
+            } catch (parseError) {
+                if (parseError.message && !parseError.message.includes('JSON')) {
+                    throw parseError; // Re-throw erros de negócio (bloqueio, etc.)
+                }
+                console.warn('⚠️ Erro ao ler sessão pré-criada, criando nova...');
+                sessionResult = null;
+            }
         }
 
-        console.log('✅ Sessão criada:', sessionResult.session_id);
+        // Fallback: criar sessão normalmente se pré-criação não disponível
+        if (!sessionResult) {
+            if (typeof showNotification === 'function') {
+                showNotification('PREPARANDO', 'Criando sessão...', true);
+            }
+
+            sessionResult = await SessionManager.startSession(googleUid);
+
+            if (!sessionResult || !sessionResult.success) {
+                throw new Error(sessionResult?.error || 'Falha ao criar sessão');
+            }
+        }
+
+        console.log('✅ Sessão ativa:', sessionResult.session_id);
 
         if (typeof missionStats !== 'undefined') {
             missionStats.totalMissions = sessionResult.mission_number;
@@ -87,11 +146,11 @@ async function actualStartGame() {
 
     } catch (error) {
         console.error('❌ Falha ao iniciar sessão:', error);
-        
+
         if (typeof NotificationSystem !== 'undefined') {
             NotificationSystem.error('Erro', error.message || 'Falha ao iniciar missão');
         }
-        
+
         if (typeof showModal === 'function') {
             showModal('gameMenuModal');
         }
@@ -206,4 +265,4 @@ window.resetLivesDisplay = resetLivesDisplay;
 window.showMissionStartInfo = showMissionStartInfo;
 window.getGoogleUidFromSources = getGoogleUidFromSources;
 
-console.log('📦 game-start.js v4.3 carregado');
+console.log('📦 game-start.js v4.4 carregado (sessão pré-criada)');

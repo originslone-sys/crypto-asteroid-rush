@@ -1,12 +1,12 @@
 /* ============================================
-   UNOBIX - Main Entry Point v4.2
+   UNOBIX - Main Entry Point v4.3
    File: js/game-main.js
-   
-   MUDANÇAS v4.2:
-   - CRÍTICO: Resolver race condition do auth listener
-   - Auto-start agora usa waitForAuth() com polling
+
+   MUDANÇAS v4.3:
+   - FIX BUG-001: waitForAuth híbrido (polling + event) com timeout 10s
+   - FIX BUG-004: Suporte a sessão pré-criada pelo pregame.html
    - Flags consumidas ANTES de qualquer processamento
-   - Evita loop de modais no mobile
+   - Fallback robusto quando auth demora no mobile
    ============================================ */
 
 // Keyboard controls
@@ -251,28 +251,55 @@ function updateUserUI(user) {
 // ============================================
 
 /**
- * Aguardar autenticação com timeout
+ * Aguardar autenticação com abordagem HÍBRIDA
+ * Combina polling + event listener para resolver o mais rápido possível
+ * FIX BUG-001: Timeout aumentado para 10s (mobile pode demorar)
+ *
  * @param {number} maxWait - Tempo máximo de espera em ms
  * @returns {Promise<object|null>} - User object ou null
  */
-async function waitForAuth(maxWait = 5000) {
-    const start = Date.now();
-    
-    while (Date.now() - start < maxWait) {
-        // Verificar múltiplas fontes
-        const user = window.authManager?.currentUser;
-        
-        if (user && user.uid) {
-            console.log('✅ Auth resolvido:', user.displayName || user.email);
-            return user;
+function waitForAuth(maxWait = 10000) {
+    return new Promise((resolve) => {
+        // 1. Já disponível? (cache do Firebase ainda válido)
+        const current = window.authManager?.currentUser;
+        if (current && current.uid) {
+            console.log('✅ Auth já disponível:', current.displayName || current.email);
+            resolve(current);
+            return;
         }
-        
-        // Aguardar 100ms antes de verificar novamente
-        await new Promise(r => setTimeout(r, 100));
-    }
-    
-    console.warn('⚠️ Timeout aguardando auth após', maxWait, 'ms');
-    return null;
+
+        let resolved = false;
+
+        const finish = (user) => {
+            if (resolved) return;
+            resolved = true;
+            document.removeEventListener('authStateChanged', onAuthEvent);
+            clearInterval(pollId);
+            clearTimeout(timeoutId);
+            if (user) {
+                console.log('✅ Auth resolvido:', user.displayName || user.email);
+            } else {
+                console.warn('⚠️ Timeout aguardando auth após', maxWait, 'ms');
+            }
+            resolve(user);
+        };
+
+        // 2. Escutar evento authStateChanged (resolve mais rápido quando Firebase dispara)
+        const onAuthEvent = (e) => {
+            const user = e.detail?.user;
+            if (user && user.uid) finish(user);
+        };
+        document.addEventListener('authStateChanged', onAuthEvent);
+
+        // 3. Polling como backup (caso evento já tenha disparado antes do listener)
+        const pollId = setInterval(() => {
+            const user = window.authManager?.currentUser;
+            if (user && user.uid) finish(user);
+        }, 150);
+
+        // 4. Timeout final
+        const timeoutId = setTimeout(() => finish(null), maxWait);
+    });
 }
 
 /**
@@ -311,18 +338,24 @@ async function handleAutoStart() {
         gameState.user = user;
         gameState.googleUid = user.uid;
         gameState.isConnected = true;
-        
+
         updateUserUI(user);
-        
+
         // Iniciar jogo
         if (typeof startGameWithLoading === 'function') {
             startGameWithLoading();
         }
         return true;
     } else {
-        // Auth falhou, mostrar login
-        console.warn('⚠️ Auth não disponível, mostrando login');
-        showModal('connectModal');
+        // FIX BUG-001: Auth falhou após timeout.
+        // NÃO mostrar connectModal imediatamente — isso causava o flicker.
+        // Sinalizar para o auth listener tentar iniciar o jogo quando auth resolver.
+        console.warn('⚠️ Auth timeout no auto-start, aguardando auth listener...');
+
+        // Marcar que auto-start está pendente (auth listener vai tentar)
+        sessionStorage.setItem('_autoStartPending', 'true');
+
+        // Retornar false para que o fluxo normal (auth listener) assuma
         return false;
     }
 }
@@ -374,17 +407,41 @@ async function handlePostgameResults() {
 }
 
 /**
+ * Flag para indicar que auto-start falhou por timeout de auth
+ * e que o auth listener deve tentar iniciar o jogo quando auth resolver
+ */
+let _pendingAutoStartAfterAuth = false;
+
+/**
  * Handler para auth state change (fluxo normal, sem auto-start)
+ * FIX BUG-001: Se auto-start falhou por timeout, tenta iniciar aqui
  */
 function handleNormalAuthChange(user) {
     if (user) {
         gameState.user = user;
         gameState.googleUid = user.uid;
         gameState.isConnected = true;
-        
+
         updateUserUI(user);
+
+        // FIX BUG-001: Se auto-start falhou por timeout, tenta iniciar agora
+        if (_pendingAutoStartAfterAuth) {
+            _pendingAutoStartAfterAuth = false;
+            console.log('🎮 Auth resolveu após timeout, iniciando jogo agora...');
+            if (typeof startGameWithLoading === 'function') {
+                startGameWithLoading();
+                return;
+            }
+        }
+
         showModal('gameMenuModal');
     } else {
+        // Firebase disparou com null (ainda carregando) — NÃO mostrar connectModal
+        // Esperar o próximo disparo com user real
+        if (_pendingAutoStartAfterAuth) {
+            console.log('🔄 Auth ainda carregando, aguardando...');
+            return;
+        }
         showModal('connectModal');
     }
 }
@@ -595,10 +652,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('✅ Auto-start executado');
         return;
     }
-    
+
+    // FIX BUG-001: Se handleAutoStart retornou false MAS detectou as flags
+    // (ou seja, era auto-start mas auth demorou), marcar para retry via auth listener
+    const wasAutoStartAttempt = !handledAutoStart &&
+        !new URLSearchParams(window.location.search).has('start');
+    // Se a URL já foi limpa pelo handleAutoStart mas retornou false = timeout de auth
+    // Nesse caso, o auth listener deve tentar iniciar o jogo
+    if (wasAutoStartAttempt && sessionStorage.getItem('_autoStartPending') === 'true') {
+        _pendingAutoStartAfterAuth = true;
+        sessionStorage.removeItem('_autoStartPending');
+        console.log('🔄 Auto-start pendente, aguardando auth listener...');
+    }
+
     // 3. Fluxo normal: escutar auth state
     console.log('🔄 Fluxo normal: aguardando auth state...');
-    
+
     document.addEventListener('authStateChanged', (e) => {
         const user = e.detail.user;
         handleNormalAuthChange(user);
@@ -646,4 +715,4 @@ window.handleKeyDown = handleKeyDown;
 window.handleKeyUp = handleKeyUp;
 window.waitForAuth = waitForAuth;
 
-console.log('📦 game-main.js v4.2 carregado (race condition fix)');
+console.log('📦 game-main.js v4.3 carregado (BUG-001 + BUG-004 fix)');

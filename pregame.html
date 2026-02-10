@@ -253,7 +253,7 @@
 <script>
 (function() {
     'use strict';
-    
+
     const tips = [
         'Destrua asteroides raros para ganhar mais R$!',
         'Asteroides épicos valem muito mais que os comuns!',
@@ -264,7 +264,7 @@
         'Evite colisões para manter suas vidas intactas!',
         'Use a carteira para acompanhar seus ganhos!',
     ];
-    
+
     const statuses = [
         'Carregando recursos...',
         'Inicializando motores...',
@@ -273,20 +273,59 @@
         'Preparando missão...',
         'Pronto para lançamento!'
     ];
-    
+
     const progressBar = document.getElementById('progressBar');
     const statusText = document.getElementById('statusText');
     const percentText = document.getElementById('percentText');
     const tipText = document.getElementById('tipText');
     const adContainer = document.getElementById('adContainer');
-    
+
     let adsReady = false;
     let rotationTimer = null;
-    
+
+    // ============================================
+    // FIX BUG-004: Pré-criar sessão em paralelo com ads
+    // Enquanto jogador assiste anúncios, já criamos a sessão no servidor
+    // ============================================
+    let sessionPromise = null;
+
+    function preCreateSession() {
+        const googleUid = localStorage.getItem('googleUid');
+        if (!googleUid) {
+            console.warn('⚠️ pregame: Sem googleUid, sessão será criada depois');
+            return null;
+        }
+
+        console.log('🚀 pregame: Pré-criando sessão em paralelo...');
+
+        return fetch('api/game-start.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: googleUid })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            return response.json();
+        })
+        .then(result => {
+            if (result.success) {
+                console.log('✅ pregame: Sessão pré-criada:', result.session_id);
+                return result;
+            } else {
+                console.warn('⚠️ pregame: Sessão não criada:', result.error);
+                return result;
+            }
+        })
+        .catch(error => {
+            console.error('❌ pregame: Erro ao pré-criar sessão:', error.message);
+            return null;
+        });
+    }
+
     // Renderizar um slot no container
     function renderSlot(type) {
         if (typeof AdsManager === 'undefined' || !AdsManager.isEnabled?.()) return;
-        
+
         try {
             const slot = AdsManager.getNextSlot?.(type);
             if (slot) {
@@ -305,21 +344,21 @@
             console.warn('📺 Erro ao renderizar slot:', e.message);
         }
     }
-    
+
     // Carregar anúncio e iniciar rotação
     async function loadAd() {
         try {
             if (typeof AdsManager !== 'undefined') {
                 await AdsManager.init();
-                
+
                 if (AdsManager.isEnabled?.()) {
                     const slots = AdsManager.getSlots?.()?.pregame || [];
                     if (slots.length > 0) {
                         adsReady = true;
-                        
+
                         // Renderizar primeiro slot
                         renderSlot('pregame');
-                        
+
                         // Se tem mais de 1 slot, rotacionar
                         if (slots.length > 1) {
                             const rotInterval = (AdsManager.getConfig?.()?.pregame_rotation_interval || 5) * 1000;
@@ -332,7 +371,7 @@
             console.warn('📺 Erro ao carregar ads:', e.message);
         }
     }
-    
+
     // Determinar duração
     function getDuration() {
         if (adsReady && typeof AdsManager !== 'undefined') {
@@ -340,48 +379,68 @@
         }
         return 3; // Sem ads = loading rápido
     }
-    
+
+    // Finalizar e redirecionar (aguarda sessão se necessário)
+    async function finishAndRedirect() {
+        // Aguardar resultado da pré-criação de sessão (se ainda em andamento)
+        if (sessionPromise) {
+            try {
+                statusText.textContent = 'Pronto para lançamento!';
+                const result = await sessionPromise;
+                if (result && result.success) {
+                    sessionStorage.setItem('preCreatedSession', JSON.stringify(result));
+                    console.log('✅ pregame: Sessão salva no sessionStorage');
+                }
+            } catch (e) {
+                console.warn('⚠️ pregame: Sessão será criada no game.html');
+            }
+        }
+
+        sessionStorage.setItem('loadingComplete', 'true');
+        window.location.href = 'game.html?start=true';
+    }
+
     // Rodar loading
     async function startLoading() {
+        // Iniciar pré-criação de sessão EM PARALELO com ads
+        sessionPromise = preCreateSession();
+
         await loadAd();
-        
+
         const duration = getDuration();
         const totalSteps = duration * 10;
         let step = 0;
-        
+
         // Rotacionar dica
         let tipIndex = 0;
-        
+
         const interval = setInterval(() => {
             step++;
             const progress = Math.min(100, (step / totalSteps) * 100);
-            
+
             progressBar.style.width = progress + '%';
             percentText.textContent = Math.floor(progress) + '%';
-            
+
             // Status
             const si = Math.min(Math.floor(progress / 20), statuses.length - 1);
             statusText.textContent = statuses[si];
-            
+
             // Rotacionar dica a cada 3s
             if (step % 30 === 0) {
                 tipIndex = (tipIndex + 1) % tips.length;
                 tipText.textContent = tips[tipIndex];
             }
-            
+
             if (progress >= 100) {
                 clearInterval(interval);
                 if (rotationTimer) clearInterval(rotationTimer);
-                
-                sessionStorage.setItem('loadingComplete', 'true');
-                
-                setTimeout(() => {
-                    window.location.href = 'game.html?start=true';
-                }, 300);
+
+                // Aguardar sessão e redirecionar
+                finishAndRedirect();
             }
         }, 100);
     }
-    
+
     // Iniciar quando DOM pronto
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', startLoading);
