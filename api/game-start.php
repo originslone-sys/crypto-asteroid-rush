@@ -49,6 +49,9 @@ if (strpos($googleUid, '...') === false && !validateGoogleUid($googleUid)) {
 
 $clientIP = getClientIP();
 
+// ── Diagnóstico: logar IP detectado para debug ──
+secureLog("GAME_START_REQUEST | IP: {$clientIP} | UID: " . substr($googleUid, 0, 15) . " | ProxyCheck: " . ($_proxyCheckLoaded ? 'loaded' : 'NOT loaded') . " | RateLimiter: " . ($_rateLimiterLoaded ? 'loaded' : 'NOT loaded'));
+
 try {
     $pdo = getDatabaseConnection();
     if (!$pdo) {
@@ -120,7 +123,10 @@ try {
     // ──────────────────────────────────────────────
     if ($_proxyCheckLoaded) {
         try {
+            secureLog("PROXY_CHECK_START | IP: {$clientIP} | User: {$userId}");
             $proxyResult = checkProxyVPN($pdo);
+            secureLog("PROXY_CHECK_RESULT | IP: {$clientIP} | Allowed: " . ($proxyResult['allowed'] ?? 'null') . " | VPN: " . ($proxyResult['is_vpn'] ?? 'null') . " | Proxy: " . ($proxyResult['is_proxy'] ?? 'null') . " | Type: " . ($proxyResult['type'] ?? 'null') . " | Error: " . ($proxyResult['error'] ?? 'none') . " | Cached: " . ($proxyResult['cached'] ?? 'no'));
+            
             if (isset($proxyResult['allowed']) && !$proxyResult['allowed']) {
                 $proxyType = $proxyResult['type'] ?? 'proxy';
                 secureLog("BLOCK_VPN | IP: {$clientIP} | Type: {$proxyType} | User: {$userId}");
