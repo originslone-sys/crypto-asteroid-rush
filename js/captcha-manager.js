@@ -1,13 +1,12 @@
 /* ============================================
-   UNOBIX - CAPTCHA Manager v7.0
+   UNOBIX - CAPTCHA Manager v7.1
    File: js/captcha-manager.js
    Google reCAPTCHA v3 (invisível)
    
-   MUDANÇAS v7.0:
-   - Substituído math captcha por reCAPTCHA v3
-   - Verificação invisível (sem interação do usuário)
-   - Score-based: 0.0 (bot) a 1.0 (humano)
-   - Integrado com SessionManager para game_end
+   MUDANÇAS v7.1:
+   - CRÍTICO: Timeout de 3s no getToken() e execute()
+   - Timeout do init() reduzido de 10s para 3s
+   - Evita travamento no fim do jogo em conexões lentas
    ============================================ */
 
 const CaptchaManager = {
@@ -16,6 +15,10 @@ const CaptchaManager = {
     lastToken: null,
     lastScore: null,
     siteKey: '6Lck0GUsAAAAAPOseYXhn0G_QH6XqLTza0mZMNeg',
+    
+    // Timeouts configuráveis
+    INIT_TIMEOUT: 3000,      // 3s para init (era 10s)
+    EXECUTE_TIMEOUT: 3000,   // 3s para execute
     
     /**
      * Inicializar reCAPTCHA v3
@@ -78,20 +81,20 @@ const CaptchaManager = {
                     }
                 }, 200);
                 
-                // Timeout de 10s
+                // Timeout REDUZIDO de 10s para 3s
                 setTimeout(() => {
                     clearInterval(checkReady);
                     if (!this.isReady) {
-                        console.warn('⚠️ Timeout aguardando reCAPTCHA');
-                        resolve();
+                        console.warn('⚠️ Timeout aguardando reCAPTCHA (3s)');
+                        resolve(); // Continuar sem reCAPTCHA
                     }
-                }, 10000);
+                }, this.INIT_TIMEOUT);
             }
         });
     },
     
     /**
-     * Executar verificação reCAPTCHA v3
+     * Executar verificação reCAPTCHA v3 COM TIMEOUT
      * @param {string} action - Nome da ação (game_end, login, withdraw)
      * @returns {Promise<string|null>} Token reCAPTCHA ou null
      */
@@ -99,9 +102,15 @@ const CaptchaManager = {
         if (!this.isReady || typeof grecaptcha === 'undefined') {
             console.warn('⚠️ reCAPTCHA não está pronto, tentando inicializar...');
             try {
-                await this.init();
+                // Init com timeout
+                await Promise.race([
+                    this.init(),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('init_timeout')), this.INIT_TIMEOUT)
+                    )
+                ]);
             } catch (e) {
-                console.error('❌ Falha ao inicializar reCAPTCHA:', e);
+                console.error('❌ Falha/timeout ao inicializar reCAPTCHA:', e.message);
                 return null;
             }
         }
@@ -112,13 +121,21 @@ const CaptchaManager = {
         }
         
         try {
-            const token = await grecaptcha.execute(this.siteKey, { action: action });
+            // CRÍTICO: grecaptcha.execute COM timeout
+            const executePromise = grecaptcha.execute(this.siteKey, { action: action });
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('execute_timeout')), this.EXECUTE_TIMEOUT)
+            );
+            
+            const token = await Promise.race([executePromise, timeoutPromise]);
+            
             this.lastToken = token;
             this.isVerified = true;
             console.log(`🛡️ reCAPTCHA token gerado para action: ${action}`);
             return token;
+            
         } catch (error) {
-            console.error('❌ Erro ao executar reCAPTCHA:', error);
+            console.error('❌ Erro/timeout ao executar reCAPTCHA:', error.message);
             this.lastToken = null;
             this.isVerified = false;
             return null;
@@ -126,15 +143,19 @@ const CaptchaManager = {
     },
     
     /**
-     * Obter token para enviar ao backend
-     * Se não tem token, tenta gerar um novo
+     * Obter token para enviar ao backend COM TIMEOUT
      * @param {string} action - Ação para gerar token
      * @returns {Promise<string|null>}
      */
     async getToken(action = 'game_end') {
-        // Tokens do reCAPTCHA v3 expiram em 2 minutos
-        // Sempre gerar um novo para garantir validade
-        return await this.execute(action);
+        try {
+            // Tokens do reCAPTCHA v3 expiram em 2 minutos
+            // Sempre gerar um novo para garantir validade
+            return await this.execute(action);
+        } catch (e) {
+            console.warn('⚠️ getToken falhou:', e.message);
+            return null;
+        }
     },
     
     /**
@@ -156,6 +177,9 @@ const CaptchaManager = {
         }
         
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            
             const response = await fetch('api/verify-captcha.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -164,8 +188,11 @@ const CaptchaManager = {
                     captcha_action: action,
                     google_uid: this._getGoogleUid(),
                     session_id: this._getSessionId()
-                })
+                }),
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             const result = await response.json();
             
@@ -178,6 +205,10 @@ const CaptchaManager = {
                 return { verified: false, error: result.error, score: result.score };
             }
         } catch (error) {
+            if (error.name === 'AbortError') {
+                console.error('❌ Timeout ao verificar com backend');
+                return { verified: false, error: 'Timeout na verificação' };
+            }
             console.error('❌ Erro ao verificar com backend:', error);
             return { verified: false, error: error.message };
         }
@@ -295,7 +326,7 @@ const CaptchaManager = {
                 }
             } else {
                 console.warn('⚠️ Não foi possível gerar token reCAPTCHA');
-                // Tentar mesmo sem token - o backend decidirá
+                // Habilitar botão mesmo assim - deixar servidor decidir
                 this.enableClaimButton();
             }
         } else {
@@ -398,7 +429,13 @@ const observeEndGameModal = () => {
         });
         observer.observe(endGameModal, { attributes: true });
     } else {
-        setTimeout(observeEndGameModal, 500);
+        // Limitar retries para evitar loop infinito
+        if (!observeEndGameModal._retries) observeEndGameModal._retries = 0;
+        observeEndGameModal._retries++;
+        
+        if (observeEndGameModal._retries < 10) {
+            setTimeout(observeEndGameModal, 500);
+        }
     }
 };
 
@@ -410,4 +447,4 @@ if (document.readyState === 'loading') {
 
 window.CaptchaManager = CaptchaManager;
 
-console.log('🛡️ CaptchaManager v7.0 carregado (Google reCAPTCHA v3)');
+console.log('🛡️ CaptchaManager v7.1 carregado (timeout 3s em getToken/execute)');
