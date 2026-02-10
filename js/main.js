@@ -1160,7 +1160,31 @@ function setupEventListeners() {
     
     // Menu mobile
     document.getElementById('mobileMenuBtn')?.addEventListener('click', () => {
-        document.getElementById('nav')?.classList.toggle('open');
+        const nav = document.getElementById('nav');
+        const btn = document.getElementById('mobileMenuBtn');
+        if (nav) {
+            nav.classList.toggle('active');
+            // Trocar ícone hamburger ↔ close
+            if (btn) {
+                const icon = btn.querySelector('i');
+                if (icon) {
+                    icon.className = nav.classList.contains('active') ? 'fas fa-times' : 'fas fa-bars';
+                }
+            }
+        }
+    });
+    
+    // Fechar menu ao clicar em um link (mobile)
+    document.querySelectorAll('#nav .nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+            const nav = document.getElementById('nav');
+            const btn = document.getElementById('mobileMenuBtn');
+            if (nav) nav.classList.remove('active');
+            if (btn) {
+                const icon = btn.querySelector('i');
+                if (icon) icon.className = 'fas fa-bars';
+            }
+        });
     });
     
     // Staking
