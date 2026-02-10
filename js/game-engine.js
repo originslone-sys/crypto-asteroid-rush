@@ -1,13 +1,20 @@
 /* ============================================
-   UNOBIX - Game Engine v8.0
+   UNOBIX - Game Engine v8.1
    File: js/game-engine.js
-   ARQUITETURA SEGURA: Sem eventos individuais
-   Contagem local, envio apenas no final
+   
+   MUDANÇAS v8.1:
+   - CRÍTICO: Cleanup COMPLETO antes de qualquer await
+   - Flag _isEnding para evitar chamadas duplas
+   - Timeout reduzido de 15s para 8s no endSession
+   - Logs de diagnóstico para debug
    ============================================ */
 
 let canvas, ctx;
 let animationFrameId = null;
 let stars = [];
+
+// Flag para evitar chamadas duplas de endGame/gameOver
+let _isEnding = false;
 
 function initCanvas() {
     canvas = document.getElementById('gameCanvas');
@@ -255,16 +262,57 @@ function getGameStats() {
 }
 
 // ============================================
+// CLEANUP COMPLETO - Parar tudo imediatamente
+// ============================================
+function fullCleanup() {
+    console.log('🧹 Executando cleanup completo...');
+    
+    // 1. Parar game loop PRIMEIRO
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+        console.log('  ✓ Animation frame cancelado');
+    }
+    
+    // 2. Parar timers
+    if (gameState.gameTimer) {
+        clearInterval(gameState.gameTimer);
+        gameState.gameTimer = null;
+        console.log('  ✓ Game timer parado');
+    }
+    
+    if (gameState.spawnTimer) {
+        clearInterval(gameState.spawnTimer);
+        gameState.spawnTimer = null;
+        console.log('  ✓ Spawn timer parado');
+    }
+    
+    // 3. Marcar jogo como inativo
+    gameState.gameActive = false;
+    
+    // 4. Parar música
+    if (typeof stopBackgroundMusic === 'function') {
+        stopBackgroundMusic();
+    }
+    
+    console.log('✅ Cleanup completo');
+}
+
+// ============================================
 // GAME OVER (perdeu todas as vidas)
 // ============================================
 async function gameOver() {
-    gameState.gameActive = false;
+    // Evitar chamadas duplas
+    if (_isEnding) {
+        console.warn('⚠️ gameOver já em execução, ignorando');
+        return;
+    }
+    _isEnding = true;
     
-    if (gameState.gameTimer) clearInterval(gameState.gameTimer);
-    if (gameState.spawnTimer) clearInterval(gameState.spawnTimer);
-    if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+    console.log('💀 GAME OVER iniciando...');
     
-    if (typeof stopBackgroundMusic === 'function') stopBackgroundMusic();
+    // CRÍTICO: Cleanup ANTES de qualquer await
+    fullCleanup();
     
     const lostEarnings = gameState.earnings;
     gameState.earnings = 0;
@@ -273,15 +321,17 @@ async function gameOver() {
     
     console.log('💀 GAME OVER - Perdeu R$' + lostEarnings.toFixed(4));
     
-    // Finalizar sessão no servidor com timeout
+    // Finalizar sessão no servidor com timeout CURTO
     if (typeof SessionManager !== 'undefined' && SessionManager.hasActiveSession()) {
         try {
             gameState.lives = 0;
             
             await Promise.race([
                 SessionManager.endSession(gameState.score, 0, stats),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
             ]);
+            
+            console.log('✅ Sessão finalizada no servidor');
             
         } catch (e) {
             console.error('❌ Erro ao enviar game-over:', e.message);
@@ -289,9 +339,13 @@ async function gameOver() {
         }
     }
     
+    // Resetar flag
+    _isEnding = false;
+    
+    // Mostrar modal
     setTimeout(() => {
         if (typeof showGameOver === 'function') showGameOver(lostEarnings);
-    }, 500);
+    }, 300);
 }
 
 function startSpawnTimer() {
@@ -334,6 +388,7 @@ function startGameTimer() {
             
             if (gameState.timeLeft <= 0) {
                 clearInterval(gameState.gameTimer);
+                gameState.gameTimer = null;
                 endGame();
             }
         }
@@ -351,12 +406,17 @@ function stopGameTimer() {
 // END GAME (tempo acabou - vitória!)
 // ============================================
 async function endGame() {
-    gameState.gameActive = false;
-    if (gameState.gameTimer) clearInterval(gameState.gameTimer);
-    if (gameState.spawnTimer) clearInterval(gameState.spawnTimer);
-    if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+    // Evitar chamadas duplas
+    if (_isEnding) {
+        console.warn('⚠️ endGame já em execução, ignorando');
+        return;
+    }
+    _isEnding = true;
     
-    if (typeof stopBackgroundMusic === 'function') stopBackgroundMusic();
+    console.log('🏆 END GAME iniciando...');
+    
+    // CRÍTICO: Cleanup ANTES de qualquer await
+    fullCleanup();
     
     // Calcular estatísticas finais
     const stats = getGameStats();
@@ -379,13 +439,14 @@ async function endGame() {
                 showNotification('⏳ PROCESSANDO', 'Salvando resultados...', true);
             }
             
+            // Timeout REDUZIDO para 8 segundos
             const result = await Promise.race([
                 SessionManager.endSession(
                     gameState.score,
                     gameState.earnings,
                     stats
                 ),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
             ]);
             
             console.log('✅ Resultado do servidor:', result);
@@ -419,18 +480,22 @@ async function endGame() {
             }
             
         } catch (e) {
-            console.error('❌ Erro ao finalizar:', e);
+            console.error('❌ Erro/timeout ao finalizar:', e.message);
             SessionManager.clearSession();
         }
     } else {
         console.error('❌ Sem SessionManager ou sessão ativa!');
     }
     
+    // Resetar flag
+    _isEnding = false;
+    
+    // Mostrar resultados
     setTimeout(() => {
         if (typeof showEndGameResults === 'function') {
             showEndGameResults(stats, serverEarnings, serverBalance);
         }
-    }, 500);
+    }, 300);
 }
 
 function updateShipPosition() {
@@ -476,5 +541,6 @@ window.stopGameTimer = stopGameTimer;
 window.endGame = endGame;
 window.updateShipPosition = updateShipPosition;
 window.getGameStats = getGameStats;
+window.fullCleanup = fullCleanup;
 
-console.log('📦 game-engine.js v8.0 carregado (sem eventos individuais)');
+console.log('📦 game-engine.js v8.1 carregado (cleanup garantido)');
