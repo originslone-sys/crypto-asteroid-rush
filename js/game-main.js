@@ -428,6 +428,9 @@ document.addEventListener('DOMContentLoaded', () => {
     setupMobileControls();
     
     // Listen for auth state changes
+    // Anti-loop: flag para evitar processamento duplicado de auto-start
+    let _autoStartHandled = false;
+    
     document.addEventListener('authStateChanged', (e) => {
         const user = e.detail.user;
         
@@ -438,19 +441,34 @@ document.addEventListener('DOMContentLoaded', () => {
             
             updateUserUI(user);
             
-            // Check if should auto-start (voltando do pregame.html)
+            // ── ANTI-LOOP: Ler e CONSUMIR flags ANTES de processar ──
+            // Isso garante que re-disparos do auth não re-executam
             const params = new URLSearchParams(window.location.search);
             const shouldStart = params.get('start') === 'true';
             const loadingComplete = sessionStorage.getItem('loadingComplete') === 'true';
-            
-            // Check if returning from postgame.html with results
             const showResults = params.get('results') === 'true';
             const postgameComplete = sessionStorage.getItem('postgameComplete') === 'true';
             
-            if (showResults && postgameComplete) {
-                // Voltando do postgame.html — exibir resultados
-                sessionStorage.removeItem('postgameComplete');
+            // CONSUMIR IMEDIATAMENTE — antes de qualquer processamento
+            if (shouldStart || showResults) {
                 window.history.replaceState({}, '', 'game.html');
+            }
+            if (loadingComplete) {
+                sessionStorage.removeItem('loadingComplete');
+            }
+            if (postgameComplete) {
+                sessionStorage.removeItem('postgameComplete');
+            }
+            
+            // Se já tratamos o auto-start nesta sessão de página, ir direto ao menu
+            if (_autoStartHandled && (shouldStart || showResults)) {
+                console.log('⚠️ Auto-start já foi processado — mostrando menu');
+                showModal('gameMenuModal');
+                return;
+            }
+            
+            if (showResults && postgameComplete) {
+                _autoStartHandled = true;
                 
                 try {
                     const pgData = JSON.parse(sessionStorage.getItem('postgameData') || '{}');
@@ -458,7 +476,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     if (pgData.stats && typeof showEndGameResults === 'function') {
                         console.log('📊 Exibindo resultados do postgame');
-                        // Flag para showEndGameResults NÃO redirecionar de volta
                         sessionStorage.setItem('_showResultsDirect', 'true');
                         showEndGameResults(pgData.stats, pgData.serverEarnings, pgData.serverBalance);
                     } else {
@@ -469,12 +486,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     showModal('gameMenuModal');
                 }
             } else if (shouldStart && loadingComplete) {
-                sessionStorage.removeItem('loadingComplete');
-                window.history.replaceState({}, '', 'game.html');
-                console.log('🎮 Auto-starting game');
+                _autoStartHandled = true;
+                
+                console.log('🎮 Auto-starting game...');
+                // Usar timeout para garantir que todos os scripts carregaram
                 setTimeout(() => {
                     if (typeof startGameWithLoading === 'function') {
                         startGameWithLoading();
+                    } else {
+                        console.error('❌ startGameWithLoading não disponível');
+                        showModal('gameMenuModal');
                     }
                 }, 500);
             } else {
