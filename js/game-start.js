@@ -1,50 +1,31 @@
 /* ============================================
-   UNOBIX - Game Start v5.0
+   UNOBIX - Game Start v4.2
    File: js/game-start.js
-   CORRIGIDO: Anti-loop, error handling robusto,
-   proteção contra dupla execução
+   Google Auth, BRL currency
+   CORRIGIDO: UID handling, sem duplicações
    ============================================ */
-
-// Flag global para evitar dupla execução
-let _gameStartInProgress = false;
-let _gameStartAttempts = 0;
-const _MAX_START_ATTEMPTS = 2;
 
 /**
  * Iniciar jogo com tela de carregamento
- * Protegido contra chamadas duplicadas
  */
-async function startGameWithLoading() {
-    // ── Anti-loop: evitar dupla execução ──
-    if (_gameStartInProgress) {
-        console.warn('⚠️ startGameWithLoading já em execução — ignorando chamada duplicada');
+let _startGameLock = false;
+
+function startGameWithLoading() {
+    if (_startGameLock) {
+        console.warn('⚠️ startGameWithLoading já em execução');
         return;
     }
-    
-    // ── Anti-loop: limitar tentativas por sessão de página ──
-    _gameStartAttempts++;
-    if (_gameStartAttempts > _MAX_START_ATTEMPTS) {
-        console.error('❌ Máximo de tentativas de início atingido — voltando ao menu');
-        _safeShowMenu();
-        return;
-    }
-    
-    _gameStartInProgress = true;
-    console.log('🎮 Iniciando jogo... (tentativa ' + _gameStartAttempts + ')');
+    _startGameLock = true;
+    console.log('🎮 Iniciando jogo...');
 
-    try {
-        // Determinar hard mode (oculto do jogador)
-        if (typeof determineHardMode === 'function') {
-            determineHardMode();
-        }
-
-        await actualStartGame();
-    } catch (error) {
-        console.error('❌ Erro em startGameWithLoading:', error);
-        _safeShowMenu();
-    } finally {
-        _gameStartInProgress = false;
+    // Determinar hard mode (oculto do jogador)
+    if (typeof determineHardMode === 'function') {
+        determineHardMode();
     }
+
+    actualStartGame().finally(() => {
+        _startGameLock = false;
+    });
 }
 
 /**
@@ -73,53 +54,23 @@ function getGoogleUidFromSources() {
 }
 
 /**
- * Mostrar menu de forma segura (sem travar)
- */
-function _safeShowMenu() {
-    try {
-        // Limpar qualquer estado de loading
-        if (typeof showLoading === 'function') {
-            showLoading(false);
-        }
-        
-        // Verificar se usuário está logado para mostrar modal correto
-        const isLoggedIn = !!(gameState?.user || gameState?.googleUid || window.authManager?.currentUser);
-        
-        if (typeof showModal === 'function') {
-            showModal(isLoggedIn ? 'gameMenuModal' : 'connectModal');
-        }
-    } catch (e) {
-        console.error('Erro ao mostrar menu:', e);
-    }
-}
-
-/**
  * Efetivamente iniciar o jogo
  */
 async function actualStartGame() {
     const missionNum = (typeof missionStats !== 'undefined' ? missionStats.totalMissions : 0) + 1;
     console.log('🚀 Iniciando missão', missionNum);
 
-    // ── ETAPA 1: Criar sessão no servidor (BARREIRA PRÉ-JOGO) ──
+    // Criar sessão no servidor
     try {
         if (typeof showNotification === 'function') {
-            showNotification('PREPARANDO', 'Verificando disponibilidade...', true);
+            showNotification('PREPARANDO', 'Criando sessão da missão...', true);
         }
 
         const googleUid = getGoogleUidFromSources();
         console.log('🔑 Google UID:', googleUid ? googleUid.substring(0, 15) + '...' : 'NENHUM');
 
         if (!googleUid) {
-            // Sem login — voltar para tela de login sem alert bloqueante
-            if (typeof NotificationSystem !== 'undefined') {
-                NotificationSystem.modal(
-                    'Login Necessário',
-                    'Você precisa estar logado para jogar. Faça login com sua conta Google.',
-                    { icon: '🔑', btnText: 'Fazer Login', btnClass: 'primary' }
-                );
-            }
-            if (typeof showModal === 'function') showModal('connectModal');
-            return; // Sair limpo, sem throw
+            throw new Error('Usuário não autenticado. Faça login novamente.');
         }
 
         // Salvar no gameState
@@ -127,15 +78,11 @@ async function actualStartGame() {
             gameState.googleUid = googleUid;
         }
 
-        // ── Criar sessão — aqui o backend faz TODAS as verificações ──
-        // Se falhar, SessionManager._notifyBlock() já mostra o feedback correto
+        // Criar sessão no servidor
         const sessionResult = await SessionManager.startSession(googleUid);
 
         if (!sessionResult || !sessionResult.success) {
-            // SessionManager já mostrou a notificação — apenas voltar ao menu
-            console.warn('⚠️ Sessão não criada — voltando ao menu');
-            _safeShowMenu();
-            return; // Sair limpo, sem throw + gameAlert duplicado
+            throw new Error(sessionResult?.error || 'Falha ao criar sessão');
         }
 
         console.log('✅ Sessão criada:', sessionResult.session_id);
@@ -153,26 +100,18 @@ async function actualStartGame() {
     } catch (error) {
         console.error('❌ Falha ao iniciar sessão:', error);
         
-        // Só mostrar gameAlert se SessionManager NÃO já tratou o erro
-        if (!error._handled) {
-            if (typeof NotificationSystem !== 'undefined') {
-                NotificationSystem.error('Erro', error.message || 'Falha ao iniciar missão. Tente novamente.');
-            } else if (typeof gameAlert === 'function') {
-                // Usar timeout para não bloquear a thread principal
-                setTimeout(async () => {
-                    await gameAlert('Falha ao iniciar missão: ' + error.message, 'error', 'ERRO');
-                }, 100);
-            }
+        // Usar toast não-bloqueante em vez de gameAlert
+        if (typeof NotificationSystem !== 'undefined') {
+            NotificationSystem.error('Erro', error.message || 'Falha ao iniciar missão');
+        } else if (typeof showNotification === 'function') {
+            showNotification('ERRO', error.message || 'Falha ao iniciar missão', false);
         }
         
-        _safeShowMenu();
+        if (typeof showModal === 'function') {
+            showModal('gameMenuModal');
+        }
         return;
     }
-
-    // ══════════════════════════════════════════════
-    // ── ETAPA 2: Sessão criada com sucesso — iniciar jogo ──
-    // A partir daqui NÃO pode falhar silenciosamente
-    // ══════════════════════════════════════════════
 
     // Resetar stats da missão
     if (typeof missionStats !== 'undefined') {
@@ -304,4 +243,4 @@ window.resetLivesDisplay = resetLivesDisplay;
 window.showMissionStartInfo = showMissionStartInfo;
 window.getGoogleUidFromSources = getGoogleUidFromSources;
 
-console.log('📦 game-start.js v5.0 carregado (com proteção anti-loop)');
+console.log('📦 game-start.js v4.2 carregado');
