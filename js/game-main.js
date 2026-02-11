@@ -1,6 +1,11 @@
 /* ============================================
-   UNOBIX - Main Entry Point v4.3
+   UNOBIX - Main Entry Point v4.4
    File: js/game-main.js
+
+   MUDANÇAS v4.4:
+   - FIX BUG-002: Fire interval leak — limpa interval anterior antes de criar novo
+   - FIX BUG-002: Cleanup de fire interval no visibility change
+   - FIX BUG-002: Fire interval acessível globalmente para fullCleanup()
 
    MUDANÇAS v4.3:
    - FIX BUG-001: waitForAuth híbrido (polling + event) com timeout 10s
@@ -147,25 +152,30 @@ function setupMobileControls() {
     }
     
     if (fireBtn) {
-        let fireInterval = null;
-        
+        // FIX BUG-002: Usar window._fireInterval para cleanup global
+        // Antes: variável local vazava se startFiring fosse chamado múltiplas vezes
+
         const startFiring = () => {
             if (typeof unlockAudio === 'function') unlockAudio();
             if (typeof fireBullet === 'function') fireBullet();
-            
-            fireInterval = setInterval(() => {
+
+            // FIX: Limpar interval existente ANTES de criar novo
+            if (window._fireInterval) clearInterval(window._fireInterval);
+
+            window._fireInterval = setInterval(() => {
                 if (gameState.gameActive && typeof fireBullet === 'function') {
                     fireBullet();
                 } else {
-                    clearInterval(fireInterval);
+                    clearInterval(window._fireInterval);
+                    window._fireInterval = null;
                 }
             }, CONFIG.FIRE_RATE);
         };
-        
+
         const stopFiring = () => {
-            if (fireInterval) {
-                clearInterval(fireInterval);
-                fireInterval = null;
+            if (window._fireInterval) {
+                clearInterval(window._fireInterval);
+                window._fireInterval = null;
             }
         };
         
@@ -700,11 +710,17 @@ document.addEventListener('contextmenu', (e) => {
 });
 
 // Handle visibility change
+// FIX BUG-002: Também limpar fire interval ao sair da aba
 document.addEventListener('visibilitychange', () => {
     if (document.hidden && gameState.gameActive) {
         gameState.keys = { left: false, right: false, fire: false };
         stopTouchMove('left');
         stopTouchMove('right');
+        // Parar fire interval quando aba escondida
+        if (window._fireInterval) {
+            clearInterval(window._fireInterval);
+            window._fireInterval = null;
+        }
     }
 });
 
@@ -715,4 +731,4 @@ window.handleKeyDown = handleKeyDown;
 window.handleKeyUp = handleKeyUp;
 window.waitForAuth = waitForAuth;
 
-console.log('📦 game-main.js v4.3 carregado (BUG-001 + BUG-004 fix)');
+console.log('📦 game-main.js v4.4 carregado (BUG-001 + BUG-002 + BUG-004 fix)');

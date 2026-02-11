@@ -1,7 +1,13 @@
 /* ============================================
-   UNOBIX - Game Engine v8.1
+   UNOBIX - Game Engine v8.2
    File: js/game-engine.js
-   
+
+   MUDANÇAS v8.2:
+   - FIX BUG-002: fireBullet() usa AudioPool em vez de new Audio()
+   - FIX BUG-002: fullCleanup() limpa AudioPool e fire interval
+   - FIX: invincibilityFrames removido de updateShipPosition()
+     (era decrementado 2x: aqui a 60fps + startGameTimer a 1fps)
+
    MUDANÇAS v8.1:
    - CRÍTICO: Cleanup COMPLETO antes de qualquer await
    - Flag _isEnding para evitar chamadas duplas
@@ -163,12 +169,14 @@ function fireBullet() {
         });
     });
     
+    // FIX BUG-002: Usar AudioPool em vez de new Audio() a cada tiro
+    // Antes: criava ~1200 Audio objects por partida → freeze da aba
     if (typeof isAudioUnlocked !== 'undefined' && isAudioUnlocked && gameState.audioEnabled) {
-        try {
-            const laserSound = new Audio('sounds/laser.mp3');
-            laserSound.volume = 0.4;
-            laserSound.play().catch(() => {});
-        } catch (e) {}
+        if (typeof AudioPool !== 'undefined') {
+            AudioPool.play('laser.mp3', 0.4);
+        } else if (typeof playSound === 'function') {
+            playSound('laser.mp3', 0.4);
+        }
     }
 }
 
@@ -294,7 +302,24 @@ function fullCleanup() {
     if (typeof stopBackgroundMusic === 'function') {
         stopBackgroundMusic();
     }
-    
+
+    // 5. Limpar AudioPool (prevenir leak de Audio objects)
+    if (typeof AudioPool !== 'undefined' && AudioPool.cleanup) {
+        AudioPool.cleanup();
+        console.log('  ✓ Audio pool limpo');
+    }
+
+    // 6. Parar controles touch (prevenir intervals órfãos)
+    if (typeof stopTouchMove === 'function') {
+        stopTouchMove('left');
+        stopTouchMove('right');
+    }
+    if (window._fireInterval) {
+        clearInterval(window._fireInterval);
+        window._fireInterval = null;
+        console.log('  ✓ Fire interval limpo');
+    }
+
     console.log('✅ Cleanup completo');
 }
 
@@ -515,10 +540,9 @@ function updateShipPosition() {
     if (gameState.keys.fire) {
         fireBullet();
     }
-    
-    if (gameState.invincibilityFrames > 0) {
-        gameState.invincibilityFrames--;
-    }
+
+    // FIX: invincibilityFrames JÁ é decrementado em startGameTimer() (1x/seg)
+    // Remover daqui evita decremento duplo (60x/seg + 1x/seg)
 }
 
 // ============================================
@@ -543,4 +567,4 @@ window.updateShipPosition = updateShipPosition;
 window.getGameStats = getGameStats;
 window.fullCleanup = fullCleanup;
 
-console.log('📦 game-engine.js v8.1 carregado (cleanup garantido)');
+console.log('📦 game-engine.js v8.2 carregado (AudioPool + cleanup completo)');

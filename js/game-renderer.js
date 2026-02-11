@@ -1,13 +1,17 @@
 /* ============================================
-   UNOBIX - Game Renderer v6.0
+   UNOBIX - Game Renderer v6.1
    File: js/game-renderer.js
    ARQUITETURA SEGURA: Sem eventos ao servidor
    Apenas tracking local de asteroides
-   
+
+   v6.1 CHANGES:
+   - FIX BUG-002: Double-splice em drawAsteroids() corrigido
+     (após colisão bala-asteroide, skip check off-screen)
+
    v6.0 CHANGES:
-   - Fundo espacial AAA+ com nebulosas, estrelas multicamada, 
+   - Fundo espacial AAA+ com nebulosas, estrelas multicamada,
      estrelas cadentes e paralaxe
-   - Otimizações iOS: offscreen canvas caching, 
+   - Otimizações iOS: offscreen canvas caching,
      reduced shadowBlur, object pooling, throttled effects
    - Device detection para ajustar qualidade automaticamente
    ============================================ */
@@ -550,46 +554,52 @@ function drawAsteroids() {
         }
         
         // Collision detection with bullets
+        let asteroidDestroyed = false;
         for (let j = gameState.bullets.length - 1; j >= 0; j--) {
             const bullet = gameState.bullets[j];
             const dx = (bullet.x + 2) - pos.centerX;
             const dy = (bullet.y + 12) - pos.centerY;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            
+
             if (distance < asteroid.hitRadius + 8) {
                 // Create explosion
                 createExplosion(pos.centerX, pos.centerY, asteroid.colors, asteroid);
-                
+
                 // Update score
                 gameState.score++;
-                
+
                 // Update earnings for valuable asteroids
                 if (asteroid.reward > 0) {
                     gameState.earnings += asteroid.reward;
                 }
-                
+
                 // Track destroyed asteroid LOCALLY (NÃO envia ao servidor!)
                 gameState.destroyedAsteroids.push({
                     id: asteroid.id,
                     type: asteroid.type,
                     reward: asteroid.reward
                 });
-                
+
                 // Log local apenas (sem requisição HTTP)
                 if (typeof SessionManager !== 'undefined') {
                     SessionManager.recordLocalStat(asteroid.type);
                 }
-                
+
                 // Remove bullet and asteroid
                 gameState.bullets.splice(j, 1);
                 gameState.asteroids.splice(i, 1);
-                
+                asteroidDestroyed = true;
+
                 // Update UI
                 if (typeof updateUI === 'function') updateUI();
                 break;
             }
         }
-        
+
+        // FIX BUG-002: Não checar off-screen se asteroide já foi destruído
+        // Antes: splice duplo removia um asteroide extra indevidamente
+        if (asteroidDestroyed) continue;
+
         // Remove if off screen
         if (asteroid.y > canvas.height + 100) {
             gameState.asteroids.splice(i, 1);
@@ -657,4 +667,4 @@ window.drawHitboxes = drawHitboxes;
 window.gameLoop = gameLoop;
 window.invalidateBgCache = invalidateBgCache;
 
-console.log('📦 game-renderer.js v6.0 carregado (AAA+ background, iOS optimized)');
+console.log('📦 game-renderer.js v6.1 carregado (AAA+ background, double-splice fix)');

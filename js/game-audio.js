@@ -1,6 +1,13 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Audio System
+   CRYPTO ASTEROID RUSH - Audio System v2.0
    File: js/game-audio.js
+
+   MUDANÇAS v2.0:
+   - CRÍTICO: AudioPool reutiliza Audio objects (previne memory leak)
+   - playSound() agora usa AudioPool em vez de new Audio() a cada chamada
+   - cleanup() libera todos os recursos de áudio
+   - Antes: ~1200 Audio objects criados por partida → freeze da aba
+   - Agora: máximo de 4 Audio objects por som (reutilizados)
    ============================================ */
 
 let audioContext = null;
@@ -61,14 +68,60 @@ function tryAlternativeAudioUnlock() {
     } catch (e) {}
 }
 
+// ============================================
+// AUDIO POOL - Reutiliza Audio objects
+// Previne memory leak fatal no Chrome mobile
+// ============================================
+const AudioPool = {
+    _pools: {},
+    _maxPerSound: 4,
+
+    play(filename, volume = 1) {
+        if (!isAudioUnlocked || !gameState.audioEnabled) return;
+
+        try {
+            if (!this._pools[filename]) {
+                this._pools[filename] = [];
+            }
+
+            const pool = this._pools[filename];
+            let audio = null;
+
+            // Encontrar Audio element disponível (pausado ou terminado)
+            for (let i = 0; i < pool.length; i++) {
+                if (pool[i].paused || pool[i].ended) {
+                    audio = pool[i];
+                    break;
+                }
+            }
+
+            // Criar novo apenas se pool não está cheio
+            if (!audio && pool.length < this._maxPerSound) {
+                audio = new Audio('sounds/' + filename);
+                pool.push(audio);
+            }
+
+            if (audio) {
+                audio.volume = volume;
+                audio.currentTime = 0;
+                audio.play().catch(() => {});
+            }
+        } catch (e) {}
+    },
+
+    cleanup() {
+        for (const key in this._pools) {
+            this._pools[key].forEach(a => {
+                try { a.pause(); a.src = ''; } catch (e) {}
+            });
+        }
+        this._pools = {};
+    }
+};
+
 function playSound(filename, volume = 1) {
     if (!isAudioUnlocked || !gameState.audioEnabled) return;
-    
-    try {
-        const audio = new Audio('sounds/' + filename);
-        audio.volume = volume;
-        audio.play().catch(() => {});
-    } catch (e) {}
+    AudioPool.play(filename, volume);
 }
 
 function playBackgroundMusic() {
@@ -126,3 +179,4 @@ window.playSound = playSound;
 window.playBackgroundMusic = playBackgroundMusic;
 window.stopBackgroundMusic = stopBackgroundMusic;
 window.toggleAudio = toggleAudio;
+window.AudioPool = AudioPool;
