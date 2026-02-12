@@ -1,8 +1,7 @@
 <?php
 // ============================================
 // UNOBIX - Solicitação de Saque
-// api/withdraw.php v5.0 - Corrigido
-// Apenas PIX, colunas corretas
+// api/withdraw.php v6.0 - PIX + FaucetPay
 // ============================================
 
 require_once __DIR__ . "/config.php";
@@ -14,11 +13,18 @@ $input = getRequestInput();
 $googleUid = trim($input['google_uid'] ?? '');
 $amount = (float)($input['amount'] ?? $input['amount_brl'] ?? 0);
 $paymentDetails = trim($input['payment_details'] ?? $input['pix_key'] ?? '');
+$paymentMethod = strtolower(trim($input['payment_method'] ?? 'pix'));
 $pixKeyType = strtolower(trim($input['pix_key_type'] ?? 'cpf'));
 
 // Validar google_uid
 if (!$googleUid || !validateGoogleUid($googleUid)) {
     echo json_encode(['success' => false, 'error' => 'google_uid inválido. Faça login novamente.']);
+    exit;
+}
+
+// Validar método de pagamento
+if (!in_array($paymentMethod, WITHDRAW_METHODS)) {
+    echo json_encode(['success' => false, 'error' => 'Método de pagamento inválido. Use: ' . implode(', ', WITHDRAW_METHODS)]);
     exit;
 }
 
@@ -28,15 +34,23 @@ if ($amount < MIN_WITHDRAW_BRL) {
     exit;
 }
 
-// Validar chave PIX
+// Validar dados de pagamento conforme método
 if (empty($paymentDetails)) {
-    echo json_encode(['success' => false, 'error' => 'Chave PIX é obrigatória']);
+    $fieldName = $paymentMethod === 'faucetpay' ? 'E-mail FaucetPay' : 'Chave PIX';
+    echo json_encode(['success' => false, 'error' => "$fieldName é obrigatório(a)"]);
     exit;
 }
 
-if (!validatePixKey($paymentDetails, $pixKeyType)) {
-    echo json_encode(['success' => false, 'error' => 'Chave PIX inválida para o tipo selecionado']);
-    exit;
+if ($paymentMethod === 'faucetpay') {
+    if (!filter_var($paymentDetails, FILTER_VALIDATE_EMAIL)) {
+        echo json_encode(['success' => false, 'error' => 'E-mail FaucetPay inválido']);
+        exit;
+    }
+} else {
+    if (!validatePixKey($paymentDetails, $pixKeyType)) {
+        echo json_encode(['success' => false, 'error' => 'Chave PIX inválida para o tipo selecionado']);
+        exit;
+    }
 }
 
 try {
@@ -84,29 +98,31 @@ try {
     }
 
     // Criar withdrawal - usando colunas corretas da tabela
-    // Tabela tem: user_id, amount_brl, amount_usdt, wallet_address, status, etc.
-    $pixDetails = json_encode([
-        'pix_key' => $paymentDetails,
-        'pix_key_type' => $pixKeyType,
+    $withdrawDetails = json_encode([
+        'method' => $paymentMethod,
+        'details' => $paymentDetails,
+        'pix_key_type' => $paymentMethod === 'pix' ? $pixKeyType : null,
         'google_uid' => $googleUid
     ]);
 
+    $methodLabel = strtoupper($paymentMethod === 'faucetpay' ? 'FaucetPay' : 'PIX');
+
     $stmt = $pdo->prepare("
         INSERT INTO withdrawals (
-            user_id, 
+            user_id,
             amount_brl,
             amount_usdt,
             wallet_address,
-            status, 
+            status,
             admin_notes,
             created_at
         ) VALUES (?, ?, 0, ?, 'pending', ?, NOW())
     ");
     $stmt->execute([
-        (int)$player['id'], 
-        $amount, 
-        'PIX', // Usando wallet_address para indicar método
-        $pixDetails // Detalhes PIX no campo admin_notes
+        (int)$player['id'],
+        $amount,
+        $methodLabel, // Usando wallet_address para indicar método
+        $withdrawDetails // Detalhes no campo admin_notes
     ]);
 
     $withdrawalId = (int)$pdo->lastInsertId();
@@ -125,7 +141,7 @@ try {
         INSERT INTO transactions (google_uid, type, amount, amount_brl, description, status, created_at)
         VALUES (?, 'withdraw', ?, ?, ?, 'pending', NOW())
     ");
-    $stmt->execute([$googleUid, $amount, $amount, "Saque PIX #$withdrawalId"]);
+    $stmt->execute([$googleUid, $amount, $amount, "Saque $methodLabel #$withdrawalId"]);
 
     $pdo->commit();
 
@@ -136,7 +152,7 @@ try {
         'message' => 'Solicitação enviada com sucesso',
         'withdrawal_id' => $withdrawalId,
         'amount_brl' => $amount,
-        'payment_method' => 'pix',
+        'payment_method' => $paymentMethod,
         'new_balance' => round($newBalance, 6),
         'status' => 'pending',
         'estimated_processing' => 'Saques são processados entre os dias 20-25 de cada mês'

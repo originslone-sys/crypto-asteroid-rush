@@ -120,7 +120,7 @@ if (!defined('EARNINGS_ALERT_BRL')) {
 if (!defined('MIN_WITHDRAW_BRL')) {
     define('MIN_WITHDRAW_BRL', 1.00);
     define('WEEKLY_WITHDRAW_LIMIT', 1);
-    define('WITHDRAW_METHODS', ['pix']);
+    define('WITHDRAW_METHODS', ['pix', 'faucetpay']);
 }
 
 // ============================================

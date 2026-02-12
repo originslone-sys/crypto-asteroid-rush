@@ -57,7 +57,7 @@ function confirmAction(message) {
 
 /**
  * Aprovar saque (marca como aprovado no sistema)
- * O pagamento real é feito manualmente via PIX/PayPal
+ * O pagamento real é feito manualmente via PIX/FaucetPay
  */
 async function approveWithdrawal(id, amount) {
     const amountFormatted = formatBRL(amount);
