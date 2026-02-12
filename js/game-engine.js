@@ -393,8 +393,18 @@ async function endGame() {
             if (result && result.success) {
                 // Verificar se precisa de CAPTCHA
                 if (result.captcha_required) {
-                    // CAPTCHA necessário - será tratado pela UI
+                    // CAPTCHA necessário - mostrar widget
                     serverEarnings = result.pending_earnings || gameState.earnings;
+                    
+                    console.log('🔐 CAPTCHA necessário para resgatar R$' + serverEarnings);
+                    
+                    // Mostrar CAPTCHA em vez de resultados finais
+                    if (typeof showCaptcha === 'function') {
+                        showCaptcha(serverEarnings);
+                        return; // Não chamar showEndGameResults ainda
+                    } else {
+                        console.warn('⚠️ Função showCaptcha não encontrada');
+                    }
                 } else {
                     serverEarnings = parseFloat(result.final_earnings) || gameState.earnings;
                     serverBalance = result.new_balance !== null ? parseFloat(result.new_balance) : null;

@@ -46,7 +46,7 @@ if (!defined('CAPTCHA_ENABLED')) {
     define('CAPTCHA_TYPE', 'recaptcha');
     define('RECAPTCHA_SITE_KEY', '6LcVtmgsAAAAAIoCvMa0Ou4Y72WchB0mSdZsmBbs');
     define('RECAPTCHA_SECRET_KEY', '6LcVtmgsAAAAAOz5dJgWRjQfEowN-iZMyiD4jTGc');
-    define('CAPTCHA_REQUIRED_ON_VICTORY', false); // Manter false inicialmente, ativar após testes
+    define('CAPTCHA_REQUIRED_ON_VICTORY', true); // Ativado para testes
 }
 
 // ============================================

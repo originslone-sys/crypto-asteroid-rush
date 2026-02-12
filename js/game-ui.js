@@ -432,6 +432,66 @@ function _shouldShowPostgameAds() {
 }
 
 /**
+ * Mostrar CAPTCHA quando necessário
+ */
+function showCaptcha(pendingEarnings) {
+    console.log('🔐 Mostrando CAPTCHA para resgatar R$' + pendingEarnings);
+    
+    // Inicializar CaptchaManager se ainda não foi
+    if (typeof CaptchaManager !== 'undefined' && CaptchaManager.exists && !CaptchaManager.exists()) {
+        CaptchaManager.init('captchaWidget');
+    }
+    
+    // Mostrar container do CAPTCHA
+    const captchaContainer = document.getElementById('captchaContainer');
+    if (captchaContainer) {
+        captchaContainer.style.display = 'block';
+    }
+    
+    // Esconder resultados finais temporariamente
+    const endGameModal = document.getElementById('endGameModal');
+    if (endGameModal) {
+        endGameModal.style.display = 'none';
+    }
+    
+    // Adicionar listener para quando CAPTCHA for verificado
+    document.addEventListener('captchaVerified', (event) => {
+        console.log('✅ CAPTCHA verificado, reenviando para servidor...');
+        
+        // Chamar SessionManager para reenviar com token
+        if (typeof SessionManager !== 'undefined' && SessionManager.resendAfterCaptcha) {
+            SessionManager.resendAfterCaptcha(event.detail.token)
+                .then(result => {
+                    if (result && result.success) {
+                        console.log('✅ Ganhos creditados após CAPTCHA');
+                        // Mostrar resultados finais agora
+                        hideCaptcha();
+                        if (endGameModal) endGameModal.style.display = 'block';
+                        // Atualizar UI com novos valores
+                        if (result.new_balance !== null) {
+                            updateBalanceDisplay(result.new_balance);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Erro ao reenviar após CAPTCHA:', error);
+                    gameAlert('Erro ao processar verificação. Tente novamente.', 'error');
+                });
+        }
+    });
+}
+
+/**
+ * Esconder CAPTCHA
+ */
+function hideCaptcha() {
+    const captchaContainer = document.getElementById('captchaContainer');
+    if (captchaContainer) {
+        captchaContainer.style.display = 'none';
+    }
+}
+
+/**
  * Exibir resultados finais (chamado após retorno do postgame.html ou direto)
  */
 function _displayResultsFinal(stats, displayEarnings, serverBalance) {
@@ -537,12 +597,25 @@ window.updateLivesDisplay = updateLivesDisplay;
 window.animateLifeLost = animateLifeLost;
 window.showNotification = showNotification;
 window.showMissionInfo = showMissionInfo;
+/**
+ * Atualizar display do saldo
+ */
+function updateBalanceDisplay(newBalance) {
+    const balanceElement = document.getElementById('currentBalance');
+    if (balanceElement && newBalance !== null) {
+        balanceElement.textContent = formatBRL(newBalance);
+    }
+}
+
 window.gameAlert = gameAlert;
 window.gameConfirm = gameConfirm;
 window.showGameOver = showGameOver;
 window.showEndGameResults = showEndGameResults;
+window.showCaptcha = showCaptcha;
+window.hideCaptcha = hideCaptcha;
+window.updateBalanceDisplay = updateBalanceDisplay;
 window.updateSelectedShipInfo = updateSelectedShipInfo;
 window.formatEarningsBRL = formatEarningsBRL;
 window.formatBRL = formatBRL;
 
-console.log('📦 game-ui.js v3.0 carregado (BRL)');
+console.log('📦 game-ui.js v3.1 carregado (BRL + CAPTCHA)');
