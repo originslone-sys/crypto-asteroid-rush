@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Carteira | UNOBIX</title>
-    <meta name="description" content="Gerencie seus ganhos - Saldo, transações e saques via PIX.">
+    <meta name="description" content="Gerencie seus ganhos - Saldo, transações e saques via PIX, FaucetPay ou USDT BEP20.">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/main.css">
@@ -114,7 +114,7 @@
         }
         
         .payment-method.pix i { color: #32BCAD; }
-        .payment-method.paypal i { color: #00457C; }
+        .payment-method.faucetpay i { color: #F7931A; }
         .payment-method.usdt i { color: #26A17B; }
         
         .payment-method span {
@@ -443,9 +443,9 @@
                 <i class="fas fa-qrcode"></i>
                 <span>PIX</span>
             </div>
-            <div class="payment-method paypal" data-method="paypal" onclick="selectPaymentMethod('paypal')">
-                <i class="fab fa-paypal"></i>
-                <span>PayPal</span>
+            <div class="payment-method faucetpay" data-method="faucetpay" onclick="selectPaymentMethod('faucetpay')">
+                <i class="fas fa-wallet"></i>
+                <span>FaucetPay</span>
             </div>
             <div class="payment-method usdt" data-method="usdt_bep20" onclick="selectPaymentMethod('usdt_bep20')">
                 <i class="fas fa-coins"></i>
@@ -548,8 +548,8 @@ function selectPaymentMethod(method) {
             detailsInput.placeholder = 'CPF, e-mail, celular ou chave aleatória';
             detailsInput.type = 'text';
             break;
-        case 'paypal':
-            detailsLabel.textContent = 'E-mail PayPal';
+        case 'faucetpay':
+            detailsLabel.textContent = 'E-mail FaucetPay';
             detailsInput.placeholder = 'seu-email@exemplo.com';
             detailsInput.type = 'email';
             break;

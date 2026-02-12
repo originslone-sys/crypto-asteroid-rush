@@ -161,9 +161,29 @@ try {
                                 <?php endif; ?>
                             </td>
                             <td style="color: var(--success); font-weight: bold;"><?php echo formatBRL($w['amount_brl']); ?></td>
-                            <td><span class="badge badge-primary"><?php echo strtoupper($w['wallet_address'] ?? 'PIX'); ?></span></td>
+                            <td>
+                                <?php
+                                $method = strtoupper($w['wallet_address'] ?? 'PIX');
+                                $methodBadge = [
+                                    'PIX' => 'success',
+                                    'FAUCETPAY' => 'warning',
+                                    'USDT BEP20' => 'primary'
+                                ];
+                                $badgeClass = $methodBadge[$method] ?? 'primary';
+                                ?>
+                                <span class="badge badge-<?php echo $badgeClass; ?>"><?php echo $method; ?></span>
+                            </td>
                             <td style="max-width: 200px; overflow: hidden;">
-                                <small><?php echo htmlspecialchars($w['admin_notes'] ?? '-'); ?></small>
+                                <?php
+                                $notes = $w['admin_notes'] ?? '';
+                                $details = json_decode($notes, true);
+                                if ($details && isset($details['details'])) {
+                                    $detailText = htmlspecialchars($details['details']);
+                                    echo "<small title=\"$detailText\" style=\"cursor: pointer;\" onclick=\"copyToClipboard('$detailText')\"><i class=\"fas fa-copy\" style=\"margin-right: 4px; color: var(--text-dim);\"></i>$detailText</small>";
+                                } else {
+                                    echo '<small>' . htmlspecialchars($notes ?: '-') . '</small>';
+                                }
+                                ?>
                             </td>
                             <td><?php echo formatBRL($w['balance_brl']); ?></td>
                             <td>
