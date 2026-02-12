@@ -52,12 +52,12 @@ function confirmAction(message) {
 }
 
 // ============================================
-// FUNÇÕES DE SAQUES (BRL/PIX)
+// FUNÇÕES DE SAQUES (PIX / FaucetPay / USDT BEP20)
 // ============================================
 
 /**
  * Aprovar saque (marca como aprovado no sistema)
- * O pagamento real é feito manualmente via PIX/FaucetPay
+ * O pagamento real é feito manualmente via PIX, FaucetPay ou USDT BEP20
  */
 async function approveWithdrawal(id, amount) {
     const amountFormatted = formatBRL(amount);

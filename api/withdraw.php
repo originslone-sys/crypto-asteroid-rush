@@ -1,7 +1,7 @@
 <?php
 // ============================================
 // UNOBIX - Solicitação de Saque
-// api/withdraw.php v6.0 - PIX + FaucetPay
+// api/withdraw.php v7.0 - PIX + FaucetPay + USDT BEP20
 // ============================================
 
 require_once __DIR__ . "/config.php";
@@ -36,7 +36,12 @@ if ($amount < MIN_WITHDRAW_BRL) {
 
 // Validar dados de pagamento conforme método
 if (empty($paymentDetails)) {
-    $fieldName = $paymentMethod === 'faucetpay' ? 'E-mail FaucetPay' : 'Chave PIX';
+    $fieldNames = [
+        'pix' => 'Chave PIX',
+        'faucetpay' => 'E-mail FaucetPay',
+        'usdt_bep20' => 'Endereço da carteira BEP20'
+    ];
+    $fieldName = $fieldNames[$paymentMethod] ?? 'Dados de pagamento';
     echo json_encode(['success' => false, 'error' => "$fieldName é obrigatório(a)"]);
     exit;
 }
@@ -44,6 +49,11 @@ if (empty($paymentDetails)) {
 if ($paymentMethod === 'faucetpay') {
     if (!filter_var($paymentDetails, FILTER_VALIDATE_EMAIL)) {
         echo json_encode(['success' => false, 'error' => 'E-mail FaucetPay inválido']);
+        exit;
+    }
+} elseif ($paymentMethod === 'usdt_bep20') {
+    if (!preg_match('/^0x[a-fA-F0-9]{40}$/', $paymentDetails)) {
+        echo json_encode(['success' => false, 'error' => 'Endereço BEP20 inválido. Deve iniciar com 0x seguido de 40 caracteres hexadecimais.']);
         exit;
     }
 } else {
@@ -105,7 +115,12 @@ try {
         'google_uid' => $googleUid
     ]);
 
-    $methodLabel = strtoupper($paymentMethod === 'faucetpay' ? 'FaucetPay' : 'PIX');
+    $methodLabels = [
+        'pix' => 'PIX',
+        'faucetpay' => 'FAUCETPAY',
+        'usdt_bep20' => 'USDT BEP20'
+    ];
+    $methodLabel = $methodLabels[$paymentMethod] ?? strtoupper($paymentMethod);
 
     $stmt = $pdo->prepare("
         INSERT INTO withdrawals (
