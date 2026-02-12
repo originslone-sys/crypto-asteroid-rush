@@ -39,13 +39,14 @@ if (!defined('FIREBASE_PROJECT_ID')) {
 }
 
 // ============================================
-// CAPTCHA
+// CAPTCHA - Google reCAPTCHA v2 (checkbox)
 // ============================================
 if (!defined('CAPTCHA_ENABLED')) {
     define('CAPTCHA_ENABLED', true);
-    define('CAPTCHA_TYPE', 'math');
-    define('HCAPTCHA_SECRET_KEY', getenv('HCAPTCHA_SECRET_KEY') ?: '');
-    define('CAPTCHA_REQUIRED_ON_VICTORY', false);
+    define('CAPTCHA_TYPE', 'recaptcha_v2');
+    define('RECAPTCHA_SITE_KEY', getenv('RECAPTCHA_SITE_KEY') ?: '6LcVtmgsAAAAAIoCvMa0Ou4Y72WchB0mSdZsmBbs');
+    define('RECAPTCHA_SECRET_KEY', getenv('RECAPTCHA_SECRET_KEY') ?: '6LcVtmgsAAAAAOz5dJgWRjQfEowN-iZMyiD4jTGc');
+    define('CAPTCHA_REQUIRED_ON_VICTORY', true);
 }
 
 // ============================================
@@ -235,10 +236,18 @@ if (!function_exists('isHardModeMission')) {
 }
 
 if (!function_exists('verifyCaptcha')) {
+    /**
+     * Verificar token CAPTCHA
+     * Suporta reCAPTCHA v2 (principal) e math (legacy fallback)
+     */
     function verifyCaptcha($token, $ip = null) {
         if (!CAPTCHA_ENABLED) return ['success' => true];
         if (empty($token)) return ['success' => false, 'message' => 'Token CAPTCHA ausente'];
-        
+
+        if (CAPTCHA_TYPE === 'recaptcha_v2') {
+            return verifyRecaptchaV2($token, $ip);
+        }
+
         if (CAPTCHA_TYPE === 'math') {
             try {
                 $decoded = base64_decode($token);
@@ -255,8 +264,53 @@ if (!function_exists('verifyCaptcha')) {
                 return ['success' => false, 'message' => 'Erro ao validar token'];
             }
         }
-        
+
         return ['success' => true];
+    }
+}
+
+if (!function_exists('verifyRecaptchaV2')) {
+    /**
+     * Verificar token reCAPTCHA v2 com API Google
+     */
+    function verifyRecaptchaV2($token, $ip = null) {
+        if (empty(RECAPTCHA_SECRET_KEY)) {
+            secureLog("RECAPTCHA_ERROR | Secret key não configurada");
+            return ['success' => true, 'message' => 'reCAPTCHA não configurado'];
+        }
+
+        $postData = [
+            'secret' => RECAPTCHA_SECRET_KEY,
+            'response' => $token
+        ];
+        if ($ip) $postData['remoteip'] = $ip;
+
+        $options = [
+            'http' => [
+                'header' => "Content-type: application/x-www-form-urlencoded\r\n",
+                'method' => 'POST',
+                'content' => http_build_query($postData),
+                'timeout' => 10
+            ]
+        ];
+
+        $context = stream_context_create($options);
+        $result = @file_get_contents('https://www.google.com/recaptcha/api/siteverify', false, $context);
+
+        if ($result === false) {
+            secureLog("RECAPTCHA_ERROR | Falha ao contatar API Google");
+            return ['success' => true, 'message' => 'Erro de comunicação com reCAPTCHA'];
+        }
+
+        $response = json_decode($result, true);
+
+        if (!$response || empty($response['success'])) {
+            $errorCodes = $response['error-codes'] ?? [];
+            secureLog("RECAPTCHA_FAIL | Errors: " . implode(', ', $errorCodes));
+            return ['success' => false, 'message' => 'Verificação reCAPTCHA falhou', 'errors' => $errorCodes];
+        }
+
+        return ['success' => true, 'message' => 'OK'];
     }
 }
 

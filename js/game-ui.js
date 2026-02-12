@@ -402,7 +402,10 @@ function showEndGameResults(stats, serverEarnings = null, serverBalance = null) 
         sessionStorage.removeItem('_showResultsDirect');
     }
     
-    if (isReturning || !_shouldShowPostgameAds()) {
+    // Se CAPTCHA está pendente, não redirecionar para postgame (perderia o estado JS)
+    const captchaPending = typeof SessionManager !== 'undefined' && typeof SessionManager.hasPendingCaptcha === 'function' && SessionManager.hasPendingCaptcha();
+
+    if (isReturning || captchaPending || !_shouldShowPostgameAds()) {
         // Exibir resultados direto (sem redirecionar)
         _displayResultsFinal(stats, displayEarnings, serverBalance);
         return;
