@@ -2,7 +2,7 @@
 // ============================================
 // UNOBIX - Verificação de CAPTCHA
 // Arquivo: api/verify-captcha.php
-// v5.0 - Google reCAPTCHA v2
+// v4.0 - Suporte a hCaptcha
 // ============================================
 
 require_once __DIR__ . "/config.php";
@@ -25,10 +25,10 @@ try {
     $pdo = getDatabaseConnection();
     if (!$pdo) throw new Exception("Falha na conexão com o banco");
 
-    // Verificar com Google reCAPTCHA v2
-    $verifyUrl = 'https://www.google.com/recaptcha/api/siteverify';
+    // Verificar com hCaptcha
+    $verifyUrl = 'https://hcaptcha.com/siteverify';
     $data = [
-        'secret' => RECAPTCHA_SECRET_KEY,
+        'secret' => HCAPTCHA_SECRET_KEY,
         'response' => $captchaResponse,
         'remoteip' => getClientIP()
     ];
@@ -57,7 +57,7 @@ try {
     $stmt = $pdo->prepare("
         INSERT INTO captcha_log 
         (session_id, google_uid, wallet_address, captcha_type, is_success, response_token, ip_address, user_agent)
-        VALUES (?, ?, ?, 'recaptcha', ?, ?, ?, ?)
+        VALUES (?, ?, ?, 'hcaptcha', ?, ?, ?, ?)
     ");
     $stmt->execute([
         $sessionId,

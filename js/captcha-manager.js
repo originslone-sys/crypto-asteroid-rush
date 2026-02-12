@@ -1,20 +1,19 @@
 /* ============================================
-   UNOBIX - CAPTCHA Manager v5.0
+   UNOBIX - CAPTCHA Manager v6.0
    File: js/captcha-manager.js
-   CAPTCHA matemático simples (apenas soma)
+   Google reCAPTCHA v2 ("Não sou um robô")
    INTEGRADO: Reenvia ao servidor após verificar
    ============================================ */
 
 const CaptchaManager = {
     isVerified: false,
-    currentAnswer: null,
-    currentQuestion: null,
-    num1: 0,
-    num2: 0,
+    token: null,
+    widgetId: null,
     isInitialized: false,
+    siteKey: '6LcVtmgsAAAAAIoCvMa0Ou4Y72WchB0mSdZsmBbs',
     
     /**
-     * Inicializar CAPTCHA
+     * Inicializar reCAPTCHA v2
      */
     init(containerId = 'captchaWidget') {
         const container = document.getElementById(containerId);
@@ -23,294 +22,187 @@ const CaptchaManager = {
             return;
         }
         
-        this.generateChallenge();
+        // Renderizar widget reCAPTCHA
         this.render(container);
         
+        // Carregar script do Google se não estiver carregado
+        if (typeof grecaptcha === 'undefined') {
+            this.loadRecaptchaScript();
+        } else {
+            this.renderRecaptchaWidget();
+        }
+        
         this.isInitialized = true;
-        console.log('🛡️ CAPTCHA matemático inicializado');
+        console.log('🛡️ reCAPTCHA v2 inicializado');
     },
     
     /**
-     * Gerar desafio de soma simples
-     */
-    generateChallenge() {
-        // Apenas soma para simplicidade
-        this.num1 = Math.floor(Math.random() * 20) + 1;
-        this.num2 = Math.floor(Math.random() * 20) + 1;
-        this.currentAnswer = this.num1 + this.num2;
-        this.currentQuestion = `${this.num1} + ${this.num2} = ?`;
-        this.isVerified = false;
-    },
-    
-    /**
-     * Renderizar interface do CAPTCHA
+     * Renderizar container do CAPTCHA
      */
     render(container) {
         container.innerHTML = `
-            <div class="math-captcha">
-                <div class="captcha-question">
-                    <i class="fas fa-calculator"></i>
-                    <span>Resolva: <strong>${this.currentQuestion}</strong></span>
+            <div class="recaptcha-container">
+                <div class="captcha-title">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Verificação de Segurança</span>
                 </div>
-                <div class="captcha-input-wrapper">
-                    <input type="number" 
-                           id="captchaInput" 
-                           class="captcha-input" 
-                           placeholder="Sua resposta"
-                           autocomplete="off"
-                           inputmode="numeric">
-                    <button type="button" id="captchaVerifyBtn" class="captcha-verify-btn">
-                        <i class="fas fa-check"></i>
-                    </button>
+                <div id="gRecaptchaWidget" class="g-recaptcha-placeholder">
+                    <!-- reCAPTCHA será renderizado aqui -->
                 </div>
-                <div id="captchaStatus" class="captcha-status">Digite a resposta acima</div>
-                <button type="button" id="captchaRefreshBtn" class="captcha-refresh-btn">
-                    <i class="fas fa-sync-alt"></i> Novo desafio
-                </button>
+                <div id="captchaStatus" class="captcha-status">
+                    Clique em "Não sou um robô" para verificar
+                </div>
+                <div class="captcha-footer">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        Protegido por Google reCAPTCHA
+                    </small>
+                </div>
             </div>
         `;
+    },
+    
+    /**
+     * Carregar script do Google reCAPTCHA
+     */
+    loadRecaptchaScript() {
+        const script = document.createElement('script');
+        script.src = 'https://www.google.com/recaptcha/api.js?render=explicit';
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+            console.log('✅ Script reCAPTCHA carregado');
+            this.renderRecaptchaWidget();
+        };
+        script.onerror = () => {
+            console.error('❌ Falha ao carregar reCAPTCHA');
+            document.getElementById('captchaStatus').innerHTML = 
+                '<span class="text-danger">Erro ao carregar verificação de segurança</span>';
+        };
+        document.head.appendChild(script);
+    },
+    
+    /**
+     * Renderizar widget reCAPTCHA
+     */
+    renderRecaptchaWidget() {
+        const container = document.getElementById('gRecaptchaWidget');
+        if (!container || !this.siteKey) return;
         
-        // Event listeners
-        const input = document.getElementById('captchaInput');
-        const verifyBtn = document.getElementById('captchaVerifyBtn');
-        const refreshBtn = document.getElementById('captchaRefreshBtn');
-        
-        if (input) {
-            input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.verify();
+        try {
+            this.widgetId = grecaptcha.render(container, {
+                'sitekey': this.siteKey,
+                'theme': 'light',
+                'size': 'normal',
+                'callback': (response) => {
+                    this.onRecaptchaSuccess(response);
+                },
+                'expired-callback': () => {
+                    this.onRecaptchaExpired();
+                },
+                'error-callback': () => {
+                    this.onRecaptchaError();
                 }
             });
             
-            // Auto-verificar quando digitar resposta completa
-            input.addEventListener('input', () => {
-                const value = parseInt(input.value);
-                if (!isNaN(value) && input.value.length >= String(this.currentAnswer).length) {
-                    this.verify();
-                }
-            });
-            
-            // Focar no input
-            setTimeout(() => input.focus(), 100);
-        }
-        
-        if (verifyBtn) {
-            verifyBtn.addEventListener('click', () => this.verify());
-        }
-        
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.refresh());
+            console.log('✅ Widget reCAPTCHA renderizado');
+        } catch (error) {
+            console.error('❌ Erro ao renderizar reCAPTCHA:', error);
+            container.innerHTML = '<div class="alert alert-danger">Erro ao carregar verificação</div>';
         }
     },
     
     /**
-     * Verificar resposta
+     * Callback quando reCAPTCHA é resolvido com sucesso
      */
-    async verify() {
-        const input = document.getElementById('captchaInput');
-        if (!input) return false;
+    onRecaptchaSuccess(response) {
+        console.log('✅ reCAPTCHA verificado com sucesso');
+        this.isVerified = true;
+        this.token = response;
         
-        const userAnswer = parseInt(input.value);
-        
-        if (isNaN(userAnswer)) {
-            this.showStatus('Digite um número válido', 'error');
-            return false;
-        }
-        
-        if (userAnswer === this.currentAnswer) {
-            this.isVerified = true;
-            this.showStatus('✅ Verificação concluída! Processando...', 'success');
-            
-            // Desabilitar input após verificação
-            input.disabled = true;
-            
-            console.log('✅ CAPTCHA verificado corretamente');
-            
-            // NOVO: Reenviar ao servidor automaticamente
-            await this.processAfterVerification();
-            
-            return true;
-        } else {
-            this.showStatus('❌ Resposta incorreta. Tente novamente.', 'error');
-            input.value = '';
-            input.focus();
-            
-            // Gerar novo desafio após erro
-            setTimeout(() => this.refresh(), 1500);
-            return false;
-        }
-    },
-    
-    /**
-     * NOVO: Processar após verificação do CAPTCHA
-     * Reenvia ao servidor para creditar ganhos
-     */
-    async processAfterVerification() {
-        console.log('🔄 Processando crédito após CAPTCHA...');
-        
-        // Verificar se tem sessão pendente
-        if (typeof SessionManager !== 'undefined' && SessionManager.hasPendingCaptcha()) {
-            const token = this.getToken();
-            
-            if (token) {
-                this.showStatus('💰 Creditando ganhos...', 'info');
-                
-                try {
-                    const result = await SessionManager.resendAfterCaptcha(token);
-                    
-                    if (result && result.success && result.credited) {
-                        console.log('✅ Ganhos creditados!', result);
-                        
-                        this.showStatus(`✅ R$ ${result.final_earnings.toFixed(4)} creditados!`, 'success');
-                        this.enableClaimButton();
-                        
-                        // Atualizar exibição do saldo
-                        this.updateBalanceDisplay(result.new_balance);
-                        
-                        // Atualizar exibição de ganhos na tela de fim de jogo
-                        this.updateEarningsDisplay(result.final_earnings, true);
-                        
-                    } else if (result && result.error) {
-                        console.error('❌ Erro ao creditar:', result.error);
-                        this.showStatus('❌ Erro: ' + result.error, 'error');
-                    } else {
-                        this.showStatus('✅ Verificado! Clique para resgatar.', 'success');
-                        this.enableClaimButton();
-                    }
-                } catch (e) {
-                    console.error('❌ Erro no processamento:', e);
-                    this.showStatus('❌ Erro ao processar. Tente novamente.', 'error');
-                }
-            }
-        } else {
-            // Sem pendência, apenas habilitar botão
-            this.enableClaimButton();
-        }
-    },
-    
-    /**
-     * Atualizar exibição do saldo
-     */
-    updateBalanceDisplay(newBalance) {
-        if (newBalance === null || newBalance === undefined) return;
-        
-        // Tentar várias seletores comuns
-        const selectors = [
-            '#userBalance',
-            '#balance-display',
-            '.balance-value',
-            '.user-balance',
-            '[data-balance]'
-        ];
-        
-        for (const selector of selectors) {
-            const el = document.querySelector(selector);
-            if (el) {
-                el.textContent = `R$ ${parseFloat(newBalance).toFixed(2)}`;
-                break;
-            }
-        }
-        
-        // Também atualizar via função global se existir
-        if (typeof updateBalanceDisplay === 'function') {
-            updateBalanceDisplay(newBalance);
-        }
-        
-        // Salvar no localStorage
-        localStorage.setItem('userBalance', newBalance.toString());
-    },
-    
-    /**
-     * Atualizar exibição de ganhos
-     */
-    updateEarningsDisplay(earnings, credited = false) {
-        const selectors = [
-            '#endGameEarnings',
-            '.end-game-earnings',
-            '.earnings-value',
-            '.mission-earnings'
-        ];
-        
-        for (const selector of selectors) {
-            const el = document.querySelector(selector);
-            if (el) {
-                el.textContent = `R$ ${parseFloat(earnings).toFixed(4)}`;
-                if (credited) {
-                    el.classList.add('credited');
-                    el.style.color = '#4CAF50';
-                }
-                break;
-            }
-        }
-    },
-    
-    /**
-     * Atualizar desafio
-     */
-    refresh() {
-        this.generateChallenge();
-        
-        const container = document.getElementById('captchaWidget');
-        if (container) {
-            this.render(container);
-        }
-        
-        this.isVerified = false;
-        this.disableClaimButton();
-    },
-    
-    /**
-     * Habilitar botão de resgate
-     */
-    enableClaimButton() {
-        const claimBtn = document.getElementById('claimRewardBtn');
-        if (claimBtn) {
-            claimBtn.disabled = false;
-            claimBtn.innerHTML = '<i class="fas fa-check"></i> <span>✅ GANHOS CREDITADOS</span>';
-            claimBtn.style.backgroundColor = '#4CAF50';
-        }
-    },
-    
-    /**
-     * Desabilitar botão de resgate
-     */
-    disableClaimButton() {
-        const claimBtn = document.getElementById('claimRewardBtn');
-        if (claimBtn) {
-            claimBtn.disabled = true;
-            claimBtn.innerHTML = '<i class="fas fa-calculator"></i> <span>RESOLVA O DESAFIO</span>';
-            claimBtn.style.backgroundColor = '';
-        }
-    },
-    
-    /**
-     * Mostrar mensagem de status
-     */
-    showStatus(message, type = 'info') {
         const statusEl = document.getElementById('captchaStatus');
         if (statusEl) {
-            statusEl.textContent = message;
-            statusEl.className = 'captcha-status ' + type;
+            statusEl.innerHTML = '<span class="text-success"><i class="fas fa-check-circle"></i> Verificado! Processando...</span>';
+        }
+        
+        // Disparar evento para SessionManager
+        this.dispatchCaptchaVerified();
+    },
+    
+    /**
+     * Callback quando reCAPTCHA expira
+     */
+    onRecaptchaExpired() {
+        console.log('⚠️ reCAPTCHA expirado');
+        this.isVerified = false;
+        this.token = null;
+        
+        const statusEl = document.getElementById('captchaStatus');
+        if (statusEl) {
+            statusEl.innerHTML = '<span class="text-warning">Verificação expirou. Por favor, verifique novamente.</span>';
+        }
+        
+        // Recarregar widget após 2 segundos
+        setTimeout(() => {
+            if (typeof grecaptcha !== 'undefined' && this.widgetId !== null) {
+                grecaptcha.reset(this.widgetId);
+                if (statusEl) {
+                    statusEl.textContent = 'Clique em "Não sou um robô" para verificar';
+                }
+            }
+        }, 2000);
+    },
+    
+    /**
+     * Callback quando reCAPTCHA tem erro
+     */
+    onRecaptchaError() {
+        console.error('❌ Erro no reCAPTCHA');
+        this.isVerified = false;
+        this.token = null;
+        
+        const statusEl = document.getElementById('captchaStatus');
+        if (statusEl) {
+            statusEl.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-triangle"></i> Erro na verificação. Tente novamente.</span>';
         }
     },
     
     /**
-     * Verificar se está completo
+     * Disparar evento quando CAPTCHA é verificado
      */
-    isComplete() {
-        return this.isVerified;
+    dispatchCaptchaVerified() {
+        const event = new CustomEvent('captchaVerified', {
+            detail: {
+                token: this.token,
+                timestamp: Date.now()
+            }
+        });
+        document.dispatchEvent(event);
     },
     
     /**
-     * Obter token para enviar ao backend
-     * Formato: base64 de "math_{resposta}_{timestamp}"
+     * Obter token do CAPTCHA (para SessionManager)
      */
     getToken() {
-        if (this.isVerified) {
-            const tokenData = `math_${this.currentAnswer}_${Date.now()}`;
-            return btoa(tokenData);
+        return this.token;
+    },
+    
+    /**
+     * Verificar se CAPTCHA está completo
+     */
+    isComplete() {
+        return this.isVerified && this.token !== null;
+    },
+    
+    /**
+     * Verificar CAPTCHA (para compatibilidade com interface antiga)
+     */
+    verify() {
+        if (typeof grecaptcha !== 'undefined' && this.widgetId !== null) {
+            grecaptcha.execute(this.widgetId);
+        } else {
+            console.warn('⚠️ reCAPTCHA não está pronto para verificação');
         }
-        return null;
     },
     
     /**
@@ -318,44 +210,29 @@ const CaptchaManager = {
      */
     reset() {
         this.isVerified = false;
-        this.currentAnswer = null;
-        this.currentQuestion = null;
-        this.isInitialized = false;
+        this.token = null;
         
-        this.disableClaimButton();
-        this.showStatus('Complete a verificação para resgatar', 'info');
-    }
-};
-
-// Observar quando modal de fim de jogo abrir
-const observeEndGameModal = () => {
-    const endGameModal = document.getElementById('endGameModal');
+        if (typeof grecaptcha !== 'undefined' && this.widgetId !== null) {
+            grecaptcha.reset(this.widgetId);
+        }
+        
+        const statusEl = document.getElementById('captchaStatus');
+        if (statusEl) {
+            statusEl.textContent = 'Clique em "Não sou um robô" para verificar';
+        }
+        
+        console.log('🔄 reCAPTCHA resetado');
+    },
     
-    if (endGameModal) {
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.attributeName === 'class') {
-                    if (endGameModal.classList.contains('active')) {
-                        // Modal aberto, inicializar CAPTCHA
-                        CaptchaManager.reset();
-                        setTimeout(() => CaptchaManager.init(), 300);
-                    }
-                }
-            });
-        });
-        
-        observer.observe(endGameModal, { attributes: true });
-    } else {
-        setTimeout(observeEndGameModal, 500);
+    /**
+     * Verificar se está inicializado
+     */
+    exists() {
+        return this.isInitialized;
     }
 };
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', observeEndGameModal);
-} else {
-    observeEndGameModal();
-}
-
+// Exportar para escopo global
 window.CaptchaManager = CaptchaManager;
 
-console.log('🛡️ CaptchaManager v5.0 carregado (integrado com SessionManager)');
+console.log('🛡️ CaptchaManager v6.0 carregado (Google reCAPTCHA v2)');

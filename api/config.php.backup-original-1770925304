@@ -39,14 +39,13 @@ if (!defined('FIREBASE_PROJECT_ID')) {
 }
 
 // ============================================
-// CAPTCHA - Google reCAPTCHA v2
+// CAPTCHA
 // ============================================
 if (!defined('CAPTCHA_ENABLED')) {
     define('CAPTCHA_ENABLED', true);
-    define('CAPTCHA_TYPE', 'recaptcha');
-    define('RECAPTCHA_SITE_KEY', '6LcVtmgsAAAAAIoCvMa0Ou4Y72WchB0mSdZsmBbs');
-    define('RECAPTCHA_SECRET_KEY', '6LcVtmgsAAAAAOz5dJgWRjQfEowN-iZMyiD4jTGc');
-    define('CAPTCHA_REQUIRED_ON_VICTORY', false); // Manter false inicialmente, ativar após testes
+    define('CAPTCHA_TYPE', 'math');
+    define('HCAPTCHA_SECRET_KEY', getenv('HCAPTCHA_SECRET_KEY') ?: '');
+    define('CAPTCHA_REQUIRED_ON_VICTORY', false);
 }
 
 // ============================================
