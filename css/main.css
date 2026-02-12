@@ -1152,6 +1152,7 @@ body {
         visibility: hidden;
         transition: all 0.3s ease;
         border-bottom: 1px solid var(--border-color);
+        z-index: 999;
     }
     
     .nav.active {

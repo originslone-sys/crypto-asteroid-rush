@@ -1159,8 +1159,28 @@ function setupEventListeners() {
     });
     
     // Menu mobile
-    document.getElementById('mobileMenuBtn')?.addEventListener('click', () => {
-        document.getElementById('nav')?.classList.toggle('open');
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const nav = document.getElementById('nav');
+
+    mobileMenuBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        nav?.classList.toggle('active');
+    });
+
+    // Fechar menu ao clicar em um link
+    nav?.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+            nav.classList.remove('active');
+        });
+    });
+
+    // Fechar menu ao clicar fora
+    document.addEventListener('click', (e) => {
+        if (nav?.classList.contains('active') &&
+            !nav.contains(e.target) &&
+            !mobileMenuBtn?.contains(e.target)) {
+            nav.classList.remove('active');
+        }
     });
     
     // Staking
