@@ -436,6 +436,9 @@ function _shouldShowPostgameAds() {
  */
 function showCaptcha(pendingEarnings) {
     console.log('🔐 Mostrando CAPTCHA para resgatar R$' + pendingEarnings);
+    console.log('🔍 DEBUG: showCaptcha() chamada com pendingEarnings:', pendingEarnings);
+    console.log('🔍 DEBUG: CaptchaManager disponível?', typeof CaptchaManager !== 'undefined');
+    console.log('🔍 DEBUG: captchaContainer existe?', !!document.getElementById('captchaContainer'));
     
     // Inicializar CaptchaManager se ainda não foi
     if (typeof CaptchaManager !== 'undefined' && CaptchaManager.exists && !CaptchaManager.exists()) {
@@ -469,8 +472,8 @@ function showCaptcha(pendingEarnings) {
                         const existingData = JSON.parse(sessionStorage.getItem('postgameData') || '{}');
                         const postgameData = {
                             ...existingData,
-                            stats: existingData.stats || gameState.stats || {},
-                            score: existingData.score || gameState.score || 0,
+                            stats: existingData.stats || {},
+                            score: existingData.score || 0,
                             earnings: result.final_earnings || pendingEarnings,
                             serverEarnings: result.final_earnings || pendingEarnings,
                             serverBalance: result.new_balance,

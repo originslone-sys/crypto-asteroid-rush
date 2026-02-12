@@ -410,11 +410,22 @@ async function endGame() {
                     }));
                     
                     // Mostrar CAPTCHA em vez de resultados finais
+                    console.log('🔍 DEBUG: Verificando showCaptcha...');
+                    console.log('🔍 DEBUG: typeof showCaptcha =', typeof showCaptcha);
+                    
                     if (typeof showCaptcha === 'function') {
-                        showCaptcha(serverEarnings);
-                        return; // Não chamar showEndGameResults ainda
+                        try {
+                            console.log('🔍 DEBUG: Chamando showCaptcha() com earnings:', serverEarnings);
+                            showCaptcha(serverEarnings);
+                            return; // Não chamar showEndGameResults ainda
+                        } catch (captchaError) {
+                            console.error('❌ Erro ao mostrar CAPTCHA:', captchaError);
+                            console.warn('⚠️ Continuando sem CAPTCHA devido a erro...');
+                            // Continuar fluxo normal (sem captcha)
+                        }
                     } else {
                         console.warn('⚠️ Função showCaptcha não encontrada');
+                        console.warn('⚠️ Continuando sem CAPTCHA...');
                     }
                 } else {
                     serverEarnings = parseFloat(result.final_earnings) || gameState.earnings;
