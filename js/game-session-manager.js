@@ -100,6 +100,13 @@ const SessionManager = {
             } else {
                 console.error('❌ Falha ao criar sessão:', result.error);
 
+                if (result.error_code === 'VPN_PROXY_DETECTED') {
+                    throw new Error(
+                        'VPN ou Proxy detectado! Por segurança, desative sua VPN/Proxy para jogar. ' +
+                        'O uso de VPN/Proxy não é permitido.'
+                    );
+                }
+
                 if (result.error_code === 'DAILY_LIMIT_REACHED') {
                     const hours = Math.ceil((result.wait_seconds || 86400) / 3600);
                     throw new Error(

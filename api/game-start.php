@@ -50,7 +50,21 @@ try {
     
     $userId = (int)$user['id'];
     $realGoogleUid = $user['google_uid'];
-    
+
+    // Verificar VPN/Proxy via proxycheck.io
+    ensureProxyCacheTable($pdo);
+    $proxyCheck = checkProxyVPN($clientIP, $pdo);
+    if ($proxyCheck['is_proxy']) {
+        secureLog("VPN_PROXY_BLOCKED_GAME | IP: $clientIP | Type: {$proxyCheck['type']} | User: $userId");
+        echo json_encode([
+            'success' => false,
+            'error' => 'Detectamos que você está usando VPN ou Proxy. Por segurança, desative a VPN/Proxy para jogar.',
+            'error_code' => 'VPN_PROXY_DETECTED',
+            'proxy_type' => $proxyCheck['type']
+        ]);
+        exit;
+    }
+
     // Verificar limite diário por IP (50 missões por 24h)
     $stmt = $pdo->prepare("
         SELECT COUNT(*) as count,
