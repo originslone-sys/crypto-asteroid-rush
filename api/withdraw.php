@@ -1,0 +1,151 @@
+<?php
+// ============================================
+// UNOBIX - Solicitação de Saque
+// api/withdraw.php v5.0 - Corrigido
+// Apenas PIX, colunas corretas
+// ============================================
+
+require_once __DIR__ . "/config.php";
+
+setCorsHeaders();
+
+$input = getRequestInput();
+
+$googleUid = trim($input['google_uid'] ?? '');
+$amount = (float)($input['amount'] ?? $input['amount_brl'] ?? 0);
+$paymentDetails = trim($input['payment_details'] ?? $input['pix_key'] ?? '');
+$pixKeyType = strtolower(trim($input['pix_key_type'] ?? 'cpf'));
+
+// Validar google_uid
+if (!$googleUid || !validateGoogleUid($googleUid)) {
+    echo json_encode(['success' => false, 'error' => 'google_uid inválido. Faça login novamente.']);
+    exit;
+}
+
+// Validar valor mínimo
+if ($amount < MIN_WITHDRAW_BRL) {
+    echo json_encode(['success' => false, 'error' => 'Valor mínimo: R$ ' . number_format(MIN_WITHDRAW_BRL, 2, ',', '.')]);
+    exit;
+}
+
+// Validar chave PIX
+if (empty($paymentDetails)) {
+    echo json_encode(['success' => false, 'error' => 'Chave PIX é obrigatória']);
+    exit;
+}
+
+if (!validatePixKey($paymentDetails, $pixKeyType)) {
+    echo json_encode(['success' => false, 'error' => 'Chave PIX inválida para o tipo selecionado']);
+    exit;
+}
+
+try {
+    $pdo = getDatabaseConnection();
+    if (!$pdo) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao conectar ao banco']);
+        exit;
+    }
+
+    $pdo->beginTransaction();
+
+    // Buscar e bloquear player
+    $stmt = $pdo->prepare("SELECT id, google_uid, balance_brl FROM users WHERE google_uid = ? FOR UPDATE");
+    $stmt->execute([$googleUid]);
+    $player = $stmt->fetch();
+
+    if (!$player) {
+        $pdo->rollBack();
+        echo json_encode(['success' => false, 'error' => 'Usuário não encontrado']);
+        exit;
+    }
+
+    $balance = (float)$player['balance_brl'];
+    if ($amount <= 0 || $amount > $balance) {
+        $pdo->rollBack();
+        echo json_encode(['success' => false, 'error' => 'Saldo insuficiente', 'current_balance' => $balance]);
+        exit;
+    }
+
+    // Verificar limite semanal usando user_id
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) FROM withdrawals
+        WHERE user_id = ?
+          AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
+          AND status NOT IN ('rejected', 'cancelled')
+    ");
+    $stmt->execute([$player['id']]);
+    $weeklyCount = (int)$stmt->fetchColumn();
+
+    if ($weeklyCount >= WEEKLY_WITHDRAW_LIMIT) {
+        $pdo->rollBack();
+        echo json_encode(['success' => false, 'error' => 'Limite semanal de saques atingido.']);
+        exit;
+    }
+
+    // Criar withdrawal - usando colunas corretas da tabela
+    // Tabela tem: user_id, amount_brl, amount_usdt, wallet_address, status, etc.
+    $pixDetails = json_encode([
+        'pix_key' => $paymentDetails,
+        'pix_key_type' => $pixKeyType,
+        'google_uid' => $googleUid
+    ]);
+
+    $stmt = $pdo->prepare("
+        INSERT INTO withdrawals (
+            user_id, 
+            amount_brl,
+            amount_usdt,
+            wallet_address,
+            status, 
+            admin_notes,
+            created_at
+        ) VALUES (?, ?, 0, ?, 'pending', ?, NOW())
+    ");
+    $stmt->execute([
+        (int)$player['id'], 
+        $amount, 
+        'PIX', // Usando wallet_address para indicar método
+        $pixDetails // Detalhes PIX no campo admin_notes
+    ]);
+
+    $withdrawalId = (int)$pdo->lastInsertId();
+
+    // Debitar saldo
+    $newBalance = $balance - $amount;
+    $stmt = $pdo->prepare("UPDATE users SET balance_brl = ?, updated_at = NOW() WHERE id = ?");
+    $stmt->execute([$newBalance, (int)$player['id']]);
+
+    // Atualizar total_withdrawn_brl
+    $stmt = $pdo->prepare("UPDATE users SET total_withdrawn_brl = total_withdrawn_brl + ? WHERE id = ?");
+    $stmt->execute([$amount, (int)$player['id']]);
+
+    // Registrar transação
+    $stmt = $pdo->prepare("
+        INSERT INTO transactions (google_uid, type, amount, amount_brl, description, status, created_at)
+        VALUES (?, 'withdraw', ?, ?, ?, 'pending', NOW())
+    ");
+    $stmt->execute([$googleUid, $amount, $amount, "Saque PIX #$withdrawalId"]);
+
+    $pdo->commit();
+
+    secureLog("WITHDRAW_REQUEST | UID: $googleUid | Amount: R$$amount | ID: $withdrawalId");
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Solicitação enviada com sucesso',
+        'withdrawal_id' => $withdrawalId,
+        'amount_brl' => $amount,
+        'payment_method' => 'pix',
+        'new_balance' => round($newBalance, 6),
+        'status' => 'pending',
+        'estimated_processing' => 'Saques são processados entre os dias 20-25 de cada mês'
+    ]);
+
+} catch (Throwable $e) {
+    if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
+    secureLog("WITHDRAW_ERROR | " . $e->getMessage());
+    error_log("withdraw.php error: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Erro no servidor']);
+}
