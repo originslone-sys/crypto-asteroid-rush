@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia do Jogo | UNOBIX</title>
+    <meta name="description" content="Aprenda a jogar Unobix - controles, estratégias, tipos de asteroides e dicas para maximizar seus ganhos.">
+    <link rel="icon" type="image/png" href="img/logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #00E5CC;
+            --primary-glow: rgba(0, 229, 204, 0.4);
+            --secondary: #7BF542;
+            --accent: #B8FF00;
+            --success: #00FF88;
+            --warning: #ffaa00;
+            --danger: #ff3366;
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121f;
+            --bg-tertiary: #1a1a2e;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0c0;
+            --text-muted: #707080;
+            --border: rgba(0, 229, 204, 0.2);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        
+        body {
+            font-family: 'Exo 2', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .bg-effects {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(123, 245, 66, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(0, 229, 204, 0.08) 0%, transparent 50%);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Navigation */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--primary);
+        }
+        
+        .logo img { width: 40px; height: 40px; border-radius: 50%; }
+        
+        .nav-links { display: flex; gap: 30px; }
+        
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .nav-links a:hover, .nav-links a.active { color: var(--primary); }
+        
+        .play-btn {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #000;
+            padding: 10px 25px;
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .play-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px var(--primary-glow);
+        }
+        
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            padding: 80px 0 60px;
+        }
+        
+        .hero h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 30px;
+        }
+        
+        .hero-badges {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .hero-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 229, 204, 0.1);
+            border: 1px solid var(--border);
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+        }
+        
+        .hero-badge i { color: var(--primary); }
+        
+        /* Section Styles */
+        .section { padding: 60px 0; }
+        
+        .section-header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        
+        .section-header h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .section-header p {
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        /* Controls Grid */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        
+        .control-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 30px;
+        }
+        
+        .control-card h3 {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-list { list-style: none; }
+        
+        .control-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .control-item:last-child { border-bottom: none; }
+        
+        .control-action { color: var(--text-secondary); }
+        
+        .control-key { display: flex; gap: 8px; }
+        
+        .key {
+            background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+            border: 1px solid var(--border);
+            padding: 8px 15px;
+            border-radius: var(--radius-sm);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            color: var(--primary);
+        }
+        
+        /* Asteroids Grid */
+        .asteroids-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
+        .asteroid-card {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .asteroid-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .asteroid-card.common { border-color: rgba(107, 68, 35, 0.5); }
+        .asteroid-card.rare { border-color: rgba(30, 144, 255, 0.5); }
+        .asteroid-card.epic { border-color: rgba(153, 50, 204, 0.5); }
+        .asteroid-card.legendary { border-color: rgba(255, 215, 0, 0.5); }
+        
+        .asteroid-visual { font-size: 3rem; margin-bottom: 15px; }
+        
+        .asteroid-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+        
+        .asteroid-reward {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            margin-bottom: 5px;
+        }
+        
+        .asteroid-card.common .asteroid-reward { color: var(--text-muted); }
+        .asteroid-card.rare .asteroid-reward { color: #1E90FF; }
+        .asteroid-card.epic .asteroid-reward { color: #9932CC; }
+        .asteroid-card.legendary .asteroid-reward { color: #FFD700; }
+        
+        /* Tips Grid */
+        .tips-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        
+        .tip-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 25px;
+            transition: all 0.3s;
+        }
+        
+        .tip-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-3px);
+        }
+        
+        .tip-icon {
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            background: rgba(0, 229, 204, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            color: var(--primary);
+            font-size: 1.3rem;
+        }
+        
+        .tip-card h3 {
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+        
+        .tip-card p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        /* CTA Section */
+        .cta-section {
+            background: linear-gradient(135deg, rgba(0, 229, 204, 0.1), rgba(123, 245, 66, 0.1));
+            padding: 80px 0;
+            text-align: center;
+            margin-top: 60px;
+        }
+        
+        .cta-section h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+        
+        .cta-section p {
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+        }
+        
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 30px;
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #000;
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+        
+        .btn:hover { transform: translateY(-2px); }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 40px 0;
+            border-top: 1px solid var(--border);
+        }
+        
+        .footer-links {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .footer-links a:hover { color: var(--primary); }
+        
+        .footer p { color: var(--text-muted); font-size: 0.9rem; }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .hero h1 { font-size: 1.8rem; }
+            .controls-grid { grid-template-columns: 1fr; }
+            .asteroids-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 480px) {
+            .asteroids-grid { grid-template-columns: 1fr; }
+            .hero-badges { flex-direction: column; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-effects"></div>
+    
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <a href="index.html" class="logo">
+                <img src="img/logo.png" alt="Unobix">
+                <span>UNOBIX</span>
+            </a>
+            <div class="nav-links">
+                <a href="dashboard.html">Painel</a>
+                <a href="game.html">Jogar</a>
+                <a href="wallet.html">Carteira</a>
+                <a href="staking.html">Staking</a>
+                <a href="gameplay.html" class="active">Guia</a>
+            </div>
+            <a href="game.html" class="play-btn"><i class="fas fa-play"></i> Jogar</a>
+        </nav>
+        
+        <!-- Hero -->
+        <section class="hero">
+            <h1><i class="fas fa-gamepad"></i> GUIA DO JOGO</h1>
+            <p>Domine os controles, conheça os asteroides e maximize seus ganhos com estratégias de especialista</p>
+            <div class="hero-badges">
+                <span class="hero-badge"><i class="fas fa-gift"></i> 100% Grátis</span>
+                <span class="hero-badge"><i class="fas fa-clock"></i> 180 segundos</span>
+                <span class="hero-badge"><i class="fas fa-heart"></i> 6 vidas</span>
+                <span class="hero-badge"><i class="fas fa-coins"></i> Ganhos reais</span>
+            </div>
+        </section>
+        
+        <!-- Controls Section -->
+        <section class="section">
+            <div class="section-header">
+                <h2><i class="fas fa-keyboard"></i> CONTROLES</h2>
+                <p>Domine os controles para se tornar um caçador de asteroides habilidoso</p>
+            </div>
+            
+            <div class="controls-grid">
+                <!-- Desktop -->
+                <div class="control-card">
+                    <h3><i class="fas fa-desktop"></i> Controles Desktop</h3>
+                    <ul class="control-list">
+                        <li class="control-item">
+                            <span class="control-action">Mover Esquerda</span>
+                            <div class="control-key">
+                                <span class="key">A</span>
+                                <span class="key">←</span>
+                            </div>
+                        </li>
+                        <li class="control-item">
+                            <span class="control-action">Mover Direita</span>
+                            <div class="control-key">
+                                <span class="key">D</span>
+                                <span class="key">→</span>
+                            </div>
+                        </li>
+                        <li class="control-item">
+                            <span class="control-action">Atirar</span>
+                            <div class="control-key">
+                                <span class="key">ESPAÇO</span>
+                            </div>
+                        </li>
+                        <li class="control-item">
+                            <span class="control-action">Tiro Contínuo</span>
+                            <div class="control-key">
+                                <span class="key">Segurar ESPAÇO</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Mobile -->
+                <div class="control-card">
+                    <h3><i class="fas fa-mobile-alt"></i> Controles Mobile</h3>
+                    <ul class="control-list">
+                        <li class="control-item">
+                            <span class="control-action">Mover Esquerda</span>
+                            <div class="control-key">
+                                <span class="key">Botão ←</span>
+                            </div>
+                        </li>
+                        <li class="control-item">
+                            <span class="control-action">Mover Direita</span>
+                            <div class="control-key">
+                                <span class="key">Botão →</span>
+                            </div>
+                        </li>
+                        <li class="control-item">
+                            <span class="control-action">Atirar</span>
+                            <div class="control-key">
+                                <span class="key">Botão TIRO</span>
+                            </div>
+                        </li>
+                        <li class="control-item">
+                            <span class="control-action">Tiro Contínuo</span>
+                            <div class="control-key">
+                                <span class="key">Segurar TIRO</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Asteroids Section -->
+        <section class="section">
+            <div class="section-header">
+                <h2><i class="fas fa-meteor"></i> TIPOS DE ASTEROIDES</h2>
+                <p>Aprenda a identificar e priorizar asteroides valiosos pelo brilho</p>
+            </div>
+            
+            <div class="asteroids-grid">
+                <div class="asteroid-card common">
+                    <div class="asteroid-visual">🪨</div>
+                    <div class="asteroid-name">COMUM</div>
+                    <div class="asteroid-reward">R$ 0,00</div>
+                    <p style="font-size: 0.8rem; color: #ff6666; margin-top: 10px;">Sem valor - desvie ou destrua</p>
+                </div>
+                
+                <div class="asteroid-card rare">
+                    <div class="asteroid-visual">💎</div>
+                    <div class="asteroid-name">RARO</div>
+                    <div class="asteroid-reward">R$ 0,001</div>
+                    <p style="font-size: 0.8rem; color: #1E90FF; margin-top: 10px;">Brilho azul</p>
+                </div>
+                
+                <div class="asteroid-card epic">
+                    <div class="asteroid-visual">🔮</div>
+                    <div class="asteroid-name">ÉPICO</div>
+                    <div class="asteroid-reward">R$ 0,005</div>
+                    <p style="font-size: 0.8rem; color: #9932CC; margin-top: 10px;">Brilho roxo</p>
+                </div>
+                
+                <div class="asteroid-card legendary">
+                    <div class="asteroid-visual">⭐</div>
+                    <div class="asteroid-name">LENDÁRIO</div>
+                    <div class="asteroid-reward">R$ 0,02</div>
+                    <p style="font-size: 0.8rem; color: #FFD700; margin-top: 10px;">Brilho dourado - NUNCA perca!</p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Tips Section -->
+        <section class="section">
+            <div class="section-header">
+                <h2><i class="fas fa-lightbulb"></i> DICAS DE ESPECIALISTA</h2>
+                <p>Estratégias para maximizar seus ganhos</p>
+            </div>
+            
+            <div class="tips-grid">
+                <div class="tip-card">
+                    <div class="tip-icon"><i class="fas fa-crosshairs"></i></div>
+                    <h3>Priorize Asteroides Raros</h3>
+                    <p>Asteroides com brilho azul valem mais. Sempre mire neles primeiro quando aparecerem na tela.</p>
+                </div>
+                
+                <div class="tip-card">
+                    <div class="tip-icon"><i class="fas fa-shield-alt"></i></div>
+                    <h3>Proteja Suas Vidas</h3>
+                    <p>Perder todas as 6 vidas significa perder todos os ganhos. Às vezes desviar é melhor que arriscar uma colisão.</p>
+                </div>
+                
+                <div class="tip-card">
+                    <div class="tip-icon"><i class="fas fa-eye"></i></div>
+                    <h3>Observe o Brilho Dourado</h3>
+                    <p>Asteroides lendários têm brilho dourado e valem R$ 0,02. Nunca deixe passar!</p>
+                </div>
+                
+                <div class="tip-card">
+                    <div class="tip-icon"><i class="fas fa-arrows-alt-h"></i></div>
+                    <h3>Continue se Movendo</h3>
+                    <p>Mantenha-se em movimento para evitar colisões. Uma nave parada é alvo fácil.</p>
+                </div>
+                
+                <div class="tip-card">
+                    <div class="tip-icon"><i class="fas fa-fire"></i></div>
+                    <h3>Use Tiro Contínuo</h3>
+                    <p>Segure o botão de tiro para disparo contínuo. Isso ajuda a maximizar a destruição de asteroides.</p>
+                </div>
+                
+                <div class="tip-card">
+                    <div class="tip-icon"><i class="fas fa-clock"></i></div>
+                    <h3>Limite de Missões</h3>
+                    <p>Você pode jogar até 5 missões por hora. Planeje suas sessões para maximizar seus ganhos!</p>
+                </div>
+                
+                <div class="tip-card">
+                    <div class="tip-icon"><i class="fas fa-robot"></i></div>
+                    <h3>Complete o CAPTCHA</h3>
+                    <p>Ao vencer, complete o CAPTCHA rapidamente para confirmar seus ganhos.</p>
+                </div>
+                
+                <div class="tip-card">
+                    <div class="tip-icon"><i class="fas fa-piggy-bank"></i></div>
+                    <h3>Use o Staking</h3>
+                    <p>Coloque seus ganhos para render 5% APY enquanto você não saca!</p>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <h2>PRONTO PARA COMEÇAR A GANHAR?</h2>
+            <p>Coloque suas habilidades à prova e comece a destruir asteroides por recompensas em BRL</p>
+            <div class="cta-buttons">
+                <a href="game.html" class="btn btn-primary">
+                    <i class="fas fa-rocket"></i>
+                    INICIAR MISSÃO
+                </a>
+                <a href="economy.html" class="btn btn-secondary">
+                    <i class="fas fa-coins"></i>
+                    VER ECONOMIA
+                </a>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-links">
+                <a href="index.html">Início</a>
+                <a href="dashboard.html">Painel</a>
+                <a href="economy.html">Economia</a>
+                <a href="faq.html">FAQ</a>
+                <a href="https://t.me/UnobixOfficial" target="_blank">Telegram</a>
+            </div>
+            <p>© 2026 Unobix. Jogue Esperto, Ganhe Recompensas.</p>
+        </div>
+    </footer>
+</body>
+</html>
