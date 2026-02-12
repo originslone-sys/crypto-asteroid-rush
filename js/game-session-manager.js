@@ -99,11 +99,19 @@ const SessionManager = {
                 return result;
             } else {
                 console.error('❌ Falha ao criar sessão:', result.error);
-                
+
+                if (result.error_code === 'DAILY_LIMIT_REACHED') {
+                    const hours = Math.ceil((result.wait_seconds || 86400) / 3600);
+                    throw new Error(
+                        `Você atingiu o limite de ${result.daily_limit || 50} missões diárias! ` +
+                        `Tente novamente em aproximadamente ${hours}h.`
+                    );
+                }
+
                 if (result.wait_seconds) {
                     throw new Error(`Aguarde ${Math.ceil(result.wait_seconds / 60)} minuto(s) antes de jogar novamente`);
                 }
-                
+
                 throw new Error(result.error || 'Falha ao iniciar sessão');
             }
         } catch (error) {

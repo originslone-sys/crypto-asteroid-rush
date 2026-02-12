@@ -42,21 +42,48 @@ try {
             $googleUid = substr($googleUid, 0, 128);
             $email = substr($email, 0, 255);
             $displayName = substr($displayName, 0, 100);
-            
+
+            // Verificar limite de 1 conta por IP
+            $clientIP = getClientIP();
+
+            $stmt = $pdo->prepare("
+                SELECT google_uid, display_name
+                FROM users
+                WHERE last_login_ip = ?
+                AND google_uid != ?
+                AND last_login_ip IS NOT NULL
+                AND last_login_ip != '0.0.0.0'
+                LIMIT 1
+            ");
+            $stmt->execute([$clientIP, $googleUid]);
+            $existingAccount = $stmt->fetch();
+
+            if ($existingAccount) {
+                secureLog("IP_ACCOUNT_LIMIT | IP: $clientIP | Attempted: " . substr($googleUid, 0, 15) . " | Existing: " . substr($existingAccount['google_uid'], 0, 15));
+                jsonResponse([
+                    'success' => false,
+                    'error' => 'Já existe uma conta conectada neste dispositivo/rede. Apenas uma conta por IP é permitida.',
+                    'error_code' => 'IP_ACCOUNT_LIMIT',
+                    'existing_account' => substr($existingAccount['display_name'] ?? 'Outra conta', 0, 3) . '***'
+                ], 403);
+            }
+
             // UPSERT
             $stmt = $pdo->prepare("
                 INSERT INTO users (
-                    google_uid, email, display_name, 
+                    google_uid, email, display_name,
                     balance_brl, total_played, total_earned_brl,
+                    last_login_ip,
                     created_at, updated_at, last_login
-                ) VALUES (?, ?, ?, 0, 0, 0, NOW(), NOW(), NOW())
+                ) VALUES (?, ?, ?, 0, 0, 0, ?, NOW(), NOW(), NOW())
                 ON DUPLICATE KEY UPDATE
                     email = COALESCE(VALUES(email), email),
                     display_name = COALESCE(VALUES(display_name), display_name),
+                    last_login_ip = VALUES(last_login_ip),
                     last_login = NOW(),
                     updated_at = NOW()
             ");
-            $stmt->execute([$googleUid, $email, $displayName]);
+            $stmt->execute([$googleUid, $email, $displayName, $clientIP]);
             
             // Detectar se é novo usuário (INSERT vs UPDATE)
             $isNewUser = ($stmt->rowCount() === 1);
