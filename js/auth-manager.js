@@ -249,7 +249,13 @@ class AuthManager {
                 
             } else {
                 console.warn('⚠️ Aviso do backend:', result.error);
-                
+
+                if (result.error_code === 'IP_ACCOUNT_LIMIT') {
+                    alert('Já existe uma conta conectada neste dispositivo/rede. Apenas uma conta por IP é permitida. Faça logout da outra conta primeiro.');
+                    await this.signOut();
+                    return;
+                }
+
                 if (result.error && result.error.includes('suspensa')) {
                     alert('Sua conta foi suspensa. Entre em contato com o suporte.');
                     await this.signOut();

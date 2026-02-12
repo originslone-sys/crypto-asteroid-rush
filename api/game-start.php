@@ -51,27 +51,35 @@ try {
     $userId = (int)$user['id'];
     $realGoogleUid = $user['google_uid'];
     
-    // Verificar limite por IP
+    // Verificar limite diário por IP (50 missões por 24h)
     $stmt = $pdo->prepare("
-        SELECT COUNT(*) as count 
-        FROM game_sessions 
-        WHERE ip_address = ? 
-        AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+        SELECT COUNT(*) as count,
+               MIN(created_at) as first_session
+        FROM game_sessions
+        WHERE ip_address = ?
+        AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
     ");
     $stmt->execute([$clientIP]);
     $ipCheck = $stmt->fetch();
-    
-    if ($ipCheck['count'] >= MAX_MISSIONS_PER_HOUR) {
+
+    if ($ipCheck['count'] >= MAX_MISSIONS_PER_DAY) {
+        // Calcular segundos restantes até a sessão mais antiga expirar (24h)
+        $firstSession = strtotime($ipCheck['first_session']);
+        $resetTime = $firstSession + 86400; // 24h em segundos
+        $waitSeconds = max(0, $resetTime - time());
+
         echo json_encode([
             'success' => false,
-            'error' => 'Limite de ' . MAX_MISSIONS_PER_HOUR . ' missões por hora atingido',
-            'wait_seconds' => 3600,
-            'missions_remaining' => 0
+            'error' => 'Você atingiu o limite de ' . MAX_MISSIONS_PER_DAY . ' missões por dia. Tente novamente amanhã!',
+            'error_code' => 'DAILY_LIMIT_REACHED',
+            'wait_seconds' => $waitSeconds,
+            'missions_remaining' => 0,
+            'daily_limit' => MAX_MISSIONS_PER_DAY
         ]);
         exit;
     }
-    
-    $missionsRemaining = MAX_MISSIONS_PER_HOUR - $ipCheck['count'] - 1;
+
+    $missionsRemaining = MAX_MISSIONS_PER_DAY - $ipCheck['count'] - 1;
     
     // Expirar sessões ativas do usuário
     $pdo->prepare("
@@ -140,6 +148,7 @@ try {
         'game_duration' => GAME_DURATION,
         'initial_lives' => INITIAL_LIVES,
         'missions_remaining' => $missionsRemaining,
+        'daily_limit' => MAX_MISSIONS_PER_DAY,
         // Limites para o cliente saber
         'limits' => [
             'max_asteroids' => MAX_ASTEROIDS_PER_GAME,

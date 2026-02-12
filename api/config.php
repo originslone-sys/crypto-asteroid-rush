@@ -56,8 +56,9 @@ if (!defined('GAME_DURATION')) {
     define('GAME_DURATION', 180);           // 3 minutos
     define('GAME_TOLERANCE', 30);           // 30 segundos tolerância (reduzido de 300!)
     define('INITIAL_LIVES', 6);
-    define('MAX_MISSIONS_PER_HOUR', 10);
+    define('MAX_MISSIONS_PER_DAY', 50);     // 50 missões por dia (24h)
     define('HARD_MODE_PERCENTAGE', 40);
+    define('MAX_ACCOUNTS_PER_IP', 1);       // Apenas 1 conta por IP
 }
 
 // ============================================
