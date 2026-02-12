@@ -1,1 +1,4 @@
-# crypto-asteroid-rush
+# Crypto Asteroid Rush
+
+Repositório limpo.
+
