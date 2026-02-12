@@ -4,7 +4,9 @@
    ARQUITETURA SEGURA: Sem eventos ao servidor
    Apenas tracking local de asteroides
 
-   v6.1 CHANGES:
+   v6.2 CHANGES:
+   - FIX BUG-002: maxShadowBlur=0 para mobile medium quality
+     (~8 Gaussian blur ops/frame → 0, elimina freeze no Chrome mobile)
    - FIX BUG-002: Double-splice em drawAsteroids() corrigido
      (após colisão bala-asteroide, skip check off-screen)
 
@@ -47,7 +49,9 @@ const DeviceProfile = (() => {
         shootingStars:  quality === 'low' ? false : true,
         dustParticles:  quality === 'low' ? 0   : quality === 'medium' ? 15  : 30,
         glowEnabled:    quality !== 'low',
-        maxShadowBlur:  quality === 'low' ? 0   : quality === 'medium' ? 10  : 25,
+        // FIX BUG-002: medium agora também desabilita shadowBlur
+        // Antes: 8+ shadow ops/frame a 60fps = 480 Gaussian blurs/seg no GPU mobile → freeze
+        maxShadowBlur:  quality === 'high' ? 25  : 0,
         parallaxLayers: quality === 'low' ? 2   : 3,
     });
 })();
@@ -667,4 +671,4 @@ window.drawHitboxes = drawHitboxes;
 window.gameLoop = gameLoop;
 window.invalidateBgCache = invalidateBgCache;
 
-console.log('📦 game-renderer.js v6.1 carregado (AAA+ background, double-splice fix)');
+console.log('📦 game-renderer.js v6.2 carregado (mobile shadow fix, double-splice fix)');

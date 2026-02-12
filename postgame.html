@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNOBIX | FINALIZANDO MISSÃO</title>
-    
+    <title>UNOBIX | RESULTADOS DA MISSÃO</title>
+
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&family=Audiowide&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Game Styles -->
     <link rel="stylesheet" href="css/game.css">
-    
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
         body {
             background: #0a0a1a;
             color: #e0e0ff;
@@ -23,26 +23,27 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
-        
+
         /* Fundo animado */
         .stars-bg {
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
             z-index: 0;
-            background: 
+            background:
                 radial-gradient(ellipse at 30% 40%, rgba(0, 200, 100, 0.06) 0%, transparent 60%),
                 radial-gradient(ellipse at 70% 60%, rgba(255, 180, 0, 0.05) 0%, transparent 50%),
                 #0a0a1a;
         }
-        
+
         .stars-bg::before, .stars-bg::after {
             content: '';
             position: absolute;
             width: 100%; height: 100%;
-            background-image: 
+            background-image:
                 radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.6), transparent),
                 radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.4), transparent),
                 radial-gradient(1.5px 1.5px at 50% 10%, rgba(200,220,255,0.7), transparent),
@@ -53,31 +54,32 @@
                 radial-gradient(1px 1px at 65% 25%, rgba(255,255,255,0.5), transparent);
             animation: twinkle 4s ease-in-out infinite alternate;
         }
-        
+
         .stars-bg::after {
             animation-delay: -2s;
             opacity: 0.7;
         }
-        
+
         @keyframes twinkle {
             0% { opacity: 0.6; }
             100% { opacity: 1; }
         }
-        
+
         .postgame-wrapper {
             position: relative;
             z-index: 1;
             width: 90%;
             max-width: 500px;
             text-align: center;
+            padding: 20px 0;
         }
-        
+
         /* Header */
         .pg-header {
             font-family: 'Orbitron', monospace;
             margin-bottom: 24px;
         }
-        
+
         .pg-header .icon {
             font-size: 2.2rem;
             color: #00d68f;
@@ -85,12 +87,12 @@
             text-shadow: 0 0 20px rgba(0, 214, 143, 0.5);
             animation: pulse-icon 2s ease-in-out infinite;
         }
-        
+
         @keyframes pulse-icon {
             0%, 100% { transform: scale(1); opacity: 0.9; }
             50% { transform: scale(1.08); opacity: 1; }
         }
-        
+
         .pg-header h1 {
             font-size: 1.3rem;
             font-weight: 700;
@@ -98,7 +100,7 @@
             color: #fff;
             text-shadow: 0 0 15px rgba(0, 214, 143, 0.3);
         }
-        
+
         /* Mini resumo */
         .mini-summary {
             display: flex;
@@ -107,31 +109,31 @@
             margin-bottom: 20px;
             font-family: 'Orbitron', monospace;
         }
-        
+
         .mini-stat {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 4px;
         }
-        
+
         .mini-stat .value {
             font-size: 1.1rem;
             font-weight: 700;
             color: #fff;
         }
-        
+
         .mini-stat .value.earnings {
             color: #00d68f;
         }
-        
+
         .mini-stat .label {
             font-size: 0.6rem;
             color: rgba(255,255,255,0.35);
             letter-spacing: 1.5px;
             text-transform: uppercase;
         }
-        
+
         /* Container de Anúncio */
         .ad-area {
             background: rgba(255,255,255,0.03);
@@ -145,7 +147,7 @@
             overflow: hidden;
             position: relative;
         }
-        
+
         .ad-area .ad-fallback {
             color: rgba(255,255,255,0.15);
             font-size: 0.85rem;
@@ -154,9 +156,9 @@
             align-items: center;
             gap: 8px;
         }
-        
+
         .ad-area .ad-fallback i { font-size: 2rem; }
-        
+
         .ad-area .ad-label {
             position: absolute;
             top: 8px;
@@ -166,12 +168,12 @@
             letter-spacing: 1px;
             text-transform: uppercase;
         }
-        
+
         /* Barra de progresso */
         .progress-section {
             margin-bottom: 20px;
         }
-        
+
         .progress-bar-track {
             width: 100%;
             height: 6px;
@@ -180,7 +182,7 @@
             overflow: hidden;
             margin-bottom: 10px;
         }
-        
+
         .progress-bar-fill {
             height: 100%;
             width: 0%;
@@ -189,26 +191,26 @@
             transition: width 0.15s linear;
             box-shadow: 0 0 8px rgba(0, 214, 143, 0.4);
         }
-        
+
         .progress-info {
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .progress-status {
             font-size: 0.85rem;
             color: rgba(255,255,255,0.5);
             font-weight: 500;
         }
-        
+
         .progress-percent {
             font-family: 'Orbitron', monospace;
             font-size: 0.8rem;
             color: #00d68f;
             font-weight: 600;
         }
-        
+
         /* Dica */
         .tip-section {
             display: flex;
@@ -223,18 +225,229 @@
             line-height: 1.4;
             text-align: left;
         }
-        
+
         .tip-section i {
             color: rgba(255, 200, 0, 0.5);
             font-size: 1rem;
             flex-shrink: 0;
         }
-        
+
         .ad-area .ad-slot-content {
             width: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        /* ============================================
+           RESULTADOS — exibido após loading
+           ============================================ */
+        .results-section {
+            animation: fadeInResults 0.5s ease;
+        }
+
+        @keyframes fadeInResults {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .results-header {
+            font-family: 'Orbitron', monospace;
+            margin-bottom: 24px;
+        }
+
+        .results-header .icon {
+            font-size: 2.5rem;
+            color: #FFD700;
+            margin-bottom: 8px;
+            text-shadow: 0 0 25px rgba(255, 215, 0, 0.5);
+            animation: pulse-icon 2s ease-in-out infinite;
+        }
+
+        .results-header h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: #fff;
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+        }
+
+        .results-header .subtitle {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            margin-top: 6px;
+        }
+
+        .result-stats-pg {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .result-item-pg {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 14px 18px;
+        }
+
+        .result-item-pg.highlight-pg {
+            background: rgba(0, 214, 143, 0.08);
+            border-color: rgba(0, 214, 143, 0.2);
+        }
+
+        .result-icon-pg {
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.4);
+            width: 28px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .result-item-pg.highlight-pg .result-icon-pg {
+            color: #00d68f;
+        }
+
+        .result-info-pg {
+            text-align: left;
+        }
+
+        .result-label-pg {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .result-value-pg {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .result-item-pg.highlight-pg .result-value-pg {
+            color: #00d68f;
+        }
+
+        /* Breakdown grid */
+        .breakdown-pg {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .breakdown-item-pg {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+
+        .breakdown-type-pg {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .dot-pg {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .dot-pg.common { background: #6B4423; }
+        .dot-pg.rare { background: #1E90FF; }
+        .dot-pg.epic { background: #9932CC; }
+        .dot-pg.legendary { background: #FFD700; }
+
+        .breakdown-count-pg {
+            font-family: 'Orbitron', monospace;
+            font-weight: 600;
+            color: #fff;
+            font-size: 0.85rem;
+        }
+
+        /* Balance */
+        .balance-pg {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px;
+            background: rgba(0, 214, 143, 0.06);
+            border: 1px solid rgba(0, 214, 143, 0.15);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            color: rgba(255,255,255,0.7);
+            font-size: 0.9rem;
+        }
+
+        .balance-pg i { color: #00d68f; }
+
+        .balance-pg strong {
+            color: #00d68f;
+            font-family: 'Orbitron', monospace;
+        }
+
+        /* Buttons */
+        .btn-group-pg {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-pg {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary-pg {
+            background: linear-gradient(135deg, #00d68f, #00b377);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(0, 214, 143, 0.3);
+        }
+
+        .btn-primary-pg:hover, .btn-primary-pg:active {
+            box-shadow: 0 6px 20px rgba(0, 214, 143, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary-pg:disabled {
+            opacity: 0.6;
+            cursor: default;
+            transform: none;
+        }
+
+        .btn-secondary-pg {
+            background: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.7);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .btn-secondary-pg:hover, .btn-secondary-pg:active {
+            background: rgba(255,255,255,0.1);
         }
     </style>
 </head>
@@ -243,49 +456,110 @@
 <div class="stars-bg"></div>
 
 <div class="postgame-wrapper">
-    <!-- Header -->
-    <div class="pg-header">
-        <div class="icon"><i class="fas fa-flag-checkered"></i></div>
-        <h1>MISSÃO FINALIZADA</h1>
-    </div>
-    
-    <!-- Mini resumo (score + earnings) -->
-    <div class="mini-summary">
-        <div class="mini-stat">
-            <span id="miniScore" class="value">0</span>
-            <span class="label">Asteroides</span>
+
+    <!-- ============================================
+         SEÇÃO 1: LOADING (ads + progresso)
+         ============================================ -->
+    <div id="loadingSection">
+        <!-- Header -->
+        <div class="pg-header">
+            <div class="icon"><i class="fas fa-flag-checkered"></i></div>
+            <h1>MISSÃO FINALIZADA</h1>
         </div>
-        <div class="mini-stat">
-            <span id="miniEarnings" class="value earnings">R$ 0,00</span>
-            <span class="label">Ganhos</span>
+
+        <!-- Mini resumo (score + earnings) -->
+        <div class="mini-summary">
+            <div class="mini-stat">
+                <span id="miniScore" class="value">0</span>
+                <span class="label">Asteroides</span>
+            </div>
+            <div class="mini-stat">
+                <span id="miniEarnings" class="value earnings">R$ 0,00</span>
+                <span class="label">Ganhos</span>
+            </div>
+        </div>
+
+        <!-- Área de Anúncio -->
+        <div id="adContainer" class="ad-area">
+            <div class="ad-fallback">
+                <i class="fas fa-trophy"></i>
+                <span>Processando resultados...</span>
+            </div>
+            <span class="ad-label">Publicidade</span>
+        </div>
+
+        <!-- Barra de Progresso -->
+        <div class="progress-section">
+            <div class="progress-bar-track">
+                <div id="progressBar" class="progress-bar-fill"></div>
+            </div>
+            <div class="progress-info">
+                <span id="statusText" class="progress-status">Calculando resultados...</span>
+                <span id="percentText" class="progress-percent">0%</span>
+            </div>
+        </div>
+
+        <!-- Dica -->
+        <div class="tip-section">
+            <i class="fas fa-lightbulb"></i>
+            <span id="tipText">Faça staking dos seus ganhos para rendimento automático!</span>
         </div>
     </div>
-    
-    <!-- Área de Anúncio -->
-    <div id="adContainer" class="ad-area">
-        <div class="ad-fallback">
-            <i class="fas fa-trophy"></i>
-            <span>Processando resultados...</span>
+
+    <!-- ============================================
+         SEÇÃO 2: RESULTADOS (exibido após loading)
+         ============================================ -->
+    <div id="resultsSection" class="results-section" style="display: none;">
+        <div class="results-header">
+            <div class="icon"><i class="fas fa-trophy"></i></div>
+            <h1>MISSÃO COMPLETA!</h1>
+            <div class="subtitle">Confira seus resultados, Comandante</div>
         </div>
-        <span class="ad-label">Publicidade</span>
-    </div>
-    
-    <!-- Barra de Progresso -->
-    <div class="progress-section">
-        <div class="progress-bar-track">
-            <div id="progressBar" class="progress-bar-fill"></div>
+
+        <!-- Score + Ganhos -->
+        <div class="result-stats-pg">
+            <div class="result-item-pg">
+                <div class="result-icon-pg"><i class="fas fa-crosshairs"></i></div>
+                <div class="result-info-pg">
+                    <div class="result-label-pg">Asteroides Destruídos</div>
+                    <div id="resultScore" class="result-value-pg">0</div>
+                </div>
+            </div>
+            <div class="result-item-pg highlight-pg">
+                <div class="result-icon-pg"><i class="fas fa-coins"></i></div>
+                <div class="result-info-pg">
+                    <div class="result-label-pg">Ganhos Totais</div>
+                    <div id="resultEarnings" class="result-value-pg">R$ 0,0000</div>
+                </div>
+            </div>
         </div>
-        <div class="progress-info">
-            <span id="statusText" class="progress-status">Calculando resultados...</span>
-            <span id="percentText" class="progress-percent">0%</span>
+
+        <!-- Breakdown por tipo -->
+        <div id="resultBreakdown" class="breakdown-pg"></div>
+
+        <!-- Novo Saldo -->
+        <div id="resultBalance" class="balance-pg" style="display: none;">
+            <i class="fas fa-wallet"></i>
+            <span>Novo Saldo: <strong id="resultBalanceValue">R$ 0,00</strong></span>
+        </div>
+
+        <!-- Botões -->
+        <div class="btn-group-pg">
+            <button id="claimBtn" class="btn-pg btn-primary-pg">
+                <i class="fas fa-check"></i>
+                <span>RESGATAR GANHOS</span>
+            </button>
+            <button id="newMissionBtn" class="btn-pg btn-secondary-pg" style="display: none;">
+                <i class="fas fa-redo"></i>
+                <span>NOVA MISSÃO</span>
+            </button>
+            <button id="walletBtnPg" class="btn-pg btn-secondary-pg" style="display: none;">
+                <i class="fas fa-wallet"></i>
+                <span>VER CARTEIRA</span>
+            </button>
         </div>
     </div>
-    
-    <!-- Dica -->
-    <div class="tip-section">
-        <i class="fas fa-lightbulb"></i>
-        <span id="tipText">Faça staking dos seus ganhos para rendimento automático!</span>
-    </div>
+
 </div>
 
 <!-- AdsManager -->
@@ -294,7 +568,7 @@
 <script>
 (function() {
     'use strict';
-    
+
     const tips = [
         'Faça staking dos seus ganhos para rendimento automático!',
         'Indique amigos e ganhe comissão quando eles jogarem!',
@@ -304,7 +578,7 @@
         'Asteroides lendários pagam as maiores recompensas!',
         'Acumule saldo e faça staking para ganhar mais!',
     ];
-    
+
     const statuses = [
         'Calculando resultados...',
         'Verificando asteroides destruídos...',
@@ -313,7 +587,10 @@
         'Finalizando...',
         'Resultados prontos!'
     ];
-    
+
+    // Reward values (must match game-config.js)
+    const REWARDS = { COMMON: 0, RARE: 0.0002, EPIC: 0.0004, LEGENDARY: 0.001 };
+
     const progressBar = document.getElementById('progressBar');
     const statusText = document.getElementById('statusText');
     const percentText = document.getElementById('percentText');
@@ -321,26 +598,27 @@
     const adContainer = document.getElementById('adContainer');
     const miniScore = document.getElementById('miniScore');
     const miniEarnings = document.getElementById('miniEarnings');
-    
+
     // Carregar mini resumo do sessionStorage
+    let pgData = {};
     try {
-        const pgData = JSON.parse(sessionStorage.getItem('postgameData') || '{}');
+        pgData = JSON.parse(sessionStorage.getItem('postgameData') || '{}');
         if (pgData.score !== undefined) {
             miniScore.textContent = pgData.score;
         }
         if (pgData.earnings !== undefined) {
             const val = parseFloat(pgData.earnings);
-            miniEarnings.textContent = 'R$ ' + val.toFixed(6).replace('.', ',');
+            miniEarnings.textContent = 'R$ ' + val.toFixed(4).replace('.', ',');
         }
     } catch (e) {}
-    
+
     let adsReady = false;
     let rotationTimer = null;
-    
+
     // Renderizar um slot no container
     function renderSlot(type) {
         if (typeof AdsManager === 'undefined' || !AdsManager.isEnabled?.()) return;
-        
+
         try {
             const slot = AdsManager.getNextSlot?.(type);
             if (slot) {
@@ -355,25 +633,22 @@
                 adContainer.appendChild(label);
             }
         } catch (e) {
-            console.warn('📺 Erro ao renderizar slot:', e.message);
+            console.warn('Erro ao renderizar slot:', e.message);
         }
     }
-    
+
     // Carregar anúncio endgame e iniciar rotação
     async function loadAd() {
         try {
             if (typeof AdsManager !== 'undefined') {
                 await AdsManager.init();
-                
+
                 if (AdsManager.isEnabled?.()) {
                     const slots = AdsManager.getSlots?.()?.endgame || [];
                     if (slots.length > 0) {
                         adsReady = true;
-                        
-                        // Renderizar primeiro slot
                         renderSlot('endgame');
-                        
-                        // Se tem mais de 1 slot, rotacionar
+
                         if (slots.length > 1) {
                             const rotInterval = (AdsManager.getConfig?.()?.endgame_rotation_interval || 8) * 1000;
                             rotationTimer = setInterval(() => renderSlot('endgame'), rotInterval);
@@ -382,56 +657,148 @@
                 }
             }
         } catch (e) {
-            console.warn('📺 Erro ao carregar ads:', e.message);
+            console.warn('Erro ao carregar ads:', e.message);
         }
     }
-    
+
     function getDuration() {
         if (adsReady && typeof AdsManager !== 'undefined') {
             return AdsManager.getConfig?.()?.endgame_rotation_interval || 8;
         }
         return 3;
     }
-    
+
+    function formatBRL(value) {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(value || 0);
+    }
+
+    function formatEarnings(value) {
+        return 'R$ ' + (value || 0).toFixed(4).replace('.', ',');
+    }
+
+    // ============================================
+    // MOSTRAR RESULTADOS (após loading completar)
+    // ============================================
+    function showResults() {
+        // Esconder seção de loading
+        document.getElementById('loadingSection').style.display = 'none';
+
+        // Mostrar seção de resultados
+        const section = document.getElementById('resultsSection');
+        section.style.display = 'block';
+
+        try {
+            const stats = pgData.stats || {};
+            const total = (stats.common || 0) + (stats.rare || 0) + (stats.epic || 0) + (stats.legendary || 0);
+
+            // Score
+            document.getElementById('resultScore').textContent = total;
+
+            // Earnings
+            const earnings = parseFloat(pgData.serverEarnings || pgData.earnings || 0);
+            document.getElementById('resultEarnings').textContent = formatEarnings(earnings);
+
+            // Breakdown por tipo de asteroide
+            const breakdown = document.getElementById('resultBreakdown');
+            const types = [
+                { key: 'common', label: 'Comum', count: stats.common || 0 },
+                { key: 'rare', label: 'Raro', count: stats.rare || 0 },
+                { key: 'epic', label: 'Épico', count: stats.epic || 0 },
+                { key: 'legendary', label: 'Lendário', count: stats.legendary || 0 }
+            ];
+
+            breakdown.innerHTML = types.map(function(a) {
+                return '<div class="breakdown-item-pg">' +
+                    '<span class="breakdown-type-pg">' +
+                        '<span class="dot-pg ' + a.key + '"></span> ' + a.label +
+                    '</span>' +
+                    '<span class="breakdown-count-pg">' + a.count + '</span>' +
+                '</div>';
+            }).join('');
+
+            // Novo saldo
+            const balance = pgData.serverBalance;
+            if (balance !== null && balance !== undefined && !isNaN(parseFloat(balance))) {
+                document.getElementById('resultBalance').style.display = 'flex';
+                document.getElementById('resultBalanceValue').textContent = formatBRL(balance);
+            }
+        } catch (e) {
+            console.error('Erro ao exibir resultados:', e);
+        }
+
+        // Botão RESGATAR
+        document.getElementById('claimBtn').addEventListener('click', function() {
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-check-circle"></i> <span>RESGATADO!</span>';
+            this.style.opacity = '0.7';
+
+            setTimeout(function() {
+                document.getElementById('claimBtn').style.display = 'none';
+                document.getElementById('newMissionBtn').style.display = 'flex';
+                document.getElementById('walletBtnPg').style.display = 'flex';
+            }, 800);
+        });
+
+        // Botão NOVA MISSÃO
+        document.getElementById('newMissionBtn').addEventListener('click', function() {
+            sessionStorage.removeItem('postgameData');
+            sessionStorage.removeItem('postgameComplete');
+            window.location.href = 'game.html';
+        });
+
+        // Botão VER CARTEIRA
+        document.getElementById('walletBtnPg').addEventListener('click', function() {
+            sessionStorage.removeItem('postgameData');
+            sessionStorage.removeItem('postgameComplete');
+            window.location.href = 'wallet.html';
+        });
+    }
+
+    // ============================================
+    // LOADING COM ADS
+    // ============================================
     async function startLoading() {
         await loadAd();
-        
+
         const duration = getDuration();
         const totalSteps = duration * 10;
         let step = 0;
         let tipIndex = 0;
-        
-        const interval = setInterval(() => {
+
+        const interval = setInterval(function() {
             step++;
             const progress = Math.min(100, (step / totalSteps) * 100);
-            
+
             progressBar.style.width = progress + '%';
             percentText.textContent = Math.floor(progress) + '%';
-            
+
             const si = Math.min(Math.floor(progress / 20), statuses.length - 1);
             statusText.textContent = statuses[si];
-            
+
             if (step % 30 === 0) {
                 tipIndex = (tipIndex + 1) % tips.length;
                 tipText.textContent = tips[tipIndex];
             }
-            
-        if (progress >= 100) {
-            clearInterval(interval);
-            if (rotationTimer) clearInterval(rotationTimer);
-            
-            sessionStorage.setItem('postgameComplete', 'true');
-            
-            setTimeout(() => {
-                window.location.href = 'game.html?results=true';
-            }, 300);
-        }
+
+            if (progress >= 100) {
+                clearInterval(interval);
+                if (rotationTimer) clearInterval(rotationTimer);
+
+                // Mostrar resultados direto (sem redirecionar pra game.html)
+                setTimeout(function() {
+                    showResults();
+                }, 300);
+            }
         }, 100);
     }
-    
+
     // Verificar se tem dados — se não tem, voltar pro game
-    const pgData = sessionStorage.getItem('postgameData');
-    if (!pgData) {
+    if (!sessionStorage.getItem('postgameData')) {
         window.location.href = 'game.html';
     } else {
         if (document.readyState === 'loading') {
