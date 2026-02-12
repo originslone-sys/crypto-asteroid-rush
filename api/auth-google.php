@@ -46,6 +46,19 @@ try {
             // Verificar limite de 1 conta por IP
             $clientIP = getClientIP();
 
+            // Verificar VPN/Proxy via proxycheck.io
+            ensureProxyCacheTable($pdo);
+            $proxyCheck = checkProxyVPN($clientIP, $pdo);
+            if ($proxyCheck['is_proxy']) {
+                secureLog("VPN_PROXY_BLOCKED_LOGIN | IP: $clientIP | Type: {$proxyCheck['type']} | Provider: {$proxyCheck['provider']} | UID: " . substr($googleUid, 0, 15));
+                jsonResponse([
+                    'success' => false,
+                    'error' => 'Detectamos que você está usando VPN ou Proxy. Por segurança, desative a VPN/Proxy e tente novamente.',
+                    'error_code' => 'VPN_PROXY_DETECTED',
+                    'proxy_type' => $proxyCheck['type']
+                ], 403);
+            }
+
             $stmt = $pdo->prepare("
                 SELECT google_uid, display_name
                 FROM users
