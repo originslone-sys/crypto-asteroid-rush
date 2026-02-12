@@ -456,21 +456,37 @@ function showCaptcha(pendingEarnings) {
     
     // Adicionar listener para quando CAPTCHA for verificado
     document.addEventListener('captchaVerified', (event) => {
-        console.log('✅ CAPTCHA verificado, reenviando para servidor...');
+        console.log('✅ CAPTCHA verificado, processando...');
         
         // Chamar SessionManager para reenviar com token
         if (typeof SessionManager !== 'undefined' && SessionManager.resendAfterCaptcha) {
             SessionManager.resendAfterCaptcha(event.detail.token)
                 .then(result => {
                     if (result && result.success) {
-                        console.log('✅ Ganhos creditados após CAPTCHA');
-                        // Mostrar resultados finais agora
-                        hideCaptcha();
-                        if (endGameModal) endGameModal.style.display = 'block';
-                        // Atualizar UI com novos valores
-                        if (result.new_balance !== null) {
-                            updateBalanceDisplay(result.new_balance);
-                        }
+                        console.log('✅ Ganhos creditados após CAPTCHA:', result);
+                        
+                        // Atualizar dados no sessionStorage para postgame.html
+                        const existingData = JSON.parse(sessionStorage.getItem('postgameData') || '{}');
+                        const postgameData = {
+                            ...existingData,
+                            stats: existingData.stats || gameState.stats || {},
+                            score: existingData.score || gameState.score || 0,
+                            earnings: result.final_earnings || pendingEarnings,
+                            serverEarnings: result.final_earnings || pendingEarnings,
+                            serverBalance: result.new_balance,
+                            captchaRequired: false, // Já resolvido
+                            captchaResolved: true,
+                            credited: result.credited || false
+                        };
+                        
+                        sessionStorage.setItem('postgameData', JSON.stringify(postgameData));
+                        
+                        // Redirecionar para postgame.html para mostrar ads
+                        console.log('🔄 Redirecionando para postgame.html...');
+                        window.location.href = 'postgame.html';
+                    } else {
+                        console.error('❌ Erro ao creditar após CAPTCHA:', result);
+                        gameAlert('Erro ao processar verificação. Tente novamente.', 'error');
                     }
                 })
                 .catch(error => {

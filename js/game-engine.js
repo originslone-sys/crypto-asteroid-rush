@@ -398,6 +398,17 @@ async function endGame() {
                     
                     console.log('🔐 CAPTCHA necessário para resgatar R$' + serverEarnings);
                     
+                    // Salvar dados no sessionStorage (será usado por showCaptcha e postgame)
+                    sessionStorage.setItem('postgameData', JSON.stringify({
+                        stats: stats,
+                        score: gameState.score,
+                        earnings: serverEarnings,
+                        serverEarnings: serverEarnings,
+                        serverBalance: null, // Ainda não creditado
+                        captchaRequired: true,
+                        pendingEarnings: serverEarnings
+                    }));
+                    
                     // Mostrar CAPTCHA em vez de resultados finais
                     if (typeof showCaptcha === 'function') {
                         showCaptcha(serverEarnings);
