@@ -108,10 +108,9 @@ try {
             $earningsBrl = $amountBrl * (pow(1 + $dailyRate, $daysElapsed) - 1);
 
             if ($earningsBrl < 0.0001) {
-                // Valor muito pequeno — apenas atualiza timestamp
-                $pdo->prepare("UPDATE staking SET updated_at = NOW() WHERE id = ?")
-                    ->execute([$id]);
-                $pdo->commit();
+                // Valor muito pequeno — NÃO atualizar updated_at
+                // para permitir acúmulo de tempo até atingir threshold
+                $pdo->rollBack();
                 continue;
             }
 
