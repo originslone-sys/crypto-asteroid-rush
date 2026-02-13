@@ -232,8 +232,17 @@ try {
         
         $credited = false;
         $newBalance = (float)($session['user_balance'] ?? 0);
-        
-        // 7b. Creditar saldo (apenas se vitória, não flagged, e ganhos > 0)
+
+        // 7b. Incrementar total de missões jogadas
+        if ($session['user_id']) {
+            $pdo->prepare("
+                UPDATE users SET total_played = total_played + 1, updated_at = NOW()
+                WHERE id = ?
+            ")->execute([$session['user_id']]);
+        }
+
+        // 7c. Creditar saldo (apenas se vitória, não flagged, e ganhos > 0)
+        //     (total_played já foi incrementado acima)
         if ($isVictory && !$isFlagged && $finalEarnings > 0 && $session['user_id']) {
             $stmt = $pdo->prepare("
                 UPDATE users SET 
@@ -246,7 +255,7 @@ try {
             
             $credited = true;
             
-            // 7c. Registrar transação
+            // 7d. Registrar transação
             $description = sprintf(
                 "Missão #%d%s: %d raros, %d épicos, %d lendários",
                 $session['mission_number'],
@@ -269,13 +278,13 @@ try {
                 $description
             ]);
             
-            // 7d. Buscar novo saldo
+            // 7e. Buscar novo saldo
             $stmt = $pdo->prepare("SELECT balance_brl FROM users WHERE id = ?");
             $stmt->execute([$session['user_id']]);
             $newBalance = (float)$stmt->fetchColumn();
         }
         
-        // 7e. Registrar atividade suspeita se flagged
+        // 7f. Registrar atividade suspeita se flagged
         if ($isFlagged) {
             $stmt = $pdo->prepare("
                 INSERT INTO suspicious_activity (
@@ -304,7 +313,7 @@ try {
     }
     
     // ============================================
-    // 7f. ATUALIZAR PROGRESSO DE REFERRAL
+    // 7g. ATUALIZAR PROGRESSO DE REFERRAL
     // ============================================
     if ($credited && !empty($realGoogleUid)) {
         try {
