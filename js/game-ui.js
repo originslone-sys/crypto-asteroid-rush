@@ -443,7 +443,8 @@ function _displayResultsFinal(stats, displayEarnings, serverBalance) {
     const finalScore = document.getElementById('finalScore');
     const finalReward = document.getElementById('finalReward');
 
-    if (finalScore) finalScore.textContent = gameState.score;
+    const totalDestroyed = (stats.common || 0) + (stats.rare || 0) + (stats.epic || 0) + (stats.legendary || 0);
+    if (finalScore) finalScore.textContent = totalDestroyed;
     if (finalReward) finalReward.textContent = formatEarningsBRL(displayEarnings);
 
     showModal('endGameModal');
