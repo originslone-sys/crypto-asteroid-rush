@@ -241,60 +241,37 @@
 <div id="endGameModal" class="modal-overlay">
     <div class="modal-container end-modal">
         <div class="modal-glow"></div>
-        <div id="endGameHeader" class="modal-header">
+        <div id="endGameHeader" class="modal-header compact">
             <div class="modal-icon success">
                 <i class="fas fa-trophy"></i>
             </div>
             <div id="endGameTitle" class="modal-title">MISSÃO COMPLETA!</div>
-            <div id="endGameSubtitle" class="modal-subtitle">
-                Excelente trabalho, Comandante! Confira seus resultados abaixo.
-            </div>
         </div>
-        
-        <!-- Resultados -->
-        <div class="result-stats">
+
+        <!-- Resultados compactos -->
+        <div class="result-stats compact">
             <div class="result-item">
                 <div class="result-icon"><i class="fas fa-crosshairs"></i></div>
                 <div class="result-content">
-                    <div class="result-label">Asteroides Destruídos</div>
+                    <div class="result-label">Destruídos</div>
                     <div id="finalScore" class="result-value">0</div>
                 </div>
             </div>
             <div class="result-item highlight">
                 <div class="result-icon"><i class="fas fa-coins"></i></div>
                 <div class="result-content">
-                    <div class="result-label">Ganhos Totais</div>
+                    <div class="result-label">Ganhos</div>
                     <div id="finalReward" class="result-value">R$ 0,00</div>
                 </div>
             </div>
         </div>
-        
-        <!-- Breakdown de Asteroides -->
-        <div id="asteroidsBreakdown" class="asteroids-breakdown">
-            <!-- Breakdown gerado dinamicamente -->
-        </div>
-        
-        <!-- CAPTCHA (obrigatório na vitória) -->
+
+        <!-- CAPTCHA -->
         <div id="captchaContainer" class="captcha-container">
-            <div class="captcha-title">
-                <i class="fas fa-shield-alt"></i>
-                <span>Verificação de Segurança</span>
-            </div>
-            <div id="captchaWidget">
-                <!-- reCAPTCHA v2 widget será inserido aqui -->
-            </div>
+            <div id="captchaWidget"></div>
             <div id="captchaStatus" class="captcha-status"></div>
         </div>
-        
-        <!-- Saldo Atualizado -->
-        <div class="balance-update" id="balanceUpdate" style="display: none;">
-            <div class="balance-icon"><i class="fas fa-wallet"></i></div>
-            <div class="balance-info">
-                <div class="balance-label">Novo Saldo</div>
-                <div class="balance-value" id="newBalance">R$ 0,00</div>
-            </div>
-        </div>
-        
+
         <div class="btn-group">
             <button id="claimRewardBtn" class="btn btn-primary btn-glow" disabled>
                 <i class="fas fa-check"></i>
