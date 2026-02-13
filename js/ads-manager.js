@@ -371,7 +371,8 @@ const AdsManager = {
             if (oldScript.src) {
                 newScript.src = oldScript.src;
             } else {
-                newScript.textContent = oldScript.textContent;
+                // IIFE evita conflito de let/const ao re-executar na rotação
+                newScript.textContent = `(function(){${oldScript.textContent}})();`;
             }
             oldScript.parentNode.replaceChild(newScript, oldScript);
         });
