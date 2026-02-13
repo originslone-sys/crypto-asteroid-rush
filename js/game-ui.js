@@ -401,16 +401,13 @@ function showEndGameResults(stats, serverEarnings = null, serverBalance = null) 
     if (isReturning) {
         sessionStorage.removeItem('_showResultsDirect');
     }
-    
-    // Se CAPTCHA está pendente, não redirecionar para postgame (perderia o estado JS)
-    const captchaPending = typeof SessionManager !== 'undefined' && typeof SessionManager.hasPendingCaptcha === 'function' && SessionManager.hasPendingCaptcha();
 
-    if (isReturning || captchaPending || !_shouldShowPostgameAds()) {
+    if (isReturning || !_shouldShowPostgameAds()) {
         // Exibir resultados direto (sem redirecionar)
         _displayResultsFinal(stats, displayEarnings, serverBalance);
         return;
     }
-    
+
     // Salvar dados no sessionStorage para postgame.html recuperar
     sessionStorage.setItem('postgameData', JSON.stringify({
         stats: stats,
@@ -419,7 +416,12 @@ function showEndGameResults(stats, serverEarnings = null, serverBalance = null) 
         serverEarnings: serverEarnings,
         serverBalance: serverBalance
     }));
-    
+
+    // Se CAPTCHA está pendente, persistir sessão no sessionStorage para sobreviver ao redirect
+    if (typeof SessionManager !== 'undefined' && typeof SessionManager.hasPendingCaptcha === 'function' && SessionManager.hasPendingCaptcha()) {
+        sessionStorage.setItem('pendingCaptchaSession', JSON.stringify(SessionManager.pendingEndSession));
+    }
+
     // Redirecionar para página de loading pós-jogo com anúncios
     window.location.href = 'postgame.html';
 }
