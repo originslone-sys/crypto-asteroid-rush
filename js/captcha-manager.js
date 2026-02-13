@@ -185,8 +185,6 @@ const CaptchaManager = {
         const claimBtn = document.getElementById('claimRewardBtn');
         if (claimBtn) {
             claimBtn.disabled = false;
-            claimBtn.innerHTML = '<i class="fas fa-check"></i> <span>✅ GANHOS CREDITADOS</span>';
-            claimBtn.style.backgroundColor = '#4CAF50';
         }
     },
 
