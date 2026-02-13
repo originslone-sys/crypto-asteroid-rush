@@ -65,6 +65,7 @@ if (!defined('PROXYCHECK_ENABLED')) {
 if (!defined('GAME_DURATION')) {
     define('GAME_DURATION', 180);           // 3 minutos
     define('GAME_TOLERANCE', 30);           // 30 segundos tolerância (reduzido de 300!)
+    define('CAPTCHA_RESEND_TOLERANCE', 60); // Tolerância extra para reenvio com CAPTCHA (ads + verificação)
     define('INITIAL_LIVES', 6);
     define('MAX_MISSIONS_PER_DAY', 50);     // 50 missões por dia (24h)
     define('HARD_MODE_PERCENTAGE', 40);
