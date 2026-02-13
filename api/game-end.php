@@ -94,14 +94,20 @@ try {
     $gameDuration = time() - $startedAt;
     
     // Verificar se não passou muito tempo
-    if ($gameDuration > GAME_DURATION + GAME_TOLERANCE) {
+    // Reenvio com captcha_token recebe tolerância extra (tempo de ads postgame + CAPTCHA)
+    $maxAllowed = GAME_DURATION + GAME_TOLERANCE;
+    if (!empty($captchaToken)) {
+        $maxAllowed += defined('CAPTCHA_RESEND_TOLERANCE') ? CAPTCHA_RESEND_TOLERANCE : 60;
+    }
+
+    if ($gameDuration > $maxAllowed) {
         $pdo->prepare("UPDATE game_sessions SET status = 'abandoned', ended_at = NOW() WHERE id = ?")
             ->execute([$sessionId]);
         echo json_encode([
-            'success' => false, 
+            'success' => false,
             'error' => 'Sessão expirada',
             'elapsed' => $gameDuration,
-            'max_allowed' => GAME_DURATION + GAME_TOLERANCE
+            'max_allowed' => $maxAllowed
         ]);
         exit;
     }
