@@ -27,7 +27,7 @@ if (!defined('DB_HOST')) {
     
     define('DB_NAME', getenv('MYSQLDATABASE') ?: 'unobix_db');
     define('DB_USER', getenv('MYSQLUSER') ?: 'unobix_user');
-    define('DB_PASS', getenv('MYSQLPASSWORD') ?: '');
+    define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'YyZD3H)dndSo*A/N');
 }
 
 // ============================================
@@ -35,7 +35,7 @@ if (!defined('DB_HOST')) {
 // ============================================
 if (!defined('FIREBASE_PROJECT_ID')) {
     define('FIREBASE_PROJECT_ID', getenv('FIREBASE_PROJECT_ID') ?: 'unobix-oauth-a69cd');
-    define('FIREBASE_API_KEY', getenv('FIREBASE_API_KEY') ?: '');
+    define('FIREBASE_API_KEY', getenv('FIREBASE_API_KEY') ?: 'AIzaSyCFUE9xXtbjJGQTz4nGgveWJx6DuhOqD2U');
 }
 
 // ============================================
@@ -130,7 +130,7 @@ if (!defined('MIN_WITHDRAW_BRL')) {
 if (!defined('STAKE_APY')) {
     define('STAKE_APY', 0.05);            // 5% ao ano
     define('MIN_STAKE_BRL', 0.01);        // Mínimo R$ 0,01 (consistente com frontend)
-    define('MAX_STAKE_BRL', 10000.00);    // Máximo R$ 10.000,00 por usuário
+    define('MAX_STAKE_BRL', 1000.00);    // Máximo R$ 1.000,00 por usuário
 }
 
 // ============================================
