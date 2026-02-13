@@ -442,68 +442,10 @@ function _shouldShowPostgameAds() {
 function _displayResultsFinal(stats, displayEarnings, serverBalance) {
     const finalScore = document.getElementById('finalScore');
     const finalReward = document.getElementById('finalReward');
-    const breakdownContainer = document.getElementById('asteroidsBreakdown');
-    
+
     if (finalScore) finalScore.textContent = gameState.score;
     if (finalReward) finalReward.textContent = formatEarningsBRL(displayEarnings);
-    
-    let breakdownHTML = `
-        <div class="breakdown-title">ASTEROIDES DESTRUÍDOS</div>
-        <div class="breakdown-grid">
-            <div class="breakdown-item">
-                <span class="breakdown-type common">
-                    <span class="dot"></span>
-                    Comum
-                </span>
-                <span class="breakdown-count">${stats.common}</span>
-            </div>
-            <div class="breakdown-item">
-                <span class="breakdown-type rare">
-                    <span class="dot"></span>
-                    Raro
-                </span>
-                <span class="breakdown-count">${stats.rare} (+${formatEarningsBRL(stats.rare * CONFIG.REWARDS.RARE)})</span>
-            </div>
-            <div class="breakdown-item">
-                <span class="breakdown-type epic">
-                    <span class="dot"></span>
-                    Épico
-                </span>
-                <span class="breakdown-count">${stats.epic} (+${formatEarningsBRL(stats.epic * CONFIG.REWARDS.EPIC)})</span>
-            </div>
-            <div class="breakdown-item">
-                <span class="breakdown-type legendary">
-                    <span class="dot"></span>
-                    Lendário
-                </span>
-                <span class="breakdown-count">${stats.legendary} (+${formatEarningsBRL(stats.legendary * CONFIG.REWARDS.LEGENDARY)})</span>
-            </div>
-        </div>
-    `;
-    
-    if (serverBalance !== null && !isNaN(serverBalance)) {
-        breakdownHTML += `
-            <div class="balance-update">
-                <div class="balance-icon"><i class="fas fa-wallet"></i></div>
-                <div class="balance-info">
-                    <span class="balance-label">NOVO SALDO</span>
-                    <span class="balance-value">${formatBRL(serverBalance)}</span>
-                </div>
-            </div>
-        `;
-        
-        const balanceUpdate = document.getElementById('balanceUpdate');
-        const newBalanceEl = document.getElementById('newBalance');
-        if (balanceUpdate && newBalanceEl) {
-            newBalanceEl.textContent = formatBRL(serverBalance);
-            balanceUpdate.style.display = 'flex';
-        }
-    }
-    
-    if (breakdownContainer) {
-        breakdownContainer.innerHTML = breakdownHTML;
-    }
-    
+
     showModal('endGameModal');
 }
 
