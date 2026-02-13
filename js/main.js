@@ -1191,10 +1191,10 @@ function setupEventListeners() {
     // FAQ
     document.querySelectorAll('.faq-question').forEach(q => {
         q.addEventListener('click', () => {
-            document.querySelectorAll('.faq-item.open').forEach(item => {
-                if (item !== q.parentElement) item.classList.remove('open');
+            document.querySelectorAll('.faq-item.active').forEach(item => {
+                if (item !== q.parentElement) item.classList.remove('active');
             });
-            q.parentElement.classList.toggle('open');
+            q.parentElement.classList.toggle('active');
         });
     });
 }
