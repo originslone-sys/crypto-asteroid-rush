@@ -451,11 +451,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Voltando do postgame.html — exibir resultados
                 sessionStorage.removeItem('postgameComplete');
                 window.history.replaceState({}, '', 'game.html');
-                
+
                 try {
                     const pgData = JSON.parse(sessionStorage.getItem('postgameData') || '{}');
                     sessionStorage.removeItem('postgameData');
-                    
+
+                    // Restaurar sessão pendente de CAPTCHA (persistida antes do redirect)
+                    const pendingCaptcha = sessionStorage.getItem('pendingCaptchaSession');
+                    if (pendingCaptcha && typeof SessionManager !== 'undefined') {
+                        try {
+                            SessionManager.pendingEndSession = JSON.parse(pendingCaptcha);
+                            console.log('🔐 Sessão pendente de CAPTCHA restaurada');
+                        } catch (ce) {
+                            console.warn('⚠️ Erro ao restaurar sessão CAPTCHA:', ce);
+                        }
+                        sessionStorage.removeItem('pendingCaptchaSession');
+                    }
+
                     if (pgData.stats && typeof showEndGameResults === 'function') {
                         console.log('📊 Exibindo resultados do postgame');
                         // Flag para showEndGameResults NÃO redirecionar de volta
