@@ -6,7 +6,7 @@
 // Este arquivo mantém compatibilidade com wallet MetaMask
 // ============================================
 
-require_once __DIR__ . "/config-cloudrun.php";
+require_once __DIR__ . "/config.php";
 
 setCorsHeaders();
 
