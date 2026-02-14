@@ -315,7 +315,8 @@ try {
     // ============================================
     // 7g. ATUALIZAR PROGRESSO DE REFERRAL
     // ============================================
-    if ($credited && !empty($realGoogleUid)) {
+    // Toda partida finalizada conta para o progresso do indicado
+    if (!empty($realGoogleUid)) {
         try {
             require_once __DIR__ . '/referral-helper.php';
             $refResult = updateReferralProgress($pdo, $realGoogleUid);
