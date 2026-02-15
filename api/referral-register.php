@@ -120,9 +120,8 @@ try {
             missions_required,
             status,
             commission_brl,
-            created_at,
-            updated_at
-        ) VALUES (?, '', ?, '', ?, ?, 0, ?, 'pending', ?, NOW(), NOW())
+            created_at
+        ) VALUES (?, '', ?, '', ?, ?, 0, ?, 'pending', ?, NOW())
     ");
     $stmt->execute([
         $referrerGoogleUid,
