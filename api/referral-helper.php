@@ -48,7 +48,8 @@ function updateReferralProgress($pdo, $googleUid = '') {
                 UPDATE referrals
                 SET missions_completed = ?,
                     status = 'qualified',
-                    qualified_at = NOW()
+                    qualified_at = NOW(),
+                    updated_at = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([$newMissions, $referral['id']]);
@@ -63,7 +64,8 @@ function updateReferralProgress($pdo, $googleUid = '') {
             // Apenas atualiza contador
             $stmt = $pdo->prepare("
                 UPDATE referrals
-                SET missions_completed = ?
+                SET missions_completed = ?,
+                    updated_at = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([$newMissions, $referral['id']]);

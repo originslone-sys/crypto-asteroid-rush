@@ -1054,19 +1054,20 @@ function updateReferralsTable(referrals) {
     }
     
     tbody.innerHTML = referrals.map(ref => {
-        const statusTexts = { 'pending': 'Em Progresso', 'completed': 'Completado', 'claimed': 'Resgatado' };
-        const userDisplay = ref.display_name || ref.email?.split('@')[0] || 'Usuário';
-        
+        const statusTexts = { 'pending': 'Em Progresso', 'qualified': 'Completado', 'claimed': 'Resgatado' };
+        const userDisplay = ref.display_name || ref.email?.split('@')[0] || ref.referred_short || 'Usuário';
+        const req = ref.missions_required || 100;
+
         return `
             <tr>
                 <td class="user-cell">${userDisplay}</td>
                 <td>
-                    <div>${ref.missions_completed || 0}/100 missões</div>
+                    <div>${ref.missions_completed || 0}/${req} missões</div>
                     <div class="progress-bar">
                         <div class="progress-fill" style="width: ${ref.progress_percent || 0}%"></div>
                     </div>
                 </td>
-                <td><span class="status-badge status-${ref.status}">${statusTexts[ref.status] || ref.status}</span></td>
+                <td><span class="status-badge status-${ref.status === 'qualified' ? 'completed' : ref.status}">${statusTexts[ref.status] || ref.status}</span></td>
                 <td style="color: var(--success);">${formatBRL(ref.commission_brl)}</td>
                 <td style="color: var(--text-dim);">${formatDateShort(ref.created_at)}</td>
             </tr>

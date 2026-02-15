@@ -157,22 +157,25 @@ try {
         $claimedCommission = (float)$stmt->fetchColumn();
 
         // ============================================
-        // 3. LISTA DE INDICADOS
+        // 3. LISTA DE INDICADOS (com dados do usuário)
         // ============================================
         $stmt = $pdo->prepare("
             SELECT
-                id,
-                referred_google_uid,
-                status,
-                missions_completed,
-                missions_required,
-                commission_brl,
-                qualified_at,
-                commission_paid_at,
-                created_at
-            FROM referrals
-            WHERE referrer_google_uid = ?
-            ORDER BY created_at DESC
+                r.id,
+                r.referred_google_uid,
+                r.status,
+                r.missions_completed,
+                r.missions_required,
+                r.commission_brl,
+                r.qualified_at,
+                r.commission_paid_at,
+                r.created_at,
+                u.display_name AS referred_name,
+                u.email AS referred_email
+            FROM referrals r
+            LEFT JOIN users u ON u.google_uid = r.referred_google_uid
+            WHERE r.referrer_google_uid = ?
+            ORDER BY r.created_at DESC
             LIMIT 50
         ");
         $stmt->execute([$googleUid]);
@@ -186,11 +189,15 @@ try {
                 : 0;
 
             $referredShort = substr($ref['referred_google_uid'], 0, 8) . '...';
+            $displayName = $ref['referred_name'] ?? '';
+            $email = $ref['referred_email'] ?? '';
 
             $referralsList[] = [
                 'id' => (int)$ref['id'],
                 'referred_id' => $ref['referred_google_uid'],
                 'referred_short' => $referredShort,
+                'display_name' => $displayName,
+                'email' => $email,
                 'status' => $ref['status'],
                 'status_label' => getStatusLabel($ref['status']),
                 'missions_completed' => $missionsCompleted,
@@ -202,6 +209,19 @@ try {
                 'created_at' => $ref['created_at'],
                 'created_at_formatted' => date('d/m/Y H:i', strtotime($ref['created_at']))
             ];
+        }
+    }
+
+    // Ler settings do admin (com fallback)
+    $cfgMissions = 100;
+    $cfgCommission = 1.00;
+    $settingsTable = $pdo->query("SHOW TABLES LIKE 'game_settings'")->fetch();
+    if ($settingsTable) {
+        $sStmt = $pdo->prepare("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN ('referral_missions_required', 'referral_bonus_brl')");
+        $sStmt->execute();
+        foreach ($sStmt->fetchAll(PDO::FETCH_ASSOC) as $s) {
+            if ($s['setting_key'] === 'referral_missions_required') $cfgMissions = max(1, (int)$s['setting_value']);
+            if ($s['setting_key'] === 'referral_bonus_brl') $cfgCommission = max(0, (float)$s['setting_value']);
         }
     }
 
@@ -219,8 +239,8 @@ try {
         ],
         'referrals' => $referralsList,
         'config' => [
-            'missions_required' => 100,
-            'commission_brl' => 1.00
+            'missions_required' => $cfgMissions,
+            'commission_brl' => $cfgCommission
         ]
     ]);
 

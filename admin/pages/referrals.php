@@ -2,7 +2,7 @@
 // ============================================
 // UNOBIX - Afiliados
 // Arquivo: admin/pages/referrals.php
-// v6.1 - Schema real: status pending/qualified/paid/cancelled
+// v6.2 - Fix: status 'paid' → 'claimed' para consistência com API
 //        commission_paid_at, missions_completed, missions_required
 // ============================================
 
@@ -24,8 +24,8 @@ try {
             COUNT(*) as total,
             SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
             SUM(CASE WHEN status = 'qualified' THEN 1 ELSE 0 END) as qualified,
-            SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid,
-            COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_brl ELSE 0 END), 0) as total_paid
+            SUM(CASE WHEN status = 'claimed' THEN 1 ELSE 0 END) as paid,
+            COALESCE(SUM(CASE WHEN status = 'claimed' THEN commission_brl ELSE 0 END), 0) as total_paid
         FROM referrals
     ")->fetch();
 } catch (Exception $e) {
@@ -83,9 +83,9 @@ try {
                         $completed = (int)($r['missions_completed'] ?? 0);
                         $progress = $required > 0 ? min(100, round(($completed / $required) * 100)) : 0;
                         $statusLabels = [
-                            'pending'   => ['Em Progresso', 'warning'], 
-                            'qualified' => ['Qualificado', 'success'], 
-                            'paid'      => ['Pago', 'primary'],
+                            'pending'   => ['Em Progresso', 'warning'],
+                            'qualified' => ['Qualificado', 'success'],
+                            'claimed'   => ['Resgatado', 'primary'],
                             'cancelled' => ['Cancelado', 'danger']
                         ];
                         $label = $statusLabels[$r['status']] ?? [$r['status'], 'info'];
