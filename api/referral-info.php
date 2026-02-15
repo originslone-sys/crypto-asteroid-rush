@@ -75,8 +75,8 @@ try {
 
         try {
             $stmt = $pdo->prepare("
-                INSERT INTO referral_codes (google_uid, code, uses_count, max_uses, is_active, created_at)
-                VALUES (?, ?, 0, 0, 1, NOW())
+                INSERT INTO referral_codes (google_uid, wallet_address, code, uses_count, max_uses, is_active, created_at)
+                VALUES (?, '', ?, 0, 0, 1, NOW())
             ");
             $stmt->execute([$googleUid, $referralCode]);
         } catch (PDOException $e) {
