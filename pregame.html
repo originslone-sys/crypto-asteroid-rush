@@ -306,24 +306,36 @@
         }
     }
     
-    // Carregar anúncio e iniciar rotação
+    // Carregar anúncio e iniciar rotação respeitando duration_seconds por slot
     async function loadAd() {
         try {
             if (typeof AdsManager !== 'undefined') {
                 await AdsManager.init();
-                
+
                 if (AdsManager.isEnabled?.()) {
                     const slots = AdsManager.getSlots?.()?.pregame || [];
                     if (slots.length > 0) {
                         adsReady = true;
-                        
+
                         // Renderizar primeiro slot
                         renderSlot('pregame');
-                        
-                        // Se tem mais de 1 slot, rotacionar
+
+                        // Se tem mais de 1 slot, rotacionar respeitando duration_seconds de cada slot
                         if (slots.length > 1) {
-                            const rotInterval = (AdsManager.getConfig?.()?.pregame_rotation_interval || 5) * 1000;
-                            rotationTimer = setInterval(() => renderSlot('pregame'), rotInterval);
+                            const fallbackInterval = AdsManager.getConfig?.()?.pregame_rotation_interval || 5;
+                            let currentIdx = 0;
+
+                            function scheduleNextSlot() {
+                                const currentSlot = slots[currentIdx % slots.length];
+                                const slotDuration = (parseInt(currentSlot.duration_seconds) || fallbackInterval) * 1000;
+
+                                rotationTimer = setTimeout(() => {
+                                    currentIdx++;
+                                    renderSlot('pregame');
+                                    scheduleNextSlot();
+                                }, slotDuration);
+                            }
+                            scheduleNextSlot();
                         }
                     }
                 }
@@ -371,8 +383,8 @@
             
             if (progress >= 100) {
                 clearInterval(interval);
-                if (rotationTimer) clearInterval(rotationTimer);
-                
+                if (rotationTimer) clearTimeout(rotationTimer);
+
                 sessionStorage.setItem('loadingComplete', 'true');
                 
                 setTimeout(() => {

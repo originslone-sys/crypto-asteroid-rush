@@ -140,6 +140,7 @@ function getAdsConfig($pdo) {
         
         // Tela final (pós-jogo)
         'endgame_enabled' => true,
+        'endgame_total_duration' => 10,
         'endgame_display_mode' => 'grid',
         'endgame_max_slots' => 4,
         'endgame_auto_rotate' => true,
@@ -207,10 +208,10 @@ function getPublicAdsConfig($pdo) {
     
     // Buscar slots ativos
     $stmt = $pdo->prepare("
-        SELECT id, slot_name, slot_type, position, script_code, width, height, 
-               display_order, custom_css
-        FROM ad_slots 
-        WHERE is_active = 1 
+        SELECT id, slot_name, slot_type, position, script_code, width, height,
+               display_order, custom_css, duration_seconds
+        FROM ad_slots
+        WHERE is_active = 1
         ORDER BY slot_type, display_order
     ");
     $stmt->execute();

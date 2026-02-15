@@ -25,6 +25,7 @@ const AdsManager = {
         pregame_rotation_interval: 5,
         pregame_max_slots: 3,
         endgame_enabled: false,
+        endgame_total_duration: 10,
         endgame_display_mode: 'grid',
         endgame_max_slots: 4,
         endgame_auto_rotate: true,

@@ -359,24 +359,36 @@
         }
     }
     
-    // Carregar anúncio endgame e iniciar rotação
+    // Carregar anúncio endgame e iniciar rotação respeitando duration_seconds por slot
     async function loadAd() {
         try {
             if (typeof AdsManager !== 'undefined') {
                 await AdsManager.init();
-                
+
                 if (AdsManager.isEnabled?.()) {
                     const slots = AdsManager.getSlots?.()?.endgame || [];
                     if (slots.length > 0) {
                         adsReady = true;
-                        
+
                         // Renderizar primeiro slot
                         renderSlot('endgame');
-                        
-                        // Se tem mais de 1 slot, rotacionar
+
+                        // Se tem mais de 1 slot, rotacionar respeitando duration_seconds de cada slot
                         if (slots.length > 1) {
-                            const rotInterval = (AdsManager.getConfig?.()?.endgame_rotation_interval || 8) * 1000;
-                            rotationTimer = setInterval(() => renderSlot('endgame'), rotInterval);
+                            const fallbackInterval = AdsManager.getConfig?.()?.endgame_rotation_interval || 8;
+                            let currentIdx = 0;
+
+                            function scheduleNextSlot() {
+                                const currentSlot = slots[currentIdx % slots.length];
+                                const slotDuration = (parseInt(currentSlot.duration_seconds) || fallbackInterval) * 1000;
+
+                                rotationTimer = setTimeout(() => {
+                                    currentIdx++;
+                                    renderSlot('endgame');
+                                    scheduleNextSlot();
+                                }, slotDuration);
+                            }
+                            scheduleNextSlot();
                         }
                     }
                 }
@@ -385,47 +397,48 @@
             console.warn('📺 Erro ao carregar ads:', e.message);
         }
     }
-    
+
+    // Duração total da tela: usa endgame_total_duration (não rotation_interval)
     function getDuration() {
         if (adsReady && typeof AdsManager !== 'undefined') {
-            return AdsManager.getConfig?.()?.endgame_rotation_interval || 8;
+            return AdsManager.getConfig?.()?.endgame_total_duration || 10;
         }
         return 3;
     }
-    
+
     async function startLoading() {
         await loadAd();
-        
+
         const duration = getDuration();
         const totalSteps = duration * 10;
         let step = 0;
         let tipIndex = 0;
-        
+
         const interval = setInterval(() => {
             step++;
             const progress = Math.min(100, (step / totalSteps) * 100);
-            
+
             progressBar.style.width = progress + '%';
             percentText.textContent = Math.floor(progress) + '%';
-            
+
             const si = Math.min(Math.floor(progress / 20), statuses.length - 1);
             statusText.textContent = statuses[si];
-            
+
             if (step % 30 === 0) {
                 tipIndex = (tipIndex + 1) % tips.length;
                 tipText.textContent = tips[tipIndex];
             }
-            
-        if (progress >= 100) {
-            clearInterval(interval);
-            if (rotationTimer) clearInterval(rotationTimer);
-            
-            sessionStorage.setItem('postgameComplete', 'true');
-            
-            setTimeout(() => {
-                window.location.href = 'game.html?results=true';
-            }, 300);
-        }
+
+            if (progress >= 100) {
+                clearInterval(interval);
+                if (rotationTimer) clearTimeout(rotationTimer);
+
+                sessionStorage.setItem('postgameComplete', 'true');
+
+                setTimeout(() => {
+                    window.location.href = 'game.html?results=true';
+                }, 300);
+            }
         }, 100);
     }
     
