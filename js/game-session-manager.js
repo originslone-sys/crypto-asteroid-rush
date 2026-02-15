@@ -100,6 +100,13 @@ const SessionManager = {
             } else {
                 console.error('❌ Falha ao criar sessão:', result.error);
 
+                if (result.error_code === 'ACTIVE_SESSION_EXISTS') {
+                    throw new Error(
+                        'Você já tem uma partida em andamento! ' +
+                        'Finalize a partida atual antes de iniciar outra.'
+                    );
+                }
+
                 if (result.error_code === 'VPN_PROXY_DETECTED') {
                     throw new Error(
                         'VPN ou Proxy detectado! Por segurança, desative sua VPN/Proxy para jogar. ' +

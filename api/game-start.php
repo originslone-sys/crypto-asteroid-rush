@@ -95,12 +95,41 @@ try {
 
     $missionsRemaining = MAX_MISSIONS_PER_DAY - $ipCheck['count'] - 1;
     
-    // Expirar sessões ativas do usuário
-    $pdo->prepare("
-        UPDATE game_sessions 
-        SET status = 'abandoned', ended_at = NOW() 
+    // Verificar se já tem sessão ativa (impedir partidas simultâneas)
+    $stmt = $pdo->prepare("
+        SELECT id, started_at, TIMESTAMPDIFF(SECOND, started_at, NOW()) as elapsed
+        FROM game_sessions
         WHERE google_uid = ? AND status = 'active'
-    ")->execute([$realGoogleUid]);
+        ORDER BY started_at DESC
+        LIMIT 1
+    ");
+    $stmt->execute([$realGoogleUid]);
+    $activeSession = $stmt->fetch();
+
+    if ($activeSession) {
+        $elapsed = (int)$activeSession['elapsed'];
+        $maxSessionTime = GAME_DURATION + GAME_TOLERANCE + (defined('CAPTCHA_RESEND_TOLERANCE') ? CAPTCHA_RESEND_TOLERANCE : 60);
+
+        if ($elapsed < $maxSessionTime) {
+            // Sessão ainda é válida — bloquear nova partida
+            echo json_encode([
+                'success' => false,
+                'error' => 'Você já tem uma partida em andamento! Finalize a partida atual antes de iniciar outra.',
+                'error_code' => 'ACTIVE_SESSION_EXISTS',
+                'active_session_id' => (int)$activeSession['id'],
+                'elapsed_seconds' => $elapsed
+            ]);
+            exit;
+        } else {
+            // Sessão expirada/travada — auto-expirar
+            $pdo->prepare("
+                UPDATE game_sessions
+                SET status = 'abandoned', ended_at = NOW()
+                WHERE id = ?
+            ")->execute([$activeSession['id']]);
+            secureLog("AUTO_EXPIRE_SESSION | Session: {$activeSession['id']} | Elapsed: {$elapsed}s | User: $userId");
+        }
+    }
     
     // Calcular número da missão
     $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM game_sessions WHERE google_uid = ?");
