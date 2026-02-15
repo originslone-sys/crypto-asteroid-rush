@@ -97,8 +97,8 @@ try {
     // ============================================
     $stmt = $pdo->prepare("
         INSERT INTO referrals (
-            referrer_google_uid,
-            referred_google_uid,
+            referrer_google_uid, referrer_wallet,
+            referred_google_uid, referred_wallet,
             referral_code,
             missions_at_register,
             missions_completed,
@@ -106,7 +106,7 @@ try {
             status,
             commission_brl,
             created_at
-        ) VALUES (?, ?, ?, ?, 0, 100, 'pending', 1.000000, NOW())
+        ) VALUES (?, '', ?, '', ?, ?, 0, 100, 'pending', 1.000000, NOW())
     ");
     $stmt->execute([
         $referrerGoogleUid,
