@@ -116,16 +116,22 @@ function onUserLoggedOut() {
 function captureReferralCode() {
     const urlParams = new URLSearchParams(window.location.search);
     const refCode = urlParams.get('ref');
-    
-    if (refCode && /^[A-Z0-9]{6,8}$/i.test(refCode)) {
-        localStorage.setItem('unobix_referral', refCode.toUpperCase());
+
+    if (refCode && /^[A-Z0-9]{6}$/i.test(refCode)) {
+        const code = refCode.toUpperCase();
+        // Salvar em ambas as chaves para compatibilidade com auth-manager.js
+        localStorage.setItem('unobix_referral', code);
+        localStorage.setItem('unobix_referral_code', code);
         localStorage.setItem('unobix_referral_time', Date.now().toString());
-        
-        console.log('📋 Código de indicação capturado:', refCode.toUpperCase());
-        
-        // Limpar URL
+
+        console.log('📋 Código de indicação capturado:', code);
+
+        // Limpar apenas o param ?ref= da URL (preservar outros params)
         if (window.history.replaceState) {
-            const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+            const cleanSearch = window.location.search
+                .replace(/[?&]ref=[^&]+/, '')
+                .replace(/^\?$/, '');
+            const cleanUrl = window.location.pathname + cleanSearch + window.location.hash;
             window.history.replaceState({}, document.title, cleanUrl);
         }
     }
@@ -149,6 +155,7 @@ function getSavedReferralCode() {
 
 function clearReferralCode() {
     localStorage.removeItem('unobix_referral');
+    localStorage.removeItem('unobix_referral_code');
     localStorage.removeItem('unobix_referral_time');
 }
 
