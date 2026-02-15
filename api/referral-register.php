@@ -93,7 +93,22 @@ try {
     }
 
     // ============================================
-    // 5. REGISTRAR INDICAÇÃO
+    // 5. LER SETTINGS DO ADMIN
+    // ============================================
+    $missionsRequired = 100;
+    $commissionBrl = 1.000000;
+    $settingsTable = $pdo->query("SHOW TABLES LIKE 'game_settings'")->fetch();
+    if ($settingsTable) {
+        $sStmt = $pdo->prepare("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN ('referral_missions_required', 'referral_bonus_brl')");
+        $sStmt->execute();
+        foreach ($sStmt->fetchAll(PDO::FETCH_ASSOC) as $s) {
+            if ($s['setting_key'] === 'referral_missions_required') $missionsRequired = max(1, (int)$s['setting_value']);
+            if ($s['setting_key'] === 'referral_bonus_brl') $commissionBrl = max(0, (float)$s['setting_value']);
+        }
+    }
+
+    // ============================================
+    // 6. REGISTRAR INDICAÇÃO
     // ============================================
     $stmt = $pdo->prepare("
         INSERT INTO referrals (
@@ -105,14 +120,17 @@ try {
             missions_required,
             status,
             commission_brl,
-            created_at
-        ) VALUES (?, '', ?, '', ?, ?, 0, 100, 'pending', 1.000000, NOW())
+            created_at,
+            updated_at
+        ) VALUES (?, '', ?, '', ?, ?, 0, ?, 'pending', ?, NOW(), NOW())
     ");
     $stmt->execute([
         $referrerGoogleUid,
         $googleUid,
         $referralCode,
-        $missionsAtRegister
+        $missionsAtRegister,
+        $missionsRequired,
+        $commissionBrl
     ]);
 
     $referralId = (int)$pdo->lastInsertId();

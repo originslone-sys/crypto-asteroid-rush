@@ -118,10 +118,11 @@ try {
             }
             
             // ============================================
-            // REFERRAL: registrar indicação se novo usuário com código
+            // REFERRAL: registrar indicação se usuário tem código
+            // Funciona para novos E existentes (duplicata é checada abaixo)
             // ============================================
             $referralCode = trim($input['referral_code'] ?? $input['ref'] ?? '');
-            if ($isNewUser && !empty($referralCode)) {
+            if (!empty($referralCode)) {
                 try {
                     require_once __DIR__ . '/referral-helper.php';
                     $refOwner = validateReferralCode($pdo, $referralCode);
@@ -134,19 +135,41 @@ try {
                         $checkStmt->execute([$googleUid]);
                         
                         if (!$checkStmt->fetch()) {
+                            // Ler settings do admin (com fallback)
+                            $missionsReq = 100;
+                            $commissionBrl = 1.000000;
+                            $settingsTable = $pdo->query("SHOW TABLES LIKE 'game_settings'")->fetch();
+                            if ($settingsTable) {
+                                $sStmt = $pdo->prepare("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN ('referral_missions_required', 'referral_bonus_brl')");
+                                $sStmt->execute();
+                                foreach ($sStmt->fetchAll(PDO::FETCH_ASSOC) as $s) {
+                                    if ($s['setting_key'] === 'referral_missions_required') $missionsReq = max(1, (int)$s['setting_value']);
+                                    if ($s['setting_key'] === 'referral_bonus_brl') $commissionBrl = max(0, (float)$s['setting_value']);
+                                }
+                            }
+
+                            // Buscar missions_at_register do usuário
+                            $mStmt = $pdo->prepare("SELECT total_played FROM users WHERE google_uid = ? LIMIT 1");
+                            $mStmt->execute([$googleUid]);
+                            $mRow = $mStmt->fetch(PDO::FETCH_ASSOC);
+                            $missionsAtRegister = $mRow ? (int)$mRow['total_played'] : 0;
+
                             $stmt = $pdo->prepare("
                                 INSERT INTO referrals (
                                     referrer_google_uid, referrer_wallet,
                                     referred_google_uid, referred_wallet,
                                     referral_code, missions_at_register,
                                     missions_completed, missions_required,
-                                    status, commission_brl, created_at
-                                ) VALUES (?, '', ?, '', ?, 0, 0, 100, 'pending', 1.000000, NOW())
+                                    status, commission_brl, created_at, updated_at
+                                ) VALUES (?, '', ?, '', ?, ?, 0, ?, 'pending', ?, NOW(), NOW())
                             ");
                             $stmt->execute([
                                 $refOwner['google_uid'],
                                 $googleUid,
-                                strtoupper($referralCode)
+                                strtoupper($referralCode),
+                                $missionsAtRegister,
+                                $missionsReq,
+                                $commissionBrl
                             ]);
                             
                             // Incrementar uses_count

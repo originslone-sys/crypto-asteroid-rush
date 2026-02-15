@@ -202,13 +202,15 @@ function updateAffiliateUI(data) {
 function updateReferralsTable(refs) {
     const tbody = document.getElementById('referralsTableBody');
     if (!refs || refs.length === 0) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="fas fa-user-friends"></i><h3>Nenhum indicado ainda</h3><p>Compartilhe seu link!</p></div></td></tr>'; return; }
+    const missionsReq = (affiliateData && affiliateData.config) ? affiliateData.config.missions_required : 100;
     tbody.innerHTML = refs.map(r => {
         const statusLabels = {'pending':'Em Progresso','qualified':'Completado','claimed':'Resgatado'};
         const st = statusLabels[r.status] || r.status_label || r.status;
         const statusClass = r.status === 'qualified' ? 'completed' : r.status;
         const prog = r.progress_percent || 0;
-        const user = r.referred_short || 'Usuário';
-        return `<tr><td class="user-cell">${user}</td><td><div>${r.missions_completed||0}/100</div><div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div></td><td><span class="status-badge status-${statusClass}">${st}</span></td><td style="color:var(--success)">${formatBRL(r.commission_brl)}</td><td style="color:var(--text-dim)">${r.created_at_formatted || new Date(r.created_at).toLocaleDateString('pt-BR')}</td></tr>`;
+        const user = r.display_name || (r.email ? r.email.split('@')[0] : '') || r.referred_short || 'Usuário';
+        const req = r.missions_required || missionsReq;
+        return `<tr><td class="user-cell">${user}</td><td><div>${r.missions_completed||0}/${req}</div><div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div></td><td><span class="status-badge status-${statusClass}">${st}</span></td><td style="color:var(--success)">${formatBRL(r.commission_brl)}</td><td style="color:var(--text-dim)">${r.created_at_formatted || new Date(r.created_at).toLocaleDateString('pt-BR')}</td></tr>`;
     }).join('');
 }
 
