@@ -67,8 +67,7 @@ try {
     $stmt = $pdo->prepare("
         UPDATE referrals
         SET status = 'claimed',
-            commission_paid_at = NOW(),
-            updated_at = NOW()
+            commission_paid_at = NOW()
         WHERE id IN ({$placeholders})
     ");
     $stmt->execute($referralIds);

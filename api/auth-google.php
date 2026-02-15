@@ -161,8 +161,8 @@ try {
                                     referred_google_uid, referred_wallet,
                                     referral_code, missions_at_register,
                                     missions_completed, missions_required,
-                                    status, commission_brl, created_at, updated_at
-                                ) VALUES (?, '', ?, '', ?, ?, 0, ?, 'pending', ?, NOW(), NOW())
+                                    status, commission_brl, created_at
+                                ) VALUES (?, '', ?, '', ?, ?, 0, ?, 'pending', ?, NOW())
                             ");
                             $stmt->execute([
                                 $refOwner['google_uid'],
