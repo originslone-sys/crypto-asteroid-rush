@@ -131,17 +131,15 @@ try {
     // ============================================
     
     $validation = validateGameStats($finalStats, $gameDuration, (bool)$session['is_hard_mode']);
-    
+
     $isFlagged = false;
     $flagReason = null;
-    
+
+    // Logs de validação (apenas informativo, não bloqueia)
     if (!$validation['valid']) {
-        // Estatísticas inválidas - possível trapaça
-        $isFlagged = true;
-        $flagReason = implode('; ', $validation['errors']);
-        secureLog("🚨 CHEAT_DETECTED | Session: $sessionId | Errors: $flagReason");
-    } elseif (!empty($validation['warnings'])) {
-        // Estatísticas suspeitas - marcar para revisão mas não bloquear
+        secureLog("⚠️ STATS_OVERFLOW | Session: $sessionId | Errors: " . implode('; ', $validation['errors']));
+    }
+    if (!empty($validation['warnings'])) {
         secureLog("⚠️ SUSPICIOUS | Session: $sessionId | Warnings: " . implode('; ', $validation['warnings']));
     }
     
