@@ -163,23 +163,28 @@
 (function() {
     const urlParams = new URLSearchParams(window.location.search);
     const refCode = urlParams.get('ref');
-    
+
     if (refCode && /^[A-Z0-9]{6}$/i.test(refCode)) {
-        localStorage.setItem('referralCode', refCode.toUpperCase());
+        const code = refCode.toUpperCase();
+        // Salvar em TODAS as chaves para compatibilidade com auth-manager.js e main.js
+        localStorage.setItem('referralCode', code);
+        localStorage.setItem('unobix_referral_code', code);
+        localStorage.setItem('unobix_referral', code);
+        localStorage.setItem('unobix_referral_time', Date.now().toString());
         localStorage.setItem('referralTimestamp', Date.now().toString());
-        
+
         const banner = document.getElementById('referralBanner');
         if (banner) banner.classList.add('show');
-        
-        console.log('Código de referral capturado:', refCode.toUpperCase());
-        
+
+        console.log('Código de referral capturado:', code);
+
         if (window.history.replaceState) {
             const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
             window.history.replaceState({}, document.title, cleanUrl);
         }
     }
-    
-    const savedRef = localStorage.getItem('referralCode');
+
+    const savedRef = localStorage.getItem('referralCode') || localStorage.getItem('unobix_referral_code');
     if (savedRef && !localStorage.getItem('unobix_user')) {
         const banner = document.getElementById('referralBanner');
         if (banner) banner.classList.add('show');

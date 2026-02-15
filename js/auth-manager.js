@@ -242,8 +242,8 @@ class AuthManager {
                     }
                 }
                 
-                // Limpar referral code do localStorage se novo usuário (já registrado pelo backend)
-                if (result.is_new_user) {
+                // Limpar referral code do localStorage após registro bem-sucedido
+                if (result.is_new_user || result.referral_registered) {
                     this.clearStoredReferralCode();
                 }
                 
@@ -306,6 +306,7 @@ class AuthManager {
     getStoredReferralCode() {
         return localStorage.getItem('unobix_referral_code')
             || localStorage.getItem('unobix_referral')
+            || localStorage.getItem('referralCode')
             || '';
     }
     
@@ -316,6 +317,8 @@ class AuthManager {
         localStorage.removeItem('unobix_referral_code');
         localStorage.removeItem('unobix_referral');
         localStorage.removeItem('unobix_referral_time');
+        localStorage.removeItem('referralCode');
+        localStorage.removeItem('referralTimestamp');
     }
     
     dispatchAuthEvent(user) {
