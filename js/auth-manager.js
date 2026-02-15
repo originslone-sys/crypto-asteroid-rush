@@ -301,9 +301,12 @@ class AuthManager {
     
     /**
      * Obter código de referral armazenado
+     * Verifica ambas as chaves para compatibilidade com main.js
      */
     getStoredReferralCode() {
-        return localStorage.getItem('unobix_referral_code') || '';
+        return localStorage.getItem('unobix_referral_code')
+            || localStorage.getItem('unobix_referral')
+            || '';
     }
     
     /**
@@ -311,6 +314,8 @@ class AuthManager {
      */
     clearStoredReferralCode() {
         localStorage.removeItem('unobix_referral_code');
+        localStorage.removeItem('unobix_referral');
+        localStorage.removeItem('unobix_referral_time');
     }
     
     dispatchAuthEvent(user) {
