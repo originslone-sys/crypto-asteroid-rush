@@ -157,6 +157,8 @@ function clearReferralCode() {
     localStorage.removeItem('unobix_referral');
     localStorage.removeItem('unobix_referral_code');
     localStorage.removeItem('unobix_referral_time');
+    localStorage.removeItem('referralCode');
+    localStorage.removeItem('referralTimestamp');
 }
 
 // ============================================

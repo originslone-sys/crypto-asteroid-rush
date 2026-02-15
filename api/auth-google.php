@@ -121,19 +121,20 @@ try {
             // REFERRAL: registrar indicação se usuário tem código
             // Funciona para novos E existentes (duplicata é checada abaixo)
             // ============================================
+            $referralRegistered = false;
             $referralCode = trim($input['referral_code'] ?? $input['ref'] ?? '');
             if (!empty($referralCode)) {
                 try {
                     require_once __DIR__ . '/referral-helper.php';
                     $refOwner = validateReferralCode($pdo, $referralCode);
-                    
+
                     if ($refOwner && $refOwner['google_uid'] !== $googleUid) {
                         // Verificar se já não foi registrado
                         $checkStmt = $pdo->prepare("
                             SELECT id FROM referrals WHERE referred_google_uid = ? LIMIT 1
                         ");
                         $checkStmt->execute([$googleUid]);
-                        
+
                         if (!$checkStmt->fetch()) {
                             // Ler settings do admin (com fallback)
                             $missionsReq = 100;
@@ -178,6 +179,7 @@ try {
                                 WHERE code = ?
                             ")->execute([strtoupper($referralCode)]);
                             
+                            $referralRegistered = true;
                             secureLog("REFERRAL_AUTO_REGISTERED | Referrer: {$refOwner['google_uid']} | Referred: {$googleUid} | Code: {$referralCode}");
                         }
                     }
@@ -199,6 +201,7 @@ try {
                 'message' => 'Login realizado com sucesso',
                 'session_token' => $sessionToken,
                 'is_new_user' => $isNewUser,
+                'referral_registered' => $referralRegistered,
                 'user' => [
                     'id' => (int)$user['id'],
                     'google_uid' => $user['google_uid'],
