@@ -29,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'ads_pregame_skip_after' => (int)$_POST['pregame_skip_after'],
                     'ads_endgame_enabled' => isset($_POST['endgame_enabled']) ? 'true' : 'false',
                     'ads_endgame_display_mode' => $_POST['endgame_display_mode'],
+                    'ads_endgame_total_duration' => (int)$_POST['endgame_total_duration'],
                     'ads_endgame_max_slots' => (int)$_POST['endgame_max_slots'],
                     'ads_endgame_rotation_interval' => (int)$_POST['endgame_rotation_interval'],
                     'ads_endgame_auto_rotate' => isset($_POST['endgame_auto_rotate']) ? 'true' : 'false',
@@ -140,6 +141,7 @@ $config = array_merge([
     'pregame_skip_enabled' => false,
     'pregame_skip_after' => 5,
     'endgame_enabled' => true,
+    'endgame_total_duration' => 10,
     'endgame_display_mode' => 'grid',
     'endgame_max_slots' => 4,
     'endgame_rotation_interval' => 8,
@@ -364,7 +366,7 @@ if (isset($_GET['edit'])) {
                         </div>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 15px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; margin-top: 15px;">
                         <div class="form-group">
                             <label class="form-label">Modo de Exibição</label>
                             <select name="endgame_display_mode" class="form-control">
@@ -374,16 +376,22 @@ if (isset($_GET['edit'])) {
                                 <option value="single" <?php echo $config['endgame_display_mode'] === 'single' ? 'selected' : ''; ?>>Single (Um por vez)</option>
                             </select>
                         </div>
-                        
+
+                        <div class="form-group">
+                            <label class="form-label">Duração Total (s)</label>
+                            <input type="number" name="endgame_total_duration" class="form-control"
+                                   value="<?php echo $config['endgame_total_duration']; ?>" min="3" max="60">
+                        </div>
+
                         <div class="form-group">
                             <label class="form-label">Máx. Slots</label>
-                            <input type="number" name="endgame_max_slots" class="form-control" 
+                            <input type="number" name="endgame_max_slots" class="form-control"
                                    value="<?php echo $config['endgame_max_slots']; ?>" min="1" max="10">
                         </div>
-                        
+
                         <div class="form-group">
                             <label class="form-label">Intervalo Rotação (s)</label>
-                            <input type="number" name="endgame_rotation_interval" class="form-control" 
+                            <input type="number" name="endgame_rotation_interval" class="form-control"
                                    value="<?php echo $config['endgame_rotation_interval']; ?>" min="3" max="60">
                         </div>
                     </div>
