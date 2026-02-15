@@ -37,7 +37,24 @@ try {
     if (!$pdo) throw new Exception("Erro de conexão");
 
     // ============================================
-    // 1. VERIFICAR SE USUÁRIO JÁ FOI INDICADO
+    // 1. VERIFICAR SE É USUÁRIO NOVO (sem jogos)
+    // Usuários com conta ativa não podem ser indicados
+    // ============================================
+    $stmt = $pdo->prepare("
+        SELECT total_played FROM users
+        WHERE google_uid = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$googleUid]);
+    $existingUser = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($existingUser && (int)$existingUser['total_played'] > 0) {
+        echo json_encode(['success' => false, 'error' => 'Apenas novos usuários podem ser indicados']);
+        exit;
+    }
+
+    // ============================================
+    // 2. VERIFICAR SE USUÁRIO JÁ FOI INDICADO
     // ============================================
     $stmt = $pdo->prepare("
         SELECT id FROM referrals
@@ -51,7 +68,7 @@ try {
     }
 
     // ============================================
-    // 2. BUSCAR REFERRER PELO CÓDIGO
+    // 3. BUSCAR REFERRER PELO CÓDIGO
     // ============================================
     $stmt = $pdo->prepare("
         SELECT google_uid FROM referral_codes
@@ -68,7 +85,7 @@ try {
     $referrerGoogleUid = $referrer['google_uid'];
 
     // ============================================
-    // 3. VERIFICAR SE NÃO É AUTO-INDICAÇÃO
+    // 4. VERIFICAR SE NÃO É AUTO-INDICAÇÃO
     // ============================================
     if ($referrerGoogleUid === $googleUid) {
         echo json_encode(['success' => false, 'error' => 'Não é possível usar seu próprio código']);
@@ -76,7 +93,7 @@ try {
     }
 
     // ============================================
-    // 4. BUSCAR MISSÕES ATUAIS DO NOVO USUÁRIO
+    // 5. BUSCAR MISSÕES ATUAIS DO NOVO USUÁRIO
     // ============================================
     $missionsAtRegister = 0;
 
@@ -93,7 +110,7 @@ try {
     }
 
     // ============================================
-    // 5. LER SETTINGS DO ADMIN
+    // 6. LER SETTINGS DO ADMIN
     // ============================================
     $missionsRequired = 100;
     $commissionBrl = 1.000000;
@@ -108,7 +125,7 @@ try {
     }
 
     // ============================================
-    // 6. REGISTRAR INDICAÇÃO
+    // 7. REGISTRAR INDICAÇÃO
     // ============================================
     $stmt = $pdo->prepare("
         INSERT INTO referrals (

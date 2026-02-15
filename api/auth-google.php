@@ -118,12 +118,12 @@ try {
             }
             
             // ============================================
-            // REFERRAL: registrar indicação se usuário tem código
-            // Funciona para novos E existentes (duplicata é checada abaixo)
+            // REFERRAL: registrar indicação APENAS para novos usuários
+            // Usuários existentes que clicam em link de indicação NÃO são adicionados
             // ============================================
             $referralRegistered = false;
             $referralCode = trim($input['referral_code'] ?? $input['ref'] ?? '');
-            if (!empty($referralCode)) {
+            if (!empty($referralCode) && $isNewUser) {
                 try {
                     require_once __DIR__ . '/referral-helper.php';
                     $refOwner = validateReferralCode($pdo, $referralCode);
