@@ -156,10 +156,14 @@
             for (var a = 0; a < original.attributes.length; a++) {
                 replacement.setAttribute(original.attributes[a].name, original.attributes[a].value);
             }
-            if (!original.src) {
+            if (original.src) {
+                // External scripts: append to <head> for proper execution
+                original.parentNode.removeChild(original);
+                document.head.appendChild(replacement);
+            } else {
                 replacement.textContent = original.textContent;
+                original.parentNode.replaceChild(replacement, original);
             }
-            original.parentNode.replaceChild(replacement, original);
         }
     }
 
