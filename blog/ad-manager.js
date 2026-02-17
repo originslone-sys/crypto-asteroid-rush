@@ -147,23 +147,22 @@
         // Limpar placeholder
         container.innerHTML = config.html;
 
-        // Re-executar scripts que foram injetados via innerHTML
+        // Ads com <script>: renderizar dentro de iframe para compatibilidade universal
         var scripts = container.querySelectorAll('script');
-        for (var i = 0; i < scripts.length; i++) {
-            var original = scripts[i];
-            var replacement = document.createElement('script');
-            // Copy all attributes (src, async, data-cfasync, etc.)
-            for (var a = 0; a < original.attributes.length; a++) {
-                replacement.setAttribute(original.attributes[a].name, original.attributes[a].value);
-            }
-            if (original.src) {
-                // External scripts: append to <head> for proper execution
-                original.parentNode.removeChild(original);
-                document.head.appendChild(replacement);
-            } else {
-                replacement.textContent = original.textContent;
-                original.parentNode.replaceChild(replacement, original);
-            }
+        if (scripts.length > 0) {
+            var adHTML = container.innerHTML;
+            var iframe = document.createElement('iframe');
+            iframe.style.cssText = 'border:0;width:100%;height:100%;min-height:90px;overflow:hidden;display:block;';
+            iframe.setAttribute('scrolling', 'no');
+            iframe.setAttribute('frameborder', '0');
+            container.innerHTML = '';
+            container.appendChild(iframe);
+            var doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8">'
+                + '<style>body{margin:0;padding:0;overflow:hidden;}</style>'
+                + '</head><body>' + adHTML + '</body></html>');
+            doc.close();
         }
     }
 

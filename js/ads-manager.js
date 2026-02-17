@@ -169,6 +169,7 @@ const AdsManager = {
                     </div>`;
                 }).join('') +
             '</div>';
+            this.executeScripts(container);
         } else {
             // Mostrar um slot por vez com rotação
             const slot = this.getNextSlot('endgame');
@@ -222,8 +223,9 @@ const AdsManager = {
             `;
             
             document.body.appendChild(overlay);
+            this.executeScripts(overlay);
             this.trackImpression(slot.id);
-            
+
             let timeLeft = duration;
             const timer = setInterval(() => {
                 timeLeft--;
@@ -286,6 +288,7 @@ const AdsManager = {
         `;
         
         banner.style.display = 'block';
+        this.executeScripts(banner);
         this.trackImpression(slot.id);
     },
     
@@ -364,27 +367,33 @@ const AdsManager = {
         }
     },
     
-    // Executar scripts do slot (necessário para ads de terceiros)
+    // Ativar ads que contêm <script> renderizando dentro de um iframe
+    // Isso garante compatibilidade universal com qualquer rede de ads
+    // (Monetag, Adsterra, PropellerAds, etc.) porque os scripts executam
+    // naturalmente via document.write() no contexto do iframe.
+    // Ads sem scripts (a-ads, iframes puros) funcionam direto no innerHTML.
     executeScripts(container) {
-        const scripts = container.querySelectorAll('script');
-        scripts.forEach(oldScript => {
-            const newScript = document.createElement('script');
-            // Copy all attributes (src, async, data-cfasync, data-zone, etc.)
-            Array.from(oldScript.attributes).forEach(attr => {
-                newScript.setAttribute(attr.name, attr.value);
-            });
-            if (oldScript.src) {
-                // External scripts: append to <head> for proper execution
-                // Ad scripts (Monetag, etc.) may use document.write() or
-                // document.currentScript and need top-level DOM context
-                oldScript.parentNode.removeChild(oldScript);
-                document.head.appendChild(newScript);
-            } else {
-                // Inline scripts: replace in place
-                // IIFE evita conflito de let/const ao re-executar na rotação
-                newScript.textContent = `(function(){${oldScript.textContent}})();`;
-                oldScript.parentNode.replaceChild(newScript, oldScript);
-            }
+        const slotDivs = container.querySelectorAll('.ad-slot-content');
+        slotDivs.forEach(slotDiv => {
+            if (!slotDiv.querySelector('script')) return;
+
+            const adHTML = slotDiv.innerHTML;
+            const h = slotDiv.style.height || '250px';
+
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = 'border:0;width:100%;height:' + h + ';overflow:hidden;display:block;';
+            iframe.setAttribute('scrolling', 'no');
+            iframe.setAttribute('frameborder', '0');
+
+            slotDiv.innerHTML = '';
+            slotDiv.appendChild(iframe);
+
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8">'
+                + '<style>body{margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:100vh;}</style>'
+                + '</head><body>' + adHTML + '</body></html>');
+            doc.close();
         });
     },
     
