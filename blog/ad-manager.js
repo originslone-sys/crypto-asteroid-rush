@@ -19,10 +19,11 @@
     //    attrs: objeto com atributos extras (data-cfasync, etc)
     // =============================================
     var GLOBAL_SCRIPTS = [
-        // Monetag - Push Notifications
+        // Monetag
         {
-   <script src="https://quge5.com/88/tag.min.js" data-zone="212120" async data-cfasync="false"></script>
-       }
+            src: 'https://quge5.com/88/tag.min.js',
+            attrs: { 'data-zone': '212120', 'data-cfasync': 'false', 'async': true }
+        }
     ];
 
 
