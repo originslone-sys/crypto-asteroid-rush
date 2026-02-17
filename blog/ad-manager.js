@@ -152,10 +152,11 @@
         for (var i = 0; i < scripts.length; i++) {
             var original = scripts[i];
             var replacement = document.createElement('script');
-            if (original.src) {
-                replacement.src = original.src;
-                replacement.async = true;
-            } else {
+            // Copy all attributes (src, async, data-cfasync, etc.)
+            for (var a = 0; a < original.attributes.length; a++) {
+                replacement.setAttribute(original.attributes[a].name, original.attributes[a].value);
+            }
+            if (!original.src) {
                 replacement.textContent = original.textContent;
             }
             original.parentNode.replaceChild(replacement, original);

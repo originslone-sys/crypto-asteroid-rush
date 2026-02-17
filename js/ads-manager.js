@@ -369,9 +369,11 @@ const AdsManager = {
         const scripts = container.querySelectorAll('script');
         scripts.forEach(oldScript => {
             const newScript = document.createElement('script');
-            if (oldScript.src) {
-                newScript.src = oldScript.src;
-            } else {
+            // Copy all attributes (src, async, data-cfasync, data-zone, etc.)
+            Array.from(oldScript.attributes).forEach(attr => {
+                newScript.setAttribute(attr.name, attr.value);
+            });
+            if (!oldScript.src) {
                 // IIFE evita conflito de let/const ao re-executar na rotação
                 newScript.textContent = `(function(){${oldScript.textContent}})();`;
             }
