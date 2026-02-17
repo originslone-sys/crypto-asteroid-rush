@@ -373,11 +373,18 @@ const AdsManager = {
             Array.from(oldScript.attributes).forEach(attr => {
                 newScript.setAttribute(attr.name, attr.value);
             });
-            if (!oldScript.src) {
+            if (oldScript.src) {
+                // External scripts: append to <head> for proper execution
+                // Ad scripts (Monetag, etc.) may use document.write() or
+                // document.currentScript and need top-level DOM context
+                oldScript.parentNode.removeChild(oldScript);
+                document.head.appendChild(newScript);
+            } else {
+                // Inline scripts: replace in place
                 // IIFE evita conflito de let/const ao re-executar na rotação
                 newScript.textContent = `(function(){${oldScript.textContent}})();`;
+                oldScript.parentNode.replaceChild(newScript, oldScript);
             }
-            oldScript.parentNode.replaceChild(newScript, oldScript);
         });
     },
     
