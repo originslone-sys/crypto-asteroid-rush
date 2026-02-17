@@ -21,17 +21,8 @@
     var GLOBAL_SCRIPTS = [
         // Monetag - Push Notifications
         {
-            src: 'https://3nbf4.com/act/files/tag.min.js?z=10622094',
-            attrs: { 'data-cfasync': 'false', 'async': true }
-        },
-        // Monetag - In-Page Push
-        {
-            inline: "(function(s){s.dataset.zone='10622119',s.src='https://nap5k.com/tag.min.js'})([document.documentElement,document.body].filter(Boolean).pop().appendChild(document.createElement('script')))"
-        },
-        // Monetag - Vignette
-        {
-            inline: "(function(s){s.dataset.zone='10622121',s.src='https://gizokraijaw.net/vignette.min.js'})([document.documentElement,document.body].filter(Boolean).pop().appendChild(document.createElement('script')))"
-        }
+   <script src="https://quge5.com/88/tag.min.js" data-zone="212120" async data-cfasync="false"></script>
+       }
     ];
 
 
@@ -186,3 +177,4 @@
     }
 
 })();
+
