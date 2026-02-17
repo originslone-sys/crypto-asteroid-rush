@@ -21,6 +21,11 @@
             html: '',
             // Exemplo:
             // html: '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXX" crossorigin="anonymous"><\/script><ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXX" data-ad-slot="1111111111" data-ad-format="horizontal"></ins><script>(adsbygoogle = window.adsbygoogle || []).push({});<\/script>',
+           //Script A-ADS
+           <div id="frame" style="width: 100%;margin: auto;position: relative; z-index: 99998;">
+          <iframe data-aa='2427790' src='//acceptable.a-ads.com/2427790/?size=Adaptive'
+                            style='border:0; padding:0; width:70%; height:auto; overflow:hidden;display: block;margin: auto'></iframe>
+        </div>
             enabled: true
         },
 
@@ -37,6 +42,11 @@
         },
 
         // Coluna direita - primeiro slot (300x250)
+//Script A-ADS
+<div id="frame" style="width: 300px;margin: auto;z-index: 99998;height: auto">
+          <iframe data-aa='2427791' src='//ad.a-ads.com/2427791/?size=300x250'
+                            style='border:0; padding:0; width:300px; height:250px; overflow:hidden;display: block;margin: auto'></iframe>
+        </div>
         'ad-right-rail-1': {
             html: '',
             enabled: true
@@ -93,6 +103,12 @@
     var GLOBAL_HEAD_SCRIPT = '';
     // Exemplo:
     // var GLOBAL_HEAD_SCRIPT = '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXX" crossorigin="anonymous"><\/script>';
+   // Scripts Monetag
+<script src="https://3nbf4.com/act/files/tag.min.js?z=10622094" data-cfasync="false" async></script>
+
+<script>(function(s){s.dataset.zone='10622119',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+
+<script>(function(s){s.dataset.zone='10622121',s.src='https://gizokraijaw.net/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 
 
     // =============================================
@@ -173,3 +189,4 @@
     }
 
 })();
+
