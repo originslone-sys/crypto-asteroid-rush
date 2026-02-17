@@ -10,7 +10,8 @@ const firebaseConfig = {
   projectId: "unobix-oauth-a69cd",
   storageBucket: "unobix-oauth-a69cd.firebasestorage.app",
   messagingSenderId: "1067767347117",
-  appId: "1:1067767347117:web:26e1193bdef8e264409324"
+  appId: "1:1067767347117:web:26e1193bdef8e264409324",
+  measurementId: "G-3LQT1LYRG1"
 };
 
 // Inicializar Firebase APENAS se já não inicializado
@@ -18,6 +19,12 @@ const firebaseConfig = {
 if (firebase.apps.length === 0) {
     firebase.initializeApp(firebaseConfig);
     console.log('🔥 Firebase v10.7.1 inicializado (compat mode)');
+}
+
+// Inicializar Google Analytics
+if (typeof firebase.analytics === 'function') {
+    firebase.analytics();
+    console.log('📊 Google Analytics ativo (G-3LQT1LYRG1)');
 }
 
 // Exportar auth para uso global
