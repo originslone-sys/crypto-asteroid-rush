@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog UNOBIX - Dicas, Guias e Novidades sobre Jogos Play-to-Earn</title>
+    <meta name="description" content="Blog oficial UNOBIX: dicas para maximizar ganhos, guias de asteroides, estratégias avançadas, staking, programa de afiliados e muito mais.">
+    <link rel="stylesheet" href="blog-style.css">
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="blog-header">
+    <a href="index.html" class="blog-logo">
+        <span class="blog-logo-text">UNOBIX</span>
+        <span class="blog-logo-badge">Blog</span>
+    </a>
+    <nav class="header-nav">
+        <a href="../index.html">Inicio</a>
+        <a href="../how-to-play.html">Como Jogar</a>
+        <a href="../faq.html">FAQ</a>
+        <a href="../game.html" class="btn-play">&#9658; JOGAR AGORA</a>
+    </nav>
+    <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Menu">&#9776;</button>
+</header>
+
+<div class="blog-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="blog-sidebar" id="blogSidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title">Artigos</div>
+            <ul class="sidebar-nav">
+                <li>
+                    <a href="index.html" class="active">
+                        <span class="nav-icon">&#127968;</span>
+                        <span class="nav-label">Todos os Artigos</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="como-ganhar-dinheiro-jogando.html">
+                        <span class="nav-icon">&#128176;</span>
+                        <span class="nav-label">Como Ganhar Dinheiro Jogando</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="guia-asteroides.html">
+                        <span class="nav-icon">&#9732;</span>
+                        <span class="nav-label">Guia dos Asteroides</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="estrategias-avancadas.html">
+                        <span class="nav-icon">&#127942;</span>
+                        <span class="nav-label">Estratégias Avançadas</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <hr class="sidebar-divider">
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">Economia</div>
+            <ul class="sidebar-nav">
+                <li>
+                    <a href="staking-renda-passiva.html">
+                        <span class="nav-icon">&#128200;</span>
+                        <span class="nav-label">Staking e Renda Passiva</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="programa-afiliados.html">
+                        <span class="nav-icon">&#129309;</span>
+                        <span class="nav-label">Programa de Afiliados</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="seguranca-saques.html">
+                        <span class="nav-icon">&#128274;</span>
+                        <span class="nav-label">Segurança e Saques</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <hr class="sidebar-divider">
+
+        <!-- SIDEBAR AD SLOT (300x250) -->
+        <div class="sidebar-ad" id="ad-sidebar-1">
+            <span class="sidebar-ad-label">Publicidade</span>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">Links Rápidos</div>
+            <ul class="sidebar-nav">
+                <li>
+                    <a href="../game.html">
+                        <span class="nav-icon">&#127918;</span>
+                        <span class="nav-label">Jogar Agora</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="../dashboard.html">
+                        <span class="nav-icon">&#128202;</span>
+                        <span class="nav-label">Meu Painel</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="../wallet.html">
+                        <span class="nav-icon">&#128179;</span>
+                        <span class="nav-label">Sacar Ganhos</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </aside>
+
+    <!-- OVERLAY mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- MAIN CONTENT -->
+    <main class="blog-content">
+
+        <!-- AD SLOT 1: LEADERBOARD TOPO (728x90) - Above fold -->
+        <div class="ad-slot ad-leaderboard" id="ad-leaderboard-top">
+            <span class="ad-slot-label">Publicidade</span>
+        </div>
+
+        <!-- HERO + AD RECTANGLE lado a lado - Above fold -->
+        <div class="blog-hero">
+            <div class="blog-hero-text">
+                <h1 class="blog-hero-title">
+                    Blog <span>UNOBIX</span>
+                </h1>
+                <p class="blog-hero-desc">
+                    Dicas, guias e estratégias para destruir asteroides e maximizar seus ganhos em BRL.
+                    Aprenda tudo sobre o jogo, staking, saques e o programa de afiliados.
+                </p>
+            </div>
+            <!-- AD SLOT 2: RECTANGLE no hero (300x250) - Above fold -->
+            <div class="blog-hero-ad">
+                <div class="ad-slot ad-rectangle" id="ad-hero-rectangle">
+                    <span class="ad-slot-label">Publicidade</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADS ABOVE FOLD ZONE: Banner largo + quadrado -->
+        <div class="ads-above-fold">
+            <!-- AD SLOT 3: WIDE BANNER (468x60 ou responsivo) -->
+            <div class="ad-wide" id="ad-above-fold-wide">
+                <span class="ad-slot-label">Publicidade</span>
+            </div>
+            <!-- AD SLOT 4: SQUARE (300x250) -->
+            <div class="ad-square" id="ad-above-fold-square">
+                <span class="ad-slot-label">Publicidade</span>
+            </div>
+        </div>
+
+        <!-- POSTS GRID -->
+        <div class="posts-section-title">Todos os Artigos</div>
+
+        <div class="posts-grid">
+            <!-- Post 1 -->
+            <a href="como-ganhar-dinheiro-jogando.html" class="post-card">
+                <span class="post-card-icon">&#128176;</span>
+                <span class="post-card-tag">Guia Iniciante</span>
+                <h2 class="post-card-title">Como Ganhar Dinheiro Jogando Online em 2026</h2>
+                <p class="post-card-excerpt">
+                    Descubra como o modelo play-to-earn funciona na UNOBIX e como transformar partidas de 3 minutos em ganhos reais em BRL.
+                </p>
+                <div class="post-card-meta">
+                    <span>5 min de leitura</span>
+                    <span class="post-card-read">Ler mais &rarr;</span>
+                </div>
+            </a>
+
+            <!-- Post 2 -->
+            <a href="guia-asteroides.html" class="post-card">
+                <span class="post-card-icon">&#9732;</span>
+                <span class="post-card-tag">Gameplay</span>
+                <h2 class="post-card-title">Guia Completo dos Asteroides: Tipos e Recompensas</h2>
+                <p class="post-card-excerpt">
+                    Conheça cada tipo de asteroide, suas cores, raridades e valores em BRL. Saiba quais priorizar para lucrar mais.
+                </p>
+                <div class="post-card-meta">
+                    <span>6 min de leitura</span>
+                    <span class="post-card-read">Ler mais &rarr;</span>
+                </div>
+            </a>
+
+            <!-- Post 3 -->
+            <a href="estrategias-avancadas.html" class="post-card">
+                <span class="post-card-icon">&#127942;</span>
+                <span class="post-card-tag">Avançado</span>
+                <h2 class="post-card-title">Estratégias Avançadas para Maximizar Seus Ganhos</h2>
+                <p class="post-card-excerpt">
+                    Técnicas de posicionamento, gestão de vidas e ritmo de jogo que os melhores jogadores usam para lucrar mais.
+                </p>
+                <div class="post-card-meta">
+                    <span>7 min de leitura</span>
+                    <span class="post-card-read">Ler mais &rarr;</span>
+                </div>
+            </a>
+        </div>
+
+        <!-- AD SLOT 5: IN-FEED entre posts -->
+        <div class="ad-slot ad-infeed" id="ad-infeed-1">
+            <span class="ad-slot-label">Publicidade</span>
+        </div>
+
+        <div class="posts-grid">
+            <!-- Post 4 -->
+            <a href="staking-renda-passiva.html" class="post-card">
+                <span class="post-card-icon">&#128200;</span>
+                <span class="post-card-tag">Economia</span>
+                <h2 class="post-card-title">Staking e Renda Passiva: Como Fazer Seu Saldo Render</h2>
+                <p class="post-card-excerpt">
+                    Entenda o sistema de staking com 5% APY, como funciona o rendimento por hora e estratégias para compor ganhos.
+                </p>
+                <div class="post-card-meta">
+                    <span>5 min de leitura</span>
+                    <span class="post-card-read">Ler mais &rarr;</span>
+                </div>
+            </a>
+
+            <!-- Post 5 -->
+            <a href="programa-afiliados.html" class="post-card">
+                <span class="post-card-icon">&#129309;</span>
+                <span class="post-card-tag">Afiliados</span>
+                <h2 class="post-card-title">Programa de Afiliados: Ganhe Indicando Amigos</h2>
+                <p class="post-card-excerpt">
+                    Saiba como funciona o sistema de indicações, quanto você ganha por cada amigo e como compartilhar seu código.
+                </p>
+                <div class="post-card-meta">
+                    <span>4 min de leitura</span>
+                    <span class="post-card-read">Ler mais &rarr;</span>
+                </div>
+            </a>
+
+            <!-- Post 6 -->
+            <a href="seguranca-saques.html" class="post-card">
+                <span class="post-card-icon">&#128274;</span>
+                <span class="post-card-tag">Segurança</span>
+                <h2 class="post-card-title">Segurança e Saques: PIX, FaucetPay e USDT</h2>
+                <p class="post-card-excerpt">
+                    Tudo sobre como sacar seus ganhos, métodos disponíveis, taxas, prazos e como manter sua conta segura.
+                </p>
+                <div class="post-card-meta">
+                    <span>6 min de leitura</span>
+                    <span class="post-card-read">Ler mais &rarr;</span>
+                </div>
+            </a>
+        </div>
+
+        <!-- AD SLOT 6: LEADERBOARD FINAL -->
+        <div class="ad-slot ad-leaderboard" id="ad-leaderboard-bottom">
+            <span class="ad-slot-label">Publicidade</span>
+        </div>
+
+    </main>
+
+    <!-- RIGHT RAIL ADS (desktop only) -->
+    <aside class="blog-right-rail">
+        <div class="right-rail-sticky">
+            <!-- AD SLOT 7: Right rail 300x250 -->
+            <div class="right-rail-ad" id="ad-right-rail-1">
+                <span class="ad-slot-label">Publicidade</span>
+            </div>
+            <!-- AD SLOT 8: Right rail 300x250 -->
+            <div class="right-rail-ad" id="ad-right-rail-2">
+                <span class="ad-slot-label">Publicidade</span>
+            </div>
+        </div>
+    </aside>
+
+</div>
+
+<!-- FOOTER -->
+<footer class="blog-footer">
+    <div class="footer-links">
+        <a href="../index.html">Inicio</a>
+        <a href="../how-to-play.html">Como Jogar</a>
+        <a href="../terms.html">Termos</a>
+        <a href="../privacy.html">Privacidade</a>
+        <a href="../faq.html">FAQ</a>
+    </div>
+    <p>&copy; 2026 UNOBIX. Todos os direitos reservados.</p>
+</footer>
+
+<script src="ad-manager.js"></script>
+<script>
+function toggleSidebar() {
+    document.getElementById('blogSidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('active');
+}
+
+// Close sidebar when clicking a link (mobile)
+document.querySelectorAll('.blog-sidebar a').forEach(function(link) {
+    link.addEventListener('click', function() {
+        if (window.innerWidth <= 900) {
+            toggleSidebar();
+        }
+    });
+});
+</script>
+
+</body>
+</html>
