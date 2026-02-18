@@ -37,6 +37,9 @@ class AuthManager {
 
             this.provider.addScope('profile');
             this.provider.addScope('email');
+            this.provider.setCustomParameters({
+                prompt: 'select_account'
+            });
 
             this.auth.onAuthStateChanged((user) => {
                 this.handleAuthStateChange(user);
@@ -54,39 +57,39 @@ class AuthManager {
     }
 
     // Restaurar auth do localStorage para UI instantânea entre páginas.
-    // Firebase onAuthStateChanged confirmará/revogará em seguida.
+    // Seta gameState e currentUser para que isLoggedIn() e checks de UI
+    // funcionem imediatamente. Firebase onAuthStateChanged substituirá
+    // com o user real em ~1s.
     _restoreCachedAuth() {
         const cachedUid = localStorage.getItem('googleUid');
         if (!cachedUid) return;
 
-        // Setar gameState imediatamente para a UI funcionar sem delay
-        if (typeof window !== 'undefined') {
-            window.gameState = window.gameState || {};
-            window.gameState.googleUid = cachedUid;
-            window.gameState.isConnected = true;
-
-            const cachedData = localStorage.getItem('userData');
-            if (cachedData) {
-                try {
-                    window.gameState.userData = JSON.parse(cachedData);
-                    window.gameState.balance_brl = window.gameState.userData.balance_brl || 0;
-                } catch (e) {}
-            }
-
-            const sessionToken = localStorage.getItem('sessionToken');
-            if (sessionToken) {
-                window.gameState.sessionToken = sessionToken;
-            }
-        }
-
-        // Disparar evento com dados cached para atualizar UI imediatamente
-        this.dispatchAuthEvent({
+        // Setar currentUser mínimo para isLoggedIn() funcionar
+        this.currentUser = {
             uid: cachedUid,
             displayName: localStorage.getItem('userDisplayName') || '',
             email: localStorage.getItem('userEmail') || '',
             photoURL: localStorage.getItem('userPhotoURL') || '',
             _cached: true
-        });
+        };
+
+        // Setar gameState imediatamente para a UI funcionar sem delay
+        window.gameState = window.gameState || {};
+        window.gameState.googleUid = cachedUid;
+        window.gameState.isConnected = true;
+
+        const cachedData = localStorage.getItem('userData');
+        if (cachedData) {
+            try {
+                window.gameState.userData = JSON.parse(cachedData);
+                window.gameState.balance_brl = window.gameState.userData.balance_brl || 0;
+            } catch (e) {}
+        }
+
+        const sessionToken = localStorage.getItem('sessionToken');
+        if (sessionToken) {
+            window.gameState.sessionToken = sessionToken;
+        }
     }
     
     handleAuthStateChange(user) {
@@ -117,8 +120,8 @@ class AuthManager {
                 window.gameState.isConnected = true;
             }
 
-            // Sincronizar com backend (apenas se é novo login)
-            if (!previousUser) {
+            // Sincronizar com backend (novo login ou restauração de cache)
+            if (!previousUser || previousUser._cached) {
                 this.syncUserWithBackend(user);
             }
 
