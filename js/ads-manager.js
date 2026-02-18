@@ -314,25 +314,33 @@ const AdsManager = {
         return slot;
     },
     
-    // Gerar HTML do slot (usa script_code do banco)
+    // Gerar HTML do slot (suporta display + global scripts no mesmo slot)
     getSlotHTML(slot) {
         if (!slot) return '';
-        
+
         let html = '';
-        
+
         // CSS personalizado
         if (slot.custom_css) {
             html += `<style>${slot.custom_css}</style>`;
         }
-        
-        // Container com dimensões
-        const style = [];
-        if (slot.width) style.push(`width:${slot.width}${isNaN(slot.width) ? '' : 'px'}`);
-        if (slot.height) style.push(`height:${slot.height}${isNaN(slot.height) ? '' : 'px'}`);
-        
-        html += `<div class="ad-slot-content" data-slot-id="${slot.id}" data-position="${slot.position || 'center'}"
-                      style="${style.join(';')}">${slot.script_code}</div>`;
-        
+
+        // Container para display ads (script_code → iframe)
+        if (slot.script_code) {
+            const style = [];
+            if (slot.width) style.push(`width:${slot.width}${isNaN(slot.width) ? '' : 'px'}`);
+            if (slot.height) style.push(`height:${slot.height}${isNaN(slot.height) ? '' : 'px'}`);
+
+            html += `<div class="ad-slot-content" data-slot-id="${slot.id}" data-position="center"
+                          style="${style.join(';')}">${slot.script_code}</div>`;
+        }
+
+        // Container para global scripts (custom_js → head injection)
+        if (slot.custom_js) {
+            html += `<div class="ad-slot-content" data-slot-id="${slot.id}" data-position="head"
+                          style="display:none">${slot.custom_js}</div>`;
+        }
+
         return html;
     },
     
