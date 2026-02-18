@@ -55,17 +55,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("INSERT INTO ad_slots (slot_name, slot_type, position, script_code, width, height,
                                        duration_seconds, display_order, custom_css, custom_js, notes, provider, is_active, created_at)
                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+                $scriptCode = trim($_POST['script_code'] ?? '');
+                $customJs = trim($_POST['custom_js'] ?? '');
+                if (!$scriptCode && !$customJs) {
+                    throw new Exception('Preencha pelo menos um campo de script (Display ou Global).');
+                }
+
                 $stmt->execute([
                     $_POST['slot_name'],
                     $_POST['slot_type'],
                     $_POST['position'] ?? 'center',
-                    $_POST['script_code'],
+                    $scriptCode ?: null,
                     $_POST['width'] ?: null,
                     $_POST['height'] ?: null,
                     (int)$_POST['duration_seconds'] ?: 5,
                     $nextOrder,
                     $_POST['custom_css'] ?: null,
-                    $_POST['custom_js'] ?: null,
+                    $customJs ?: null,
                     $_POST['notes'] ?: null,
                     $_POST['provider'] ?: null,
                     isset($_POST['is_active']) ? 1 : 0
@@ -75,6 +81,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
 
             case 'update_slot':
+                $scriptCode = trim($_POST['script_code'] ?? '');
+                $customJs = trim($_POST['custom_js'] ?? '');
+                if (!$scriptCode && !$customJs) {
+                    throw new Exception('Preencha pelo menos um campo de script (Display ou Global).');
+                }
+
                 $stmt = $pdo->prepare("UPDATE ad_slots SET
                                        slot_name = ?, slot_type = ?, position = ?, script_code = ?,
                                        width = ?, height = ?, duration_seconds = ?, custom_css = ?,
@@ -84,12 +96,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_POST['slot_name'],
                     $_POST['slot_type'],
                     $_POST['position'] ?? 'center',
-                    $_POST['script_code'],
+                    $scriptCode ?: null,
                     $_POST['width'] ?: null,
                     $_POST['height'] ?: null,
                     (int)$_POST['duration_seconds'] ?: 5,
                     $_POST['custom_css'] ?: null,
-                    $_POST['custom_js'] ?: null,
+                    $customJs ?: null,
                     $_POST['notes'] ?: null,
                     $_POST['provider'] ?: null,
                     isset($_POST['is_active']) ? 1 : 0,
@@ -536,16 +548,7 @@ if (isset($_GET['edit'])) {
                         </div>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px;">
-                        <div class="form-group">
-                            <label class="form-label">Modo de Injeção *</label>
-                            <select name="position" class="form-control" required>
-                                <option value="center" <?php echo ($editSlot['position'] ?? 'center') === 'center' ? 'selected' : ''; ?>>Container (Display Ad)</option>
-                                <option value="head" <?php echo ($editSlot['position'] ?? '') === 'head' ? 'selected' : ''; ?>>Global (Pop-under/Push)</option>
-                            </select>
-                            <small style="color: var(--text-dim);">Container: Adsterra, a-ads, banners. Global: Monetag, push.</small>
-                        </div>
-
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
                         <div class="form-group">
                             <label class="form-label">Largura</label>
                             <input type="text" name="width" class="form-control"
@@ -567,25 +570,26 @@ if (isset($_GET['edit'])) {
                         </div>
                     </div>
 
+                    <input type="hidden" name="position" value="center">
+
                     <div class="form-group">
-                        <label class="form-label">Código do Anúncio (HTML/JavaScript) *</label>
-                        <textarea name="script_code" class="form-control" rows="8" required
-                                  placeholder="Cole aqui o código fornecido pelo seu provedor de anúncios..."><?php echo htmlspecialchars($editSlot['script_code'] ?? ''); ?></textarea>
-                        <small style="color: var(--text-dim);">Aceita HTML, JavaScript e tags de terceiros</small>
+                        <label class="form-label">Scripts de Display — Adsterra, a-ads, banners (renderiza no container)</label>
+                        <textarea name="script_code" class="form-control" rows="6"
+                                  placeholder="Cole aqui os scripts de anúncios visuais (banners, native ads)...&#10;Aceita múltiplos scripts de redes diferentes.&#10;Estes rodam dentro de um iframe isolado."><?php echo htmlspecialchars($editSlot['script_code'] ?? ''); ?></textarea>
+                        <small style="color: var(--text-dim);">Renderiza dentro de iframe. Ideal para banners e ads visuais.</small>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                        <div class="form-group">
-                            <label class="form-label">CSS Personalizado (opcional)</label>
-                            <textarea name="custom_css" class="form-control" rows="3"
-                                      placeholder=".ad-container { ... }"><?php echo htmlspecialchars($editSlot['custom_css'] ?? ''); ?></textarea>
-                        </div>
+                    <div class="form-group">
+                        <label class="form-label">Scripts Globais — Monetag, push, pop-under (injeta no &lt;head&gt;)</label>
+                        <textarea name="custom_js" class="form-control" rows="6"
+                                  placeholder="Cole aqui scripts de pop-under, push notification, etc...&#10;Aceita múltiplos scripts de redes diferentes.&#10;Estes rodam no nível da página (não em iframe)."><?php echo htmlspecialchars($editSlot['custom_js'] ?? ''); ?></textarea>
+                        <small style="color: var(--text-dim);">Injeta direto no &lt;head&gt; da página. Ideal para pop-under, push notifications.</small>
+                    </div>
 
-                        <div class="form-group">
-                            <label class="form-label">JS Personalizado (opcional)</label>
-                            <textarea name="custom_js" class="form-control" rows="3"
-                                      placeholder="console.log('ad loaded');"><?php echo htmlspecialchars($editSlot['custom_js'] ?? ''); ?></textarea>
-                        </div>
+                    <div class="form-group">
+                        <label class="form-label">CSS Personalizado (opcional)</label>
+                        <textarea name="custom_css" class="form-control" rows="3"
+                                  placeholder=".ad-container { ... }"><?php echo htmlspecialchars($editSlot['custom_css'] ?? ''); ?></textarea>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -646,13 +650,12 @@ function showNewSlot(e) {
     // Limpar todos os campos
     form.querySelector('input[name="slot_name"]').value = '';
     form.querySelector('select[name="slot_type"]').value = 'pregame';
-    form.querySelector('select[name="position"]').value = 'center';
     form.querySelector('input[name="width"]').value = '';
     form.querySelector('input[name="height"]').value = '';
     form.querySelector('input[name="duration_seconds"]').value = '5';
     form.querySelector('textarea[name="script_code"]').value = '';
-    form.querySelector('textarea[name="custom_css"]').value = '';
     form.querySelector('textarea[name="custom_js"]').value = '';
+    form.querySelector('textarea[name="custom_css"]').value = '';
     form.querySelector('input[name="provider"]').value = '';
     form.querySelector('input[name="notes"]').value = '';
     form.querySelector('input[name="is_active"]').checked = true;
