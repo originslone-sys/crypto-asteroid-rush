@@ -330,7 +330,7 @@ const AdsManager = {
         if (slot.width) style.push(`width:${slot.width}${isNaN(slot.width) ? '' : 'px'}`);
         if (slot.height) style.push(`height:${slot.height}${isNaN(slot.height) ? '' : 'px'}`);
         
-        html += `<div class="ad-slot-content" data-slot-id="${slot.id}" 
+        html += `<div class="ad-slot-content" data-slot-id="${slot.id}" data-position="${slot.position || 'center'}"
                       style="${style.join(';')}">${slot.script_code}</div>`;
         
         return html;
@@ -367,33 +367,54 @@ const AdsManager = {
         }
     },
     
-    // Ativar ads que contêm <script> renderizando dentro de um iframe
-    // Isso garante compatibilidade universal com qualquer rede de ads
-    // (Monetag, Adsterra, PropellerAds, etc.) porque os scripts executam
-    // naturalmente via document.write() no contexto do iframe.
-    // Ads sem scripts (a-ads, iframes puros) funcionam direto no innerHTML.
+    // Ativar ads que contêm <script> tags.
+    // Dois modos controlados por data-position no slot:
+    //   "center" (default) → iframe sandbox (display ads: Adsterra, banners)
+    //   "head"             → injeta no document.head (scripts globais: Monetag, push)
+    // Ads sem scripts (a-ads, iframes puros) não precisam de ativação.
     executeScripts(container) {
         const slotDivs = container.querySelectorAll('.ad-slot-content');
         slotDivs.forEach(slotDiv => {
             if (!slotDiv.querySelector('script')) return;
 
+            const position = slotDiv.dataset.position || 'center';
             const adHTML = slotDiv.innerHTML;
-            const h = slotDiv.style.height || '250px';
 
-            const iframe = document.createElement('iframe');
-            iframe.style.cssText = 'border:0;width:100%;height:' + h + ';overflow:hidden;display:block;';
-            iframe.setAttribute('scrolling', 'no');
-            iframe.setAttribute('frameborder', '0');
+            if (position === 'head') {
+                // Global scripts (Monetag, push notifications, pop-unders)
+                // Precisam rodar no top-level, não dentro de iframe
+                const temp = document.createElement('div');
+                temp.innerHTML = adHTML;
+                const scripts = temp.querySelectorAll('script');
+                scripts.forEach(oldScript => {
+                    const newScript = document.createElement('script');
+                    Array.from(oldScript.attributes).forEach(attr => {
+                        newScript.setAttribute(attr.name, attr.value);
+                    });
+                    if (!oldScript.src) {
+                        newScript.textContent = oldScript.textContent;
+                    }
+                    document.head.appendChild(newScript);
+                });
+                slotDiv.innerHTML = '';
+            } else {
+                // Display ads → iframe sandbox para compatibilidade universal
+                const h = slotDiv.style.height || '250px';
+                const iframe = document.createElement('iframe');
+                iframe.style.cssText = 'border:0;width:100%;height:' + h + ';overflow:hidden;display:block;';
+                iframe.setAttribute('scrolling', 'no');
+                iframe.setAttribute('frameborder', '0');
 
-            slotDiv.innerHTML = '';
-            slotDiv.appendChild(iframe);
+                slotDiv.innerHTML = '';
+                slotDiv.appendChild(iframe);
 
-            const doc = iframe.contentDocument || iframe.contentWindow.document;
-            doc.open();
-            doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8">'
-                + '<style>body{margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:100vh;}</style>'
-                + '</head><body>' + adHTML + '</body></html>');
-            doc.close();
+                const doc = iframe.contentDocument || iframe.contentWindow.document;
+                doc.open();
+                doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8">'
+                    + '<style>body{margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:100vh;}</style>'
+                    + '</head><body>' + adHTML + '</body></html>');
+                doc.close();
+            }
         });
     },
     

@@ -51,10 +51,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("SELECT COALESCE(MAX(display_order), 0) + 1 FROM ad_slots WHERE slot_type = ?");
                 $stmt->execute([$_POST['slot_type']]);
                 $nextOrder = $stmt->fetchColumn();
-                
-                $stmt = $pdo->prepare("INSERT INTO ad_slots (slot_name, slot_type, position, script_code, width, height, 
-                                       duration_seconds, display_order, custom_css, notes, provider, is_active, created_at) 
-                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+
+                $stmt = $pdo->prepare("INSERT INTO ad_slots (slot_name, slot_type, position, script_code, width, height,
+                                       duration_seconds, display_order, custom_css, custom_js, notes, provider, is_active, created_at)
+                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
                 $stmt->execute([
                     $_POST['slot_name'],
                     $_POST['slot_type'],
@@ -65,19 +65,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     (int)$_POST['duration_seconds'] ?: 5,
                     $nextOrder,
                     $_POST['custom_css'] ?: null,
+                    $_POST['custom_js'] ?: null,
                     $_POST['notes'] ?: null,
                     $_POST['provider'] ?: null,
                     isset($_POST['is_active']) ? 1 : 0
                 ]);
-                
+
                 $message = "Slot criado com sucesso!";
                 break;
-                
+
             case 'update_slot':
-                $stmt = $pdo->prepare("UPDATE ad_slots SET 
+                $stmt = $pdo->prepare("UPDATE ad_slots SET
                                        slot_name = ?, slot_type = ?, position = ?, script_code = ?,
                                        width = ?, height = ?, duration_seconds = ?, custom_css = ?,
-                                       notes = ?, provider = ?, is_active = ?, updated_at = NOW()
+                                       custom_js = ?, notes = ?, provider = ?, is_active = ?, updated_at = NOW()
                                        WHERE id = ?");
                 $stmt->execute([
                     $_POST['slot_name'],
@@ -88,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_POST['height'] ?: null,
                     (int)$_POST['duration_seconds'] ?: 5,
                     $_POST['custom_css'] ?: null,
+                    $_POST['custom_js'] ?: null,
                     $_POST['notes'] ?: null,
                     $_POST['provider'] ?: null,
                     isset($_POST['is_active']) ? 1 : 0,
@@ -534,41 +536,58 @@ if (isset($_GET['edit'])) {
                         </div>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="form-label">Modo de Injeção *</label>
+                            <select name="position" class="form-control" required>
+                                <option value="center" <?php echo ($editSlot['position'] ?? 'center') === 'center' ? 'selected' : ''; ?>>Container (Display Ad)</option>
+                                <option value="head" <?php echo ($editSlot['position'] ?? '') === 'head' ? 'selected' : ''; ?>>Global (Pop-under/Push)</option>
+                            </select>
+                            <small style="color: var(--text-dim);">Container: Adsterra, a-ads, banners. Global: Monetag, push.</small>
+                        </div>
+
                         <div class="form-group">
                             <label class="form-label">Largura</label>
                             <input type="text" name="width" class="form-control"
                                    value="<?php echo htmlspecialchars($editSlot['width'] ?? ''); ?>"
                                    placeholder="300 ou 100%">
                         </div>
-                        
+
                         <div class="form-group">
                             <label class="form-label">Altura</label>
                             <input type="text" name="height" class="form-control"
                                    value="<?php echo htmlspecialchars($editSlot['height'] ?? ''); ?>"
                                    placeholder="250 ou auto">
                         </div>
-                        
+
                         <div class="form-group">
                             <label class="form-label">Duração (segundos)</label>
                             <input type="number" name="duration_seconds" class="form-control"
                                    value="<?php echo $editSlot['duration_seconds'] ?? 5; ?>" min="0" max="120">
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label class="form-label">Código do Anúncio (HTML/JavaScript) *</label>
                         <textarea name="script_code" class="form-control" rows="8" required
                                   placeholder="Cole aqui o código fornecido pelo seu provedor de anúncios..."><?php echo htmlspecialchars($editSlot['script_code'] ?? ''); ?></textarea>
                         <small style="color: var(--text-dim);">Aceita HTML, JavaScript e tags de terceiros</small>
                     </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">CSS Personalizado (opcional)</label>
-                        <textarea name="custom_css" class="form-control" rows="3"
-                                  placeholder=".ad-container { ... }"><?php echo htmlspecialchars($editSlot['custom_css'] ?? ''); ?></textarea>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="form-label">CSS Personalizado (opcional)</label>
+                            <textarea name="custom_css" class="form-control" rows="3"
+                                      placeholder=".ad-container { ... }"><?php echo htmlspecialchars($editSlot['custom_css'] ?? ''); ?></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">JS Personalizado (opcional)</label>
+                            <textarea name="custom_js" class="form-control" rows="3"
+                                      placeholder="console.log('ad loaded');"><?php echo htmlspecialchars($editSlot['custom_js'] ?? ''); ?></textarea>
+                        </div>
                     </div>
-                    
+
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                         <div class="form-group">
                             <label class="form-label">Provedor</label>
@@ -576,7 +595,7 @@ if (isset($_GET['edit'])) {
                                    value="<?php echo htmlspecialchars($editSlot['provider'] ?? ''); ?>"
                                    placeholder="Ex: PropellerAds, Adsterra">
                         </div>
-                        
+
                         <div class="form-group">
                             <label class="form-label">Notas/Observações</label>
                             <input type="text" name="notes" class="form-control"
