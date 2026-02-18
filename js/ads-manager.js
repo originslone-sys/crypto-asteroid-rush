@@ -13,6 +13,7 @@ const AdsManager = {
     currentAd: null,
     adIndex: {},          // índice de rotação por tipo
     skipCallback: null,
+    _injectedGlobalIds: {},  // track de scripts globais já injetados (evita duplicação)
     
     // Configurações padrão (sobrescritas pela API)
     defaultConfig: {
@@ -314,6 +315,44 @@ const AdsManager = {
         return slot;
     },
     
+    // Injetar scripts globais (Monetag, push, pop-under) de todos os slots
+    // imediatamente no <head>, sem esperar renderização visual.
+    // Chamado no início do pregame/postgame para máxima antecedência.
+    injectGlobalScripts(slots) {
+        if (!slots || !slots.length) return;
+        slots.forEach(slot => {
+            if (!slot.custom_js) return;
+            const slotId = String(slot.id);
+            if (this._injectedGlobalIds[slotId]) return;
+
+            const temp = document.createElement('div');
+            temp.innerHTML = slot.custom_js;
+            const scripts = temp.querySelectorAll('script');
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement('script');
+                Array.from(oldScript.attributes).forEach(attr => {
+                    newScript.setAttribute(attr.name, attr.value);
+                });
+                if (!oldScript.src) {
+                    newScript.textContent = oldScript.textContent;
+                }
+                document.head.appendChild(newScript);
+            });
+            this._injectedGlobalIds[slotId] = true;
+            this.log('📺 Global scripts injetados para slot', slotId);
+        });
+    },
+
+    // Calcular duração total baseada na soma dos duration_seconds de cada slot
+    getTotalSlotsDuration(type) {
+        const slots = this.slots?.[type] || [];
+        if (slots.length === 0) {
+            return this.config?.[`${type}_total_duration`] || 10;
+        }
+        const fallback = this.config?.[`${type}_rotation_interval`] || 10;
+        return slots.reduce((sum, s) => sum + (parseInt(s.duration_seconds) || fallback), 0);
+    },
+
     // Gerar HTML do slot (suporta display + global scripts no mesmo slot)
     getSlotHTML(slot) {
         if (!slot) return '';
@@ -389,8 +428,13 @@ const AdsManager = {
             const adHTML = slotDiv.innerHTML;
 
             if (position === 'head') {
+                const slotId = slotDiv.dataset.slotId;
+                if (this._injectedGlobalIds[slotId]) {
+                    // Já injetado via injectGlobalScripts — não duplicar
+                    slotDiv.innerHTML = '';
+                    return;
+                }
                 // Global scripts (Monetag, push notifications, pop-unders)
-                // Precisam rodar no top-level, não dentro de iframe
                 const temp = document.createElement('div');
                 temp.innerHTML = adHTML;
                 const scripts = temp.querySelectorAll('script');
@@ -404,6 +448,7 @@ const AdsManager = {
                     }
                     document.head.appendChild(newScript);
                 });
+                this._injectedGlobalIds[slotId] = true;
                 slotDiv.innerHTML = '';
             } else {
                 // Display ads → iframe sandbox para compatibilidade universal

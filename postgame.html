@@ -370,7 +370,11 @@
                     if (slots.length > 0) {
                         adsReady = true;
 
-                        // Renderizar primeiro slot
+                        // PRIMEIRO: injetar TODOS os scripts globais (Monetag, push)
+                        // imediatamente para máxima antecedência de carregamento
+                        AdsManager.injectGlobalScripts(slots);
+
+                        // DEPOIS: renderizar primeiro slot de display
                         renderSlot('endgame');
 
                         // Se tem mais de 1 slot, rotacionar respeitando duration_seconds de cada slot
@@ -398,10 +402,10 @@
         }
     }
 
-    // Duração total da tela: usa endgame_total_duration (não rotation_interval)
+    // Duração total = soma dos duration_seconds de todos os slots endgame
     function getDuration() {
         if (adsReady && typeof AdsManager !== 'undefined') {
-            return AdsManager.getConfig?.()?.endgame_total_duration || 10;
+            return AdsManager.getTotalSlotsDuration?.('endgame') || 10;
         }
         return 3;
     }
