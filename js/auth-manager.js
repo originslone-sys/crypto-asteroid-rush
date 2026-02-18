@@ -128,28 +128,45 @@ class AuthManager {
             }
         }
 
+        // Mobile/tablet → redirect direto (popups são instáveis em mobile)
+        if (this._shouldUseRedirect()) {
+            console.log('🔐 Login via redirect (mobile/COOP)...');
+            sessionStorage.setItem('authRedirectPending', 'true');
+            await this.auth.signInWithRedirect(this.provider);
+            return null;
+        }
+
+        // Desktop → tentar popup com timeout de 30s, qualquer falha → redirect
         try {
             console.log('🔐 Tentando login com popup...');
-            const result = await this.auth.signInWithPopup(this.provider);
+
+            const popupPromise = this.auth.signInWithPopup(this.provider);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject({ code: 'auth/popup-timeout' }), 30000)
+            );
+
+            const result = await Promise.race([popupPromise, timeoutPromise]);
             return result.user;
 
         } catch (error) {
-            console.warn('⚠️ Popup falhou:', error.code);
-
-            if (error.code === 'auth/popup-blocked' ||
-                error.code === 'auth/popup-closed-by-user' ||
-                error.code === 'auth/cancelled-popup-request') {
-
-                console.log('🔄 Usando redirect como fallback...');
-                sessionStorage.setItem('authRedirectPending', 'true');
-                await this.auth.signInWithRedirect(this.provider);
-                return null;
-            }
-
-            throw error;
+            // Qualquer falha no popup → redirect como fallback universal
+            console.warn('⚠️ Popup falhou, usando redirect:', error.code || error.message);
+            sessionStorage.setItem('authRedirectPending', 'true');
+            sessionStorage.setItem('popupFailed', 'true');
+            await this.auth.signInWithRedirect(this.provider);
+            return null;
         }
     }
 
+    // Detectar se deve usar redirect em vez de popup
+    _shouldUseRedirect() {
+        // Mobile/tablet → redirect sempre
+        if (/Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent)) return true;
+        // Popup já falhou nesta sessão → não tentar de novo
+        if (sessionStorage.getItem('popupFailed')) return true;
+        return false;
+    }
+    
     async checkRedirectResult() {
         if (!this.auth) return null;
         
@@ -451,6 +468,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (result?.user) {
             console.log('✅ Login via redirect bem-sucedido:', result.user.displayName);
             sessionStorage.removeItem('authRedirectPending');
+            sessionStorage.removeItem('popupFailed');
         }
     } catch (error) {
         // Erros comuns: auth/credential-already-in-use, network errors
