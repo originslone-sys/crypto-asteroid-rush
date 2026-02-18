@@ -20,94 +20,51 @@ class AuthManager {
     
     init() {
         if (this.isInitialized) return;
-
+        
         if (typeof firebase === 'undefined') {
             console.error('❌ Firebase não carregado');
             setTimeout(() => this.init(), 500);
             return;
         }
-
+        
         try {
-            // Restaurar estado de auth do localStorage IMEDIATAMENTE
-            // para que a UI reconheça o login sem esperar Firebase (~1-2s)
-            this._restoreCachedAuth();
-
             this.auth = firebase.auth();
             this.provider = new firebase.auth.GoogleAuthProvider();
-
+            
             this.provider.addScope('profile');
             this.provider.addScope('email');
             this.provider.setCustomParameters({
                 prompt: 'select_account'
             });
-
+            
             this.auth.onAuthStateChanged((user) => {
                 this.handleAuthStateChange(user);
             });
-
+            
             this.isInitialized = true;
             console.log('🔐 AuthManager inicializado');
-
+            
             // Capturar código de referral da URL (se houver)
             this.captureReferralCode();
-
+            
         } catch (error) {
             console.error('❌ Erro ao inicializar AuthManager:', error);
-        }
-    }
-
-    // Restaurar auth do localStorage para UI instantânea entre páginas.
-    // Seta gameState e currentUser para que isLoggedIn() e checks de UI
-    // funcionem imediatamente. Firebase onAuthStateChanged substituirá
-    // com o user real em ~1s.
-    _restoreCachedAuth() {
-        const cachedUid = localStorage.getItem('googleUid');
-        if (!cachedUid) return;
-
-        // Setar currentUser mínimo para isLoggedIn() funcionar
-        this.currentUser = {
-            uid: cachedUid,
-            displayName: localStorage.getItem('userDisplayName') || '',
-            email: localStorage.getItem('userEmail') || '',
-            photoURL: localStorage.getItem('userPhotoURL') || '',
-            _cached: true
-        };
-
-        // Setar gameState imediatamente para a UI funcionar sem delay
-        window.gameState = window.gameState || {};
-        window.gameState.googleUid = cachedUid;
-        window.gameState.isConnected = true;
-
-        const cachedData = localStorage.getItem('userData');
-        if (cachedData) {
-            try {
-                window.gameState.userData = JSON.parse(cachedData);
-                window.gameState.balance_brl = window.gameState.userData.balance_brl || 0;
-            } catch (e) {}
-        }
-
-        const sessionToken = localStorage.getItem('sessionToken');
-        if (sessionToken) {
-            window.gameState.sessionToken = sessionToken;
         }
     }
     
     handleAuthStateChange(user) {
         const previousUser = this.currentUser;
         this.currentUser = user;
-
+        
         if (user) {
             console.log('✅ Usuário autenticado:', user.displayName || user.email);
-
-            // Limpar flags de redirect
-            sessionStorage.removeItem('authRedirectPending');
-
+            
             // Salvar no localStorage
             localStorage.setItem('googleUid', user.uid);
             localStorage.setItem('userDisplayName', user.displayName || '');
             localStorage.setItem('userEmail', user.email || '');
             localStorage.setItem('userPhotoURL', user.photoURL || '');
-
+            
             // Atualizar gameState
             if (typeof gameState !== 'undefined' && gameState !== null) {
                 gameState.user = user;
@@ -119,48 +76,30 @@ class AuthManager {
                 window.gameState.googleUid = user.uid;
                 window.gameState.isConnected = true;
             }
-
-            // Sincronizar com backend (novo login ou restauração de cache)
-            if (!previousUser || previousUser._cached) {
+            
+            // Sincronizar com backend (apenas se é novo login)
+            if (!previousUser) {
                 this.syncUserWithBackend(user);
             }
-
-            this.dispatchAuthEvent(user);
         } else {
-            // Durante redirect, onAuthStateChanged dispara com null transitório.
-            // Não limpar localStorage imediatamente — esperar para confirmar.
-            if (sessionStorage.getItem('authRedirectPending') === 'true') {
-                console.log('🔄 Redirect pendente, ignorando null transitório');
-                return;
+            console.log('👋 Usuário deslogado');
+            
+            localStorage.removeItem('googleUid');
+            localStorage.removeItem('userDisplayName');
+            localStorage.removeItem('userEmail');
+            localStorage.removeItem('userPhotoURL');
+            localStorage.removeItem('sessionToken');
+            localStorage.removeItem('userData');
+            
+            if (typeof gameState !== 'undefined' && gameState !== null) {
+                gameState.user = null;
+                gameState.googleUid = null;
+                gameState.isConnected = false;
+                gameState.sessionToken = null;
             }
-
-            // Debounce: esperar 2s antes de limpar, caso o Firebase restaure a sessão
-            if (this._logoutTimer) clearTimeout(this._logoutTimer);
-            this._logoutTimer = setTimeout(() => {
-                // Verificar de novo se o usuário voltou nesse intervalo
-                if (this.currentUser) return;
-
-                console.log('👋 Usuário deslogado');
-
-                localStorage.removeItem('googleUid');
-                localStorage.removeItem('userDisplayName');
-                localStorage.removeItem('userEmail');
-                localStorage.removeItem('userPhotoURL');
-                localStorage.removeItem('sessionToken');
-                localStorage.removeItem('userData');
-
-                if (typeof gameState !== 'undefined' && gameState !== null) {
-                    gameState.user = null;
-                    gameState.googleUid = null;
-                    gameState.isConnected = false;
-                    gameState.sessionToken = null;
-                }
-
-                this.dispatchAuthEvent(null);
-            }, 2000);
-
-            return; // Não disparar evento ainda — o debounce cuida
         }
+        
+        this.dispatchAuthEvent(user);
     }
     
     async signIn() {
@@ -170,29 +109,29 @@ class AuthManager {
                 throw new Error('Firebase não inicializado');
             }
         }
-
+        
         try {
             console.log('🔐 Tentando login com popup...');
             const result = await this.auth.signInWithPopup(this.provider);
             return result.user;
-
+            
         } catch (error) {
             console.warn('⚠️ Popup falhou:', error.code);
-
-            if (error.code === 'auth/popup-blocked' ||
+            
+            if (error.code === 'auth/popup-blocked' || 
                 error.code === 'auth/popup-closed-by-user' ||
                 error.code === 'auth/cancelled-popup-request') {
-
+                
                 console.log('🔄 Usando redirect como fallback...');
                 sessionStorage.setItem('authRedirectPending', 'true');
                 await this.auth.signInWithRedirect(this.provider);
                 return null;
             }
-
+            
             throw error;
         }
     }
-
+    
     async checkRedirectResult() {
         if (!this.auth) return null;
         
@@ -473,30 +412,17 @@ window.AuthManager = AuthManager;
 
 console.log('✅ AuthManager v5.0 CLEAN inicializado');
 
-// Verificar redirect result APENAS quando houve redirect (flag authRedirectPending)
-// getRedirectResult() é lento (~1-2s request ao Firebase) — não chamar em todo page load
+// Verificar redirect result
 document.addEventListener('DOMContentLoaded', async () => {
-    if (sessionStorage.getItem('authRedirectPending') !== 'true') return;
-
-    const waitForAuth = () => new Promise((resolve) => {
-        if (window.authManager?.auth) return resolve();
-        const check = setInterval(() => {
-            if (window.authManager?.auth) { clearInterval(check); resolve(); }
-        }, 100);
-        setTimeout(() => { clearInterval(check); resolve(); }, 3000);
-    });
-
-    await waitForAuth();
-    if (!window.authManager?.auth) return;
-
-    try {
-        console.log('🔄 Verificando resultado de redirect...');
-        const result = await window.authManager.auth.getRedirectResult();
-        if (result?.user) {
-            console.log('✅ Login via redirect:', result.user.displayName);
+    setTimeout(async () => {
+        if (sessionStorage.getItem('authRedirectPending') === 'true') {
+            console.log('🔄 Verificando resultado de redirect...');
+            try {
+                await window.authManager.checkRedirectResult();
+            } catch (error) {
+                console.error('Erro ao verificar redirect:', error);
+                sessionStorage.removeItem('authRedirectPending');
+            }
         }
-    } catch (error) {
-        console.warn('🔄 Redirect result:', error.code || error.message);
-    }
-    sessionStorage.removeItem('authRedirectPending');
+    }, 1000);
 });

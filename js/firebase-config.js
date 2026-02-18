@@ -21,20 +21,10 @@ if (firebase.apps.length === 0) {
     console.log('🔥 Firebase v10.7.1 inicializado (compat mode)');
 }
 
-// Inicializar Google Analytics (com check de suporte para evitar erro IndexedDB)
+// Inicializar Google Analytics
 if (typeof firebase.analytics === 'function') {
-    try {
-        // Em ambientes sem IndexedDB (ex: navegadores com storage restrito),
-        // analytics lança erro. Verificar suporte antes.
-        if (typeof indexedDB !== 'undefined') {
-            firebase.analytics();
-            console.log('📊 Google Analytics ativo (G-3LQT1LYRG1)');
-        } else {
-            console.log('📊 Analytics desativado (IndexedDB indisponível)');
-        }
-    } catch (e) {
-        console.log('📊 Analytics não disponível neste ambiente');
-    }
+    firebase.analytics();
+    console.log('📊 Google Analytics ativo (G-3LQT1LYRG1)');
 }
 
 // Exportar auth para uso global
