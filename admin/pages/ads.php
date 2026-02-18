@@ -234,13 +234,13 @@ if (isset($_GET['edit'])) {
     <div class="panel" style="margin-top: 30px;">
         <div class="panel-body">
             <div class="tabs">
-                <a href="#config" class="tab active" onclick="showTab('config')">
+                <a href="#config" class="tab active" onclick="showTab('config', this)">
                     <i class="fas fa-cog"></i> Configurações
                 </a>
-                <a href="#slots" class="tab" onclick="showTab('slots')">
+                <a href="#slots" class="tab" onclick="showTab('slots', this)">
                     <i class="fas fa-th-large"></i> Slots (<?php echo count($slots); ?>)
                 </a>
-                <a href="#new-slot" class="tab" onclick="showTab('new-slot')">
+                <a href="#new-slot" class="tab" onclick="showNewSlot(event)">
                     <i class="fas fa-plus"></i> Novo Slot
                 </a>
             </div>
@@ -626,20 +626,53 @@ if (isset($_GET['edit'])) {
 </div>
 
 <script>
-function showTab(tab) {
-    // Esconder todas as tabs
+function showTab(tab, triggerEl) {
     document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-    
-    // Mostrar tab selecionada
     document.getElementById('tab-' + tab).style.display = 'block';
-    event.target.classList.add('active');
+    if (triggerEl) triggerEl.classList.add('active');
 }
 
-// Se tem slot para editar, mostrar tab de edição
+function showNewSlot(e) {
+    e && e.preventDefault();
+    var form = document.querySelector('#tab-new-slot form');
+    var actionField = form.querySelector('input[name="action"]');
+
+    // Resetar form para modo criação se estava em modo edição
+    actionField.value = 'add_slot';
+    var slotIdField = form.querySelector('input[name="slot_id"]');
+    if (slotIdField) slotIdField.remove();
+
+    // Limpar todos os campos
+    form.querySelector('input[name="slot_name"]').value = '';
+    form.querySelector('select[name="slot_type"]').value = 'pregame';
+    form.querySelector('select[name="position"]').value = 'center';
+    form.querySelector('input[name="width"]').value = '';
+    form.querySelector('input[name="height"]').value = '';
+    form.querySelector('input[name="duration_seconds"]').value = '5';
+    form.querySelector('textarea[name="script_code"]').value = '';
+    form.querySelector('textarea[name="custom_css"]').value = '';
+    form.querySelector('textarea[name="custom_js"]').value = '';
+    form.querySelector('input[name="provider"]').value = '';
+    form.querySelector('input[name="notes"]').value = '';
+    form.querySelector('input[name="is_active"]').checked = true;
+
+    // Atualizar textos da UI
+    var title = document.querySelector('#tab-new-slot .panel-title');
+    if (title) title.innerHTML = '<i class="fas fa-plus"></i> Novo Slot de Anúncio';
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) btn.innerHTML = '<i class="fas fa-save"></i> Criar Slot';
+    var cancelLink = form.querySelector('a.btn-outline');
+    if (cancelLink) cancelLink.remove();
+
+    showTab('new-slot', e ? e.target : null);
+}
+
+// Se tem slot para editar, mostrar tab de edição automaticamente
 <?php if ($editSlot): ?>
 document.addEventListener('DOMContentLoaded', function() {
-    showTab('new-slot');
+    var editTab = document.querySelector('a[href="#new-slot"]');
+    showTab('new-slot', editTab);
 });
 <?php endif; ?>
 </script>
