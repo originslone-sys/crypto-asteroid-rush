@@ -20,73 +20,33 @@ class AuthManager {
     
     init() {
         if (this.isInitialized) return;
-
+        
         if (typeof firebase === 'undefined') {
             console.error('❌ Firebase não carregado');
             setTimeout(() => this.init(), 500);
             return;
         }
-
+        
         try {
-            // Restaurar estado de auth do localStorage IMEDIATAMENTE
-            // para que a UI reconheça o login sem esperar Firebase (~1-2s)
-            this._restoreCachedAuth();
-
             this.auth = firebase.auth();
             this.provider = new firebase.auth.GoogleAuthProvider();
-
+            
             this.provider.addScope('profile');
             this.provider.addScope('email');
-
+            
             this.auth.onAuthStateChanged((user) => {
                 this.handleAuthStateChange(user);
             });
-
+            
             this.isInitialized = true;
             console.log('🔐 AuthManager inicializado');
-
+            
             // Capturar código de referral da URL (se houver)
             this.captureReferralCode();
-
+            
         } catch (error) {
             console.error('❌ Erro ao inicializar AuthManager:', error);
         }
-    }
-
-    // Restaurar auth do localStorage para UI instantânea entre páginas.
-    // Firebase onAuthStateChanged confirmará/revogará em seguida.
-    _restoreCachedAuth() {
-        const cachedUid = localStorage.getItem('googleUid');
-        if (!cachedUid) return;
-
-        // Setar gameState imediatamente para a UI funcionar sem delay
-        if (typeof window !== 'undefined') {
-            window.gameState = window.gameState || {};
-            window.gameState.googleUid = cachedUid;
-            window.gameState.isConnected = true;
-
-            const cachedData = localStorage.getItem('userData');
-            if (cachedData) {
-                try {
-                    window.gameState.userData = JSON.parse(cachedData);
-                    window.gameState.balance_brl = window.gameState.userData.balance_brl || 0;
-                } catch (e) {}
-            }
-
-            const sessionToken = localStorage.getItem('sessionToken');
-            if (sessionToken) {
-                window.gameState.sessionToken = sessionToken;
-            }
-        }
-
-        // Disparar evento com dados cached para atualizar UI imediatamente
-        this.dispatchAuthEvent({
-            uid: cachedUid,
-            displayName: localStorage.getItem('userDisplayName') || '',
-            email: localStorage.getItem('userEmail') || '',
-            photoURL: localStorage.getItem('userPhotoURL') || '',
-            _cached: true
-        });
     }
     
     handleAuthStateChange(user) {
@@ -470,17 +430,16 @@ window.AuthManager = AuthManager;
 
 console.log('✅ AuthManager v5.0 CLEAN inicializado');
 
-// Verificar redirect result APENAS quando houve redirect (flag authRedirectPending)
-// getRedirectResult() é lento (~1-2s request ao Firebase) — não chamar em todo page load
+// Verificar redirect result SEMPRE no load (não apenas quando flag existe)
+// getRedirectResult() retorna null seguramente se não houve redirect
 document.addEventListener('DOMContentLoaded', async () => {
-    if (sessionStorage.getItem('authRedirectPending') !== 'true') return;
-
+    // Esperar authManager inicializar
     const waitForAuth = () => new Promise((resolve) => {
         if (window.authManager?.auth) return resolve();
         const check = setInterval(() => {
             if (window.authManager?.auth) { clearInterval(check); resolve(); }
         }, 100);
-        setTimeout(() => { clearInterval(check); resolve(); }, 3000);
+        setTimeout(() => { clearInterval(check); resolve(); }, 5000);
     });
 
     await waitForAuth();
@@ -490,10 +449,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('🔄 Verificando resultado de redirect...');
         const result = await window.authManager.auth.getRedirectResult();
         if (result?.user) {
-            console.log('✅ Login via redirect:', result.user.displayName);
+            console.log('✅ Login via redirect bem-sucedido:', result.user.displayName);
+            sessionStorage.removeItem('authRedirectPending');
         }
     } catch (error) {
+        // Erros comuns: auth/credential-already-in-use, network errors
         console.warn('🔄 Redirect result:', error.code || error.message);
+        sessionStorage.removeItem('authRedirectPending');
     }
-    sessionStorage.removeItem('authRedirectPending');
 });
