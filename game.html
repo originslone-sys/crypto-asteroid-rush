@@ -11,11 +11,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     
-    <!-- hCaptcha -->
-    <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+    <!-- Google reCAPTCHA v2 -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     
     <!-- Game Styles -->
     <link rel="stylesheet" href="css/game.css">
@@ -243,60 +241,37 @@
 <div id="endGameModal" class="modal-overlay">
     <div class="modal-container end-modal">
         <div class="modal-glow"></div>
-        <div id="endGameHeader" class="modal-header">
+        <div id="endGameHeader" class="modal-header compact">
             <div class="modal-icon success">
                 <i class="fas fa-trophy"></i>
             </div>
             <div id="endGameTitle" class="modal-title">MISSÃO COMPLETA!</div>
-            <div id="endGameSubtitle" class="modal-subtitle">
-                Excelente trabalho, Comandante! Confira seus resultados abaixo.
-            </div>
         </div>
-        
-        <!-- Resultados -->
-        <div class="result-stats">
+
+        <!-- Resultados compactos -->
+        <div class="result-stats compact">
             <div class="result-item">
                 <div class="result-icon"><i class="fas fa-crosshairs"></i></div>
                 <div class="result-content">
-                    <div class="result-label">Asteroides Destruídos</div>
+                    <div class="result-label">Destruídos</div>
                     <div id="finalScore" class="result-value">0</div>
                 </div>
             </div>
             <div class="result-item highlight">
                 <div class="result-icon"><i class="fas fa-coins"></i></div>
                 <div class="result-content">
-                    <div class="result-label">Ganhos Totais</div>
+                    <div class="result-label">Ganhos</div>
                     <div id="finalReward" class="result-value">R$ 0,00</div>
                 </div>
             </div>
         </div>
-        
-        <!-- Breakdown de Asteroides -->
-        <div id="asteroidsBreakdown" class="asteroids-breakdown">
-            <!-- Breakdown gerado dinamicamente -->
-        </div>
-        
-        <!-- CAPTCHA (obrigatório na vitória) -->
+
+        <!-- CAPTCHA -->
         <div id="captchaContainer" class="captcha-container">
-            <div class="captcha-title">
-                <i class="fas fa-shield-alt"></i>
-                <span>Verificação de Segurança</span>
-            </div>
-            <div id="captchaWidget">
-                <!-- hCaptcha widget será inserido aqui -->
-            </div>
+            <div id="captchaWidget"></div>
             <div id="captchaStatus" class="captcha-status"></div>
         </div>
-        
-        <!-- Saldo Atualizado -->
-        <div class="balance-update" id="balanceUpdate" style="display: none;">
-            <div class="balance-icon"><i class="fas fa-wallet"></i></div>
-            <div class="balance-info">
-                <div class="balance-label">Novo Saldo</div>
-                <div class="balance-value" id="newBalance">R$ 0,00</div>
-            </div>
-        </div>
-        
+
         <div class="btn-group">
             <button id="claimRewardBtn" class="btn btn-primary btn-glow" disabled>
                 <i class="fas fa-check"></i>
@@ -334,6 +309,9 @@
                 <span>Ganhos Perdidos: <strong id="lostEarnings">R$ 0,00</strong></span>
             </div>
         </div>
+        
+        <!-- Container de Anúncio no Game Over -->
+        <div id="gameoverAdContainer" class="ad-container" style="margin: 15px 0; min-height: 0;"></div>
         
         <div class="btn-group">
             <button id="retryBtn" class="btn btn-primary btn-glow">
@@ -374,7 +352,7 @@
     <div class="notification-icon"><i class="fas fa-star"></i></div>
     <div class="notification-content">
         <div class="notification-title" id="notificationTitle">ASTEROIDE DESTRUÍDO!</div>
-        <div class="notification-message" id="notificationMessage">+R$ 0,001</div>
+        <div class="notification-message" id="notificationMessage">+R$ 0,0002</div>
     </div>
 </div>
 
@@ -406,6 +384,10 @@
 </div>
 
 <!-- JavaScript Modules -->
+<!-- Firebase SDK v10.7.1 (compat mode) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="js/auth-manager.js"></script>
 <script src="js/game-config.js"></script>
@@ -414,7 +396,6 @@
 <script src="js/game-audio.js"></script>
 <script src="js/game-ui.js"></script>
 <script src="js/game-session-manager.js"></script>
-<script src="js/game-session.js"></script>
 <script src="js/captcha-manager.js"></script>
 <script src="js/ads-manager.js"></script>
 <script src="js/game-engine.js"></script>

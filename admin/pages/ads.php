@@ -29,15 +29,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'ads_pregame_skip_after' => (int)$_POST['pregame_skip_after'],
                     'ads_endgame_enabled' => isset($_POST['endgame_enabled']) ? 'true' : 'false',
                     'ads_endgame_display_mode' => $_POST['endgame_display_mode'],
+                    'ads_endgame_total_duration' => (int)$_POST['endgame_total_duration'],
                     'ads_endgame_max_slots' => (int)$_POST['endgame_max_slots'],
                     'ads_endgame_rotation_interval' => (int)$_POST['endgame_rotation_interval'],
                     'ads_endgame_auto_rotate' => isset($_POST['endgame_auto_rotate']) ? 'true' : 'false',
                     'ads_endgame_show_on_gameover' => isset($_POST['endgame_show_on_gameover']) ? 'true' : 'false',
                 ];
                 
-                $stmt = $pdo->prepare("INSERT INTO system_config (config_key, config_value, is_public, updated_at) 
+                $stmt = $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) 
                                        VALUES (?, ?, 1, NOW()) 
-                                       ON DUPLICATE KEY UPDATE config_value = VALUES(config_value), updated_at = NOW()");
+                                       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW()");
                 
                 foreach ($configs as $key => $value) {
                     $stmt->execute([$key, $value]);
@@ -50,43 +51,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("SELECT COALESCE(MAX(display_order), 0) + 1 FROM ad_slots WHERE slot_type = ?");
                 $stmt->execute([$_POST['slot_type']]);
                 $nextOrder = $stmt->fetchColumn();
-                
-                $stmt = $pdo->prepare("INSERT INTO ad_slots (slot_name, slot_type, position, script_code, width, height, 
-                                       duration_seconds, display_order, custom_css, notes, provider, is_active, created_at) 
-                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+
+                $stmt = $pdo->prepare("INSERT INTO ad_slots (slot_name, slot_type, position, script_code, width, height,
+                                       duration_seconds, display_order, custom_css, custom_js, notes, provider, is_active, created_at)
+                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+                $scriptCode = trim($_POST['script_code'] ?? '');
+                $customJs = trim($_POST['custom_js'] ?? '');
+                if (!$scriptCode && !$customJs) {
+                    throw new Exception('Preencha pelo menos um campo de script (Display ou Global).');
+                }
+
                 $stmt->execute([
                     $_POST['slot_name'],
                     $_POST['slot_type'],
                     $_POST['position'] ?? 'center',
-                    $_POST['script_code'],
+                    $scriptCode ?: null,
                     $_POST['width'] ?: null,
                     $_POST['height'] ?: null,
                     (int)$_POST['duration_seconds'] ?: 5,
                     $nextOrder,
                     $_POST['custom_css'] ?: null,
+                    $customJs ?: null,
                     $_POST['notes'] ?: null,
                     $_POST['provider'] ?: null,
                     isset($_POST['is_active']) ? 1 : 0
                 ]);
-                
+
                 $message = "Slot criado com sucesso!";
                 break;
-                
+
             case 'update_slot':
-                $stmt = $pdo->prepare("UPDATE ad_slots SET 
+                $scriptCode = trim($_POST['script_code'] ?? '');
+                $customJs = trim($_POST['custom_js'] ?? '');
+                if (!$scriptCode && !$customJs) {
+                    throw new Exception('Preencha pelo menos um campo de script (Display ou Global).');
+                }
+
+                $stmt = $pdo->prepare("UPDATE ad_slots SET
                                        slot_name = ?, slot_type = ?, position = ?, script_code = ?,
                                        width = ?, height = ?, duration_seconds = ?, custom_css = ?,
-                                       notes = ?, provider = ?, is_active = ?, updated_at = NOW()
+                                       custom_js = ?, notes = ?, provider = ?, is_active = ?, updated_at = NOW()
                                        WHERE id = ?");
                 $stmt->execute([
                     $_POST['slot_name'],
                     $_POST['slot_type'],
                     $_POST['position'] ?? 'center',
-                    $_POST['script_code'],
+                    $scriptCode ?: null,
                     $_POST['width'] ?: null,
                     $_POST['height'] ?: null,
                     (int)$_POST['duration_seconds'] ?: 5,
                     $_POST['custom_css'] ?: null,
+                    $customJs ?: null,
                     $_POST['notes'] ?: null,
                     $_POST['provider'] ?: null,
                     isset($_POST['is_active']) ? 1 : 0,
@@ -116,10 +131,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Carregar configurações
 $config = [];
 try {
-    $stmt = $pdo->query("SELECT config_key, config_value FROM system_config WHERE config_key LIKE 'ads_%'");
+    $stmt = $pdo->query("SELECT setting_key, setting_value FROM game_settings WHERE setting_key LIKE 'ads_%'");
     while ($row = $stmt->fetch()) {
-        $key = str_replace('ads_', '', $row['config_key']);
-        $value = $row['config_value'];
+        $key = str_replace('ads_', '', $row['setting_key']);
+        $value = $row['setting_value'];
         if ($value === 'true') $value = true;
         elseif ($value === 'false') $value = false;
         elseif (is_numeric($value)) $value = strpos($value, '.') !== false ? (float)$value : (int)$value;
@@ -140,6 +155,7 @@ $config = array_merge([
     'pregame_skip_enabled' => false,
     'pregame_skip_after' => 5,
     'endgame_enabled' => true,
+    'endgame_total_duration' => 10,
     'endgame_display_mode' => 'grid',
     'endgame_max_slots' => 4,
     'endgame_rotation_interval' => 8,
@@ -230,13 +246,13 @@ if (isset($_GET['edit'])) {
     <div class="panel" style="margin-top: 30px;">
         <div class="panel-body">
             <div class="tabs">
-                <a href="#config" class="tab active" onclick="showTab('config')">
+                <a href="#config" class="tab active" onclick="showTab('config', this)">
                     <i class="fas fa-cog"></i> Configurações
                 </a>
-                <a href="#slots" class="tab" onclick="showTab('slots')">
+                <a href="#slots" class="tab" onclick="showTab('slots', this)">
                     <i class="fas fa-th-large"></i> Slots (<?php echo count($slots); ?>)
                 </a>
-                <a href="#new-slot" class="tab" onclick="showTab('new-slot')">
+                <a href="#new-slot" class="tab" onclick="showNewSlot(event)">
                     <i class="fas fa-plus"></i> Novo Slot
                 </a>
             </div>
@@ -364,7 +380,7 @@ if (isset($_GET['edit'])) {
                         </div>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 15px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; margin-top: 15px;">
                         <div class="form-group">
                             <label class="form-label">Modo de Exibição</label>
                             <select name="endgame_display_mode" class="form-control">
@@ -374,16 +390,22 @@ if (isset($_GET['edit'])) {
                                 <option value="single" <?php echo $config['endgame_display_mode'] === 'single' ? 'selected' : ''; ?>>Single (Um por vez)</option>
                             </select>
                         </div>
-                        
+
+                        <div class="form-group">
+                            <label class="form-label">Duração Total (s)</label>
+                            <input type="number" name="endgame_total_duration" class="form-control"
+                                   value="<?php echo $config['endgame_total_duration']; ?>" min="3" max="60">
+                        </div>
+
                         <div class="form-group">
                             <label class="form-label">Máx. Slots</label>
-                            <input type="number" name="endgame_max_slots" class="form-control" 
+                            <input type="number" name="endgame_max_slots" class="form-control"
                                    value="<?php echo $config['endgame_max_slots']; ?>" min="1" max="10">
                         </div>
-                        
+
                         <div class="form-group">
                             <label class="form-label">Intervalo Rotação (s)</label>
-                            <input type="number" name="endgame_rotation_interval" class="form-control" 
+                            <input type="number" name="endgame_rotation_interval" class="form-control"
                                    value="<?php echo $config['endgame_rotation_interval']; ?>" min="3" max="60">
                         </div>
                     </div>
@@ -533,34 +555,43 @@ if (isset($_GET['edit'])) {
                                    value="<?php echo htmlspecialchars($editSlot['width'] ?? ''); ?>"
                                    placeholder="300 ou 100%">
                         </div>
-                        
+
                         <div class="form-group">
                             <label class="form-label">Altura</label>
                             <input type="text" name="height" class="form-control"
                                    value="<?php echo htmlspecialchars($editSlot['height'] ?? ''); ?>"
                                    placeholder="250 ou auto">
                         </div>
-                        
+
                         <div class="form-group">
                             <label class="form-label">Duração (segundos)</label>
                             <input type="number" name="duration_seconds" class="form-control"
                                    value="<?php echo $editSlot['duration_seconds'] ?? 5; ?>" min="0" max="120">
                         </div>
                     </div>
-                    
+
+                    <input type="hidden" name="position" value="center">
+
                     <div class="form-group">
-                        <label class="form-label">Código do Anúncio (HTML/JavaScript) *</label>
-                        <textarea name="script_code" class="form-control" rows="8" required
-                                  placeholder="Cole aqui o código fornecido pelo seu provedor de anúncios..."><?php echo htmlspecialchars($editSlot['script_code'] ?? ''); ?></textarea>
-                        <small style="color: var(--text-dim);">Aceita HTML, JavaScript e tags de terceiros</small>
+                        <label class="form-label">Scripts de Display — Adsterra, a-ads, banners (renderiza no container)</label>
+                        <textarea name="script_code" class="form-control" rows="6"
+                                  placeholder="Cole aqui os scripts de anúncios visuais (banners, native ads)...&#10;Aceita múltiplos scripts de redes diferentes.&#10;Estes rodam dentro de um iframe isolado."><?php echo htmlspecialchars($editSlot['script_code'] ?? ''); ?></textarea>
+                        <small style="color: var(--text-dim);">Renderiza dentro de iframe. Ideal para banners e ads visuais.</small>
                     </div>
-                    
+
+                    <div class="form-group">
+                        <label class="form-label">Scripts Globais — Monetag, push, pop-under (injeta no &lt;head&gt;)</label>
+                        <textarea name="custom_js" class="form-control" rows="6"
+                                  placeholder="Cole aqui scripts de pop-under, push notification, etc...&#10;Aceita múltiplos scripts de redes diferentes.&#10;Estes rodam no nível da página (não em iframe)."><?php echo htmlspecialchars($editSlot['custom_js'] ?? ''); ?></textarea>
+                        <small style="color: var(--text-dim);">Injeta direto no &lt;head&gt; da página. Ideal para pop-under, push notifications.</small>
+                    </div>
+
                     <div class="form-group">
                         <label class="form-label">CSS Personalizado (opcional)</label>
                         <textarea name="custom_css" class="form-control" rows="3"
                                   placeholder=".ad-container { ... }"><?php echo htmlspecialchars($editSlot['custom_css'] ?? ''); ?></textarea>
                     </div>
-                    
+
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                         <div class="form-group">
                             <label class="form-label">Provedor</label>
@@ -568,7 +599,7 @@ if (isset($_GET['edit'])) {
                                    value="<?php echo htmlspecialchars($editSlot['provider'] ?? ''); ?>"
                                    placeholder="Ex: PropellerAds, Adsterra">
                         </div>
-                        
+
                         <div class="form-group">
                             <label class="form-label">Notas/Observações</label>
                             <input type="text" name="notes" class="form-control"
@@ -599,20 +630,52 @@ if (isset($_GET['edit'])) {
 </div>
 
 <script>
-function showTab(tab) {
-    // Esconder todas as tabs
+function showTab(tab, triggerEl) {
     document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-    
-    // Mostrar tab selecionada
     document.getElementById('tab-' + tab).style.display = 'block';
-    event.target.classList.add('active');
+    if (triggerEl) triggerEl.classList.add('active');
 }
 
-// Se tem slot para editar, mostrar tab de edição
+function showNewSlot(e) {
+    e && e.preventDefault();
+    var form = document.querySelector('#tab-new-slot form');
+    var actionField = form.querySelector('input[name="action"]');
+
+    // Resetar form para modo criação se estava em modo edição
+    actionField.value = 'add_slot';
+    var slotIdField = form.querySelector('input[name="slot_id"]');
+    if (slotIdField) slotIdField.remove();
+
+    // Limpar todos os campos
+    form.querySelector('input[name="slot_name"]').value = '';
+    form.querySelector('select[name="slot_type"]').value = 'pregame';
+    form.querySelector('input[name="width"]').value = '';
+    form.querySelector('input[name="height"]').value = '';
+    form.querySelector('input[name="duration_seconds"]').value = '5';
+    form.querySelector('textarea[name="script_code"]').value = '';
+    form.querySelector('textarea[name="custom_js"]').value = '';
+    form.querySelector('textarea[name="custom_css"]').value = '';
+    form.querySelector('input[name="provider"]').value = '';
+    form.querySelector('input[name="notes"]').value = '';
+    form.querySelector('input[name="is_active"]').checked = true;
+
+    // Atualizar textos da UI
+    var title = document.querySelector('#tab-new-slot .panel-title');
+    if (title) title.innerHTML = '<i class="fas fa-plus"></i> Novo Slot de Anúncio';
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) btn.innerHTML = '<i class="fas fa-save"></i> Criar Slot';
+    var cancelLink = form.querySelector('a.btn-outline');
+    if (cancelLink) cancelLink.remove();
+
+    showTab('new-slot', e ? e.target : null);
+}
+
+// Se tem slot para editar, mostrar tab de edição automaticamente
 <?php if ($editSlot): ?>
 document.addEventListener('DOMContentLoaded', function() {
-    showTab('new-slot');
+    var editTab = document.querySelector('a[href="#new-slot"]');
+    showTab('new-slot', editTab);
 });
 <?php endif; ?>
 </script>

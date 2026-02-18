@@ -67,7 +67,7 @@ body {
 }
 
 /* ============================================
-   COSMIC BACKGROUND
+   COSMIC BACKGROUND - AAA+ SPACE THEME
    ============================================ */
 .cosmic-bg {
     position: fixed;
@@ -76,11 +76,338 @@ body {
     width: 100%;
     height: 100%;
     z-index: -1;
+    overflow: hidden;
     background: 
-        radial-gradient(ellipse at 20% 20%, rgba(0, 229, 204, 0.08) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 80%, rgba(123, 245, 66, 0.06) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 50%, rgba(184, 255, 0, 0.03) 0%, transparent 70%),
-        var(--deep-space);
+        /* Nebulosa principal - tons cyan/verde */
+        radial-gradient(ellipse 80% 50% at 20% 20%, rgba(0, 229, 204, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse 60% 40% at 75% 75%, rgba(123, 245, 66, 0.08) 0%, transparent 45%),
+        radial-gradient(ellipse 50% 60% at 50% 50%, rgba(0, 100, 150, 0.06) 0%, transparent 60%),
+        /* Nebulosa secundária - tons roxo/azul */
+        radial-gradient(ellipse 40% 30% at 85% 15%, rgba(100, 50, 200, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse 35% 45% at 10% 80%, rgba(50, 100, 180, 0.06) 0%, transparent 50%),
+        /* Base escura do espaço */
+        linear-gradient(180deg, #050508 0%, #0a0a12 50%, #080810 100%);
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+/* Camada de estrelas distantes (estáticas) */
+.cosmic-bg::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        radial-gradient(1px 1px at 10% 20%, rgba(255, 255, 255, 0.8) 50%, transparent 100%),
+        radial-gradient(1px 1px at 25% 35%, rgba(255, 255, 255, 0.6) 50%, transparent 100%),
+        radial-gradient(1px 1px at 40% 15%, rgba(200, 230, 255, 0.7) 50%, transparent 100%),
+        radial-gradient(1px 1px at 55% 45%, rgba(255, 255, 255, 0.5) 50%, transparent 100%),
+        radial-gradient(1px 1px at 70% 25%, rgba(255, 255, 255, 0.6) 50%, transparent 100%),
+        radial-gradient(1px 1px at 85% 55%, rgba(200, 255, 230, 0.7) 50%, transparent 100%),
+        radial-gradient(1px 1px at 15% 65%, rgba(255, 255, 255, 0.5) 50%, transparent 100%),
+        radial-gradient(1px 1px at 30% 80%, rgba(255, 255, 255, 0.6) 50%, transparent 100%),
+        radial-gradient(1px 1px at 45% 70%, rgba(200, 230, 255, 0.5) 50%, transparent 100%),
+        radial-gradient(1px 1px at 60% 90%, rgba(255, 255, 255, 0.7) 50%, transparent 100%),
+        radial-gradient(1px 1px at 75% 75%, rgba(255, 255, 255, 0.5) 50%, transparent 100%),
+        radial-gradient(1px 1px at 90% 85%, rgba(200, 255, 230, 0.6) 50%, transparent 100%),
+        radial-gradient(1px 1px at 5% 40%, rgba(255, 255, 255, 0.6) 50%, transparent 100%),
+        radial-gradient(1px 1px at 20% 55%, rgba(255, 255, 255, 0.5) 50%, transparent 100%),
+        radial-gradient(1px 1px at 35% 30%, rgba(200, 230, 255, 0.6) 50%, transparent 100%),
+        radial-gradient(1px 1px at 50% 5%, rgba(255, 255, 255, 0.7) 50%, transparent 100%),
+        radial-gradient(1px 1px at 65% 60%, rgba(255, 255, 255, 0.5) 50%, transparent 100%),
+        radial-gradient(1px 1px at 80% 40%, rgba(200, 255, 230, 0.6) 50%, transparent 100%),
+        radial-gradient(1px 1px at 95% 20%, rgba(255, 255, 255, 0.7) 50%, transparent 100%),
+        radial-gradient(1px 1px at 8% 95%, rgba(255, 255, 255, 0.5) 50%, transparent 100%);
+    pointer-events: none;
+}
+
+/* Camada de estrelas com brilho animado */
+.cosmic-bg::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        radial-gradient(2px 2px at 15% 25%, rgba(0, 229, 204, 0.9) 30%, rgba(0, 229, 204, 0.3) 60%, transparent 100%),
+        radial-gradient(2px 2px at 45% 12%, rgba(255, 255, 255, 0.9) 30%, rgba(255, 255, 255, 0.2) 70%, transparent 100%),
+        radial-gradient(2px 2px at 72% 38%, rgba(123, 245, 66, 0.8) 30%, rgba(123, 245, 66, 0.2) 60%, transparent 100%),
+        radial-gradient(2px 2px at 88% 62%, rgba(255, 255, 255, 0.85) 30%, rgba(255, 255, 255, 0.2) 70%, transparent 100%),
+        radial-gradient(2px 2px at 28% 78%, rgba(200, 230, 255, 0.8) 30%, rgba(200, 230, 255, 0.2) 60%, transparent 100%),
+        radial-gradient(2px 2px at 62% 85%, rgba(0, 229, 204, 0.75) 30%, rgba(0, 229, 204, 0.2) 60%, transparent 100%),
+        radial-gradient(2px 2px at 5% 52%, rgba(255, 255, 255, 0.8) 30%, rgba(255, 255, 255, 0.2) 70%, transparent 100%),
+        radial-gradient(2px 2px at 38% 48%, rgba(123, 245, 66, 0.7) 30%, rgba(123, 245, 66, 0.2) 60%, transparent 100%),
+        radial-gradient(2px 2px at 82% 18%, rgba(200, 230, 255, 0.85) 30%, rgba(200, 230, 255, 0.2) 60%, transparent 100%),
+        radial-gradient(2px 2px at 52% 68%, rgba(255, 255, 255, 0.75) 30%, rgba(255, 255, 255, 0.2) 70%, transparent 100%);
+    pointer-events: none;
+    animation: starsTwinkle 8s ease-in-out infinite alternate;
+    will-change: opacity;
+}
+
+@keyframes starsTwinkle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* ============================================
+   SPACE EFFECTS - Dynamic Elements (JS-powered)
+   ============================================ */
+
+/* Star Field Container */
+.star-field {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+    overflow: hidden;
+    transform: translateZ(0);
+}
+
+/* Individual Stars */
+.star {
+    position: absolute;
+    border-radius: 50%;
+    background: white;
+    will-change: opacity, transform;
+}
+
+.star--small { width: 1px; height: 1px; }
+.star--medium { 
+    width: 2px; 
+    height: 2px; 
+    box-shadow: 0 0 3px rgba(255, 255, 255, 0.5);
+}
+.star--large { 
+    width: 3px; 
+    height: 3px; 
+    box-shadow: 0 0 6px rgba(0, 229, 204, 0.6), 0 0 12px rgba(0, 229, 204, 0.3);
+}
+
+.star--cyan {
+    background: var(--primary);
+    box-shadow: 0 0 4px var(--primary), 0 0 8px rgba(0, 229, 204, 0.4);
+}
+
+.star--green {
+    background: var(--secondary);
+    box-shadow: 0 0 4px var(--secondary), 0 0 8px rgba(123, 245, 66, 0.4);
+}
+
+/* Star Twinkle Animations */
+@keyframes twinkle1 {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes twinkle2 {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    25% { opacity: 1; transform: scale(1.1); }
+    75% { opacity: 0.4; transform: scale(0.95); }
+}
+
+@keyframes twinkle3 {
+    0%, 100% { opacity: 0.4; }
+    33% { opacity: 1; }
+    66% { opacity: 0.6; }
+}
+
+/* Meteor Container */
+.meteor-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+    overflow: hidden;
+    transform: translateZ(0);
+}
+
+/* Meteors / Shooting Stars */
+.meteor {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.9), rgba(0, 229, 204, 0.8), transparent);
+    border-radius: 50%;
+    opacity: 0;
+    will-change: transform, opacity;
+}
+
+.meteor::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 100%;
+    width: 80px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0, 229, 204, 0.4), rgba(255, 255, 255, 0.6));
+    transform: translateY(-50%);
+}
+
+.meteor--active {
+    animation: meteorFall 1.5s ease-out forwards;
+}
+
+.meteor--fast { animation-duration: 1s; }
+.meteor--slow { animation-duration: 2s; }
+
+@keyframes meteorFall {
+    0% {
+        opacity: 0;
+        transform: translate(0, 0) rotate(-45deg);
+    }
+    10% { opacity: 1; }
+    70% { opacity: 0.8; }
+    100% {
+        opacity: 0;
+        transform: translate(-400px, 400px) rotate(-45deg);
+    }
+}
+
+/* Floating Particles */
+.particle-field {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+    overflow: hidden;
+    transform: translateZ(0);
+}
+
+.particle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    will-change: transform;
+}
+
+@keyframes floatParticle {
+    0% {
+        transform: translateY(100vh) translateX(0);
+        opacity: 0;
+    }
+    10% { opacity: 0.5; }
+    90% { opacity: 0.3; }
+    100% {
+        transform: translateY(-10vh) translateX(50px);
+        opacity: 0;
+    }
+}
+
+/* Ambient Glow */
+.ambient-glow {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.5;
+    background: 
+        radial-gradient(ellipse 40% 30% at 20% 30%, rgba(0, 229, 204, 0.03) 0%, transparent 70%),
+        radial-gradient(ellipse 30% 40% at 80% 70%, rgba(123, 245, 66, 0.02) 0%, transparent 70%);
+    animation: ambientPulse 15s ease-in-out infinite alternate;
+    will-change: opacity;
+}
+
+@keyframes ambientPulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.6; }
+}
+
+/* Distant Galaxy */
+.distant-galaxy {
+    position: fixed;
+    width: 300px;
+    height: 150px;
+    background: 
+        radial-gradient(ellipse at center, rgba(0, 229, 204, 0.05) 0%, rgba(123, 245, 66, 0.02) 30%, transparent 70%);
+    border-radius: 50%;
+    filter: blur(30px);
+    pointer-events: none;
+    z-index: -1;
+    animation: galaxyDrift 60s ease-in-out infinite alternate;
+    will-change: transform;
+}
+
+.distant-galaxy--1 {
+    top: 10%;
+    right: 5%;
+    transform: rotate(-15deg);
+}
+
+.distant-galaxy--2 {
+    bottom: 15%;
+    left: 10%;
+    width: 200px;
+    height: 100px;
+    transform: rotate(20deg);
+    animation-delay: -20s;
+}
+
+@keyframes galaxyDrift {
+    0% { transform: translateX(0) translateY(0) rotate(-15deg); }
+    100% { transform: translateX(20px) translateY(10px) rotate(-10deg); }
+}
+
+/* ============================================
+   SPACE BACKGROUND - PERFORMANCE OPTIMIZATIONS
+   ============================================ */
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    .cosmic-bg::after,
+    .star,
+    .meteor,
+    .particle,
+    .ambient-glow,
+    .distant-galaxy {
+        animation: none !important;
+    }
+    
+    .cosmic-bg::after {
+        opacity: 0.8;
+    }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .distant-galaxy {
+        display: none;
+    }
+    
+    .cosmic-bg::after {
+        animation-duration: 12s;
+    }
+    
+    .meteor::before {
+        width: 50px;
+    }
+}
+
+/* Small screen optimizations */
+@media (max-width: 480px) {
+    .particle-field {
+        display: none;
+    }
+    
+    .cosmic-bg::before {
+        opacity: 0.7;
+    }
 }
 
 /* ============================================
@@ -189,6 +516,42 @@ body {
 .wallet-btn:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-glow);
+}
+
+/* Wallet Button - Estilo quando conectado (com avatar) */
+.wallet-btn.connected {
+    background: rgba(0, 229, 204, 0.1);
+    border: 1px solid var(--border-color);
+    padding: 6px 12px;
+    gap: 6px;
+}
+
+.wallet-btn.connected:hover {
+    border-color: var(--primary);
+    background: rgba(0, 229, 204, 0.15);
+}
+
+.wallet-btn.connected img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    object-fit: cover;
+}
+
+.wallet-btn.connected span {
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wallet-btn.connected i {
+    color: var(--primary);
+    font-size: 1.1rem;
 }
 
 .mobile-menu-btn {
@@ -789,6 +1152,7 @@ body {
         visibility: hidden;
         transition: all 0.3s ease;
         border-bottom: 1px solid var(--border-color);
+        z-index: 999;
     }
     
     .nav.active {
@@ -801,8 +1165,27 @@ body {
         display: block;
     }
     
+    /* Wallet button mobile - apenas avatar */
     .wallet-btn span {
         display: none;
+    }
+    
+    .wallet-btn.connected {
+        padding: 4px;
+        border-radius: 50%;
+        width: 38px;
+        height: 38px;
+        justify-content: center;
+    }
+    
+    .wallet-btn.connected img {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .wallet-btn:not(.connected) {
+        padding: 8px 14px;
+        font-size: 0.85rem;
     }
     
     .page-title {

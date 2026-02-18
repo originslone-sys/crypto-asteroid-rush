@@ -2,49 +2,31 @@
 // ============================================
 // UNOBIX - Registrar Indicação
 // Arquivo: api/referral-register.php
-// v2.0 - Google Auth + BRL
+// v3.0 - Google Auth + users + sem wallet
 // ============================================
 
 require_once __DIR__ . "/config.php";
 
 setCorsHeaders();
 
-// Entrada híbrida: JSON + POST + GET
-$raw = file_get_contents('php://input');
-$input = json_decode($raw, true);
-if (!is_array($input)) $input = [];
+$input = getRequestInput();
 
-// Suporte google_uid ou wallet
-$googleUid = $input['google_uid'] ?? ($_POST['google_uid'] ?? ($_GET['google_uid'] ?? ''));
-$wallet = $input['wallet'] ?? ($_POST['wallet'] ?? ($_GET['wallet'] ?? ''));
-$referralCode = $input['referral_code'] ?? ($_POST['referral_code'] ?? ($_GET['referral_code'] ?? ''));
+$googleUid = trim($input['google_uid'] ?? $input['googleUid'] ?? $input['uid'] ?? '');
+$referralCode = trim(strtoupper($input['referral_code'] ?? $input['ref'] ?? ''));
 
-$googleUid = trim($googleUid);
-$wallet = trim(strtolower($wallet));
-$referralCode = trim(strtoupper($referralCode));
-
-// Determinar identificador do novo usuário
-$identifier = '';
-$identifierType = '';
-
-if (!empty($googleUid) && validateGoogleUid($googleUid)) {
-    $identifier = $googleUid;
-    $identifierType = 'google_uid';
-} elseif (!empty($wallet) && validateWallet($wallet)) {
-    $identifier = $wallet;
-    $identifierType = 'wallet';
-} else {
-    echo json_encode(['success' => false, 'error' => 'Identificação inválida']);
+// Validar google_uid
+if (empty($googleUid) || !validateGoogleUid($googleUid)) {
+    echo json_encode(['success' => false, 'error' => 'google_uid inválido']);
     exit;
 }
 
-// Se não tem código de referral, não há o que fazer
+// Se não tem código de referral, nada a fazer
 if (empty($referralCode)) {
     echo json_encode(['success' => true, 'message' => 'Sem código de referral']);
     exit;
 }
 
-// Validar formato do código (6 caracteres alfanuméricos)
+// Validar formato (6 caracteres alfanuméricos)
 if (!preg_match('/^[A-Z0-9]{6}$/', $referralCode)) {
     echo json_encode(['success' => false, 'error' => 'Código de referral inválido']);
     exit;
@@ -52,18 +34,33 @@ if (!preg_match('/^[A-Z0-9]{6}$/', $referralCode)) {
 
 try {
     $pdo = getDatabaseConnection();
-    if (!$pdo) {
-        throw new Exception("Erro de conexão");
+    if (!$pdo) throw new Exception("Erro de conexão");
+
+    // ============================================
+    // 1. VERIFICAR SE É USUÁRIO NOVO (sem jogos)
+    // Usuários com conta ativa não podem ser indicados
+    // ============================================
+    $stmt = $pdo->prepare("
+        SELECT total_played FROM users
+        WHERE google_uid = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$googleUid]);
+    $existingUser = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($existingUser && (int)$existingUser['total_played'] > 0) {
+        echo json_encode(['success' => false, 'error' => 'Apenas novos usuários podem ser indicados']);
+        exit;
     }
 
     // ============================================
-    // 1. VERIFICAR SE USUÁRIO JÁ FOI INDICADO
+    // 2. VERIFICAR SE USUÁRIO JÁ FOI INDICADO
     // ============================================
     $stmt = $pdo->prepare("
-        SELECT id FROM referrals 
-        WHERE referred_google_uid = ? OR referred_wallet = ?
+        SELECT id FROM referrals
+        WHERE referred_google_uid = ?
     ");
-    $stmt->execute([$googleUid, $wallet]);
+    $stmt->execute([$googleUid]);
 
     if ($stmt->fetch()) {
         echo json_encode(['success' => true, 'message' => 'Usuário já possui indicação registrada']);
@@ -71,10 +68,11 @@ try {
     }
 
     // ============================================
-    // 2. BUSCAR REFERRER PELO CÓDIGO
+    // 3. BUSCAR REFERRER PELO CÓDIGO
     // ============================================
     $stmt = $pdo->prepare("
-        SELECT wallet_address, google_uid FROM referral_codes WHERE code = ?
+        SELECT google_uid FROM referral_codes
+        WHERE code = ? AND is_active = 1
     ");
     $stmt->execute([$referralCode]);
     $referrer = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -84,29 +82,27 @@ try {
         exit;
     }
 
-    $referrerGoogleUid = $referrer['google_uid'] ?? null;
-    $referrerWallet = strtolower($referrer['wallet_address'] ?? '');
+    $referrerGoogleUid = $referrer['google_uid'];
 
     // ============================================
-    // 3. VERIFICAR SE NÃO É AUTO-INDICAÇÃO
+    // 4. VERIFICAR SE NÃO É AUTO-INDICAÇÃO
     // ============================================
-    if (($referrerGoogleUid && $referrerGoogleUid === $googleUid) || 
-        ($referrerWallet && $referrerWallet === $wallet)) {
+    if ($referrerGoogleUid === $googleUid) {
         echo json_encode(['success' => false, 'error' => 'Não é possível usar seu próprio código']);
         exit;
     }
 
     // ============================================
-    // 4. BUSCAR MISSÕES ATUAIS DO NOVO USUÁRIO
+    // 5. BUSCAR MISSÕES ATUAIS DO NOVO USUÁRIO
     // ============================================
     $missionsAtRegister = 0;
-    
+
     $stmt = $pdo->prepare("
-        SELECT total_played FROM players 
-        WHERE google_uid = ? OR wallet_address = ?
+        SELECT total_played FROM users
+        WHERE google_uid = ?
         LIMIT 1
     ");
-    $stmt->execute([$googleUid, $wallet]);
+    $stmt->execute([$googleUid]);
     $player = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($player) {
@@ -114,38 +110,56 @@ try {
     }
 
     // ============================================
-    // 5. REGISTRAR INDICAÇÃO
+    // 6. LER SETTINGS DO ADMIN
+    // ============================================
+    $missionsRequired = 100;
+    $commissionBrl = 1.000000;
+    $settingsTable = $pdo->query("SHOW TABLES LIKE 'game_settings'")->fetch();
+    if ($settingsTable) {
+        $sStmt = $pdo->prepare("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN ('referral_missions_required', 'referral_bonus_brl')");
+        $sStmt->execute();
+        foreach ($sStmt->fetchAll(PDO::FETCH_ASSOC) as $s) {
+            if ($s['setting_key'] === 'referral_missions_required') $missionsRequired = max(1, (int)$s['setting_value']);
+            if ($s['setting_key'] === 'referral_bonus_brl') $commissionBrl = max(0, (float)$s['setting_value']);
+        }
+    }
+
+    // ============================================
+    // 7. REGISTRAR INDICAÇÃO
     // ============================================
     $stmt = $pdo->prepare("
         INSERT INTO referrals (
-            referrer_wallet, 
-            referrer_google_uid,
-            referred_wallet, 
-            referred_google_uid,
-            referral_code, 
-            missions_at_register, 
+            referrer_google_uid, referrer_wallet,
+            referred_google_uid, referred_wallet,
+            referral_code,
+            missions_at_register,
             missions_completed,
+            missions_required,
             status,
+            commission_brl,
             created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, 0, 'pending', NOW())
+        ) VALUES (?, '', ?, '', ?, ?, 0, ?, 'pending', ?, NOW())
     ");
     $stmt->execute([
-        $referrerWallet,
         $referrerGoogleUid,
-        $wallet ?: null,
-        $googleUid ?: null,
-        $referralCode, 
-        $missionsAtRegister
+        $googleUid,
+        $referralCode,
+        $missionsAtRegister,
+        $missionsRequired,
+        $commissionBrl
     ]);
 
-    $referralId = $pdo->lastInsertId();
+    $referralId = (int)$pdo->lastInsertId();
 
-    secureLog("REFERRAL_REGISTERED | ID: {$referralId} | Referrer: {$referrerGoogleUid}/{$referrerWallet} | Referred: {$googleUid}/{$wallet} | Code: {$referralCode}");
+    // Incrementar uses_count no código
+    $pdo->prepare("
+        UPDATE referral_codes SET uses_count = uses_count + 1
+        WHERE code = ?
+    ")->execute([$referralCode]);
 
-    // Resposta com identificador parcial do referrer
-    $referrerDisplay = $referrerGoogleUid 
-        ? substr($referrerGoogleUid, 0, 8) . '...'
-        : substr($referrerWallet, 0, 6) . '...' . substr($referrerWallet, -4);
+    secureLog("REFERRAL_REGISTERED | ID: {$referralId} | Referrer: {$referrerGoogleUid} | Referred: {$googleUid} | Code: {$referralCode}");
+
+    $referrerDisplay = substr($referrerGoogleUid, 0, 8) . '...';
 
     echo json_encode([
         'success' => true,

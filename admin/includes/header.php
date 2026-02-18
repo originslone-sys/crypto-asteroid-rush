@@ -1,7 +1,8 @@
 <?php
 // ============================================
-// CRYPTO ASTEROID RUSH - Admin Header
+// UNOBIX - Admin Header
 // Arquivo: admin/includes/header.php
+// v6.0 - Atualizado branding UNOBIX
 // ============================================
 
 // Base URL do admin (corrige paths e redirects em diferentes DocumentRoots)
@@ -35,7 +36,7 @@ if (!isset($currentPage)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo isset($pageTitle) ? $pageTitle . ' | ' : ''; ?>Admin - Crypto Asteroid Rush</title>
+    <title><?php echo isset($pageTitle) ? $pageTitle . ' | ' : ''; ?>Admin - UNOBIX</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="<?php echo $ADMIN_BASE_URL; ?>/css/admin.css">

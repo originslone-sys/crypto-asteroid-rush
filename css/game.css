@@ -724,7 +724,16 @@ body {
 .btn-group {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-xs);
+}
+
+.end-modal .btn-group {
+    gap: var(--spacing-xs);
+}
+
+.end-modal .btn-secondary {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.8rem;
 }
 
 .btn {
@@ -809,11 +818,49 @@ body {
 /* ============================================
    END GAME MODAL - Resultados
    ============================================ */
+.modal-header.compact {
+    margin-bottom: var(--spacing-sm);
+}
+
+.modal-header.compact .modal-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+}
+
+.modal-header.compact .modal-title {
+    font-size: 1rem;
+}
+
 .result-stats {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-sm);
     margin-bottom: var(--spacing-md);
+}
+
+.result-stats.compact {
+    flex-direction: row;
+    gap: var(--spacing-sm);
+}
+
+.result-stats.compact .result-item {
+    flex: 1;
+    flex-direction: column;
+    text-align: center;
+    gap: 4px;
+    padding: var(--spacing-sm) var(--spacing-xs);
+}
+
+.result-stats.compact .result-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 0.8rem;
+}
+
+.result-stats.compact .result-value {
+    font-size: 1rem;
 }
 
 .result-item {
@@ -997,29 +1044,27 @@ body {
    CAPTCHA CONTAINER
    ============================================ */
 .captcha-container {
-    margin: var(--spacing-md) 0;
-    padding: var(--spacing-md);
+    margin: var(--spacing-sm) 0;
+    padding: var(--spacing-sm);
     background: rgba(0, 0, 0, 0.2);
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
-}
-
-.captcha-title {
-    font-family: var(--font-primary);
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    margin-bottom: var(--spacing-sm);
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: var(--spacing-xs);
 }
-
-.captcha-title i { color: var(--warning); }
 
 #captchaWidget {
     display: flex;
     justify-content: center;
+    transform-origin: center;
+}
+
+/* Escalar reCAPTCHA em telas menores para caber */
+@media (max-width: 380px) {
+    #captchaWidget {
+        transform: scale(0.9);
+    }
 }
 
 .captcha-status {
@@ -1233,8 +1278,9 @@ body {
     .mission-info { padding: var(--spacing-xs); margin-bottom: var(--spacing-sm); gap: var(--spacing-sm); }
     .info-item { font-size: 0.65rem; }
     .btn-large { padding: var(--spacing-sm) var(--spacing-md); }
-    .result-stats { margin-bottom: var(--spacing-sm); }
-    .asteroids-breakdown { padding: var(--spacing-xs); margin-bottom: var(--spacing-sm); }
+    .result-stats { margin-bottom: var(--spacing-xs); }
+    .result-stats.compact .result-value { font-size: 0.9rem; }
+    .captcha-container { margin: var(--spacing-xs) 0; padding: var(--spacing-xs); }
 }
 
 @media (max-width: 768px) {

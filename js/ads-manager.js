@@ -1,52 +1,70 @@
 /* ============================================
-   UNOBIX - Ads Manager v3.0
+   UNOBIX - Ads Manager v4.0
    File: js/ads-manager.js
    Gerenciamento de anúncios com API backend
-   Configurações dinâmicas do painel admin
+   Alinhado com admin-ads.php e ads-config.php
    ============================================ */
 
 const AdsManager = {
     isInitialized: false,
     adTimer: null,
     config: null,
+    slots: null,          // slots agrupados por tipo: { pregame: [], endgame: [], ... }
     currentAd: null,
-    adIndex: 0,
+    adIndex: {},          // índice de rotação por tipo
     skipCallback: null,
+    _injectedGlobalIds: {},  // track de scripts globais já injetados (evita duplicação)
     
     // Configurações padrão (sobrescritas pela API)
     defaultConfig: {
-        enabled: true,
-        preGameAdEnabled: true,
-        preGameAdDuration: 5,           // segundos
-        bannerEnabled: false,
-        bannerPosition: 'bottom',       // top, bottom
-        bannerRefreshInterval: 30,      // segundos
-        interstitialEnabled: false,
-        interstitialFrequency: 3,       // a cada X missões
-        rewardedAdEnabled: false,
-        rewardedAdBonus: 0.001,         // BRL bonus
-        adNetworks: [],                 // Configurações de redes de anúncios
-        customAds: [],                  // Anúncios personalizados do admin
-        fallbackImageUrl: '',           // Imagem fallback
-        fallbackLinkUrl: '',            // Link fallback
-        skipButtonDelay: 3,             // Segundos até mostrar botão pular
-        allowSkip: false                // Permitir pular anúncio
+        enabled: false,
+        pregame_enabled: false,
+        pregame_total_duration: 10,
+        pregame_min_duration: 5,
+        pregame_skip_enabled: false,
+        pregame_skip_after: 5,
+        pregame_rotation_interval: 5,
+        pregame_max_slots: 3,
+        endgame_enabled: false,
+        endgame_total_duration: 10,
+        endgame_display_mode: 'grid',
+        endgame_max_slots: 4,
+        endgame_auto_rotate: true,
+        endgame_rotation_interval: 8,
+        endgame_show_on_gameover: true,
+        interstitial_enabled: false,
+        interstitial_frequency: 3,
+        interstitial_duration: 5,
+        interstitial_skip_after: 3,
+        banner_enabled: false,
+        banner_position: 'bottom',
+        tracking_enabled: true,
+        debug_mode: false
     },
     
-    // Initialize ads system
+    defaultSlots: {
+        pregame: [],
+        endgame: [],
+        interstitial: [],
+        banner: []
+    },
+    
+    // ============================================
+    // INICIALIZAÇÃO
+    // ============================================
+    
     async init() {
         if (this.isInitialized) return;
         
-        console.log('📺 AdsManager v3.0 inicializando...');
+        this.log('📺 AdsManager v4.0 inicializando...');
         
-        // Carregar configurações da API
         await this.loadConfig();
         
         this.isInitialized = true;
-        console.log('📺 AdsManager inicializado', this.config?.enabled ? '(ativo)' : '(desativado)');
+        this.log('📺 AdsManager inicializado', this.config?.enabled ? '(ativo)' : '(desativado)');
     },
     
-    // Carregar configurações da API
+    // Carregar configurações e slots da API
     async loadConfig() {
         try {
             const response = await fetch('api/ads-config.php', {
@@ -54,13 +72,9 @@ const AdsManager = {
                 headers: { 'Content-Type': 'application/json' }
             });
             
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
             const text = await response.text();
-            
-            // Verificar se é JSON válido
             let data;
             try {
                 data = JSON.parse(text);
@@ -68,232 +82,183 @@ const AdsManager = {
                 throw new Error('Resposta não é JSON válido');
             }
             
-            if (data.success && data.config) {
-                this.config = { ...this.defaultConfig, ...data.config };
-                console.log('📺 Configurações de ads carregadas da API');
+            if (data.success) {
+                this.config = { ...this.defaultConfig, ...(data.config || {}) };
+                this.slots = { ...this.defaultSlots, ...(data.slots || {}) };
+                this.log('📺 Config carregada da API:', Object.keys(this.config).length, 'settings');
+                this.log('📺 Slots:', Object.entries(this.slots).map(([k,v]) => `${k}:${v.length}`).join(', '));
             } else {
-                console.warn('📺 Usando configurações padrão de ads');
+                this.log('📺 API retornou erro, usando defaults');
                 this.config = { ...this.defaultConfig };
+                this.slots = { ...this.defaultSlots };
             }
         } catch (error) {
-            console.warn('📺 Erro ao carregar config de ads, usando padrão:', error.message);
+            this.log('📺 Erro ao carregar config, usando defaults:', error.message);
             this.config = { ...this.defaultConfig };
+            this.slots = { ...this.defaultSlots };
         }
     },
     
-    // Recarregar configurações (para atualização dinâmica)
     async reloadConfig() {
         await this.loadConfig();
         return this.config;
     },
     
-    // Show pre-game ad
+    // ============================================
+    // PRE-GAME ADS (tela de carregamento)
+    // ============================================
+    
     async showPreGameAd(containerId = 'adContainer') {
         const container = document.getElementById(containerId);
         if (!container) return Promise.resolve();
         
-        // Verificar se ads estão habilitados
-        if (!this.config?.enabled || !this.config?.preGameAdEnabled) {
-            console.log('📺 Ads desabilitados, pulando...');
+        if (!this.config?.enabled || !this.config?.pregame_enabled) {
+            this.log('📺 Pregame ads desabilitados');
+            return Promise.resolve();
+        }
+        
+        const pregameSlots = this.slots?.pregame || [];
+        if (pregameSlots.length === 0) {
+            this.log('📺 Nenhum slot pregame configurado');
             return Promise.resolve();
         }
         
         return new Promise((resolve) => {
-            console.log('📺 Mostrando anúncio pré-jogo...');
-            
+            this.log('📺 Mostrando anúncio pré-jogo...');
             this.skipCallback = resolve;
             
-            // Buscar anúncio para exibir
-            const ad = this.getNextAd('pregame');
+            const slot = this.getNextSlot('pregame');
             
-            if (ad) {
-                this.renderAd(container, ad);
+            if (slot) {
+                this.renderSlot(container, slot, 'pregame');
+                this.trackImpression(slot.id);
             } else {
-                this.showPlaceholder(container);
+                this.showDefaultPlaceholder(container);
             }
             
-            // Registrar impressão
-            this.logImpression('pregame', ad?.id);
-            
-            // Iniciar countdown
             this.startAdTimer(container, resolve);
         });
     },
     
-    // Obter próximo anúncio
-    getNextAd(placement = 'pregame') {
-        if (!this.config?.customAds || this.config.customAds.length === 0) {
-            return null;
-        }
-        
-        // Filtrar anúncios por placement
-        const availableAds = this.config.customAds.filter(ad => 
-            ad.enabled && 
-            (!ad.placement || ad.placement === placement || ad.placement === 'all')
-        );
-        
-        if (availableAds.length === 0) return null;
-        
-        // Rotação de anúncios
-        this.adIndex = (this.adIndex + 1) % availableAds.length;
-        return availableAds[this.adIndex];
-    },
+    // ============================================
+    // END-GAME ADS (tela de resultado)
+    // ============================================
     
-    // Renderizar anúncio
-    renderAd(container, ad) {
-        this.currentAd = ad;
+    async showEndGameAd(containerId = 'endgameAdContainer') {
+        const container = document.getElementById(containerId);
+        if (!container) return;
         
-        const duration = this.config.preGameAdDuration || 5;
-        const allowSkip = this.config.allowSkip;
-        const skipDelay = this.config.skipButtonDelay || 3;
-        
-        let adContent = '';
-        
-        // Determinar tipo de anúncio
-        if (ad.type === 'image' || ad.imageUrl) {
-            adContent = `
-                <a href="${ad.linkUrl || '#'}" target="_blank" rel="noopener" class="ad-link" data-ad-id="${ad.id}">
-                    <img src="${ad.imageUrl}" alt="${ad.title || 'Anúncio'}" class="ad-image" 
-                         onerror="AdsManager.onAdImageError(this)">
-                </a>
-            `;
-        } else if (ad.type === 'html' && ad.htmlContent) {
-            adContent = `<div class="ad-html-content">${ad.htmlContent}</div>`;
-        } else if (ad.type === 'video' && ad.videoUrl) {
-            adContent = `
-                <video class="ad-video" autoplay muted playsinline>
-                    <source src="${ad.videoUrl}" type="video/mp4">
-                </video>
-            `;
-        } else if (ad.type === 'adsense' && ad.adsenseCode) {
-            adContent = `<div class="ad-adsense">${ad.adsenseCode}</div>`;
-        } else {
-            this.showPlaceholder(container);
+        if (!this.config?.enabled || !this.config?.endgame_enabled) {
+            this.log('📺 Endgame ads desabilitados');
             return;
         }
         
-        container.innerHTML = `
-            <div class="ad-wrapper" data-ad-id="${ad.id}">
-                ${adContent}
-                ${ad.title ? `<div class="ad-title">${ad.title}</div>` : ''}
-                <div class="ad-timer" id="adTimer">${duration}s</div>
-                ${allowSkip ? `<button class="ad-skip-btn" id="adSkipBtn" style="display:none;" onclick="AdsManager.skip()">
-                    <i class="fas fa-forward"></i> Pular
-                </button>` : ''}
-                <div class="ad-label">Publicidade</div>
-            </div>
-        `;
+        const endgameSlots = this.slots?.endgame || [];
+        if (endgameSlots.length === 0) return;
         
-        // Mostrar botão de pular após delay
-        if (allowSkip) {
-            setTimeout(() => {
-                const skipBtn = document.getElementById('adSkipBtn');
-                if (skipBtn) skipBtn.style.display = 'block';
-            }, skipDelay * 1000);
-        }
+        const mode = this.config.endgame_display_mode || 'grid';
+        const maxSlots = this.config.endgame_max_slots || 4;
+        const activeSlots = endgameSlots.slice(0, maxSlots);
         
-        // Registrar clique
-        const adLink = container.querySelector('.ad-link');
-        if (adLink) {
-            adLink.addEventListener('click', () => {
-                this.logClick(ad.id);
-            });
+        if (mode === 'grid') {
+            // Mostrar múltiplos slots em grid
+            container.innerHTML = '<div class="ad-endgame-grid">' +
+                activeSlots.map(slot => {
+                    this.trackImpression(slot.id);
+                    return `<div class="ad-endgame-slot" data-slot-id="${slot.id}">
+                        ${this.getSlotHTML(slot)}
+                    </div>`;
+                }).join('') +
+            '</div>';
+            this.executeScripts(container);
+        } else {
+            // Mostrar um slot por vez com rotação
+            const slot = this.getNextSlot('endgame');
+            if (slot) {
+                this.renderSlot(container, slot, 'endgame');
+                this.trackImpression(slot.id);
+                
+                // Auto-rotação
+                if (this.config.endgame_auto_rotate) {
+                    const interval = (this.config.endgame_rotation_interval || 8) * 1000;
+                    setInterval(() => {
+                        const nextSlot = this.getNextSlot('endgame');
+                        if (nextSlot) {
+                            this.renderSlot(container, nextSlot, 'endgame');
+                            this.trackImpression(nextSlot.id);
+                        }
+                    }, interval);
+                }
+            }
         }
     },
     
-    // Mostrar placeholder quando não há anúncios
-    showPlaceholder(container) {
-        const duration = this.config?.preGameAdDuration || 5;
+    // ============================================
+    // INTERSTITIAL ADS
+    // ============================================
+    
+    async showInterstitial() {
+        if (!this.config?.enabled || !this.config?.interstitial_enabled) {
+            return Promise.resolve();
+        }
         
-        // Verificar se há imagem/link fallback
-        if (this.config?.fallbackImageUrl) {
-            container.innerHTML = `
-                <div class="ad-wrapper">
-                    <a href="${this.config.fallbackLinkUrl || '#'}" target="_blank" rel="noopener" class="ad-link">
-                        <img src="${this.config.fallbackImageUrl}" alt="Anúncio" class="ad-image"
-                             onerror="AdsManager.showDefaultPlaceholder(this.parentElement.parentElement)">
-                    </a>
-                    <div class="ad-timer" id="adTimer">${duration}s</div>
-                    <div class="ad-label">Publicidade</div>
+        const slot = this.getNextSlot('interstitial');
+        if (!slot) return Promise.resolve();
+        
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.id = 'adInterstitial';
+            overlay.className = 'ad-interstitial-overlay';
+            
+            const duration = this.config.interstitial_duration || 5;
+            const skipAfter = this.config.interstitial_skip_after || 3;
+            
+            overlay.innerHTML = `
+                <div class="ad-interstitial-container">
+                    <div class="ad-interstitial-content">${this.getSlotHTML(slot)}</div>
+                    <button class="ad-interstitial-close" id="interstitialClose" style="display:none;">
+                        <i class="fas fa-times"></i> Fechar
+                    </button>
+                    <div class="ad-interstitial-timer" id="interstitialTimer">${duration}s</div>
                 </div>
             `;
-        } else {
-            this.showDefaultPlaceholder(container);
-        }
-    },
-    
-    // Placeholder padrão (sem anúncio configurado)
-    showDefaultPlaceholder(container) {
-        const duration = this.config?.preGameAdDuration || 5;
-        
-        container.innerHTML = `
-            <div class="ad-placeholder">
-                <div class="ad-placeholder-content">
-                    <i class="fas fa-rocket" style="font-size: 3rem; color: var(--primary); margin-bottom: 15px;"></i>
-                    <div style="font-size: 1.2rem; color: var(--text-primary);">Preparando sua missão...</div>
-                    <div style="font-size: 0.9rem; color: var(--text-dim); margin-top: 10px;">Sistemas sendo inicializados</div>
-                </div>
-            </div>
-            <div class="ad-timer" id="adTimer">${duration}s</div>
-        `;
-    },
-    
-    // Erro ao carregar imagem do anúncio
-    onAdImageError(img) {
-        console.warn('📺 Erro ao carregar imagem do anúncio');
-        const wrapper = img.closest('.ad-wrapper');
-        if (wrapper) {
-            this.showDefaultPlaceholder(wrapper.parentElement);
-        }
-    },
-    
-    // Iniciar timer do anúncio
-    startAdTimer(container, callback) {
-        let timeLeft = this.config?.preGameAdDuration || 5;
-        const timerEl = document.getElementById('adTimer');
-        
-        if (this.adTimer) {
-            clearInterval(this.adTimer);
-        }
-        
-        this.adTimer = setInterval(() => {
-            timeLeft--;
             
-            if (timerEl) {
-                timerEl.textContent = `${timeLeft}s`;
-            }
-            
-            if (timeLeft <= 0) {
-                this.clearTimer();
-                callback();
-            }
-        }, 1000);
+            document.body.appendChild(overlay);
+            this.executeScripts(overlay);
+            this.trackImpression(slot.id);
+
+            let timeLeft = duration;
+            const timer = setInterval(() => {
+                timeLeft--;
+                const timerEl = document.getElementById('interstitialTimer');
+                if (timerEl) timerEl.textContent = `${timeLeft}s`;
+                
+                if (timeLeft <= (duration - skipAfter)) {
+                    const closeBtn = document.getElementById('interstitialClose');
+                    if (closeBtn) {
+                        closeBtn.style.display = 'block';
+                        closeBtn.onclick = () => { 
+                            clearInterval(timer);
+                            overlay.remove(); 
+                            resolve(); 
+                        };
+                    }
+                }
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    overlay.remove();
+                    resolve();
+                }
+            }, 1000);
+        });
     },
     
-    // Limpar timer
-    clearTimer() {
-        if (this.adTimer) {
-            clearInterval(this.adTimer);
-            this.adTimer = null;
-        }
-    },
-    
-    // Pular anúncio
-    skip() {
-        if (!this.config?.allowSkip) return;
-        
-        console.log('📺 Anúncio pulado pelo usuário');
-        this.logEvent('skip', this.currentAd?.id);
-        this.clearTimer();
-        
-        // Chamar callback se existir
-        if (this.skipCallback) {
-            this.skipCallback();
-            this.skipCallback = null;
-        }
-        
-        // Disparar evento
-        document.dispatchEvent(new CustomEvent('adSkipped'));
+    shouldShowInterstitial() {
+        if (!this.config?.interstitial_enabled) return false;
+        const frequency = this.config.interstitial_frequency || 3;
+        const missionCount = parseInt(localStorage.getItem('totalMissions') || '0');
+        return missionCount > 0 && missionCount % frequency === 0;
     },
     
     // ============================================
@@ -301,12 +266,12 @@ const AdsManager = {
     // ============================================
     
     showBanner(position = null) {
-        if (!this.config?.enabled || !this.config?.bannerEnabled) return;
+        if (!this.config?.enabled || !this.config?.banner_enabled) return;
         
-        position = position || this.config.bannerPosition || 'bottom';
+        position = position || this.config.banner_position || 'bottom';
         
-        const ad = this.getNextAd('banner');
-        if (!ad) return;
+        const slot = this.getNextSlot('banner');
+        if (!slot) return;
         
         let banner = document.getElementById('adBanner');
         if (!banner) {
@@ -317,24 +282,15 @@ const AdsManager = {
         }
         
         banner.innerHTML = `
-            <a href="${ad.linkUrl || '#'}" target="_blank" rel="noopener" class="ad-banner-link" data-ad-id="${ad.id}">
-                <img src="${ad.imageUrl}" alt="${ad.title || 'Anúncio'}" class="ad-banner-image">
-            </a>
+            <div class="ad-banner-content">${this.getSlotHTML(slot)}</div>
             <button class="ad-banner-close" onclick="AdsManager.hideBanner()">
                 <i class="fas fa-times"></i>
             </button>
         `;
         
         banner.style.display = 'block';
-        this.logImpression('banner', ad.id);
-        
-        if (this.config.bannerRefreshInterval > 0) {
-            setTimeout(() => {
-                if (document.getElementById('adBanner')?.style.display !== 'none') {
-                    this.showBanner(position);
-                }
-            }, this.config.bannerRefreshInterval * 1000);
-        }
+        this.executeScripts(banner);
+        this.trackImpression(slot.id);
     },
     
     hideBanner() {
@@ -343,120 +299,301 @@ const AdsManager = {
     },
     
     // ============================================
-    // INTERSTITIAL ADS
+    // CORE: Slot Management
     // ============================================
     
-    async showInterstitial() {
-        if (!this.config?.enabled || !this.config?.interstitialEnabled) {
-            return Promise.resolve();
-        }
+    // Obter próximo slot por tipo (rotação)
+    getNextSlot(type) {
+        const typeSlots = this.slots?.[type] || [];
+        if (typeSlots.length === 0) return null;
         
-        return new Promise((resolve) => {
-            const ad = this.getNextAd('interstitial');
-            if (!ad) { resolve(); return; }
-            
-            const overlay = document.createElement('div');
-            overlay.id = 'adInterstitial';
-            overlay.className = 'ad-interstitial-overlay';
-            
-            overlay.innerHTML = `
-                <div class="ad-interstitial-container">
-                    <a href="${ad.linkUrl || '#'}" target="_blank" rel="noopener">
-                        <img src="${ad.imageUrl}" alt="${ad.title || 'Anúncio'}" class="ad-interstitial-image">
-                    </a>
-                    <button class="ad-interstitial-close" id="interstitialClose" style="display:none;">
-                        <i class="fas fa-times"></i> Fechar
-                    </button>
-                    <div class="ad-interstitial-timer" id="interstitialTimer">5s</div>
-                </div>
-            `;
-            
-            document.body.appendChild(overlay);
-            this.logImpression('interstitial', ad.id);
-            
-            let timeLeft = 5;
-            const timer = setInterval(() => {
-                timeLeft--;
-                const timerEl = document.getElementById('interstitialTimer');
-                if (timerEl) timerEl.textContent = `${timeLeft}s`;
-                
-                if (timeLeft <= 0) {
-                    clearInterval(timer);
-                    const closeBtn = document.getElementById('interstitialClose');
-                    if (closeBtn) {
-                        closeBtn.style.display = 'block';
-                        closeBtn.onclick = () => { overlay.remove(); resolve(); };
-                    }
+        if (!this.adIndex[type]) this.adIndex[type] = 0;
+        
+        const slot = typeSlots[this.adIndex[type]];
+        this.adIndex[type] = (this.adIndex[type] + 1) % typeSlots.length;
+        
+        return slot;
+    },
+    
+    // Injetar scripts globais (Monetag, push, pop-under) de todos os slots
+    // imediatamente no <head>, sem esperar renderização visual.
+    // Chamado no início do pregame/postgame para máxima antecedência.
+    injectGlobalScripts(slots) {
+        if (!slots || !slots.length) return;
+        slots.forEach(slot => {
+            if (!slot.custom_js) return;
+            const slotId = String(slot.id);
+            if (this._injectedGlobalIds[slotId]) return;
+
+            const temp = document.createElement('div');
+            temp.innerHTML = slot.custom_js;
+            const scripts = temp.querySelectorAll('script');
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement('script');
+                Array.from(oldScript.attributes).forEach(attr => {
+                    newScript.setAttribute(attr.name, attr.value);
+                });
+                if (!oldScript.src) {
+                    newScript.textContent = oldScript.textContent;
                 }
-            }, 1000);
+                document.head.appendChild(newScript);
+            });
+            this._injectedGlobalIds[slotId] = true;
+            this.log('📺 Global scripts injetados para slot', slotId);
+        });
+    },
+
+    // Calcular duração total baseada na soma dos duration_seconds de cada slot
+    getTotalSlotsDuration(type) {
+        const slots = this.slots?.[type] || [];
+        if (slots.length === 0) {
+            return this.config?.[`${type}_total_duration`] || 10;
+        }
+        const fallback = this.config?.[`${type}_rotation_interval`] || 10;
+        return slots.reduce((sum, s) => sum + (parseInt(s.duration_seconds) || fallback), 0);
+    },
+
+    // Gerar HTML do slot (suporta display + global scripts no mesmo slot)
+    getSlotHTML(slot) {
+        if (!slot) return '';
+
+        let html = '';
+
+        // CSS personalizado
+        if (slot.custom_css) {
+            html += `<style>${slot.custom_css}</style>`;
+        }
+
+        // Container para display ads (script_code → iframe)
+        if (slot.script_code) {
+            const style = [];
+            if (slot.width) style.push(`width:${slot.width}${isNaN(slot.width) ? '' : 'px'}`);
+            if (slot.height) style.push(`height:${slot.height}${isNaN(slot.height) ? '' : 'px'}`);
+
+            html += `<div class="ad-slot-content" data-slot-id="${slot.id}" data-position="center"
+                          style="${style.join(';')}">${slot.script_code}</div>`;
+        }
+
+        // Container para global scripts (custom_js → head injection)
+        if (slot.custom_js) {
+            html += `<div class="ad-slot-content" data-slot-id="${slot.id}" data-position="head"
+                          style="display:none">${slot.custom_js}</div>`;
+        }
+
+        return html;
+    },
+    
+    // Renderizar slot no container
+    renderSlot(container, slot, type) {
+        this.currentAd = slot;
+        
+        const duration = this.config?.[`${type}_total_duration`] || this.config?.pregame_total_duration || 10;
+        const skipEnabled = this.config?.[`${type}_skip_enabled`] || false;
+        const skipAfter = this.config?.[`${type}_skip_after`] || 5;
+        
+        container.innerHTML = `
+            <div class="ad-wrapper" data-slot-id="${slot.id}">
+                ${this.getSlotHTML(slot)}
+                <div class="ad-timer" id="adTimer">${duration}s</div>
+                ${skipEnabled ? `<button class="ad-skip-btn" id="adSkipBtn" style="display:none;" onclick="AdsManager.skip()">
+                    <i class="fas fa-forward"></i> Pular
+                </button>` : ''}
+                <div class="ad-label">Publicidade</div>
+            </div>
+        `;
+        
+        // Executar scripts inline do ad
+        this.executeScripts(container);
+        
+        // Mostrar botão de pular após delay
+        if (skipEnabled) {
+            setTimeout(() => {
+                const skipBtn = document.getElementById('adSkipBtn');
+                if (skipBtn) skipBtn.style.display = 'block';
+            }, skipAfter * 1000);
+        }
+    },
+    
+    // Ativar ads que contêm <script> tags.
+    // Dois modos controlados por data-position no slot:
+    //   "center" (default) → iframe sandbox (display ads: Adsterra, banners)
+    //   "head"             → injeta no document.head (scripts globais: Monetag, push)
+    // Ads sem scripts (a-ads, iframes puros) não precisam de ativação.
+    executeScripts(container) {
+        const slotDivs = container.querySelectorAll('.ad-slot-content');
+        slotDivs.forEach(slotDiv => {
+            if (!slotDiv.querySelector('script')) return;
+
+            const position = slotDiv.dataset.position || 'center';
+            const adHTML = slotDiv.innerHTML;
+
+            if (position === 'head') {
+                const slotId = slotDiv.dataset.slotId;
+                if (this._injectedGlobalIds[slotId]) {
+                    // Já injetado via injectGlobalScripts — não duplicar
+                    slotDiv.innerHTML = '';
+                    return;
+                }
+                // Global scripts (Monetag, push notifications, pop-unders)
+                const temp = document.createElement('div');
+                temp.innerHTML = adHTML;
+                const scripts = temp.querySelectorAll('script');
+                scripts.forEach(oldScript => {
+                    const newScript = document.createElement('script');
+                    Array.from(oldScript.attributes).forEach(attr => {
+                        newScript.setAttribute(attr.name, attr.value);
+                    });
+                    if (!oldScript.src) {
+                        newScript.textContent = oldScript.textContent;
+                    }
+                    document.head.appendChild(newScript);
+                });
+                this._injectedGlobalIds[slotId] = true;
+                slotDiv.innerHTML = '';
+            } else {
+                // Display ads → iframe sandbox para compatibilidade universal
+                const h = slotDiv.style.height || '250px';
+                const iframe = document.createElement('iframe');
+                iframe.style.cssText = 'border:0;width:100%;height:' + h + ';overflow:hidden;display:block;';
+                iframe.setAttribute('scrolling', 'no');
+                iframe.setAttribute('frameborder', '0');
+
+                slotDiv.innerHTML = '';
+                slotDiv.appendChild(iframe);
+
+                const doc = iframe.contentDocument || iframe.contentWindow.document;
+                doc.open();
+                doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8">'
+                    + '<style>body{margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:100vh;}</style>'
+                    + '</head><body>' + adHTML + '</body></html>');
+                doc.close();
+            }
         });
     },
     
     // ============================================
-    // REWARDED ADS
+    // TIMER
     // ============================================
     
-    async showRewardedAd() {
-        if (!this.config?.enabled || !this.config?.rewardedAdEnabled) {
-            return { success: false, reason: 'disabled' };
+    startAdTimer(container, callback) {
+        let timeLeft = this.config?.pregame_total_duration || 10;
+        const timerEl = document.getElementById('adTimer');
+        
+        if (this.adTimer) clearInterval(this.adTimer);
+        
+        this.adTimer = setInterval(() => {
+            timeLeft--;
+            if (timerEl) timerEl.textContent = `${timeLeft}s`;
+            
+            if (timeLeft <= 0) {
+                this.clearTimer();
+                callback();
+            }
+        }, 1000);
+    },
+    
+    clearTimer() {
+        if (this.adTimer) {
+            clearInterval(this.adTimer);
+            this.adTimer = null;
+        }
+    },
+    
+    skip() {
+        if (!this.config?.pregame_skip_enabled) return;
+        
+        this.log('📺 Anúncio pulado pelo usuário');
+        this.clearTimer();
+        
+        if (this.skipCallback) {
+            this.skipCallback();
+            this.skipCallback = null;
         }
         
-        const ad = this.getNextAd('rewarded');
-        if (!ad) return { success: false, reason: 'no_ad' };
+        document.dispatchEvent(new CustomEvent('adSkipped'));
+    },
+    
+    // ============================================
+    // TRACKING (impressões e cliques)
+    // ============================================
+    
+    async trackImpression(slotId) {
+        if (!this.config?.tracking_enabled || !slotId) return;
         
-        // Implementar lógica de rewarded ad
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                this.logEvent('rewarded_complete', ad.id);
-                resolve({ success: true, reward: this.config.rewardedAdBonus || 0.001 });
-            }, 5000);
-        });
-    },
-    
-    // ============================================
-    // LOGGING / ANALYTICS
-    // ============================================
-    
-    async logImpression(placement, adId) {
-        this.logEvent('impression', adId, { placement });
-    },
-    
-    async logClick(adId) {
-        this.logEvent('click', adId);
-    },
-    
-    async logEvent(eventType, adId, extraData = {}) {
         try {
-            const googleUid = window.authManager?.getUserId() || localStorage.getItem('googleUid');
+            const googleUid = window.authManager?.getUserId?.() || localStorage.getItem('googleUid');
             
-            await fetch('api/ads-log.php', {
+            await fetch('api/admin-ads.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    event_type: eventType,
-                    ad_id: adId,
+                    action: 'log_impression',
+                    slot_id: slotId,
                     google_uid: googleUid,
                     page: window.location.pathname,
-                    ...extraData
+                    session_id: this.getSessionId()
                 })
             });
-        } catch (error) {
-            // Silencioso
+        } catch (e) { /* silencioso */ }
+    },
+    
+    async trackClick(slotId) {
+        if (!this.config?.tracking_enabled || !slotId) return;
+        
+        try {
+            const googleUid = window.authManager?.getUserId?.() || localStorage.getItem('googleUid');
+            
+            await fetch('api/admin-ads.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'log_click',
+                    slot_id: slotId,
+                    google_uid: googleUid,
+                    session_id: this.getSessionId()
+                })
+            });
+        } catch (e) { /* silencioso */ }
+    },
+    
+    getSessionId() {
+        let sid = sessionStorage.getItem('ads_session_id');
+        if (!sid) {
+            sid = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            sessionStorage.setItem('ads_session_id', sid);
         }
+        return sid;
+    },
+    
+    // ============================================
+    // PLACEHOLDER (quando não há anúncios)
+    // ============================================
+    
+    showDefaultPlaceholder(container) {
+        const duration = this.config?.pregame_total_duration || 10;
+        container.innerHTML = `
+            <div class="ad-wrapper ad-placeholder">
+                <div style="text-align:center; padding: 40px;">
+                    <div style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;">📺</div>
+                    <div style="color: rgba(255,255,255,0.5); font-size: 0.9rem;">Carregando...</div>
+                </div>
+                <div class="ad-timer" id="adTimer">${duration}s</div>
+            </div>
+        `;
     },
     
     // ============================================
     // UTILITÁRIOS
     // ============================================
     
-    shouldShowInterstitial() {
-        if (!this.config?.interstitialEnabled) return false;
-        const frequency = this.config.interstitialFrequency || 3;
-        const missionCount = parseInt(localStorage.getItem('totalMissions') || '0');
-        return missionCount > 0 && missionCount % frequency === 0;
+    log(...args) {
+        if (this.config?.debug_mode) {
+            console.log(...args);
+        }
     },
     
     getConfig() { return this.config; },
+    getSlots() { return this.slots; },
     isEnabled() { return this.config?.enabled === true; },
     
     destroy() {

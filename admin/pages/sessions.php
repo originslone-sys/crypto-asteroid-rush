@@ -10,7 +10,7 @@ $search = $_GET['search'] ?? '';
 
 try {
     $sql = "SELECT gs.*, p.display_name, p.is_banned FROM game_sessions gs 
-            LEFT JOIN players p ON gs.google_uid = p.google_uid WHERE 1=1";
+            LEFT JOIN users p ON gs.google_uid = p.google_uid WHERE 1=1";
     $params = [];
     
     if ($filter !== 'all') {
@@ -42,7 +42,7 @@ try {
     $error = $e->getMessage();
 }
 
-function formatBRL($v) { return 'R$ ' . number_format($v ?? 0, 2, ',', '.'); }
+// formatBRL() já definida em config.php
 ?>
 
 <div class="main-content">
@@ -111,7 +111,7 @@ function formatBRL($v) { return 'R$ ' . number_format($v ?? 0, 2, ',', '.'); }
                         <td>#<?php echo $s['mission_number']; ?></td>
                         <td><?php echo $s['asteroids_destroyed']; ?> <small style="color: var(--warning);">(<?php echo $s['rare_asteroids']; ?>R/<?php echo $s['epic_asteroids']; ?>E)</small></td>
                         <td style="color: var(--success);"><?php echo formatBRL($s['earnings_brl']); ?></td>
-                        <td><?php echo $s['session_duration'] ? $s['session_duration'] . 's' : '-'; ?></td>
+                        <td><?php echo $s['game_duration'] ? $s['game_duration'] . 's' : '-'; ?></td>
                         <td>
                             <?php $sc = ['completed'=>'success','flagged'=>'danger','active'=>'warning'][$s['status']] ?? 'primary'; ?>
                             <span class="badge badge-<?php echo $sc; ?>"><?php echo $s['status']; ?></span>

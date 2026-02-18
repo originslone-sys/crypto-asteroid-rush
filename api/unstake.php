@@ -1,8 +1,8 @@
 <?php
 // ============================================
-// UNOBIX - Realizar Unstake
+// UNOBIX - Realizar Unstake (Resgatar Tudo)
 // Arquivo: api/unstake.php
-// v2.0 - APY 5% + BRL + Google Auth
+// v3.0 - Tabela staking + users + Google Auth
 // ============================================
 
 require_once __DIR__ . '/config.php';
@@ -10,197 +10,190 @@ require_once __DIR__ . '/config.php';
 setCorsHeaders();
 
 // ============================================
-// LER INPUT (híbrido: JSON + POST + GET)
+// INPUT
 // ============================================
-$raw = file_get_contents('php://input');
-$input = json_decode($raw, true);
-if (!is_array($input)) $input = [];
+$input = getRequestInput();
 
-$googleUid = 
-    $input['google_uid'] ?? 
-    $_POST['google_uid'] ?? 
-    $_GET['google_uid'] ?? '';
+$googleUid = trim($input['google_uid'] ?? $input['googleUid'] ?? $input['uid'] ?? '');
+$stakeId = $input['stake_id'] ?? null; // Opcional: unstake específico
 
-$wallet = 
-    $input['wallet'] ?? 
-    $_POST['wallet'] ?? 
-    $_GET['wallet'] ?? '';
-
-$stakeId = 
-    $input['stake_id'] ?? 
-    $_POST['stake_id'] ?? 
-    $_GET['stake_id'] ?? null;
-
-$googleUid = trim($googleUid);
-$wallet = trim(strtolower($wallet));
-
-// Determinar identificador
-$identifier = '';
-$identifierType = '';
-
-if (!empty($googleUid) && validateGoogleUid($googleUid)) {
-    $identifier = $googleUid;
-    $identifierType = 'google_uid';
-} elseif (!empty($wallet) && validateWallet($wallet)) {
-    $identifier = $wallet;
-    $identifierType = 'wallet';
-} else {
-    echo json_encode(['success' => false, 'error' => 'Identificação inválida']);
-    exit;
-}
-
-$pdo = getDatabaseConnection();
-if (!$pdo) {
-    echo json_encode(['success' => false, 'error' => 'Erro de conexão com o banco']);
+if (empty($googleUid) || !validateGoogleUid($googleUid)) {
+    echo json_encode(['success' => false, 'error' => 'google_uid inválido']);
     exit;
 }
 
 try {
+    $pdo = getDatabaseConnection();
+    if (!$pdo) {
+        echo json_encode(['success' => false, 'error' => 'Erro de conexão com o banco']);
+        exit;
+    }
+
     $pdo->beginTransaction();
 
     // ============================================
-    // 1. BUSCAR STAKE ATIVO (com lock)
+    // 1. BUSCAR USUÁRIO (com lock)
     // ============================================
-    $whereClause = $identifierType === 'google_uid'
-        ? "(google_uid = :id OR wallet_address = :id2)"
-        : "wallet_address = :id";
-    
-    $params = $identifierType === 'google_uid'
-        ? [':id' => $identifier, ':id2' => $identifier]
-        : [':id' => $identifier];
+    $stmt = $pdo->prepare("
+        SELECT id, google_uid, balance_brl, staked_balance_brl
+        FROM users
+        WHERE google_uid = ?
+        FOR UPDATE
+    ");
+    $stmt->execute([$googleUid]);
+    $user = $stmt->fetch();
 
-    // Se stake_id específico, buscar esse
-    if ($stakeId) {
-        $stmt = $pdo->prepare("
-            SELECT id, google_uid, wallet_address, amount, amount_brl, total_earned, total_earned_brl, created_at
-            FROM stakes
-            WHERE id = :stake_id AND ({$whereClause}) AND status = 'active'
-            LIMIT 1
-            FOR UPDATE
-        ");
-        $params[':stake_id'] = (int)$stakeId;
-    } else {
-        // Buscar qualquer stake ativo
-        $stmt = $pdo->prepare("
-            SELECT id, google_uid, wallet_address, amount, amount_brl, total_earned, total_earned_brl, created_at
-            FROM stakes
-            WHERE {$whereClause} AND status = 'active'
-            ORDER BY created_at ASC
-            LIMIT 1
-            FOR UPDATE
-        ");
-    }
-    
-    $stmt->execute($params);
-    $stake = $stmt->fetch();
-
-    if (!$stake) {
+    if (!$user) {
         $pdo->rollBack();
-        echo json_encode(['success' => false, 'error' => 'Stake não encontrado ou já processado']);
+        echo json_encode(['success' => false, 'error' => 'Usuário não encontrado']);
+        exit;
+    }
+
+    $userId = (int)$user['id'];
+    $currentBalance = (float)($user['balance_brl'] ?? 0);
+    $currentStaked = (float)($user['staked_balance_brl'] ?? 0);
+
+    // ============================================
+    // 2. BUSCAR STAKES ATIVOS (com lock)
+    // ============================================
+    if ($stakeId) {
+        // Unstake específico
+        $stmt = $pdo->prepare("
+            SELECT id, amount, amount_brl, earnings, total_earned_brl, 
+                   start_date, created_at, updated_at
+            FROM staking
+            WHERE id = ? AND user_id = ? AND status = 'active'
+            FOR UPDATE
+        ");
+        $stmt->execute([(int)$stakeId, $userId]);
+    } else {
+        // Unstake de TODOS os stakes ativos
+        $stmt = $pdo->prepare("
+            SELECT id, amount, amount_brl, earnings, total_earned_brl, 
+                   start_date, created_at, updated_at
+            FROM staking
+            WHERE user_id = ? AND status = 'active'
+            FOR UPDATE
+        ");
+        $stmt->execute([$userId]);
+    }
+
+    $activeStakes = $stmt->fetchAll();
+
+    if (empty($activeStakes)) {
+        $pdo->rollBack();
+        echo json_encode(['success' => false, 'error' => 'Nenhum stake ativo encontrado']);
         exit;
     }
 
     // ============================================
-    // 2. CALCULAR VALORES
+    // 3. CALCULAR RENDIMENTOS E PROCESSAR CADA STAKE
     // ============================================
-    // Priorizar amount_brl, fallback para conversão
-    $amountBrl = (float)($stake['amount_brl'] ?? 0);
-    if ($amountBrl == 0 && isset($stake['amount'])) {
-        $amountBrl = (float)$stake['amount'] / 100000000;
-    }
-    
-    $totalEarnedBrl = (float)($stake['total_earned_brl'] ?? 0);
-    if ($totalEarnedBrl == 0 && isset($stake['total_earned'])) {
-        $totalEarnedBrl = (float)$stake['total_earned'] / 100000000;
-    }
-
-    // Calcular ganhos desde o início
-    $startTime = strtotime($stake['created_at']);
     $now = time();
-    $hoursPassed = ($now - $startTime) / 3600;
+    $dailyRate = STAKE_APY / 365;
 
-    // APY 5% = taxa horária
-    $hourlyRate = STAKE_APY / (365 * 24);
-    
-    // Ganhos compostos
-    $earnedExtraBrl = $amountBrl * (pow(1 + $hourlyRate, $hoursPassed) - 1);
+    $totalPrincipal = 0;     // Total do valor original
+    $totalEarnings = 0;      // Total de rendimentos
+    $totalToReceive = 0;     // Total a devolver ao saldo
+    $stakeIds = [];
 
-    // Total a receber
-    $totalEarningsNow = $totalEarnedBrl + $earnedExtraBrl;
-    $totalToReceive = $amountBrl + $totalEarningsNow;
+    foreach ($activeStakes as $stake) {
+        // Valor principal
+        $amountBrl = (float)($stake['amount_brl'] ?? 0);
+        if ($amountBrl == 0) {
+            $amountBrl = (float)($stake['amount'] ?? 0);
+        }
 
-    // ============================================
-    // 3. ATUALIZAR SALDO DO JOGADOR
-    // ============================================
-    $wherePlayer = $identifierType === 'google_uid'
-        ? "google_uid = :id"
-        : "wallet_address = :id";
+        // Rendimentos já contabilizados pelo cron
+        $earnedBrl = (float)($stake['total_earned_brl'] ?? 0);
+        if ($earnedBrl == 0) {
+            $earnedBrl = (float)($stake['earnings'] ?? 0);
+        }
 
-    $stmt = $pdo->prepare("
-        SELECT id, balance_brl, staked_balance_brl
-        FROM players
-        WHERE {$wherePlayer}
-        FOR UPDATE
-    ");
-    $stmt->execute([':id' => $identifier]);
-    $player = $stmt->fetch();
+        // Calcular rendimento pendente desde última atualização
+        $startDate = $stake['start_date'] ?? $stake['created_at'];
+        $lastUpdate = $stake['updated_at'] ?? $startDate;
+        $lastUpdateTime = strtotime($lastUpdate);
+        if (!$lastUpdateTime) $lastUpdateTime = strtotime($startDate);
 
-    if ($player) {
-        $currentBalanceBrl = (float)($player['balance_brl'] ?? 0);
-        $currentStakedBrl = (float)($player['staked_balance_brl'] ?? 0);
-        
-        $newBalanceBrl = $currentBalanceBrl + $totalToReceive;
-        $newStakedBrl = max(0, $currentStakedBrl - $amountBrl);
+        $daysSinceUpdate = max(0, ($now - $lastUpdateTime) / 86400);
+        $pendingReward = $amountBrl * (pow(1 + $dailyRate, $daysSinceUpdate) - 1);
 
+        // Total de rendimentos deste stake
+        $stakeEarnings = $earnedBrl + $pendingReward;
+        $stakeTotal = $amountBrl + $stakeEarnings;
+
+        $totalPrincipal += $amountBrl;
+        $totalEarnings += $stakeEarnings;
+        $totalToReceive += $stakeTotal;
+        $stakeIds[] = (int)$stake['id'];
+
+        // Marcar stake como completado
         $stmt = $pdo->prepare("
-            UPDATE players
-            SET balance_brl = :balance,
-                staked_balance_brl = :staked,
-                last_stake_update = NOW()
+            UPDATE staking
+            SET status = 'completed',
+                end_date = NOW(),
+                earnings = :earnings,
+                total_earned_brl = :total_earned_brl,
+                updated_at = NOW()
             WHERE id = :id
         ");
         $stmt->execute([
-            ':balance' => $newBalanceBrl,
-            ':staked' => $newStakedBrl,
-            ':id' => (int)$player['id']
+            ':earnings' => round($stakeEarnings, 6),
+            ':total_earned_brl' => round($stakeEarnings, 6),
+            ':id' => (int)$stake['id']
         ]);
     }
 
     // ============================================
-    // 4. MARCAR STAKE COMO COMPLETED
+    // 4. CREDITAR SALDO DO USUÁRIO
     // ============================================
+    $newBalance = $currentBalance + $totalToReceive;
+    $newStaked = max(0, $currentStaked - $totalPrincipal);
+
     $stmt = $pdo->prepare("
-        UPDATE stakes
-        SET status = 'completed',
-            total_earned_brl = :total_earned_brl,
-            completed_at = NOW()
+        UPDATE users
+        SET balance_brl = :balance,
+            staked_balance_brl = :staked,
+            last_stake_update = NOW(),
+            updated_at = NOW()
         WHERE id = :id
     ");
     $stmt->execute([
-        ':total_earned_brl' => round($totalEarningsNow, 4),
-        ':id' => (int)$stake['id']
+        ':balance' => $newBalance,
+        ':staked' => $newStaked,
+        ':id' => $userId
     ]);
 
     // ============================================
     // 5. REGISTRAR TRANSAÇÃO
     // ============================================
-    $pdo->prepare("
+    $description = sprintf(
+        'Unstake de R$ %s + rendimentos R$ %s (%d stake(s))',
+        number_format($totalPrincipal, 6, ',', '.'),
+        number_format($totalEarnings, 6, ',', '.'),
+        count($stakeIds)
+    );
+
+    $stmt = $pdo->prepare("
         INSERT INTO transactions (
-            google_uid, wallet_address, type, amount, amount_brl, 
+            google_uid, type, amount, amount_brl,
             description, status, created_at
-        ) VALUES (?, ?, 'unstake', ?, ?, ?, 'completed', NOW())
-    ")->execute([
-        $stake['google_uid'],
-        $stake['wallet_address'],
-        $totalToReceive,
-        round($totalToReceive, 2),
-        "Unstake de R$ " . number_format($amountBrl, 2, ',', '.') . " + rendimentos"
+        ) VALUES (?, 'unstake', ?, ?, ?, 'completed', NOW())
+    ");
+    $stmt->execute([
+        $googleUid,
+        round($totalToReceive, 6),
+        round($totalToReceive, 6),
+        $description
     ]);
 
     $pdo->commit();
 
-    // Log
-    secureLog("UNSTAKE | ID: {$identifier} | Stake: {$stake['id']} | Amount: R$ {$amountBrl} | Earnings: R$ " . round($totalEarningsNow, 4) . " | Total: R$ " . round($totalToReceive, 4));
+    secureLog(sprintf(
+        "UNSTAKE | UID: %s | Principal: R$ %.2f | Earnings: R$ %.4f | Total: R$ %.4f | Stakes: %s",
+        $googleUid, $totalPrincipal, $totalEarnings, $totalToReceive, implode(',', $stakeIds)
+    ));
 
     // ============================================
     // RESPOSTA
@@ -208,20 +201,19 @@ try {
     echo json_encode([
         'success' => true,
         'message' => 'Unstake realizado com sucesso! O valor foi creditado no seu saldo.',
-        'stake_id' => (int)$stake['id'],
-        'amount_staked_brl' => round($amountBrl, 2),
-        'earnings_brl' => round($totalEarningsNow, 4),
-        'total_received_brl' => round($totalToReceive, 4),
-        'new_balance_brl' => round($newBalanceBrl ?? $totalToReceive, 2),
-        'hours_staked' => round($hoursPassed, 2),
-        'effective_apy' => round(($totalEarningsNow / $amountBrl) * (365 * 24 / $hoursPassed) * 100, 2) . '%'
+        'stakes_unstaked' => count($stakeIds),
+        'amount_staked_brl' => round($totalPrincipal, 6),
+        'reward_brl' => round($totalEarnings, 6),
+        'total_returned_brl' => round($totalToReceive, 6),
+        'new_balance_brl' => round($newBalance, 6),
+        'new_staked_brl' => round($newStaked, 6)
     ]);
 
-} catch (PDOException $e) {
-    if ($pdo && $pdo->inTransaction()) {
+} catch (Throwable $e) {
+    if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    secureLog("UNSTAKE_ERROR | ID: {$identifier} | Error: " . $e->getMessage());
-    error_log("Erro ao processar unstake: " . $e->getMessage());
+    secureLog("UNSTAKE_ERROR | UID: {$googleUid} | Error: " . $e->getMessage());
+    error_log("unstake.php error: " . $e->getMessage());
     echo json_encode(['success' => false, 'error' => 'Erro ao processar unstake']);
 }

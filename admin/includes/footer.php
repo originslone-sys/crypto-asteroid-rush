@@ -1,7 +1,8 @@
 <?php
 // ============================================
-// CRYPTO ASTEROID RUSH - Admin Footer
+// UNOBIX - Admin Footer
 // Arquivo: admin/includes/footer.php
+// v6.0
 // ============================================
 ?>
     </div> <!-- .admin-wrapper -->

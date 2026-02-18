@@ -1,6 +1,7 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Admin Panel CSS
+   UNOBIX - Admin Panel CSS
    Arquivo: admin/css/admin.css
+   v6.0 - Atualizado para UNOBIX
    ============================================ */
 
 :root {
@@ -16,6 +17,11 @@
     --text-light: #e6f7ff;
     --text-dim: #8a9ba8;
     --border-color: rgba(0, 240, 255, 0.2);
+
+    /* Aliases usados pelas pages (compatibilidade) */
+    --bg-card: var(--card-bg);
+    --border: var(--border-color);
+    --text: var(--text-light);
 }
 
 * {
@@ -45,8 +51,11 @@ body {
     background: var(--sidebar-bg);
     border-right: 1px solid var(--border-color);
     position: fixed;
+    top: 0;
+    left: 0;
     height: 100vh;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
     z-index: 100;
 }
 
@@ -90,6 +99,9 @@ body {
 
 .sidebar-nav {
     padding: 20px 0;
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 10px;
 }
 
 .nav-section {
@@ -140,11 +152,20 @@ body {
     font-size: 0.75rem;
 }
 
+.nav-item .badge.badge-info {
+    background: rgba(0, 240, 255, 0.2);
+    color: var(--primary);
+}
+
+.nav-item .badge.badge-warning {
+    background: rgba(255, 209, 102, 0.3);
+    color: var(--warning);
+}
+
 .sidebar-footer {
-    position: absolute;
-    bottom: 0;
+    flex-shrink: 0;
     width: 100%;
-    padding: 20px;
+    padding: 15px 20px;
     border-top: 1px solid var(--border-color);
     background: var(--sidebar-bg);
 }
@@ -382,6 +403,12 @@ tr:hover {
     font-size: 0.85rem;
 }
 
+.btn-block {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+}
+
 .btn-primary {
     background: linear-gradient(135deg, var(--primary), var(--secondary));
     color: var(--deep-space);
@@ -463,6 +490,11 @@ select.form-control {
     cursor: pointer;
 }
 
+textarea.form-control {
+    font-family: 'Courier New', monospace;
+    resize: vertical;
+}
+
 .form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -491,6 +523,7 @@ select.form-control {
 .badge-danger { background: rgba(255, 42, 109, 0.15); color: var(--danger); }
 .badge-warning { background: rgba(255, 209, 102, 0.15); color: var(--warning); }
 .badge-primary { background: rgba(0, 240, 255, 0.15); color: var(--primary); }
+.badge-info { background: rgba(0, 240, 255, 0.1); color: var(--primary); }
 
 /* ============================================
    TABS
@@ -513,6 +546,7 @@ select.form-control {
     border-radius: 8px;
     transition: all 0.3s;
     font-family: 'Exo 2', sans-serif;
+    text-decoration: none;
 }
 
 .tab:hover {
@@ -725,6 +759,13 @@ select.form-control {
     margin-bottom: 30px;
     text-align: center;
     color: var(--primary);
+}
+
+.login-footer {
+    margin-top: 30px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
 }
 
 /* ============================================

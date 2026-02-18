@@ -11,8 +11,6 @@
     <link rel="stylesheet" href="css/main.css">
     
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     
     <style>
         .apy-badge {
@@ -233,22 +231,22 @@
     <section class="staking-grid">
         <div class="staking-card">
             <div class="staking-card-icon"><i class="fas fa-wallet"></i></div>
-            <div class="staking-card-value" id="stakingBalance">R$ 0,00</div>
+            <div class="staking-card-value" id="stakingBalance">R$ 0,000000</div>
             <div class="staking-card-label">Seu Saldo</div>
         </div>
         <div class="staking-card success">
             <div class="staking-card-icon"><i class="fas fa-lock"></i></div>
-            <div class="staking-card-value text-success" id="totalStaked">R$ 0,00</div>
+            <div class="staking-card-value text-success" id="totalStaked">R$ 0,000000</div>
             <div class="staking-card-label">Em Staking</div>
         </div>
         <div class="staking-card warning">
             <div class="staking-card-icon"><i class="fas fa-coins"></i></div>
-            <div class="staking-card-value text-warning" id="stakingEarned">R$ 0,00</div>
+            <div class="staking-card-value text-warning" id="stakingEarned">R$ 0,000000</div>
             <div class="staking-card-label">Total Ganho</div>
         </div>
         <div class="staking-card">
             <div class="staking-card-icon"><i class="fas fa-clock"></i></div>
-            <div class="staking-card-value text-primary" id="pendingReward">+R$ 0,00</div>
+            <div class="staking-card-value text-primary" id="pendingReward">+R$ 0,000000</div>
             <div class="staking-card-label">Rendimento Pendente</div>
         </div>
     </section>
@@ -262,14 +260,14 @@
                 <p>Será creditado automaticamente ao fazer unstake</p>
             </div>
         </div>
-        <div class="pending-value" id="pendingRewardValue">+R$ 0,00</div>
+        <div class="pending-value" id="pendingRewardValue">+R$ 0,000000</div>
     </div>
     
     <!-- Formulário de Stake -->
     <section class="stake-form">
         <h3 class="section-title mb-20"><i class="fas fa-plus-circle"></i> Fazer Stake</h3>
         <div class="stake-input-group">
-            <input type="number" class="stake-input" id="stakeAmount" placeholder="0,00" step="0.01" min="0.01">
+            <input type="number" class="stake-input" id="stakeAmount" placeholder="0,000000" step="0.000001" min="0.01">
             <span class="text-dim">R$</span>
         </div>
         <div class="quick-amounts">
@@ -336,7 +334,7 @@
     
     <!-- Rodapé -->
     <footer class="footer">
-        <a href="https://t.me/UnobixOfficial" target="_blank" class="btn btn-telegram">
+        <a href="https://t.me/comunidade_unobix" target="_blank" class="btn btn-telegram">
             <i class="fab fa-telegram"></i> Nosso Telegram
         </a>
         <div class="footer-links">
@@ -350,6 +348,10 @@
 </div>
 
 <!-- Scripts -->
+<!-- Firebase SDK v10.7.1 (compat mode) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="js/auth-manager.js"></script>
 <script src="js/main.js"></script>
@@ -359,12 +361,14 @@ const APY = 0.05; // 5% ao ano
 let userBalance = 0;
 let userStaked = 0;
 
-// Formatar valores em BRL
+// Formatar valores em BRL (6 casas decimais)
 function formatBRL(value) {
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    }).format(value || 0);
+    const num = parseFloat(value) || 0;
+    const fixed = num.toFixed(6);
+    const parts = fixed.split('.');
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const decPart = parts[1];
+    return 'R$ ' + intPart + ',' + decPart;
 }
 
 // Atualizar projeções
@@ -430,8 +434,9 @@ async function loadStakingData() {
         const stakeData = await stakeRes.json();
         
         if (stakeData.success) {
-            const totalEarned = parseFloat(stakeData.total_earned_brl) || 0;
-            const pendingReward = parseFloat(stakeData.pending_reward_brl) || 0;
+            const summary = stakeData.summary || {};
+            const totalEarned = parseFloat(summary.total_earned_brl) || 0;
+            const pendingReward = parseFloat(summary.pending_reward_brl) || 0;
             
             document.getElementById('stakingEarned').textContent = formatBRL(totalEarned);
             document.getElementById('pendingReward').textContent = '+' + formatBRL(pendingReward);

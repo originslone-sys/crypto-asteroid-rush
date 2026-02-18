@@ -7,9 +7,9 @@
 
 // Configurações de Rate Limit
 define('RATE_LIMIT_GAME_INTERVAL', 180);     // 3 minutos entre jogos
-define('RATE_LIMIT_REQUESTS_PER_MINUTE', 60); // 60 requests por minuto por IP
+define('RATE_LIMIT_REQUESTS_PER_MINUTE', 100); // 60 requests por minuto por IP
 define('RATE_LIMIT_REQUESTS_PER_HOUR', 500);  // 500 requests por hora por IP
-define('RATE_LIMIT_EVENTS_PER_SECOND', 10);   // 10 eventos de jogo por segundo
+define('RATE_LIMIT_EVENTS_PER_SECOND', 50);   // 10 eventos de jogo por segundo
 
 class RateLimiter {
     private $pdo;

@@ -12,18 +12,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     try {
         if ($action === 'approve') {
-            $stmt = $pdo->prepare("UPDATE withdrawals SET status = 'approved', processed_at = NOW(), processed_by = 'admin' WHERE id = ?");
+            $stmt = $pdo->prepare("UPDATE withdrawals SET status = 'completed', processed_at = NOW() WHERE id = ?");
             $stmt->execute([(int)$_POST['withdrawal_id']]);
             $message = "Saque aprovado!";
         } elseif ($action === 'reject') {
             // Devolver saldo ao jogador
-            $stmt = $pdo->prepare("SELECT google_uid, amount_brl FROM withdrawals WHERE id = ?");
+            $stmt = $pdo->prepare("SELECT w.user_id, w.amount_brl FROM withdrawals w WHERE w.id = ?");
             $stmt->execute([(int)$_POST['withdrawal_id']]);
             $w = $stmt->fetch();
             if ($w) {
-                $pdo->prepare("UPDATE players SET balance_brl = balance_brl + ? WHERE google_uid = ?")
-                    ->execute([$w['amount_brl'], $w['google_uid']]);
-                $pdo->prepare("UPDATE withdrawals SET status = 'rejected', processed_at = NOW(), reject_reason = ? WHERE id = ?")
+                $pdo->prepare("UPDATE users SET balance_brl = balance_brl + ? WHERE id = ?")
+                    ->execute([$w['amount_brl'], $w['user_id']]);
+                $pdo->prepare("UPDATE withdrawals SET status = 'rejected', processed_at = NOW(), admin_notes = ? WHERE id = ?")
                     ->execute([$_POST['reason'] ?? 'Rejeitado pelo admin', (int)$_POST['withdrawal_id']]);
             }
             $message = "Saque rejeitado e saldo devolvido!";
@@ -34,9 +34,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 try {
-    $sql = "SELECT w.*, p.display_name, p.email, p.balance_brl, p.total_played, p.is_banned
+    $sql = "SELECT w.*, u.display_name, u.email, u.balance_brl, u.total_played, u.is_banned
             FROM withdrawals w 
-            LEFT JOIN players p ON w.google_uid = p.google_uid";
+            LEFT JOIN users u ON w.user_id = u.id";
     
     if ($statusFilter !== 'all') {
         $sql .= " WHERE w.status = :status";
@@ -55,10 +55,10 @@ try {
         SELECT 
             COUNT(*) as total,
             SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-            SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as approved,
             SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
             SUM(CASE WHEN status = 'pending' THEN amount_brl ELSE 0 END) as pending_amount,
-            SUM(CASE WHEN status = 'approved' THEN amount_brl ELSE 0 END) as approved_amount
+            SUM(CASE WHEN status = 'completed' THEN amount_brl ELSE 0 END) as completed_amount
         FROM withdrawals
     ")->fetch();
     
@@ -66,9 +66,7 @@ try {
     $error = $e->getMessage();
 }
 
-function formatBRL($value) {
-    return 'R$ ' . number_format($value ?? 0, 2, ',', '.');
-}
+// formatBRL() já definida em config.php
 ?>
 
 <div class="main-content">
@@ -90,9 +88,9 @@ function formatBRL($value) {
         </div>
         <div class="stat-card">
             <div class="icon success"><i class="fas fa-check"></i></div>
-            <div class="value"><?php echo $stats['approved'] ?? 0; ?></div>
+            <div class="value"><?php echo $stats['completed'] ?? 0; ?></div>
             <div class="label">Aprovados</div>
-            <div class="change"><?php echo formatBRL($stats['approved_amount']); ?></div>
+            <div class="change"><?php echo formatBRL($stats['completed_amount']); ?></div>
         </div>
         <div class="stat-card">
             <div class="icon danger"><i class="fas fa-times"></i></div>
@@ -112,7 +110,7 @@ function formatBRL($value) {
                 <a href="?page=withdrawals&status=pending" class="tab <?php echo $statusFilter === 'pending' ? 'active' : ''; ?>">
                     <i class="fas fa-clock"></i> Pendentes (<?php echo $stats['pending'] ?? 0; ?>)
                 </a>
-                <a href="?page=withdrawals&status=approved" class="tab <?php echo $statusFilter === 'approved' ? 'active' : ''; ?>">
+                <a href="?page=withdrawals&status=completed" class="tab <?php echo $statusFilter === 'completed' ? 'active' : ''; ?>">
                     <i class="fas fa-check"></i> Aprovados
                 </a>
                 <a href="?page=withdrawals&status=rejected" class="tab <?php echo $statusFilter === 'rejected' ? 'active' : ''; ?>">
@@ -163,15 +161,35 @@ function formatBRL($value) {
                                 <?php endif; ?>
                             </td>
                             <td style="color: var(--success); font-weight: bold;"><?php echo formatBRL($w['amount_brl']); ?></td>
-                            <td><span class="badge badge-primary"><?php echo strtoupper($w['payment_method'] ?? 'PIX'); ?></span></td>
+                            <td>
+                                <?php
+                                $method = strtoupper($w['wallet_address'] ?? 'PIX');
+                                $methodBadge = [
+                                    'PIX' => 'success',
+                                    'FAUCETPAY' => 'warning',
+                                    'USDT BEP20' => 'primary'
+                                ];
+                                $badgeClass = $methodBadge[$method] ?? 'primary';
+                                ?>
+                                <span class="badge badge-<?php echo $badgeClass; ?>"><?php echo $method; ?></span>
+                            </td>
                             <td style="max-width: 200px; overflow: hidden;">
-                                <small><?php echo htmlspecialchars($w['payment_details'] ?? '-'); ?></small>
+                                <?php
+                                $notes = $w['admin_notes'] ?? '';
+                                $details = json_decode($notes, true);
+                                if ($details && isset($details['details'])) {
+                                    $detailText = htmlspecialchars($details['details']);
+                                    echo "<small title=\"$detailText\" style=\"cursor: pointer;\" onclick=\"copyToClipboard('$detailText')\"><i class=\"fas fa-copy\" style=\"margin-right: 4px; color: var(--text-dim);\"></i>$detailText</small>";
+                                } else {
+                                    echo '<small>' . htmlspecialchars($notes ?: '-') . '</small>';
+                                }
+                                ?>
                             </td>
                             <td><?php echo formatBRL($w['balance_brl']); ?></td>
                             <td>
                                 <?php
-                                $statusClass = ['approved' => 'success', 'pending' => 'warning', 'rejected' => 'danger'][$w['status']] ?? 'primary';
-                                $statusText = ['approved' => 'Aprovado', 'pending' => 'Pendente', 'rejected' => 'Rejeitado'][$w['status']] ?? $w['status'];
+                                $statusClass = ['completed' => 'success', 'pending' => 'warning', 'rejected' => 'danger'][$w['status']] ?? 'primary';
+                                $statusText = ['completed' => 'Concluído', 'pending' => 'Pendente', 'rejected' => 'Rejeitado'][$w['status']] ?? $w['status'];
                                 ?>
                                 <span class="badge badge-<?php echo $statusClass; ?>"><?php echo $statusText; ?></span>
                             </td>

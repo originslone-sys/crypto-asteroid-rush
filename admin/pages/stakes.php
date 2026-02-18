@@ -1,9 +1,10 @@
 <?php
 // ============================================
-// CRYPTO ASTEROID RUSH - Staking
+// UNOBIX - Gerenciamento de Staking
 // Arquivo: admin/pages/stakes.php
-// CORRIGIDO: Conversao de unidades para USDT
-// Os valores sao armazenados multiplicados por 100000000
+// v6.1 - Colunas alinhadas com schema real
+// Schema: id, user_id, google_uid, amount, amount_brl, apy, 
+//         start_date, end_date, status, earnings, total_earned_brl
 // ============================================
 
 $pageTitle = 'Staking';
@@ -16,63 +17,63 @@ $stats = [
     'total_earned' => 0
 ];
 
-// Fator de conversao (valores armazenados em unidades inteiras)
-define('UNITS_DIVISOR', 100000000);
-
 try {
-    // Buscar stakes
     $stakes = $pdo->query("
         SELECT 
             s.id,
-            s.wallet_address,
-            s.amount,
+            s.google_uid,
+            s.amount_brl,
+            s.earnings,
             s.apy,
-            s.total_earned,
             s.status,
+            s.start_date,
+            s.end_date,
+            s.total_earned_brl,
             s.created_at,
-            s.updated_at,
-            p.balance_usdt 
-        FROM stakes s 
-        LEFT JOIN players p ON s.wallet_address = p.wallet_address 
+            u.display_name,
+            u.email,
+            u.balance_brl
+        FROM staking s 
+        LEFT JOIN users u ON s.user_id = u.id 
         ORDER BY s.created_at DESC 
         LIMIT 100
     ")->fetchAll(PDO::FETCH_ASSOC);
     
-    // Estatisticas - converter na query
     $statsQuery = $pdo->query("
         SELECT 
             COUNT(*) as total,
             SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
-            COALESCE(SUM(CASE WHEN status = 'active' THEN amount ELSE 0 END), 0) as total_staked,
-            COALESCE(SUM(total_earned), 0) as total_earned
-        FROM stakes
+            COALESCE(SUM(CASE WHEN status = 'active' THEN amount_brl ELSE 0 END), 0) as total_staked,
+            COALESCE(SUM(earnings), 0) as total_earned
+        FROM staking
     ")->fetch(PDO::FETCH_ASSOC);
     
     if ($statsQuery) {
-        $stats['total'] = (int)$statsQuery['total'];
-        $stats['active'] = (int)$statsQuery['active'];
-        // Converter de unidades para USDT
-        $stats['total_staked'] = (float)$statsQuery['total_staked'] / UNITS_DIVISOR;
-        $stats['total_earned'] = (float)$statsQuery['total_earned'] / UNITS_DIVISOR;
+        $stats = [
+            'total' => (int)$statsQuery['total'],
+            'active' => (int)$statsQuery['active'],
+            'total_staked' => (float)$statsQuery['total_staked'],
+            'total_earned' => (float)$statsQuery['total_earned']
+        ];
     }
     
 } catch (Exception $e) {
     $error = $e->getMessage();
 }
 
-/**
- * Converte unidades para USDT e formata
- */
-function formatUsdt($units, $decimals = 6) {
-    $usdt = (float)$units / UNITS_DIVISOR;
-    return number_format($usdt, $decimals, '.', ',');
+// formatBRL() já definida em config.php
+
+if (!function_exists('formatBRLShort')) {
+    function formatBRLShort($value) {
+        return 'R$ ' . number_format($value ?? 0, 2, ',', '.');
+    }
 }
 ?>
 
 <div class="main-content">
     <div class="page-header">
         <h1 class="page-title"><i class="fas fa-coins"></i> Gerenciamento de Staking</h1>
-        <p class="page-subtitle">Controle de stakes e rendimentos</p>
+        <p class="page-subtitle">Controle de stakes e rendimentos em BRL</p>
     </div>
     
     <?php if ($error): ?>
@@ -94,13 +95,13 @@ function formatUsdt($units, $decimals = 6) {
         </div>
         <div class="stat-card">
             <div class="icon warning"><i class="fas fa-lock"></i></div>
-            <div class="value">$<?php echo number_format($stats['total_staked'], 2, '.', ','); ?></div>
+            <div class="value"><?php echo formatBRLShort($stats['total_staked']); ?></div>
             <div class="label">Total em Stake</div>
         </div>
         <div class="stat-card">
             <div class="icon danger"><i class="fas fa-gift"></i></div>
-            <div class="value">$<?php echo number_format($stats['total_earned'], 6, '.', ','); ?></div>
-            <div class="label">Rendimentos Pagos</div>
+            <div class="value"><?php echo formatBRL($stats['total_earned']); ?></div>
+            <div class="label">Rendimentos Acumulados</div>
         </div>
     </div>
     
@@ -113,7 +114,7 @@ function formatUsdt($units, $decimals = 6) {
                 <div class="empty-state">
                     <i class="fas fa-coins"></i>
                     <h3>Nenhum stake encontrado</h3>
-                    <p>Os stakes dos usuarios aparecerao aqui.</p>
+                    <p>Os stakes dos usuários aparecerão aqui.</p>
                 </div>
             <?php else: ?>
                 <div class="table-container">
@@ -121,94 +122,51 @@ function formatUsdt($units, $decimals = 6) {
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Wallet</th>
+                                <th>Jogador</th>
                                 <th>Valor</th>
                                 <th>APY</th>
                                 <th>Rendimento</th>
                                 <th>Status</th>
-                                <th>Inicio</th>
+                                <th>Início</th>
+                                <th>Fim</th>
                             </tr>
                         </thead>
                         <tbody>
                         <?php foreach ($stakes as $s): ?>
-                        <?php 
-                            // Converter de unidades para USDT
-                            $amountUsdt = (float)$s['amount'] / UNITS_DIVISOR;
-                            $earnedUsdt = (float)$s['total_earned'] / UNITS_DIVISOR;
-                            $apy = floatval($s['apy'] ?? 0.12);
-                        ?>
                         <tr>
                             <td>#<?php echo (int)$s['id']; ?></td>
                             <td>
-                                <span class="wallet-addr" onclick="copyToClipboard('<?php echo htmlspecialchars($s['wallet_address']); ?>')" title="<?php echo htmlspecialchars($s['wallet_address']); ?>">
-                                    <?php echo substr($s['wallet_address'], 0, 6) . '...' . substr($s['wallet_address'], -4); ?>
-                                </span>
+                                <div><?php echo htmlspecialchars($s['display_name'] ?? 'Usuário'); ?></div>
+                                <small style="color: var(--text-dim);"><?php echo htmlspecialchars($s['email'] ?? ''); ?></small>
                             </td>
                             <td style="color: var(--success); font-weight: 600;">
-                                $<?php echo number_format($amountUsdt, 6, '.', ','); ?>
+                                <?php echo formatBRL($s['amount_brl']); ?>
                             </td>
-                            <td><?php echo number_format($apy * 100, 1); ?>%</td>
+                            <td><?php echo number_format($s['apy'] ?? 0, 2); ?>%</td>
                             <td style="color: var(--warning);">
-                                $<?php echo number_format($earnedUsdt, 6, '.', ','); ?>
+                                <?php echo formatBRL($s['earnings']); ?>
                             </td>
                             <td>
                                 <?php 
-                                $statusClass = $s['status'] === 'active' ? 'success' : ($s['status'] === 'completed' ? 'primary' : 'warning');
+                                $statusClass = ['active' => 'success', 'completed' => 'primary', 'cancelled' => 'warning'][$s['status']] ?? 'info';
+                                $statusText = ['active' => 'Ativo', 'completed' => 'Resgatado', 'cancelled' => 'Cancelado'][$s['status']] ?? $s['status'];
                                 ?>
                                 <span class="badge badge-<?php echo $statusClass; ?>">
-                                    <?php echo ucfirst($s['status']); ?>
+                                    <?php echo $statusText; ?>
                                 </span>
                             </td>
                             <td style="color: var(--text-dim);">
-                                <?php echo date('d/m/Y H:i', strtotime($s['created_at'])); ?>
+                                <?php echo $s['start_date'] ? date('d/m/Y H:i', strtotime($s['start_date'])) : '-'; ?>
+                            </td>
+                            <td style="color: var(--text-dim);">
+                                <?php echo $s['end_date'] ? date('d/m/Y', strtotime($s['end_date'])) : '-'; ?>
                             </td>
                         </tr>
                         <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
-                
-                <!-- Info sobre armazenamento -->
-                <div style="margin-top: 15px; padding: 10px 15px; background: rgba(0,240,255,0.05); border-radius: 8px; font-size: 0.8rem; color: var(--text-dim);">
-                    <i class="fas fa-info-circle"></i> 
-                    Valores armazenados em unidades (x100000000) e convertidos para exibicao.
-                </div>
-                
-                <!-- Debug mode -->
-                <?php if (isset($_GET['debug'])): ?>
-                <div style="margin-top: 20px; padding: 15px; background: rgba(255,100,100,0.1); border: 1px solid rgba(255,100,100,0.3); border-radius: 10px; font-family: monospace; font-size: 11px;">
-                    <strong>Debug - Valores brutos do banco:</strong><br><br>
-                    <?php foreach ($stakes as $s): ?>
-                        ID: <?php echo $s['id']; ?> | 
-                        Raw amount: <?php echo $s['amount']; ?> | 
-                        Converted: $<?php echo number_format((float)$s['amount'] / UNITS_DIVISOR, 8); ?> | 
-                        Raw earned: <?php echo $s['total_earned']; ?><br>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>
 </div>
-
-<script>
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(function() {
-        // Feedback visual opcional
-    });
-}
-</script>
-
-<style>
-.wallet-addr {
-    cursor: pointer;
-    font-family: monospace;
-    color: var(--primary);
-    padding: 2px 6px;
-    background: rgba(0, 240, 255, 0.1);
-    border-radius: 4px;
-}
-.wallet-addr:hover {
-    background: rgba(0, 240, 255, 0.2);
-}
-</style>

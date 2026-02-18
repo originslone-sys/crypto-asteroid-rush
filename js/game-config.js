@@ -1,47 +1,41 @@
 /* ============================================
-   CRYPTO ASTEROID RUSH - Game Configuration
+   UNOBIX - Game Configuration
    File: js/game-config.js
-   v3.2 - COMMON asteroids = $0 (no reward)
-   Target earnings: $0.02-0.03, max $0.05
-   Lives system + 90/10 house edge rule
+   v4.0 - BRL Only, valores corrigidos
    ============================================ */
 
 const CONFIG = {
-    // Game Settings
-    GAME_DURATION: 180,
+    // ============================================
+    // CONFIGURAÇÕES DO JOGO
+    // ============================================
+    GAME_DURATION: 180,          // 3 minutos
     INITIAL_ASTEROIDS: 4,
     MAX_ASTEROIDS_ON_SCREEN: 10,
-    SPAWN_INTERVAL: 500,
+    SPAWN_INTERVAL: 500,         // ms entre spawns
     
-    // Lives System
+    // Sistema de Vidas
     INITIAL_LIVES: 6,
-    INVINCIBILITY_FRAMES: 60, // Frames of invincibility after hit
+    INVINCIBILITY_FRAMES: 60,    // Frames de invencibilidade após dano
     
-    // Fees
-    ENTRY_FEE: 0.00001,
-    PROJECT_WALLET: "0x8417C9a00249Da8e4ff7414c5992C08511c28328",
-    
-    // Ship Settings
+    // Nave
     SHIP_SPEED: 18,
     SHIP_ACCELERATION: 0.8,
     BULLET_SPEED: 16,
-    FIRE_RATE: 150, // ms between shots
-    
-    // Network
-    BSC_CHAIN_ID: "0x38",
+    FIRE_RATE: 150,              // ms entre tiros
     
     // ============================================
-    // REWARD VALUES
-    // v3.2: COMMON = 0 (asteroides comuns não valem nada)
+    // RECOMPENSAS EM BRL - VALORES CORRETOS
     // ============================================
     REWARDS: {
-        COMMON: 0,          // $0.00 - Sem valor!
-        RARE: 0.0003,       // $0.0003 por asteroide raro
-        EPIC: 0.0008,       // $0.0008 por asteroide épico
-        LEGENDARY: 0.002    // $0.002 por asteroide lendário
+        COMMON: 0,               // R$ 0,00 - Sem valor
+        RARE: 0.0002,            // R$ 0,0002
+        EPIC: 0.0004,            // R$ 0,0004
+        LEGENDARY: 0.001         // R$ 0,001
     },
     
-    // SPAWN RATES (normal missions - 90%)
+    // ============================================
+    // TAXAS DE SPAWN (missões normais - 60%)
+    // ============================================
     SPAWN_RATES_NORMAL: {
         COMMON: 0.86,
         RARE: 0.10,
@@ -49,8 +43,10 @@ const CONFIG = {
         LEGENDARY: 0.01
     },
     
-    // SPAWN RATES (house wins - 10%)
-    // More common asteroids, faster, harder to avoid
+    // ============================================
+    // TAXAS DE SPAWN (hard mode - 40%)
+    // Mais asteroides comuns, mais rápidos
+    // ============================================
     SPAWN_RATES_HARD: {
         COMMON: 0.95,
         RARE: 0.04,
@@ -58,56 +54,86 @@ const CONFIG = {
         LEGENDARY: 0.002
     },
     
-    // Asteroid Settings
+    // ============================================
+    // VELOCIDADE DOS ASTEROIDES
+    // ============================================
     ASTEROID_SPEED: {
         MIN: 1.0,
         MAX: 3.5
     },
     
-    // Hard mode settings (house always wins)
+    // ============================================
+    // CONFIGURAÇÕES DO HARD MODE
+    // ============================================
     HARD_MODE: {
         SPEED_MULTIPLIER: 1.4,
         SPAWN_RATE_MULTIPLIER: 0.7,
         MAX_ASTEROIDS: 14
     },
     
-    // House Edge Rule: 10% of missions are "hard mode"
-    HOUSE_EDGE_PERCENT: 10
+    // 40% das missões são hard mode
+    HOUSE_EDGE_PERCENT: 40
 };
 
-// Mission tracking
+// ============================================
+// ESTADO DA MISSÃO
+// ============================================
 let missionStats = {
     totalMissions: parseInt(localStorage.getItem('totalMissions') || '0'),
     rareCount: 0,
     epicCount: 0,
     legendaryCount: 0,
-    isHardMode: false
+    isHardMode: false  // Definido pelo SERVIDOR
 };
 
-// Game State
+// ============================================
+// ESTADO DO JOGO
+// ============================================
 let gameState = {
-    wallet: localStorage.getItem('connectedWallet') || null,
+    // Autenticação (Google)
+    user: null,
+    googleUid: null,
     isConnected: false,
+    sessionToken: null,
+    
+    // Sessão de jogo
+    sessionId: null,
     gameActive: false,
     timeLeft: CONFIG.GAME_DURATION,
+    
+    // Pontuação
     score: 0,
     earnings: 0,
+    serverConfirmedEarnings: 0,
+    newBalance: null,
+    
+    // Vidas
     lives: CONFIG.INITIAL_LIVES,
     invincibilityFrames: 0,
+    
+    // Áudio
     audioEnabled: true,
+    
+    // Objetos do jogo
     particles: [],
     bullets: [],
     asteroids: [],
     destroyedAsteroids: [],
+    
+    // Estado
     transactionInProgress: false,
     gameTimer: null,
     spawnTimer: null,
     asteroidSpawnCounter: 0,
     lastX: 0,
     lastFireTime: 0,
+    
+    // Nave
     selectedShipDesign: null,
     currentSessionShip: null,
     ship: null,
+    
+    // Controles
     keys: {
         left: false,
         right: false,
@@ -119,27 +145,21 @@ let gameState = {
     }
 };
 
-// Determine if this mission is hard mode (house edge)
-function determineHardMode() {
-    const roll = Math.random() * 100;
-    missionStats.isHardMode = roll < CONFIG.HOUSE_EDGE_PERCENT;
-    
-    if (missionStats.isHardMode) {
-        console.log('🎰 Hard Mode Mission - House Edge Active');
-        console.log('💡 Player can still win if they survive!');
-    } else {
-        console.log('🎮 Normal Mission - Player can win');
-    }
-    
-    return missionStats.isHardMode;
-}
+// ============================================
+// FUNÇÕES DE SPAWN
+// ============================================
 
-// Get spawn rates based on mission type
+/**
+ * Obter taxas de spawn baseado no modo
+ * NOTA: isHardMode é definido pelo SERVIDOR
+ */
 function getSpawnRates() {
     return missionStats.isHardMode ? CONFIG.SPAWN_RATES_HARD : CONFIG.SPAWN_RATES_NORMAL;
 }
 
-// Get random asteroid type
+/**
+ * Obter tipo aleatório de asteroide
+ */
 function getRandomAsteroidType() {
     const rates = getSpawnRates();
     const rand = Math.random();
@@ -157,7 +177,9 @@ function getRandomAsteroidType() {
     return 'COMMON';
 }
 
-// Get asteroid speed (faster in hard mode)
+/**
+ * Obter velocidade do asteroide
+ */
 function getAsteroidSpeed() {
     const baseMin = CONFIG.ASTEROID_SPEED.MIN;
     const baseMax = CONFIG.ASTEROID_SPEED.MAX;
@@ -169,47 +191,81 @@ function getAsteroidSpeed() {
     return baseMin + Math.random() * (baseMax - baseMin);
 }
 
-// Get max asteroids
+/**
+ * Obter máximo de asteroides na tela
+ */
 function getMaxAsteroids() {
     return missionStats.isHardMode ? CONFIG.HARD_MODE.MAX_ASTEROIDS : CONFIG.MAX_ASTEROIDS_ON_SCREEN;
 }
 
-// Get spawn interval
+/**
+ * Obter intervalo de spawn
+ */
 function getSpawnInterval() {
     return missionStats.isHardMode ? 
         CONFIG.SPAWN_INTERVAL * CONFIG.HARD_MODE.SPAWN_RATE_MULTIPLIER : 
         CONFIG.SPAWN_INTERVAL;
 }
 
-// Loading tips
+// ============================================
+// DICAS DE CARREGAMENTO
+// ============================================
 const GAME_TIPS = [
-    "TIP: Destroy valuable asteroids to earn USDT!",
-    "TIP: Rare asteroids glow blue and are worth more!",
-    "TIP: Epic asteroids have a purple glow - high value!",
-    "TIP: Legendary asteroids shine gold - maximum reward!",
-    "TIP: Avoid collisions to keep your lives!",
-    "TIP: Common asteroids have NO value - focus on colored ones!",
-    "TIP: Use keyboard arrows or A/D to move, Space to fire",
-    "TIP: Your earnings depend on your skill!",
-    "TIP: 6 lives per mission - protect your ship!",
-    "TIP: Watch out for fast asteroids!",
-    "TIP: Hard mode? Survive and you still earn!",
-    "TIP: You can play up to 5 missions per hour"
+    "DICA: Destrua asteroides valiosos para ganhar R$!",
+    "DICA: Asteroides raros brilham em azul - valem mais!",
+    "DICA: Asteroides épicos têm brilho roxo - alto valor!",
+    "DICA: Asteroides lendários brilham dourado - recompensa máxima!",
+    "DICA: Evite colisões para manter suas vidas!",
+    "DICA: Asteroides comuns NÃO têm valor - foque nos coloridos!",
+    "DICA: Use as setas ou A/D para mover, Espaço para atirar",
+    "DICA: Seus ganhos dependem da sua habilidade!",
+    "DICA: 6 vidas por missão - proteja sua nave!",
+    "DICA: Cuidado com asteroides rápidos!",
+    "DICA: No modo difícil, sobreviva e ainda ganhe!",
+    "DICA: Você pode jogar até 50 missões por dia"
 ];
 
 function getRandomTip() {
     return GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)];
 }
 
-// Export to global scope
+// ============================================
+// FUNÇÕES DE FORMATAÇÃO
+// ============================================
+
+/**
+ * Formatar valor em BRL
+ */
+function formatBRL(value) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4
+    }).format(value || 0);
+}
+
+/**
+ * Formatar ganhos (4 casas decimais)
+ */
+function formatEarnings(value) {
+    return 'R$ ' + (value || 0).toFixed(4).replace('.', ',');
+}
+
+// ============================================
+// EXPORTAR PARA ESCOPO GLOBAL
+// ============================================
 window.CONFIG = CONFIG;
 window.missionStats = missionStats;
 window.gameState = gameState;
 window.getRandomAsteroidType = getRandomAsteroidType;
-window.determineHardMode = determineHardMode;
 window.getSpawnRates = getSpawnRates;
 window.getAsteroidSpeed = getAsteroidSpeed;
 window.getMaxAsteroids = getMaxAsteroids;
 window.getSpawnInterval = getSpawnInterval;
 window.getRandomTip = getRandomTip;
 window.GAME_TIPS = GAME_TIPS;
+window.formatBRL = formatBRL;
+window.formatEarnings = formatEarnings;
+
+console.log('📦 game-config.js v4.0 carregado (BRL)');

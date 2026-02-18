@@ -2,13 +2,13 @@
 // ============================================
 // UNOBIX - Dashboard
 // Arquivo: admin/pages/dashboard.php
-// ATUALIZADO: Google Auth, BRL, sem BNB
+// v6.0 - Tabela users, staking, game_settings, BRL 6 decimais
 // ============================================
 
 $pageTitle = 'Dashboard';
 
 try {
-    // Estatísticas de jogadores
+    // Estatísticas de jogadores — tabela: users (doc 3.1)
     $playerStats = $pdo->query("
         SELECT 
             COUNT(*) as total_players,
@@ -18,29 +18,34 @@ try {
             SUM(total_earned_brl) as total_earned,
             SUM(total_played) as total_games,
             COUNT(CASE WHEN is_banned = 1 THEN 1 END) as banned
-        FROM players
+        FROM users
     ")->fetch();
 
-    // Estatísticas de saques
+    // Estatísticas de saques — tabela: withdrawals (doc 3.4)
+    // Status: pending, processing, completed, rejected, cancelled
     $withdrawStats = $pdo->query("
         SELECT 
             COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
             SUM(CASE WHEN status = 'pending' THEN amount_brl ELSE 0 END) as pending_amount,
-            COUNT(CASE WHEN status = 'approved' AND created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as approved_month,
-            SUM(CASE WHEN status = 'approved' AND created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) THEN amount_brl ELSE 0 END) as approved_amount_month
+            COUNT(CASE WHEN status = 'completed' AND created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as completed_month,
+            SUM(CASE WHEN status = 'completed' AND created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) THEN amount_brl ELSE 0 END) as completed_amount_month
         FROM withdrawals
     ")->fetch();
 
-    // Estatísticas de staking
-    $stakeStats = $pdo->query("
-        SELECT 
-            COUNT(CASE WHEN status = 'active' THEN 1 END) as active_stakes,
-            SUM(CASE WHEN status = 'active' THEN amount_brl ELSE 0 END) as total_staked,
-            SUM(total_earned_brl) as total_rewards
-        FROM stakes
-    ")->fetch();
+    // Estatísticas de staking — tabela: staking
+    // Schema real: earnings (não earned_brl), apy (não apy_rate), start_date (não staked_at)
+    $stakeStats = ['active_stakes' => 0, 'total_staked' => 0, 'total_rewards' => 0];
+    try {
+        $stakeStats = $pdo->query("
+            SELECT 
+                COUNT(CASE WHEN status = 'active' THEN 1 END) as active_stakes,
+                COALESCE(SUM(CASE WHEN status = 'active' THEN amount_brl ELSE 0 END), 0) as total_staked,
+                COALESCE(SUM(earnings), 0) as total_rewards
+            FROM staking
+        ")->fetch() ?: $stakeStats;
+    } catch (Exception $e) {}
 
-    // Estatísticas de sessões (hoje)
+    // Estatísticas de sessões (hoje) — tabela: game_sessions (doc 3.3)
     $sessionStats = $pdo->query("
         SELECT 
             COUNT(*) as total_today,
@@ -52,45 +57,56 @@ try {
         WHERE DATE(created_at) = CURDATE()
     ")->fetch();
 
-    // Estatísticas de referrals
-    $referralStats = $pdo->query("
-        SELECT 
-            COUNT(*) as total,
-            COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
-            SUM(CASE WHEN status = 'claimed' THEN commission_brl ELSE 0 END) as total_paid
-        FROM referrals
-    ")->fetch();
+    // Estatísticas de referrals — tabela: referrals
+    // Schema real: status pending/qualified/paid/cancelled
+    $referralStats = ['total' => 0, 'qualified' => 0, 'total_paid' => 0];
+    try {
+        $referralStats = $pdo->query("
+            SELECT 
+                COUNT(*) as total,
+                COUNT(CASE WHEN status = 'qualified' THEN 1 END) as qualified,
+                COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_brl ELSE 0 END), 0) as total_paid
+            FROM referrals
+        ")->fetch() ?: $referralStats;
+    } catch (Exception $e) {}
 
     // Estatísticas de anúncios (últimos 7 dias)
-    $adStats = $pdo->query("
-        SELECT 
-            COUNT(DISTINCT i.id) as impressions,
-            COUNT(DISTINCT c.id) as clicks
-        FROM ad_impressions i
-        LEFT JOIN ad_clicks c ON DATE(i.created_at) = DATE(c.created_at)
-        WHERE i.created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
-    ")->fetch();
+    $adStats = ['impressions' => 0, 'clicks' => 0];
+    try {
+        $adStats = $pdo->query("
+            SELECT 
+                COUNT(DISTINCT i.id) as impressions,
+                COUNT(DISTINCT c.id) as clicks
+            FROM ad_impressions i
+            LEFT JOIN ad_clicks c ON DATE(i.created_at) = DATE(c.created_at)
+            WHERE i.created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
+        ")->fetch();
+    } catch (Exception $e) {}
 
-    // Últimas transações
+    // Últimas transações — JOIN com users
     $recentTransactions = $pdo->query("
-        SELECT t.*, p.display_name 
+        SELECT t.*, u.display_name 
         FROM transactions t 
-        LEFT JOIN players p ON t.google_uid = p.google_uid 
+        LEFT JOIN users u ON t.google_uid = u.google_uid 
         ORDER BY t.created_at DESC 
         LIMIT 10
     ")->fetchAll();
 
-    // Últimos jogadores
+    // Últimos jogadores — tabela: users
     $recentPlayers = $pdo->query("
-        SELECT * FROM players ORDER BY created_at DESC LIMIT 5
+        SELECT * FROM users ORDER BY created_at DESC LIMIT 5
     ")->fetchAll();
 
 } catch (Exception $e) {
     $error = $e->getMessage();
 }
 
-function formatBRL($value) {
-    return 'R$ ' . number_format($value ?? 0, 2, ',', '.');
+// formatBRL() já definida em config.php (Regra de Ouro: 6 decimais)
+
+if (!function_exists('formatBRLShort')) {
+    function formatBRLShort($value) {
+        return 'R$ ' . number_format($value ?? 0, 2, ',', '.');
+    }
 }
 ?>
 
@@ -122,7 +138,7 @@ function formatBRL($value) {
         
         <div class="stat-card">
             <div class="icon warning"><i class="fas fa-wallet"></i></div>
-            <div class="value"><?php echo formatBRL($playerStats['total_balance']); ?></div>
+            <div class="value"><?php echo formatBRLShort($playerStats['total_balance']); ?></div>
             <div class="label">Saldo Total Jogadores</div>
         </div>
         
@@ -130,7 +146,7 @@ function formatBRL($value) {
             <div class="icon danger"><i class="fas fa-clock"></i></div>
             <div class="value"><?php echo $withdrawStats['pending_count'] ?? 0; ?></div>
             <div class="label">Saques Pendentes</div>
-            <div class="change"><?php echo formatBRL($withdrawStats['pending_amount']); ?></div>
+            <div class="change"><?php echo formatBRLShort($withdrawStats['pending_amount']); ?></div>
         </div>
     </div>
     
@@ -138,7 +154,7 @@ function formatBRL($value) {
     <div class="stats-grid" style="margin-top: 20px;">
         <div class="stat-card">
             <div class="icon primary"><i class="fas fa-coins"></i></div>
-            <div class="value"><?php echo formatBRL($stakeStats['total_staked']); ?></div>
+            <div class="value"><?php echo formatBRLShort($stakeStats['total_staked']); ?></div>
             <div class="label">Em Staking</div>
             <div class="change"><?php echo $stakeStats['active_stakes'] ?? 0; ?> ativos</div>
         </div>
@@ -147,7 +163,7 @@ function formatBRL($value) {
             <div class="icon success"><i class="fas fa-user-friends"></i></div>
             <div class="value"><?php echo $referralStats['total'] ?? 0; ?></div>
             <div class="label">Indicações</div>
-            <div class="change"><?php echo $referralStats['completed'] ?? 0; ?> completadas</div>
+            <div class="change"><?php echo $referralStats['qualified'] ?? 0; ?> qualificadas</div>
         </div>
         
         <div class="stat-card">
@@ -197,7 +213,7 @@ function formatBRL($value) {
                                     <?php
                                     $typeLabels = [
                                         'game_earning' => ['Ganho Jogo', 'success'],
-                                        'withdrawal' => ['Saque', 'warning'],
+                                        'withdraw' => ['Saque', 'warning'],
                                         'stake' => ['Stake', 'primary'],
                                         'unstake' => ['Unstake', 'info'],
                                         'referral_bonus' => ['Bônus Indicação', 'success'],
@@ -235,8 +251,8 @@ function formatBRL($value) {
                 <?php else: ?>
                     <div class="player-list">
                         <?php foreach ($recentPlayers as $player): ?>
-                        <div class="player-item" style="display: flex; align-items: center; gap: 15px; padding: 12px; border-bottom: 1px solid var(--border);">
-                            <?php if ($player['photo_url']): ?>
+                        <div class="player-item" style="display: flex; align-items: center; gap: 15px; padding: 12px; border-bottom: 1px solid var(--border-color);">
+                            <?php if (!empty($player['photo_url'])): ?>
                                 <img src="<?php echo htmlspecialchars($player['photo_url']); ?>" alt="" style="width: 40px; height: 40px; border-radius: 50%;">
                             <?php else: ?>
                                 <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center;">
@@ -248,7 +264,7 @@ function formatBRL($value) {
                                 <div style="font-size: 0.8rem; color: var(--text-dim);"><?php echo date('d/m/Y H:i', strtotime($player['created_at'])); ?></div>
                             </div>
                             <div style="text-align: right;">
-                                <div style="color: var(--success); font-weight: 600;"><?php echo formatBRL($player['balance_brl']); ?></div>
+                                <div style="color: var(--success); font-weight: 600;"><?php echo formatBRLShort($player['balance_brl']); ?></div>
                                 <div style="font-size: 0.8rem; color: var(--text-dim);"><?php echo $player['total_played']; ?> jogos</div>
                             </div>
                         </div>
@@ -268,19 +284,19 @@ function formatBRL($value) {
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
                 <div class="info-box" style="padding: 15px; background: rgba(0,229,204,0.1); border-radius: 10px;">
                     <div style="color: var(--text-dim); font-size: 0.85rem;">Total Ganho Jogadores</div>
-                    <div style="font-size: 1.3rem; font-weight: 700; color: var(--success);"><?php echo formatBRL($playerStats['total_earned']); ?></div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: var(--success);"><?php echo formatBRLShort($playerStats['total_earned']); ?></div>
                 </div>
                 <div class="info-box" style="padding: 15px; background: rgba(123,245,66,0.1); border-radius: 10px;">
                     <div style="color: var(--text-dim); font-size: 0.85rem;">Saques Pagos (30d)</div>
-                    <div style="font-size: 1.3rem; font-weight: 700; color: var(--warning);"><?php echo formatBRL($withdrawStats['approved_amount_month']); ?></div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: var(--warning);"><?php echo formatBRLShort($withdrawStats['completed_amount_month']); ?></div>
                 </div>
                 <div class="info-box" style="padding: 15px; background: rgba(255,209,102,0.1); border-radius: 10px;">
                     <div style="color: var(--text-dim); font-size: 0.85rem;">Rendimentos Staking</div>
-                    <div style="font-size: 1.3rem; font-weight: 700; color: var(--primary);"><?php echo formatBRL($stakeStats['total_rewards']); ?></div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: var(--primary);"><?php echo formatBRLShort($stakeStats['total_rewards']); ?></div>
                 </div>
                 <div class="info-box" style="padding: 15px; background: rgba(255,71,87,0.1); border-radius: 10px;">
                     <div style="color: var(--text-dim); font-size: 0.85rem;">Comissões Indicação</div>
-                    <div style="font-size: 1.3rem; font-weight: 700; color: var(--secondary);"><?php echo formatBRL($referralStats['total_paid']); ?></div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: var(--secondary);"><?php echo formatBRLShort($referralStats['total_paid']); ?></div>
                 </div>
             </div>
         </div>

@@ -1,77 +1,66 @@
 /* ============================================
-   UNOBIX - Session Manager v3.0
-   File: js/game-session-manager.js
-   Complete session lifecycle management
-   FIX: Usa google_uid em vez de wallet
+   UNOBIX - Session Manager v6.1
+   js/game-session-manager.js
+   ARQUITETURA SEGURA: Sem eventos individuais
+   CORRIGIDO: Reenvia após CAPTCHA
    ============================================ */
 
 const SessionManager = {
     currentSession: null,
-    eventQueue: [],
-    isProcessingQueue: false,
+    pendingEndSession: null, // Armazena dados para reenvio após CAPTCHA
     
-    // Process event queue with rate limiting
-    async processEventQueue() {
-        if (this.isProcessingQueue || this.eventQueue.length === 0) return;
+    /**
+     * Obter Google UID de várias fontes
+     */
+    getGoogleUid() {
+        const sources = [
+            () => window.gameState?.googleUid,
+            () => window.gameState?.user?.uid,
+            () => window.authManager?.currentUser?.uid,
+            () => window.authManager?.getUserId?.(),
+            () => localStorage.getItem('googleUid'),
+            () => sessionStorage.getItem('googleUid')
+        ];
         
-        this.isProcessingQueue = true;
-        
-        while (this.eventQueue.length > 0) {
-            const event = this.eventQueue.shift();
-            
-            if (!event.data || !event.data.session_id || !event.data.google_uid) {
-                console.warn('⚠️ Event missing required data, skipping:', event);
-                continue;
-            }
-            
+        for (const source of sources) {
             try {
-                const response = await fetch('api/game-event.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(event.data)
-                });
-                
-                const result = await response.json();
-                
-                if (!result.success) {
-                    console.warn('⚠️ Event recording failed:', result.error);
-                    
-                    // If rate limited, put back in queue and wait
-                    if (result.throttled) {
-                        this.eventQueue.unshift(event);
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    }
+                const uid = source();
+                if (uid && typeof uid === 'string' && uid.length >= 10) {
+                    return uid;
                 }
-                
-                // Wait 350ms between events (max ~3 per second)
-                await new Promise(resolve => setTimeout(resolve, 350));
-                
-            } catch (error) {
-                console.error('❌ Error recording event:', error);
-            }
+            } catch (e) {}
         }
         
-        this.isProcessingQueue = false;
+        console.warn('⚠️ Nenhum Google UID encontrado!');
+        return null;
     },
     
-    // Initialize a new game session
-    // IMPORTANTE: Recebe googleUid, NÃO wallet!
-    async startSession(googleUid) {
-        console.log('🎮 Starting new game session...');
-        console.log('🔑 Using Google UID:', googleUid ? googleUid.substring(0, 10) + '...' : 'NONE');
+    /**
+     * Iniciar nova sessão de jogo
+     */
+    async startSession(googleUidParam = null) {
+        console.log('🎮 Iniciando nova sessão...');
+        
+        const googleUid = googleUidParam || this.getGoogleUid();
         
         if (!googleUid) {
-            throw new Error('Google UID é obrigatório');
+            throw new Error('Usuário não autenticado. Faça login novamente.');
         }
+        
+        console.log('🔑 Usando Google UID:', googleUid.substring(0, 15) + '...');
         
         try {
             const response = await fetch('api/game-start.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    google_uid: googleUid
-                })
+                body: JSON.stringify({ google_uid: googleUid })
             });
+            
+            if (!response.ok) {
+                const text = await response.text();
+                console.error('❌ Resposta não-OK:', response.status, text);
+                throw new Error('Erro de servidor: ' + response.status);
+            }
             
             const result = await response.json();
             
@@ -79,124 +68,121 @@ const SessionManager = {
                 this.currentSession = {
                     id: result.session_id,
                     token: result.session_token,
-                    googleUid: googleUid,
+                    seed: result.session_seed,
+                    googleUid: result.google_uid || googleUid,
                     missionNumber: result.mission_number,
-                    rareCount: result.rare_count,
-                    hasEpic: result.has_epic,
-                    rareIds: result.rare_ids,
-                    epicId: result.epic_id,
                     startTime: Date.now(),
-                    gameDuration: result.game_duration,
-                    isHardMode: result.is_hard_mode || false
+                    isHardMode: result.is_hard_mode || false,
+                    limits: result.limits || {}
                 };
                 
-                // Clear event queue for new session
-                this.eventQueue = [];
+                // Limpar pending anterior
+                this.pendingEndSession = null;
                 
-                // Store in gameState for backward compatibility
+                // Salvar em gameState
                 if (typeof gameState !== 'undefined') {
                     gameState.sessionId = result.session_id;
                     gameState.sessionToken = result.session_token;
-                    gameState.googleUid = googleUid;
+                    gameState.googleUid = this.currentSession.googleUid;
                 }
                 
-                // Update mission stats
                 if (typeof missionStats !== 'undefined') {
                     missionStats.isHardMode = result.is_hard_mode || false;
                 }
                 
-                console.log('✅ Session created:', {
+                console.log('✅ Sessão criada:', {
                     id: result.session_id,
                     mission: result.mission_number,
-                    rares: result.rare_count,
-                    epic: result.has_epic,
                     hardMode: result.is_hard_mode
                 });
                 
                 return result;
             } else {
-                console.error('❌ Session start failed:', result.error);
-                
-                if (result.wait_seconds) {
-                    throw new Error(`Aguarde ${result.wait_seconds}s antes de jogar novamente`);
+                console.error('❌ Falha ao criar sessão:', result.error);
+
+                if (result.error_code === 'ACTIVE_SESSION_EXISTS') {
+                    throw new Error(
+                        'Você já tem uma partida em andamento! ' +
+                        'Finalize a partida atual antes de iniciar outra.'
+                    );
                 }
-                
+
+                if (result.error_code === 'VPN_PROXY_DETECTED') {
+                    throw new Error(
+                        'VPN ou Proxy detectado! Por segurança, desative sua VPN/Proxy para jogar. ' +
+                        'O uso de VPN/Proxy não é permitido.'
+                    );
+                }
+
+                if (result.error_code === 'DAILY_LIMIT_REACHED') {
+                    const hours = Math.ceil((result.wait_seconds || 86400) / 3600);
+                    throw new Error(
+                        `Você atingiu o limite de ${result.daily_limit || 50} missões diárias! ` +
+                        `Tente novamente em aproximadamente ${hours}h.`
+                    );
+                }
+
+                if (result.wait_seconds) {
+                    throw new Error(`Aguarde ${Math.ceil(result.wait_seconds / 60)} minuto(s) antes de jogar novamente`);
+                }
+
                 throw new Error(result.error || 'Falha ao iniciar sessão');
             }
         } catch (error) {
-            console.error('❌ Error starting session:', error);
+            console.error('❌ Erro ao iniciar sessão:', error);
             throw error;
         }
     },
     
-    // Register asteroid destruction event (queued)
-    recordEvent(asteroidId, rewardType, rewardAmount = 0) {
-        if (!this.currentSession) {
-            console.warn('⚠️ No active session for event recording');
-            return;
-        }
-        
-        // Copiar dados da sessão para o evento
-        const eventData = {
-            session_id: this.currentSession.id,
-            session_token: this.currentSession.token,
-            google_uid: this.currentSession.googleUid,
-            asteroid_id: asteroidId,
-            reward_type: rewardType.toLowerCase(),
-            reward_amount: rewardAmount,
-            timestamp: Math.floor(Date.now() / 1000)
-        };
-        
-        // Add to queue
-        this.eventQueue.push({ data: eventData });
-        
-        // Start processing queue if not already processing
-        this.processEventQueue();
+    /**
+     * Registrar estatísticas localmente (NÃO envia ao servidor)
+     */
+    recordLocalStat(asteroidType) {
+        if (!this.currentSession) return;
+        console.log(`📝 Asteroide destruído: ${asteroidType}`);
     },
     
-    // End the current session
-    async endSession(score, earnings, stats = null, destroyedAsteroids = null) {
-        if (!this.currentSession) {
-            console.warn('⚠️ No active session to end');
+    /**
+     * Finalizar sessão - envia ao servidor
+     */
+    async endSession(score, earnings, stats, destroyedAsteroids = null) {
+        // Se não tem sessão ativa, verificar se tem pending
+        if (!this.currentSession && !this.pendingEndSession) {
+            console.warn('⚠️ Sem sessão ativa para finalizar');
             return null;
         }
         
-        // Guardar referência da sessão
-        const sessionToEnd = { ...this.currentSession };
+        // Usar sessão atual ou pending
+        const sessionToEnd = this.currentSession 
+            ? { ...this.currentSession }
+            : this.pendingEndSession.session;
         
-        console.log('🏁 Ending session...', {
+        console.log('🏁 Finalizando sessão...', {
             id: sessionToEnd.id,
             score: score,
             earnings: earnings,
-            queuedEvents: this.eventQueue.length
+            stats: stats
         });
         
-        // Wait for all queued events to finish
-        if (this.eventQueue.length > 0) {
-            console.log(`⏳ Waiting for ${this.eventQueue.length} queued events...`);
-            let waitCount = 0;
-            while (this.eventQueue.length > 0 && waitCount < 30) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-                waitCount++;
-            }
-            console.log('✅ Event queue processed');
-        }
-        
         try {
+            const gameHash = this.generateGameHash(sessionToEnd, stats);
+            
             const requestBody = {
                 session_id: sessionToEnd.id,
                 session_token: sessionToEnd.token,
                 google_uid: sessionToEnd.googleUid,
                 score: score,
-                earnings: earnings
+                earnings: earnings,
+                lives_remaining: typeof gameState !== 'undefined' ? gameState.lives : 0,
+                victory: typeof gameState !== 'undefined' ? gameState.lives > 0 : true,
+                stats: stats,
+                game_hash: gameHash
             };
             
-            if (stats) {
-                requestBody.stats = stats;
-            }
-            
-            if (destroyedAsteroids && Array.isArray(destroyedAsteroids)) {
-                requestBody.destroyed_asteroids = destroyedAsteroids;
+            // Obter token CAPTCHA se disponível
+            if (typeof CaptchaManager !== 'undefined' && CaptchaManager.isComplete()) {
+                requestBody.captcha_token = CaptchaManager.getToken() || '';
+                console.log('🔐 Enviando com token CAPTCHA');
             }
             
             const response = await fetch('api/game-end.php', {
@@ -208,54 +194,197 @@ const SessionManager = {
             const result = await response.json();
             
             if (result.success) {
-                console.log('✅ Session ended successfully:', {
-                    status: result.status,
-                    finalEarnings: result.final_earnings,
-                    newBalance: result.new_balance
+                // Verificar se precisa de CAPTCHA
+                if (result.captcha_required) {
+                    console.log('🔐 CAPTCHA necessário - aguardando...');
+                    
+                    // Salvar dados para reenvio após CAPTCHA
+                    this.pendingEndSession = {
+                        session: sessionToEnd,
+                        score: score,
+                        earnings: earnings,
+                        stats: stats,
+                        pendingEarnings: result.pending_earnings || earnings
+                    };
+                    
+                    // NÃO limpar sessão ainda
+                    return result;
+                }
+                
+                console.log('✅ Sessão finalizada:', {
+                    earnings: result.final_earnings,
+                    newBalance: result.new_balance,
+                    credited: result.credited
                 });
                 
-                // Limpar sessão
+                // Limpar sessão e pending
                 this.currentSession = null;
-                this.eventQueue = [];
+                this.pendingEndSession = null;
                 
-                // Clear from gameState
                 if (typeof gameState !== 'undefined') {
                     gameState.sessionId = null;
                     gameState.sessionToken = null;
                 }
                 
+                // Atualizar saldo local
+                if (result.new_balance !== null && result.new_balance !== undefined) {
+                    localStorage.setItem('userBalance', result.new_balance.toString());
+                }
+                
                 return result;
             } else {
-                console.error('❌ Session end failed:', result.error);
-                throw new Error(result.error || 'Failed to end session');
+                console.error('❌ Falha ao finalizar:', result.error);
+                throw new Error(result.error || 'Falha ao finalizar sessão');
             }
         } catch (error) {
-            console.error('❌ Error ending session:', error);
+            console.error('❌ Erro ao finalizar sessão:', error);
             throw error;
         }
     },
     
-    // Get current session info
+    /**
+     * Reenviar após CAPTCHA ser completado
+     * Chamado pelo CaptchaManager ou game-ui após verificação
+     */
+    async resendAfterCaptcha(captchaToken) {
+        if (!this.pendingEndSession) {
+            console.warn('⚠️ Sem sessão pendente para reenviar');
+            return null;
+        }
+        
+        console.log('🔄 Reenviando após CAPTCHA...');
+        
+        const pending = this.pendingEndSession;
+        
+        try {
+            const requestBody = {
+                session_id: pending.session.id,
+                session_token: pending.session.token,
+                google_uid: pending.session.googleUid,
+                score: pending.score,
+                earnings: pending.earnings,
+                lives_remaining: typeof gameState !== 'undefined' ? gameState.lives : 0,
+                victory: true,
+                stats: pending.stats,
+                captcha_token: captchaToken
+            };
+            
+            const response = await fetch('api/game-end.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success && result.credited) {
+                console.log('✅ Ganhos creditados após CAPTCHA:', {
+                    earnings: result.final_earnings,
+                    newBalance: result.new_balance
+                });
+                
+                // Limpar tudo
+                this.currentSession = null;
+                this.pendingEndSession = null;
+                
+                if (typeof gameState !== 'undefined') {
+                    gameState.sessionId = null;
+                    gameState.sessionToken = null;
+                }
+                
+                // Atualizar saldo local
+                if (result.new_balance !== null && result.new_balance !== undefined) {
+                    localStorage.setItem('userBalance', result.new_balance.toString());
+                    
+                    // Atualizar UI se possível
+                    if (typeof updateBalanceDisplay === 'function') {
+                        updateBalanceDisplay(result.new_balance);
+                    }
+                }
+                
+                // Mostrar notificação de sucesso
+                if (typeof showNotification === 'function') {
+                    showNotification('💰 CREDITADO!', `+R$ ${result.final_earnings.toFixed(6)}`, true);
+                }
+                
+                return result;
+            } else {
+                console.error('❌ Falha no reenvio:', result);
+                return result;
+            }
+        } catch (error) {
+            console.error('❌ Erro no reenvio:', error);
+            throw error;
+        }
+    },
+    
+    /**
+     * Verificar se tem sessão pendente de CAPTCHA
+     */
+    hasPendingCaptcha() {
+        return this.pendingEndSession !== null;
+    },
+    
+    /**
+     * Obter ganhos pendentes
+     */
+    getPendingEarnings() {
+        return this.pendingEndSession?.pendingEarnings || 0;
+    },
+    
+    /**
+     * Gerar hash de verificação do jogo
+     */
+    generateGameHash(session, stats) {
+        try {
+            const data = JSON.stringify({
+                token: session.token,
+                seed: session.seed,
+                stats: stats
+            });
+            
+            let hash = 0;
+            for (let i = 0; i < data.length; i++) {
+                const char = data.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            
+            return Math.abs(hash).toString(16);
+        } catch (e) {
+            return '';
+        }
+    },
+    
+    /**
+     * Obter sessão atual
+     */
     getSession() {
         return this.currentSession;
     },
     
-    // Check if there's an active session
+    /**
+     * Verificar se há sessão ativa
+     */
     hasActiveSession() {
         return this.currentSession !== null;
     },
     
-    // Clear session (emergency cleanup)
+    /**
+     * Limpar sessão (emergência)
+     */
     clearSession() {
+        console.log('🧹 Sessão limpa');
         this.currentSession = null;
-        this.eventQueue = [];
+        this.pendingEndSession = null;
         if (typeof gameState !== 'undefined') {
             gameState.sessionId = null;
             gameState.sessionToken = null;
         }
-        console.log('🧹 Session cleared');
     }
 };
 
-// Export for use in other files
+// Exportar
 window.SessionManager = SessionManager;
+
+console.log('📦 SessionManager v6.1 carregado (com reenvio após CAPTCHA)');

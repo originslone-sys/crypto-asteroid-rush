@@ -11,8 +11,6 @@
     <link rel="stylesheet" href="css/main.css">
     
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     
     <style>
         .affiliate-hero { text-align: center; padding: 40px 20px; background: linear-gradient(135deg, rgba(0, 240, 255, 0.1), rgba(146, 254, 157, 0.1)); border-radius: 20px; margin-bottom: 30px; border: 1px solid var(--border-color); }
@@ -120,12 +118,12 @@
         <div class="stat-card-affiliate"><div class="value" id="statTotalReferred">0</div><div class="label">Total de Indicados</div></div>
         <div class="stat-card-affiliate warning"><div class="value" id="statPending">0</div><div class="label">Em Progresso</div></div>
         <div class="stat-card-affiliate success"><div class="value" id="statCompleted">0</div><div class="label">Completados</div></div>
-        <div class="stat-card-affiliate success"><div class="value" id="statTotalEarned">R$ 0,00</div><div class="label">Total Ganho</div></div>
+        <div class="stat-card-affiliate success"><div class="value" id="statTotalEarned">R$ 0,000000</div><div class="label">Total Ganho</div></div>
     </section>
     
     <section class="claim-section" id="claimSection">
         <div class="claim-info"><h4><i class="fas fa-gift"></i> Comissões Disponíveis</h4><p>Você tem comissões prontas para resgatar!</p></div>
-        <div class="claim-amount" id="claimAmount">R$ 0,00</div>
+        <div class="claim-amount" id="claimAmount">R$ 0,000000</div>
         <button class="claim-btn" id="claimBtn" onclick="claimCommissions()"><i class="fas fa-download"></i> RESGATAR</button>
     </section>
     
@@ -150,7 +148,7 @@
     </section>
     
     <footer class="footer">
-        <a href="https://t.me/UnobixOfficial" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Nosso Telegram</a>
+        <a href="https://t.me/comunidade_unobix" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Nosso Telegram</a>
         <div class="footer-links">
             <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> Como Jogar</a>
             <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
@@ -159,12 +157,23 @@
     </footer>
 </div>
 
+<!-- Firebase SDK v10.7.1 (compat mode) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="js/auth-manager.js"></script>
 <script src="js/main.js"></script>
 <script>
 let affiliateData = null;
-function formatBRL(v) { return new Intl.NumberFormat('pt-BR', {style:'currency',currency:'BRL'}).format(v||0); }
+function formatBRL(value) {
+    const num = parseFloat(value) || 0;
+    const fixed = num.toFixed(6);
+    const parts = fixed.split('.');
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const decPart = parts[1];
+    return 'R$ ' + intPart + ',' + decPart;
+}
 
 async function loadAffiliateData() {
     const user = window.authManager?.currentUser;
@@ -183,7 +192,7 @@ function updateAffiliateUI(data) {
     const s = data.stats;
     document.getElementById('statTotalReferred').textContent = s.total_referred || 0;
     document.getElementById('statPending').textContent = s.pending || 0;
-    document.getElementById('statCompleted').textContent = (parseInt(s.completed)||0) + (parseInt(s.claimed)||0);
+    document.getElementById('statCompleted').textContent = (parseInt(s.qualified)||0) + (parseInt(s.claimed)||0);
     document.getElementById('statTotalEarned').textContent = formatBRL(s.total_earned_brl);
     const avail = parseFloat(s.available_commission_brl) || 0;
     if (avail > 0) { document.getElementById('claimSection').style.display = 'flex'; document.getElementById('claimAmount').textContent = formatBRL(avail); }
@@ -194,11 +203,15 @@ function updateAffiliateUI(data) {
 function updateReferralsTable(refs) {
     const tbody = document.getElementById('referralsTableBody');
     if (!refs || refs.length === 0) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="fas fa-user-friends"></i><h3>Nenhum indicado ainda</h3><p>Compartilhe seu link!</p></div></td></tr>'; return; }
+    const missionsReq = (affiliateData && affiliateData.config) ? affiliateData.config.missions_required : 100;
     tbody.innerHTML = refs.map(r => {
-        const st = {'pending':'Em Progresso','completed':'Completado','claimed':'Resgatado'}[r.status] || r.status;
+        const statusLabels = {'pending':'Em Progresso','qualified':'Completado','claimed':'Resgatado'};
+        const st = statusLabels[r.status] || r.status_label || r.status;
+        const statusClass = r.status === 'qualified' ? 'completed' : r.status;
         const prog = r.progress_percent || 0;
-        const user = r.display_name || (r.email?.split('@')[0]) || 'Usuário';
-        return `<tr><td class="user-cell">${user}</td><td><div>${r.missions_completed||0}/100</div><div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div></td><td><span class="status-badge status-${r.status}">${st}</span></td><td style="color:var(--success)">${formatBRL(r.commission_brl)}</td><td style="color:var(--text-dim)">${new Date(r.created_at).toLocaleDateString('pt-BR')}</td></tr>`;
+        const user = r.display_name || (r.email ? r.email.split('@')[0] : '') || r.referred_short || 'Usuário';
+        const req = r.missions_required || missionsReq;
+        return `<tr><td class="user-cell">${user}</td><td><div>${r.missions_completed||0}/${req}</div><div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div></td><td><span class="status-badge status-${statusClass}">${st}</span></td><td style="color:var(--success)">${formatBRL(r.commission_brl)}</td><td style="color:var(--text-dim)">${r.created_at_formatted || new Date(r.created_at).toLocaleDateString('pt-BR')}</td></tr>`;
     }).join('');
 }
 

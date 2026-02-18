@@ -2,7 +2,7 @@
 // ============================================
 // UNOBIX - Admin Sidebar
 // Arquivo: admin/includes/sidebar.php
-// ATUALIZADO: Google Auth, BRL, Ads Manager
+// v6.0 - Tabela users, game_settings, staking
 // ============================================
 
 $pendingWithdrawals = 0;
@@ -20,15 +20,15 @@ try {
         $stmt = $pdo->query("SELECT COUNT(*) FROM game_sessions WHERE status = 'flagged'");
         $flaggedSessions = $stmt->fetchColumn();
         
-        // Referrals completados
+        // Referrals qualificados (prontos para claim)
         $tableExists = $pdo->query("SHOW TABLES LIKE 'referrals'")->fetch();
         if ($tableExists) {
-            $stmt = $pdo->query("SELECT COUNT(*) FROM referrals WHERE status = 'completed'");
+            $stmt = $pdo->query("SELECT COUNT(*) FROM referrals WHERE status = 'qualified'");
             $pendingReferrals = $stmt->fetchColumn();
         }
         
-        // Total de jogadores
-        $stmt = $pdo->query("SELECT COUNT(*) FROM players");
+        // Total de usuários
+        $stmt = $pdo->query("SELECT COUNT(*) FROM users");
         $totalPlayers = $stmt->fetchColumn();
     }
 } catch (Exception $e) {}
@@ -131,6 +131,6 @@ try {
     </nav>
     
     <div class="sidebar-footer">
-        <small style="color: var(--text-dim);">v2.0 - BRL</small>
+        <small style="color: var(--text-dim);">v6.0 - BRL</small>
     </div>
 </aside>

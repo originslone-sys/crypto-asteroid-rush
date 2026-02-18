@@ -10,7 +10,7 @@ $search = $_GET['search'] ?? '';
 
 try {
     $sql = "SELECT t.*, p.display_name FROM transactions t 
-            LEFT JOIN players p ON t.google_uid = p.google_uid WHERE 1=1";
+            LEFT JOIN users p ON t.google_uid = p.google_uid WHERE 1=1";
     $params = [];
     
     if ($typeFilter !== 'all') {
@@ -39,7 +39,7 @@ try {
     $error = $e->getMessage();
 }
 
-function formatBRL($v) { return 'R$ ' . number_format($v ?? 0, 2, ',', '.'); }
+// formatBRL() já definida em config.php
 
 $typeLabels = [
     'game_earning' => ['Ganho Jogo', 'success'],

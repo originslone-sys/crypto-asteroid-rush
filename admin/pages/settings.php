@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
                 
                 foreach ($settings as $key => $value) {
-                    $pdo->prepare("INSERT INTO system_config (config_key, config_value, is_public, updated_at) VALUES (?, ?, 1, NOW()) ON DUPLICATE KEY UPDATE config_value = ?, updated_at = NOW()")
+                    $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES (?, ?, 1, NOW()) ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()")
                         ->execute([$key, $value, $value]);
                 }
                 
@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
                 
                 foreach ($gameSettings as $key => $value) {
-                    $pdo->prepare("INSERT INTO system_config (config_key, config_value, is_public, updated_at) VALUES (?, ?, 1, NOW()) ON DUPLICATE KEY UPDATE config_value = ?, updated_at = NOW()")
+                    $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES (?, ?, 1, NOW()) ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()")
                         ->execute([$key, $value, $value]);
                 }
                 
@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 foreach ($captchaSettings as $key => $value) {
                     $isPublic = $key === 'hcaptcha_site_key' || $key === 'captcha_enabled' ? 1 : 0;
-                    $pdo->prepare("INSERT INTO system_config (config_key, config_value, is_public, updated_at) VALUES (?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE config_value = ?, updated_at = NOW()")
+                    $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES (?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()")
                         ->execute([$key, $value, $isPublic, $value]);
                 }
                 
@@ -74,17 +74,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $type = $_POST['type'];
                 $description = $_POST['description'];
                 
-                $stmt = $pdo->prepare("SELECT id FROM players WHERE google_uid = ?");
+                $stmt = $pdo->prepare("SELECT id FROM users WHERE google_uid = ?");
                 $stmt->execute([$googleUid]);
                 if (!$stmt->fetch()) {
                     throw new Exception("Jogador não encontrado!");
                 }
                 
                 if ($type === 'add') {
-                    $pdo->prepare("UPDATE players SET balance_brl = balance_brl + ? WHERE google_uid = ?")
+                    $pdo->prepare("UPDATE users SET balance_brl = balance_brl + ? WHERE google_uid = ?")
                         ->execute([$amount, $googleUid]);
                 } else {
-                    $pdo->prepare("UPDATE players SET balance_brl = GREATEST(0, balance_brl - ?) WHERE google_uid = ?")
+                    $pdo->prepare("UPDATE users SET balance_brl = GREATEST(0, balance_brl - ?) WHERE google_uid = ?")
                         ->execute([$amount, $googleUid]);
                 }
                 
@@ -112,9 +112,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Carregar configurações
 $settings = [];
 try {
-    $result = $pdo->query("SELECT config_key, config_value FROM system_config");
+    $result = $pdo->query("SELECT setting_key, setting_value FROM game_settings");
     while ($row = $result->fetch()) {
-        $settings[$row['config_key']] = $row['config_value'];
+        $settings[$row['setting_key']] = $row['setting_value'];
     }
 } catch (Exception $e) {}
 ?>

@@ -1,195 +1,262 @@
 <?php
 // ============================================
-// UNOBIX - Autenticação Google (Firebase)
-// Arquivo: api/auth-google.php
-// Unobix-only: google_uid como identidade, sem wallet placeholder
+// UNOBIX - Autenticação Google
+// api/auth-google.php v7.0
+// Usa config.php
 // ============================================
 
 require_once __DIR__ . "/config.php";
 
-ini_set('display_errors', 0);
-ini_set('html_errors', 0);
-error_reporting(E_ALL);
-
 setCorsHeaders();
-header('Content-Type: application/json; charset=utf-8');
 
-function readJsonInput(): array {
-    $raw = file_get_contents('php://input');
-    $j = json_decode($raw, true);
-    if (is_array($j)) return $j;
-    return [];
+function jsonResponse($data, $statusCode = 200) {
+    http_response_code($statusCode);
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
 }
 
-$input = array_merge($_GET, $_POST, readJsonInput());
-$action = $input['action'] ?? 'login';
-
 try {
+    $input = getRequestInput();
+    $action = $input['action'] ?? 'login';
+    
     $pdo = getDatabaseConnection();
     if (!$pdo) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Falha na conexão com o banco']);
-        exit;
+        jsonResponse(['success' => false, 'error' => 'Erro de conexão com banco'], 500);
     }
-
-    // user_sessions já existe no seu banco, mas mantemos garantia
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS user_sessions (
-            id BIGINT AUTO_INCREMENT PRIMARY KEY,
-            google_uid VARCHAR(128) NOT NULL,
-            session_token VARCHAR(255) NOT NULL,
-            firebase_token TEXT NULL,
-            ip_address VARCHAR(45),
-            user_agent VARCHAR(500),
-            is_active TINYINT(1) DEFAULT 1,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            expires_at DATETIME DEFAULT NULL,
-            last_activity DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            UNIQUE KEY uk_session_token (session_token),
-            KEY idx_google_uid (google_uid),
-            KEY idx_active (is_active),
-            KEY idx_expires (expires_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
-
+    
     switch ($action) {
         case 'verify':
-        case 'login': {
-            $googleUid = $input['google_uid'] ?? $input['googleUid'] ?? $input['uid'] ?? null;
-            $email = $input['email'] ?? null;
-            $displayName = $input['display_name'] ?? $input['displayName'] ?? $input['name'] ?? null;
-            $photoUrl = $input['photo_url'] ?? $input['photoUrl'] ?? $input['photoURL'] ?? null;
-            $firebaseToken = $input['firebase_token'] ?? $input['idToken'] ?? null;
+        case 'login':
+            $googleUid = trim($input['google_uid'] ?? $input['googleUid'] ?? $input['uid'] ?? '');
+            $email = trim($input['email'] ?? '');
+            $displayName = trim($input['display_name'] ?? $input['displayName'] ?? $input['name'] ?? '');
+            
+            if (empty($googleUid)) {
+                jsonResponse(['success' => false, 'error' => 'google_uid obrigatório'], 400);
+            }
+            
+            if (!validateGoogleUid($googleUid)) {
+                jsonResponse(['success' => false, 'error' => 'google_uid inválido'], 400);
+            }
+            
+            $googleUid = substr($googleUid, 0, 128);
+            $email = substr($email, 0, 255);
+            $displayName = substr($displayName, 0, 100);
 
-            $googleUid = is_string($googleUid) ? trim($googleUid) : '';
-            if (!$googleUid || !validateGoogleUid($googleUid)) {
-                echo json_encode(['success' => false, 'error' => 'google_uid inválido']);
-                exit;
+            // Verificar limite de 1 conta por IP
+            $clientIP = getClientIP();
+
+            // Verificar VPN/Proxy via proxycheck.io
+            ensureProxyCacheTable($pdo);
+            $proxyCheck = checkProxyVPN($clientIP, $pdo);
+            if ($proxyCheck['is_proxy']) {
+                secureLog("VPN_PROXY_BLOCKED_LOGIN | IP: $clientIP | Type: {$proxyCheck['type']} | Provider: {$proxyCheck['provider']} | UID: " . substr($googleUid, 0, 15));
+                jsonResponse([
+                    'success' => false,
+                    'error' => 'Detectamos que você está usando VPN ou Proxy. Por segurança, desative a VPN/Proxy e tente novamente.',
+                    'error_code' => 'VPN_PROXY_DETECTED',
+                    'proxy_type' => $proxyCheck['type']
+                ], 403);
             }
 
-            // upsert player (sem wallet placeholder)
-            // mantém colunas existentes, mas não obriga wallet
             $stmt = $pdo->prepare("
-                INSERT INTO players (google_uid, email, display_name, photo_url, balance_brl, total_played, created_at, updated_at)
-                VALUES (?, ?, ?, ?, 0.00, 0, NOW(), NOW())
+                SELECT google_uid, display_name
+                FROM users
+                WHERE last_login_ip = ?
+                AND google_uid != ?
+                AND last_login_ip IS NOT NULL
+                AND last_login_ip != '0.0.0.0'
+                LIMIT 1
+            ");
+            $stmt->execute([$clientIP, $googleUid]);
+            $existingAccount = $stmt->fetch();
+
+            if ($existingAccount) {
+                secureLog("IP_ACCOUNT_LIMIT | IP: $clientIP | Attempted: " . substr($googleUid, 0, 15) . " | Existing: " . substr($existingAccount['google_uid'], 0, 15));
+                jsonResponse([
+                    'success' => false,
+                    'error' => 'Já existe uma conta conectada neste dispositivo/rede. Apenas uma conta por IP é permitida.',
+                    'error_code' => 'IP_ACCOUNT_LIMIT',
+                    'existing_account' => substr($existingAccount['display_name'] ?? 'Outra conta', 0, 3) . '***'
+                ], 403);
+            }
+
+            // UPSERT
+            $stmt = $pdo->prepare("
+                INSERT INTO users (
+                    google_uid, email, display_name,
+                    balance_brl, total_played, total_earned_brl,
+                    last_login_ip,
+                    created_at, updated_at, last_login
+                ) VALUES (?, ?, ?, 0, 0, 0, ?, NOW(), NOW(), NOW())
                 ON DUPLICATE KEY UPDATE
                     email = COALESCE(VALUES(email), email),
                     display_name = COALESCE(VALUES(display_name), display_name),
-                    photo_url = COALESCE(VALUES(photo_url), photo_url),
+                    last_login_ip = VALUES(last_login_ip),
+                    last_login = NOW(),
                     updated_at = NOW()
             ");
-            $stmt->execute([
-                $googleUid,
-                $email ?: null,
-                $displayName ?: null,
-                $photoUrl ?: null,
-            ]);
-
-            // buscar player
-            $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
-            $stmt->execute([$googleUid]);
-            $player = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$player) {
-                http_response_code(500);
-                echo json_encode(['success' => false, 'error' => 'Falha ao carregar jogador']);
-                exit;
+            $stmt->execute([$googleUid, $email, $displayName, $clientIP]);
+            
+            // Detectar se é novo usuário (INSERT vs UPDATE)
+            $isNewUser = ($stmt->rowCount() === 1);
+            
+            // Buscar usuário
+            $user = findPlayer($pdo, $googleUid);
+            
+            if (!$user) {
+                jsonResponse(['success' => false, 'error' => 'Usuário não encontrado'], 500);
             }
-
-            if (!empty($player['is_banned'])) {
-                echo json_encode([
-                    'success' => false,
-                    'error' => 'Conta suspensa',
-                    'message' => $player['ban_reason'] ?? 'Entre em contato com o suporte.'
-                ]);
-                exit;
+            
+            // Verificar ban
+            if (!empty($user['is_banned'])) {
+                jsonResponse([
+                    'success' => false, 
+                    'error' => 'Conta suspensa: ' . ($user['ban_reason'] ?? 'Violação dos termos'),
+                    'banned' => true
+                ], 403);
             }
+            
+            // ============================================
+            // REFERRAL: registrar indicação APENAS para novos usuários
+            // Usuários existentes que clicam em link de indicação NÃO são adicionados
+            // ============================================
+            $referralRegistered = false;
+            $referralCode = trim($input['referral_code'] ?? $input['ref'] ?? '');
+            if (!empty($referralCode) && $isNewUser) {
+                try {
+                    require_once __DIR__ . '/referral-helper.php';
+                    $refOwner = validateReferralCode($pdo, $referralCode);
 
-            // criar sessão
-            $sessionToken = hash('sha256', $googleUid . '|' . ($player['id'] ?? 0) . '|' . microtime(true) . '|' . bin2hex(random_bytes(16)));
+                    if ($refOwner && $refOwner['google_uid'] !== $googleUid) {
+                        // Verificar se já não foi registrado
+                        $checkStmt = $pdo->prepare("
+                            SELECT id FROM referrals WHERE referred_google_uid = ? LIMIT 1
+                        ");
+                        $checkStmt->execute([$googleUid]);
 
-            $stmt = $pdo->prepare("
-                INSERT INTO user_sessions (google_uid, session_token, firebase_token, ip_address, user_agent, expires_at)
-                VALUES (?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))
-            ");
-            $stmt->execute([
-                $googleUid,
-                $sessionToken,
-                $firebaseToken,
-                getClientIP(),
-                substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500)
-            ]);
+                        if (!$checkStmt->fetch()) {
+                            // Ler settings do admin (com fallback)
+                            $missionsReq = 100;
+                            $commissionBrl = 1.000000;
+                            $settingsTable = $pdo->query("SHOW TABLES LIKE 'game_settings'")->fetch();
+                            if ($settingsTable) {
+                                $sStmt = $pdo->prepare("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN ('referral_missions_required', 'referral_bonus_brl')");
+                                $sStmt->execute();
+                                foreach ($sStmt->fetchAll(PDO::FETCH_ASSOC) as $s) {
+                                    if ($s['setting_key'] === 'referral_missions_required') $missionsReq = max(1, (int)$s['setting_value']);
+                                    if ($s['setting_key'] === 'referral_bonus_brl') $commissionBrl = max(0, (float)$s['setting_value']);
+                                }
+                            }
 
-            echo json_encode([
+                            // Buscar missions_at_register do usuário
+                            $mStmt = $pdo->prepare("SELECT total_played FROM users WHERE google_uid = ? LIMIT 1");
+                            $mStmt->execute([$googleUid]);
+                            $mRow = $mStmt->fetch(PDO::FETCH_ASSOC);
+                            $missionsAtRegister = $mRow ? (int)$mRow['total_played'] : 0;
+
+                            $stmt = $pdo->prepare("
+                                INSERT INTO referrals (
+                                    referrer_google_uid, referrer_wallet,
+                                    referred_google_uid, referred_wallet,
+                                    referral_code, missions_at_register,
+                                    missions_completed, missions_required,
+                                    status, commission_brl, created_at
+                                ) VALUES (?, '', ?, '', ?, ?, 0, ?, 'pending', ?, NOW())
+                            ");
+                            $stmt->execute([
+                                $refOwner['google_uid'],
+                                $googleUid,
+                                strtoupper($referralCode),
+                                $missionsAtRegister,
+                                $missionsReq,
+                                $commissionBrl
+                            ]);
+                            
+                            // Incrementar uses_count
+                            $pdo->prepare("
+                                UPDATE referral_codes SET uses_count = uses_count + 1
+                                WHERE code = ?
+                            ")->execute([strtoupper($referralCode)]);
+                            
+                            $referralRegistered = true;
+                            secureLog("REFERRAL_AUTO_REGISTERED | Referrer: {$refOwner['google_uid']} | Referred: {$googleUid} | Code: {$referralCode}");
+                        }
+                    }
+                } catch (Exception $e) {
+                    // Não falhar o login por erro de referral
+                    error_log("Referral auto-register error: " . $e->getMessage());
+                }
+            }
+            
+            // Gerar session token
+            $sessionToken = hash('sha256', 
+                $googleUid . '|' . $user['id'] . '|' . microtime(true) . '|' . bin2hex(random_bytes(16))
+            );
+            
+            secureLog("AUTH_LOGIN | User: {$user['id']} | UID: " . substr($googleUid, 0, 15) . ($isNewUser ? ' | NEW_USER' : ''));
+            
+            jsonResponse([
                 'success' => true,
                 'message' => 'Login realizado com sucesso',
                 'session_token' => $sessionToken,
-                'player' => [
-                    'id' => (int)$player['id'],
-                    'google_uid' => $googleUid,
-                    'email' => $player['email'] ?? '',
-                    'display_name' => $player['display_name'] ?? '',
-                    'photo_url' => $player['photo_url'] ?? '',
-                    'balance_brl' => number_format((float)($player['balance_brl'] ?? 0), 2, '.', ''),
-                    'total_played' => (int)($player['total_played'] ?? 0)
+                'is_new_user' => $isNewUser,
+                'referral_registered' => $referralRegistered,
+                'user' => [
+                    'id' => (int)$user['id'],
+                    'google_uid' => $user['google_uid'],
+                    'email' => $user['email'] ?? '',
+                    'display_name' => $user['display_name'] ?? '',
+                    'balance_brl' => (float)($user['balance_brl'] ?? 0),
+                    'total_played' => (int)($user['total_played'] ?? 0),
+                    'total_earned_brl' => (float)($user['total_earned_brl'] ?? 0),
+                    'created_at' => $user['created_at'] ?? '',
+                    'last_login' => $user['last_login'] ?? ''
                 ]
             ]);
             break;
-        }
-
-        case 'logout': {
-            $sessionToken = $input['session_token'] ?? $input['sessionToken'] ?? null;
-            $sessionToken = is_string($sessionToken) ? trim($sessionToken) : '';
-
-            if ($sessionToken) {
-                $pdo->prepare("UPDATE user_sessions SET is_active = 0 WHERE session_token = ?")->execute([$sessionToken]);
-            }
-
-            echo json_encode(['success' => true, 'message' => 'Logout realizado com sucesso']);
+            
+        case 'logout':
+            jsonResponse(['success' => true, 'message' => 'Logout realizado']);
             break;
-        }
-
-        case 'profile': {
-            $googleUid = $input['google_uid'] ?? $input['googleUid'] ?? null;
-            $googleUid = is_string($googleUid) ? trim($googleUid) : '';
-
-            if (!$googleUid || !validateGoogleUid($googleUid)) {
-                echo json_encode(['success' => false, 'error' => 'google_uid inválido']);
-                exit;
+            
+        case 'profile':
+        case 'balance':
+            $googleUid = trim($input['google_uid'] ?? $input['googleUid'] ?? '');
+            
+            if (empty($googleUid)) {
+                jsonResponse(['success' => false, 'error' => 'google_uid necessário'], 400);
             }
-
-            $stmt = $pdo->prepare("SELECT * FROM players WHERE google_uid = ? LIMIT 1");
-            $stmt->execute([$googleUid]);
-            $player = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$player) {
-                echo json_encode(['success' => false, 'error' => 'Usuário não encontrado']);
-                exit;
+            
+            $user = findPlayer($pdo, $googleUid);
+            
+            if (!$user) {
+                jsonResponse(['success' => false, 'error' => 'Usuário não encontrado'], 404);
             }
-
-            echo json_encode([
+            
+            jsonResponse([
                 'success' => true,
-                'player' => [
-                    'google_uid' => $player['google_uid'],
-                    'email' => $player['email'] ?? '',
-                    'display_name' => $player['display_name'] ?? '',
-                    'photo_url' => $player['photo_url'] ?? '',
-                    'balance_brl' => number_format((float)($player['balance_brl'] ?? 0), 2, '.', ''),
-                    'total_earned_brl' => number_format((float)($player['total_earned_brl'] ?? 0), 2, '.', ''),
-                    'total_played' => (int)($player['total_played'] ?? 0),
-                    'created_at' => $player['created_at'] ?? ''
-                ]
+                'user' => [
+                    'google_uid' => $user['google_uid'],
+                    'email' => $user['email'] ?? '',
+                    'display_name' => $user['display_name'] ?? '',
+                    'balance_brl' => (float)($user['balance_brl'] ?? 0),
+                    'total_played' => (int)($user['total_played'] ?? 0),
+                    'total_earned_brl' => (float)($user['total_earned_brl'] ?? 0)
+                ],
+                'balance_brl' => (float)($user['balance_brl'] ?? 0)
             ]);
             break;
-        }
-
+            
         default:
-            echo json_encode(['success' => false, 'error' => 'Ação inválida']);
+            jsonResponse(['success' => false, 'error' => 'Ação inválida: ' . $action], 400);
     }
-
+    
+} catch (PDOException $e) {
+    secureLog("AUTH_ERROR: " . $e->getMessage());
+    jsonResponse(['success' => false, 'error' => 'Erro no banco de dados'], 500);
+    
 } catch (Throwable $e) {
-    error_log("auth-google.php error: " . $e->getMessage());
-    if (function_exists('secureLog')) secureLog("AUTH_GOOGLE_ERROR | " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Erro no servidor']);
+    secureLog("AUTH_EXCEPTION: " . $e->getMessage());
+    jsonResponse(['success' => false, 'error' => 'Erro interno'], 500);
 }

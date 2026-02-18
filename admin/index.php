@@ -2,7 +2,7 @@
 // ============================================
 // UNOBIX - Painel Administrativo
 // Arquivo: admin/index.php
-// ATUALIZADO: Google Auth, BRL, Ads Manager
+// v6.0 - Google Auth, BRL, Ads Manager
 // ============================================
 
 session_start();
@@ -18,16 +18,11 @@ if (preg_match('~/(pages|includes)$~', $__scriptDir)) {
 $ADMIN_BASE_URL  = $__scriptDir;
 $ADMIN_INDEX_URL = $ADMIN_BASE_URL . '/index.php';
 
-// Configuração de autenticação (usar variáveis de ambiente)
-$adminUser = getenv('ADMIN_USER') ?: 'admin';
-$adminPass = getenv('ADMIN_PASSWORD');
-
-if (!$adminPass) {
-    die('❌ ERRO: Senha de administração não configurada. Defina ADMIN_PASSWORD no .env');
-}
-
-define('ADMIN_USER', $adminUser);
-define('ADMIN_PASS', $adminPass);
+// ============================================
+// CREDENCIAIS DO ADMIN — altere aqui diretamente
+// ============================================
+define('ADMIN_USER', 'admin');
+define('ADMIN_PASS', 'admin123');
 
 // Logout
 if (isset($_GET['logout'])) {
@@ -115,11 +110,16 @@ if (!isset($_SESSION['admin'])) {
 
 require_once __DIR__ . '/../api/config.php';
 
-$debugMode = false;
+// ============================================
+// SEMPRE exibir erros no admin (facilita debug)
+// ============================================
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
-// Conectar ao banco
+// Conectar ao banco (usa getDatabaseConnection() do config.php — Regra de Ouro)
 try {
-    $pdo = getDBConnection();
+    $pdo = getDatabaseConnection();
     $pdo->exec("SET time_zone = '-03:00'");
 } catch (Exception $e) {
     die('<div style="background:#0a0a0f;color:#ff4757;padding:50px;text-align:center;font-family:Arial;">
@@ -132,7 +132,7 @@ try {
 $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
 
 // ============================================
-// LISTA DE PÁGINAS PERMITIDAS - ATUALIZADO
+// LISTA DE PÁGINAS PERMITIDAS
 // ============================================
 $allowedPages = [
     'dashboard', 
@@ -145,7 +145,7 @@ $allowedPages = [
     'logs', 
     'settings',
     'referrals',
-    'ads'  // NOVA PÁGINA DE ANÚNCIOS
+    'ads'
 ];
 
 if (!in_array($page, $allowedPages)) {
@@ -154,37 +154,40 @@ if (!in_array($page, $allowedPages)) {
 
 $currentPage = $page;
 
-if ($debugMode) {
-    ini_set('display_errors', 1);
-    ini_set('display_startup_errors', 1);
-    error_reporting(E_ALL);
-}
-
 // Incluir header
 include __DIR__ . '/includes/header.php';
 
 // Incluir sidebar
 include __DIR__ . '/includes/sidebar.php';
 
-// Incluir página
+// Incluir página com tratamento de erros robusto
 $pageFile = __DIR__ . "/pages/{$page}.php";
-
-if ($debugMode) {
-    echo '<div style="background:orange;color:black;padding:10px;margin:10px;">Tentando incluir: ' . $pageFile . '</div>';
-}
 
 if (file_exists($pageFile)) {
     try {
         include $pageFile;
     } catch (Error $e) {
-        echo '<div class="main-content"><div class="alert alert-danger">Erro PHP: ' . htmlspecialchars($e->getMessage()) . '</div></div>';
+        echo '<div class="main-content"><div class="alert alert-danger" style="padding:20px;margin:20px;">
+            <h3>⚠️ Erro PHP na página: ' . htmlspecialchars($page) . '</h3>
+            <p><strong>Erro:</strong> ' . htmlspecialchars($e->getMessage()) . '</p>
+            <p><strong>Arquivo:</strong> ' . htmlspecialchars($e->getFile()) . ' (linha ' . $e->getLine() . ')</p>
+        </div></div>';
     } catch (Exception $e) {
-        echo '<div class="main-content"><div class="alert alert-danger">Exceção: ' . htmlspecialchars($e->getMessage()) . '</div></div>';
+        echo '<div class="main-content"><div class="alert alert-danger" style="padding:20px;margin:20px;">
+            <h3>⚠️ Exceção na página: ' . htmlspecialchars($page) . '</h3>
+            <p><strong>Erro:</strong> ' . htmlspecialchars($e->getMessage()) . '</p>
+            <p><strong>Arquivo:</strong> ' . htmlspecialchars($e->getFile()) . ' (linha ' . $e->getLine() . ')</p>
+        </div></div>';
     }
 } else {
-    echo '<div class="main-content"><div class="alert alert-danger">Página não encontrada: ' . htmlspecialchars($page) . '</div></div>';
+    echo '<div class="main-content"><div class="alert alert-danger" style="padding:20px;margin:20px;">
+        <h3>❌ Página não encontrada</h3>
+        <p>Arquivo: <code>' . htmlspecialchars($pageFile) . '</code></p>
+        <p>Verifique se o arquivo <code>pages/' . htmlspecialchars($page) . '.php</code> existe na pasta admin.</p>
+    </div></div>';
 }
 
 // Incluir footer
 include __DIR__ . '/includes/footer.php';
 ?>
+

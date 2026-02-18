@@ -5,14 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Carteira | UNOBIX</title>
-    <meta name="description" content="Gerencie seus ganhos - Saldo, transações e saques via PIX.">
+    <meta name="description" content="Gerencie seus ganhos - Saldo, transações e saques via PIX, FaucetPay ou USDT BEP20.">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/main.css">
     
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     
     <style>
         /* Cards de Saldo */
@@ -116,7 +114,7 @@
         }
         
         .payment-method.pix i { color: #32BCAD; }
-        .payment-method.paypal i { color: #00457C; }
+        .payment-method.faucetpay i { color: #F7931A; }
         .payment-method.usdt i { color: #26A17B; }
         
         .payment-method span {
@@ -415,22 +413,22 @@
     <section class="balance-cards">
         <div class="balance-card primary">
             <div class="balance-icon"><i class="fas fa-wallet"></i></div>
-            <div class="balance-value" id="walletBalance">R$ 0,00</div>
+            <div class="balance-value" id="walletBalance">R$ 0,000000</div>
             <div class="balance-label">Saldo Disponível</div>
         </div>
         <div class="balance-card">
             <div class="balance-icon" style="color: var(--success);"><i class="fas fa-coins"></i></div>
-            <div class="balance-value" id="walletEarned" style="color: var(--success);">R$ 0,00</div>
+            <div class="balance-value" id="walletEarned" style="color: var(--success);">R$ 0,000000</div>
             <div class="balance-label">Total Ganho</div>
         </div>
         <div class="balance-card">
             <div class="balance-icon" style="color: var(--warning);"><i class="fas fa-arrow-up"></i></div>
-            <div class="balance-value" id="walletWithdrawn" style="color: var(--warning);">R$ 0,00</div>
+            <div class="balance-value" id="walletWithdrawn" style="color: var(--warning);">R$ 0,000000</div>
             <div class="balance-label">Total Sacado</div>
         </div>
         <div class="balance-card">
             <div class="balance-icon" style="color: var(--danger);"><i class="fas fa-clock"></i></div>
-            <div class="balance-value" id="walletPending" style="color: var(--danger);">R$ 0,00</div>
+            <div class="balance-value" id="walletPending" style="color: var(--danger);">R$ 0,000000</div>
             <div class="balance-label">Saque Pendente</div>
         </div>
     </section>
@@ -445,9 +443,9 @@
                 <i class="fas fa-qrcode"></i>
                 <span>PIX</span>
             </div>
-            <div class="payment-method paypal" data-method="paypal" onclick="selectPaymentMethod('paypal')">
-                <i class="fab fa-paypal"></i>
-                <span>PayPal</span>
+            <div class="payment-method faucetpay" data-method="faucetpay" onclick="selectPaymentMethod('faucetpay')">
+                <i class="fas fa-wallet"></i>
+                <span>FaucetPay</span>
             </div>
             <div class="payment-method usdt" data-method="usdt_bep20" onclick="selectPaymentMethod('usdt_bep20')">
                 <i class="fas fa-coins"></i>
@@ -493,7 +491,7 @@
     
     <!-- Rodapé -->
     <footer class="footer">
-        <a href="https://t.me/UnobixOfficial" target="_blank" class="btn btn-telegram">
+        <a href="https://t.me/comunidade_unobix" target="_blank" class="btn btn-telegram">
             <i class="fab fa-telegram"></i> Nosso Telegram
         </a>
         <div class="footer-links">
@@ -507,6 +505,10 @@
 </div>
 
 <!-- Scripts -->
+<!-- Firebase SDK v10.7.1 (compat mode) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="js/auth-manager.js"></script>
 <script src="js/main.js"></script>
@@ -514,12 +516,14 @@
 <script>
 let selectedPaymentMethod = 'pix';
 
-// Formatar valores em BRL
+// Formatar valores em BRL (6 casas decimais)
 function formatBRL(value) {
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    }).format(value || 0);
+    const num = parseFloat(value) || 0;
+    const fixed = num.toFixed(6);
+    const parts = fixed.split('.');
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const decPart = parts[1];
+    return 'R$ ' + intPart + ',' + decPart;
 }
 
 // Selecionar método de pagamento
@@ -545,8 +549,8 @@ function selectPaymentMethod(method) {
             detailsInput.placeholder = 'CPF, e-mail, celular ou chave aleatória';
             detailsInput.type = 'text';
             break;
-        case 'paypal':
-            detailsLabel.textContent = 'E-mail PayPal';
+        case 'faucetpay':
+            detailsLabel.textContent = 'E-mail FaucetPay';
             detailsInput.placeholder = 'seu-email@exemplo.com';
             detailsInput.type = 'email';
             break;
