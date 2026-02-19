@@ -335,81 +335,52 @@
     } catch (e) {}
     
     let adsReady = false;
-    let rotationTimer = null;
-    
-    // Renderizar um slot no container
-    function renderSlot(type) {
-        if (typeof AdsManager === 'undefined' || !AdsManager.isEnabled?.()) return;
-        
+    let currentSlot = null;
+
+    // Carregar 1 ÚNICO slot por sessão (rodízio sequencial via localStorage)
+    // Elimina conflitos entre scripts de redes ads diferentes
+    async function loadAd() {
         try {
-            const slot = AdsManager.getNextSlot?.(type);
-            if (slot) {
-                adContainer.innerHTML = AdsManager.getSlotHTML?.(slot) || '';
+            if (typeof AdsManager === 'undefined') return;
+            await AdsManager.init();
+
+            if (!AdsManager.isEnabled?.()) return;
+
+            // Injetar scripts globais do slot atual ANTES de renderizar
+            if (typeof AdsManager.injectGlobalScripts === 'function') {
+                await AdsManager.injectGlobalScripts('endgame');
+            }
+
+            // Pegar próximo slot visual (rodízio persistente em localStorage)
+            currentSlot = AdsManager.getNextSlot?.('endgame');
+            if (!currentSlot) return;
+
+            adsReady = true;
+
+            // Renderizar o slot único
+            const html = AdsManager.getSlotHTML?.(currentSlot) || '';
+            if (html) {
+                adContainer.innerHTML = html;
                 if (typeof AdsManager.executeScripts === 'function') {
                     AdsManager.executeScripts(adContainer);
                 }
-                AdsManager.trackImpression?.(slot.id);
+                AdsManager.trackImpression?.(currentSlot.id);
+
                 const label = document.createElement('span');
                 label.className = 'ad-label';
                 label.textContent = 'Publicidade';
                 adContainer.appendChild(label);
             }
         } catch (e) {
-            console.warn('📺 Erro ao renderizar slot:', e.message);
-        }
-    }
-    
-    // Carregar anúncio endgame e iniciar rotação respeitando duration_seconds por slot
-    async function loadAd() {
-        try {
-            if (typeof AdsManager !== 'undefined') {
-                await AdsManager.init();
-
-                if (AdsManager.isEnabled?.()) {
-                    const slots = AdsManager.getSlots?.()?.endgame || [];
-                    if (slots.length > 0) {
-                        adsReady = true;
-
-                        // Injetar scripts globais (Monetag, push) ANTES de renderizar
-                        if (typeof AdsManager.injectGlobalScripts === 'function') {
-                            AdsManager.injectGlobalScripts('endgame');
-                        }
-
-                        // Renderizar primeiro slot
-                        renderSlot('endgame');
-
-                        // Se tem mais de 1 slot, rotacionar respeitando duration_seconds de cada slot
-                        if (slots.length > 1) {
-                            const fallbackInterval = AdsManager.getConfig?.()?.endgame_rotation_interval || 8;
-                            let currentIdx = 0;
-
-                            function scheduleNextSlot() {
-                                const currentSlot = slots[currentIdx % slots.length];
-                                const slotDuration = (parseInt(currentSlot.duration_seconds) || fallbackInterval) * 1000;
-
-                                rotationTimer = setTimeout(() => {
-                                    currentIdx++;
-                                    renderSlot('endgame');
-                                    scheduleNextSlot();
-                                }, slotDuration);
-                            }
-                            scheduleNextSlot();
-                        }
-                    }
-                }
-            }
-        } catch (e) {
             console.warn('📺 Erro ao carregar ads:', e.message);
         }
     }
 
-    // Duração total da tela: soma dos duration_seconds dos slots (não config global)
+    // Duração: duration_seconds do slot atual, ou config global
     function getDuration() {
-        if (adsReady && typeof AdsManager !== 'undefined') {
-            if (typeof AdsManager.getTotalSlotsDuration === 'function') {
-                const slotsDuration = AdsManager.getTotalSlotsDuration('endgame');
-                if (slotsDuration > 0) return slotsDuration;
-            }
+        if (adsReady && currentSlot) {
+            const slotDuration = parseInt(currentSlot.duration_seconds);
+            if (slotDuration > 0) return slotDuration;
             return AdsManager.getConfig?.()?.endgame_total_duration || 10;
         }
         return 3;
@@ -440,8 +411,6 @@
 
             if (progress >= 100) {
                 clearInterval(interval);
-                if (rotationTimer) clearTimeout(rotationTimer);
-
                 sessionStorage.setItem('postgameComplete', 'true');
 
                 setTimeout(() => {
