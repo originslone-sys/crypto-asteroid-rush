@@ -55,13 +55,17 @@ const AdsManager = {
     
     async init() {
         if (this.isInitialized) return;
-        
-        this.log('📺 AdsManager v4.0 inicializando...');
-        
-        await this.loadConfig();
-        
-        this.isInitialized = true;
-        this.log('📺 AdsManager inicializado', this.config?.enabled ? '(ativo)' : '(desativado)');
+        // Evitar chamadas concorrentes (DOMContentLoaded + loadAd chamam init ao mesmo tempo)
+        if (this._initPromise) return this._initPromise;
+
+        this._initPromise = (async () => {
+            this.log('📺 AdsManager v4.0 inicializando...');
+            await this.loadConfig();
+            this.isInitialized = true;
+            this.log('📺 AdsManager inicializado', this.config?.enabled ? '(ativo)' : '(desativado)');
+        })();
+
+        return this._initPromise;
     },
     
     // Carregar configurações e slots da API
@@ -315,9 +319,21 @@ const AdsManager = {
         return slot;
     },
     
+    // Detectar se um código contém APENAS <script> tags (sem HTML visual).
+    // Scripts puros (Monetag, push, pop-under) precisam rodar no <head>,
+    // não dentro de iframe. Display ads (Adsterra, a-ads) sempre têm
+    // elementos visuais (<div>, <ins>, <iframe>, <img>) junto dos scripts.
+    _isGlobalOnlyScript(code) {
+        if (!code) return false;
+        const hasVisual = /<(?:div|ins|iframe|img|a |span|p |section)\b/i.test(code);
+        return !hasVisual && /<script\b/i.test(code);
+    },
+
     // Gerar HTML do slot — dois containers independentes:
     //   1. script_code (display): Adsterra, a-ads, banners → iframe isolado (data-position="center")
     //   2. custom_js (global): Monetag, push, pop-under → injeta no <head> (data-position="head")
+    // Auto-detecção: se script_code contém APENAS <script> (sem HTML visual)
+    // e custom_js está vazio, trata como script global automaticamente.
     getSlotHTML(slot) {
         if (!slot) return '';
 
@@ -328,11 +344,16 @@ const AdsManager = {
             html += `<style>${slot.custom_css}</style>`;
         }
 
-        // Container para display ads (script_code)
-        // Retrocompatibilidade: se slot antigo tem position=head e custom_js vazio,
-        // trata script_code como script global (não coloca em iframe)
         if (slot.script_code) {
-            const scriptPosition = (!slot.custom_js && slot.position === 'head') ? 'head' : 'center';
+            // Determinar posição: head (global) vs center (iframe)
+            // 1. Se custom_js já tem conteúdo → script_code é display (center)
+            // 2. Se position=head (slot antigo) → head
+            // 3. Se script_code tem APENAS <script> tags (sem HTML visual) → head (auto-detect)
+            // 4. Default → center (iframe)
+            const isGlobal = !slot.custom_js && (
+                slot.position === 'head' || this._isGlobalOnlyScript(slot.script_code)
+            );
+            const scriptPosition = isGlobal ? 'head' : 'center';
             const style = [];
             if (scriptPosition === 'center') {
                 if (slot.width) style.push(`width:${slot.width}${isNaN(slot.width) ? '' : 'px'}`);
@@ -391,9 +412,11 @@ const AdsManager = {
         const typeSlots = this.slots?.[type] || [];
         typeSlots.forEach(slot => {
             const sid = String(slot.id);
-            // Novo sistema: custom_js contém scripts globais
-            // Retrocompat: se custom_js vazio e position=head, usa script_code
-            const globalCode = slot.custom_js || (slot.position === 'head' ? slot.script_code : null);
+            // Detectar código global: custom_js, ou script_code se for script puro / position=head
+            const isScriptCodeGlobal = !slot.custom_js && (
+                slot.position === 'head' || this._isGlobalOnlyScript(slot.script_code)
+            );
+            const globalCode = slot.custom_js || (isScriptCodeGlobal ? slot.script_code : null);
             if (!globalCode || this._injectedGlobalIds.has(sid)) return;
 
             this._injectedGlobalIds.add(sid);

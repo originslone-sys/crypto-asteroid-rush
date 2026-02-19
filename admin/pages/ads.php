@@ -558,8 +558,8 @@ if (isset($_GET['edit'])) {
                         </div>
                     </div>
 
-                    <!-- Campo position automático (não precisa de dropdown) -->
-                    <input type="hidden" name="position" value="center">
+                    <!-- Preserva position original em edições (retrocompat slots antigos com position=head) -->
+                    <input type="hidden" name="position" value="<?php echo htmlspecialchars($editSlot['position'] ?? 'center'); ?>">
 
                     <div class="form-group">
                         <label class="form-label">Scripts de Display (Adsterra, a-ads, banners visuais)</label>
