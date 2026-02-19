@@ -206,9 +206,9 @@ function getPublicAdsConfig($pdo) {
         $config[$key] = $value;
     }
     
-    // Buscar slots ativos
+    // Buscar slots ativos (inclui custom_js para scripts globais)
     $stmt = $pdo->prepare("
-        SELECT id, slot_name, slot_type, position, script_code, width, height,
+        SELECT id, slot_name, slot_type, position, script_code, custom_js, width, height,
                display_order, custom_css, duration_seconds
         FROM ad_slots
         WHERE is_active = 1
@@ -332,14 +332,20 @@ function listAdSlots($pdo, $input) {
  * Adicionar slot de anúncio
  */
 function addAdSlot($pdo, $input) {
-    $required = ['slot_name', 'slot_type', 'script_code'];
+    $required = ['slot_name', 'slot_type'];
     foreach ($required as $field) {
         if (empty($input[$field])) {
             echo json_encode(['success' => false, 'error' => "Campo obrigatório: $field"]);
             return;
         }
     }
-    
+
+    // Pelo menos um dos campos de script deve ter conteúdo
+    if (empty($input['script_code']) && empty($input['custom_js'])) {
+        echo json_encode(['success' => false, 'error' => 'Pelo menos um campo de script (Display ou Global) deve ter conteúdo']);
+        return;
+    }
+
     // Validar tipo
     $validTypes = ['pregame', 'endgame', 'interstitial', 'banner'];
     if (!in_array($input['slot_type'], $validTypes)) {

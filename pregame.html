@@ -317,6 +317,11 @@
                     if (slots.length > 0) {
                         adsReady = true;
 
+                        // Injetar scripts globais (Monetag, push) ANTES de renderizar
+                        if (typeof AdsManager.injectGlobalScripts === 'function') {
+                            AdsManager.injectGlobalScripts('pregame');
+                        }
+
                         // Renderizar primeiro slot
                         renderSlot('pregame');
 
@@ -344,10 +349,14 @@
             console.warn('📺 Erro ao carregar ads:', e.message);
         }
     }
-    
-    // Determinar duração
+
+    // Determinar duração: soma dos duration_seconds dos slots (não config global)
     function getDuration() {
         if (adsReady && typeof AdsManager !== 'undefined') {
+            if (typeof AdsManager.getTotalSlotsDuration === 'function') {
+                const slotsDuration = AdsManager.getTotalSlotsDuration('pregame');
+                if (slotsDuration > 0) return slotsDuration;
+            }
             return AdsManager.getConfig?.()?.pregame_total_duration || 10;
         }
         return 3; // Sem ads = loading rápido

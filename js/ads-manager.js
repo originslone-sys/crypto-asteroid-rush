@@ -13,6 +13,7 @@ const AdsManager = {
     currentAd: null,
     adIndex: {},          // índice de rotação por tipo
     skipCallback: null,
+    _injectedGlobalIds: new Set(), // tracker para evitar duplicação de scripts globais
     
     // Configurações padrão (sobrescritas pela API)
     defaultConfig: {
@@ -314,25 +315,35 @@ const AdsManager = {
         return slot;
     },
     
-    // Gerar HTML do slot (usa script_code do banco)
+    // Gerar HTML do slot — dois containers independentes:
+    //   1. script_code (display): Adsterra, a-ads, banners → iframe isolado (data-position="center")
+    //   2. custom_js (global): Monetag, push, pop-under → injeta no <head> (data-position="head")
     getSlotHTML(slot) {
         if (!slot) return '';
-        
+
         let html = '';
-        
+
         // CSS personalizado
         if (slot.custom_css) {
             html += `<style>${slot.custom_css}</style>`;
         }
-        
-        // Container com dimensões
-        const style = [];
-        if (slot.width) style.push(`width:${slot.width}${isNaN(slot.width) ? '' : 'px'}`);
-        if (slot.height) style.push(`height:${slot.height}${isNaN(slot.height) ? '' : 'px'}`);
-        
-        html += `<div class="ad-slot-content" data-slot-id="${slot.id}" data-position="${slot.position || 'center'}"
-                      style="${style.join(';')}">${slot.script_code}</div>`;
-        
+
+        // Container com dimensões para display ads (script_code)
+        if (slot.script_code) {
+            const style = [];
+            if (slot.width) style.push(`width:${slot.width}${isNaN(slot.width) ? '' : 'px'}`);
+            if (slot.height) style.push(`height:${slot.height}${isNaN(slot.height) ? '' : 'px'}`);
+
+            html += `<div class="ad-slot-content" data-slot-id="${slot.id}" data-position="center"
+                          style="${style.join(';')}">${slot.script_code}</div>`;
+        }
+
+        // Container para scripts globais (custom_js) — injeta no <head>
+        if (slot.custom_js) {
+            html += `<div class="ad-slot-content" data-slot-id="${slot.id}" data-position="head"
+                          style="display:none;">${slot.custom_js}</div>`;
+        }
+
         return html;
     },
     
@@ -367,6 +378,44 @@ const AdsManager = {
         }
     },
     
+    // Injetar TODOS os scripts globais (custom_js) de um tipo no <head> imediatamente,
+    // antes de qualquer renderização visual. Evita que Monetag/push carreguem tarde.
+    injectGlobalScripts(type) {
+        const typeSlots = this.slots?.[type] || [];
+        typeSlots.forEach(slot => {
+            if (!slot.custom_js || this._injectedGlobalIds.has(slot.id)) return;
+
+            this._injectedGlobalIds.add(slot.id);
+            this.log('📺 Injetando script global do slot', slot.id, slot.slot_name);
+
+            const temp = document.createElement('div');
+            temp.innerHTML = slot.custom_js;
+            const scripts = temp.querySelectorAll('script');
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement('script');
+                Array.from(oldScript.attributes).forEach(attr => {
+                    newScript.setAttribute(attr.name, attr.value);
+                });
+                if (!oldScript.src) {
+                    newScript.textContent = oldScript.textContent;
+                }
+                document.head.appendChild(newScript);
+            });
+        });
+    },
+
+    // Somar duration_seconds de cada slot de um tipo (em vez de usar config global)
+    getTotalSlotsDuration(type) {
+        const typeSlots = this.slots?.[type] || [];
+        if (typeSlots.length === 0) return 0;
+
+        let total = 0;
+        typeSlots.forEach(slot => {
+            total += parseInt(slot.duration_seconds) || 5;
+        });
+        return total;
+    },
+
     // Ativar ads que contêm <script> tags.
     // Dois modos controlados por data-position no slot:
     //   "center" (default) → iframe sandbox (display ads: Adsterra, banners)
@@ -378,11 +427,18 @@ const AdsManager = {
             if (!slotDiv.querySelector('script')) return;
 
             const position = slotDiv.dataset.position || 'center';
+            const slotId = slotDiv.dataset.slotId;
             const adHTML = slotDiv.innerHTML;
 
             if (position === 'head') {
+                // Verificar duplicação — se já foi injetado via injectGlobalScripts(), pular
+                if (slotId && this._injectedGlobalIds.has(slotId)) {
+                    slotDiv.innerHTML = '';
+                    return;
+                }
+                if (slotId) this._injectedGlobalIds.add(slotId);
+
                 // Global scripts (Monetag, push notifications, pop-unders)
-                // Precisam rodar no top-level, não dentro de iframe
                 const temp = document.createElement('div');
                 temp.innerHTML = adHTML;
                 const scripts = temp.querySelectorAll('script');
