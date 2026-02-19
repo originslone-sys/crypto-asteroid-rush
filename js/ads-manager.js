@@ -169,45 +169,51 @@ const AdsManager = {
     },
 
     // ============================================
-    // INJEÇÃO DE SCRIPTS GLOBAIS (roda UMA VEZ por tipo)
+    // INJEÇÃO DE SCRIPTS — APENAS DO SLOT ATUAL
     // ============================================
 
-    // Injetar TODOS os scripts globais de um tipo no <head>, sequencialmente.
-    // Cada script aguarda o anterior carregar antes de prosseguir.
-    // Deduplicação dupla: por slot ID e por fingerprint do script.
+    // Injetar scripts globais de UM ÚNICO slot no <head>, sequencialmente.
+    // Chamado apenas para o slot selecionado na sessão atual.
+    // Isso garante que scripts de outros slots NÃO vazem para esta sessão.
+    async injectSlotScripts(slot) {
+        if (!slot) return;
+
+        const globalCode = this._getGlobalCode(slot);
+        if (!globalCode) return;
+
+        const slotKey = 'slot_' + slot.id;
+        if (this._injectedSlotIds.has(slotKey)) return;
+        this._injectedSlotIds.add(slotKey);
+
+        this.log('📺 Injetando scripts do slot', slot.id, slot.slot_name || '');
+
+        // Extrair scripts do código
+        const temp = document.createElement('div');
+        temp.innerHTML = globalCode;
+        const scripts = temp.querySelectorAll('script');
+
+        for (const oldScript of scripts) {
+            const fingerprint = this._scriptFingerprint(oldScript);
+
+            if (this._injectedFingerprints.has(fingerprint)) {
+                this.log('📺 Skip duplicado:', fingerprint.substring(0, 80));
+                continue;
+            }
+            this._injectedFingerprints.add(fingerprint);
+
+            // Injetar e aguardar carregamento
+            await this._injectScript(oldScript);
+
+            // Delay entre scripts para evitar race conditions
+            await new Promise(r => setTimeout(r, 150));
+        }
+    },
+
+    // Compatibilidade: injetar globais de um tipo inteiro (usado por showBanner, showInterstitial)
     async injectGlobalScripts(type) {
         const typeSlots = this.slots?.[type] || [];
-
         for (const slot of typeSlots) {
-            const globalCode = this._getGlobalCode(slot);
-            if (!globalCode) continue;
-
-            const slotKey = type + '_' + slot.id;
-            if (this._injectedSlotIds.has(slotKey)) continue;
-            this._injectedSlotIds.add(slotKey);
-
-            this.log('📺 Processando scripts globais do slot', slot.id, slot.slot_name || '');
-
-            // Extrair scripts do código
-            const temp = document.createElement('div');
-            temp.innerHTML = globalCode;
-            const scripts = temp.querySelectorAll('script');
-
-            for (const oldScript of scripts) {
-                const fingerprint = this._scriptFingerprint(oldScript);
-
-                if (this._injectedFingerprints.has(fingerprint)) {
-                    this.log('📺 Skip duplicado:', fingerprint.substring(0, 80));
-                    continue;
-                }
-                this._injectedFingerprints.add(fingerprint);
-
-                // Injetar e aguardar carregamento
-                await this._injectScript(oldScript);
-
-                // Delay entre scripts para evitar race conditions entre redes ads
-                await new Promise(r => setTimeout(r, 150));
-            }
+            await this.injectSlotScripts(slot);
         }
     },
 
@@ -453,31 +459,33 @@ const AdsManager = {
     // CORE: Slot Management
     // ============================================
 
-    // Obter próximo slot VISUAL por tipo (rodízio sequencial persistente).
+    // Obter próximo slot por tipo (rodízio sequencial persistente).
+    // Rotaciona por TODOS os slots da categoria (visual + global-only).
     // Usa localStorage para lembrar qual slot foi exibido por último,
     // garantindo que cada sessão mostre o próximo slot da fila.
-    // Slots global-only não participam da rotação visual.
     getNextSlot(type) {
-        const visualSlots = this._getVisualSlots(type);
-        if (visualSlots.length === 0) return null;
+        const allSlots = this.slots?.[type] || [];
+        if (allSlots.length === 0) return null;
 
         const storageKey = 'ads_rotation_' + type;
         let idx = parseInt(localStorage.getItem(storageKey) || '0');
         if (isNaN(idx) || idx < 0) idx = 0;
 
-        const slot = visualSlots[idx % visualSlots.length];
+        const slot = allSlots[idx % allSlots.length];
 
         // Salvar próximo índice para a próxima sessão
-        localStorage.setItem(storageKey, String((idx + 1) % visualSlots.length));
+        localStorage.setItem(storageKey, String((idx + 1) % allSlots.length));
 
         return slot;
     },
 
-    // Gerar HTML do slot — APENAS conteúdo visual de display.
-    // Scripts globais (custom_js / global-only script_code) NÃO são incluídos aqui.
-    // Eles são tratados exclusivamente por injectGlobalScripts().
+    // Gerar HTML do slot para exibição no container.
+    // - Slots com conteúdo visual: retorna HTML com data-position="center"
+    // - Slots global-only (só scripts): retorna '' (scripts já injetados por injectSlotScripts)
     getSlotHTML(slot) {
         if (!slot) return '';
+
+        // Se não tem conteúdo visual, retornar vazio (scripts globais já foram injetados no <head>)
         if (!this._hasVisualContent(slot)) return '';
 
         let html = '';
