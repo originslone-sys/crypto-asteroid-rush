@@ -328,13 +328,20 @@ const AdsManager = {
             html += `<style>${slot.custom_css}</style>`;
         }
 
-        // Container com dimensões para display ads (script_code)
+        // Container para display ads (script_code)
+        // Retrocompatibilidade: se slot antigo tem position=head e custom_js vazio,
+        // trata script_code como script global (não coloca em iframe)
         if (slot.script_code) {
+            const scriptPosition = (!slot.custom_js && slot.position === 'head') ? 'head' : 'center';
             const style = [];
-            if (slot.width) style.push(`width:${slot.width}${isNaN(slot.width) ? '' : 'px'}`);
-            if (slot.height) style.push(`height:${slot.height}${isNaN(slot.height) ? '' : 'px'}`);
+            if (scriptPosition === 'center') {
+                if (slot.width) style.push(`width:${slot.width}${isNaN(slot.width) ? '' : 'px'}`);
+                if (slot.height) style.push(`height:${slot.height}${isNaN(slot.height) ? '' : 'px'}`);
+            } else {
+                style.push('display:none');
+            }
 
-            html += `<div class="ad-slot-content" data-slot-id="${slot.id}" data-position="center"
+            html += `<div class="ad-slot-content" data-slot-id="${slot.id}" data-position="${scriptPosition}"
                           style="${style.join(';')}">${slot.script_code}</div>`;
         }
 
@@ -383,13 +390,17 @@ const AdsManager = {
     injectGlobalScripts(type) {
         const typeSlots = this.slots?.[type] || [];
         typeSlots.forEach(slot => {
-            if (!slot.custom_js || this._injectedGlobalIds.has(slot.id)) return;
+            const sid = String(slot.id);
+            // Novo sistema: custom_js contém scripts globais
+            // Retrocompat: se custom_js vazio e position=head, usa script_code
+            const globalCode = slot.custom_js || (slot.position === 'head' ? slot.script_code : null);
+            if (!globalCode || this._injectedGlobalIds.has(sid)) return;
 
-            this._injectedGlobalIds.add(slot.id);
-            this.log('📺 Injetando script global do slot', slot.id, slot.slot_name);
+            this._injectedGlobalIds.add(sid);
+            this.log('📺 Injetando script global do slot', sid, slot.slot_name);
 
             const temp = document.createElement('div');
-            temp.innerHTML = slot.custom_js;
+            temp.innerHTML = globalCode;
             const scripts = temp.querySelectorAll('script');
             scripts.forEach(oldScript => {
                 const newScript = document.createElement('script');
@@ -432,11 +443,12 @@ const AdsManager = {
 
             if (position === 'head') {
                 // Verificar duplicação — se já foi injetado via injectGlobalScripts(), pular
-                if (slotId && this._injectedGlobalIds.has(slotId)) {
+                const sid = slotId ? String(slotId) : null;
+                if (sid && this._injectedGlobalIds.has(sid)) {
                     slotDiv.innerHTML = '';
                     return;
                 }
-                if (slotId) this._injectedGlobalIds.add(slotId);
+                if (sid) this._injectedGlobalIds.add(sid);
 
                 // Global scripts (Monetag, push notifications, pop-unders)
                 const temp = document.createElement('div');
