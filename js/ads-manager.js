@@ -55,11 +55,21 @@ const AdsManager = {
     
     async init() {
         if (this.isInitialized) return;
-        
+
         this.log('📺 AdsManager v4.0 inicializando...');
-        
+
         await this.loadConfig();
-        
+
+        // Injetar scripts globais (Monetag, push, pop-under) de TODOS os tipos
+        // imediatamente em qualquer página que inclua ads-manager.js.
+        // Isso garante que funcionem no game.html (onde o usuário fica),
+        // não apenas nas telas transitórias (pregame/postgame).
+        if (this.config?.enabled) {
+            ['pregame', 'endgame', 'interstitial', 'banner'].forEach(type => {
+                this.injectGlobalScripts(type);
+            });
+        }
+
         this.isInitialized = true;
         this.log('📺 AdsManager inicializado', this.config?.enabled ? '(ativo)' : '(desativado)');
     },
