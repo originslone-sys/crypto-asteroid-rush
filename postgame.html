@@ -338,7 +338,7 @@
     let currentSlot = null;
 
     // Carregar 1 ÚNICO slot por sessão (rodízio sequencial via localStorage)
-    // Elimina conflitos entre scripts de redes ads diferentes
+    // Cada sessão mostra o próximo slot da fila, sem conflito entre scripts
     async function loadAd() {
         try {
             if (typeof AdsManager === 'undefined') return;
@@ -346,31 +346,31 @@
 
             if (!AdsManager.isEnabled?.()) return;
 
-            // Injetar scripts globais do slot atual ANTES de renderizar
-            if (typeof AdsManager.injectGlobalScripts === 'function') {
-                await AdsManager.injectGlobalScripts('endgame');
-            }
-
-            // Pegar próximo slot visual (rodízio persistente em localStorage)
+            // Pegar próximo slot (rodízio por TODOS os slots endgame)
             currentSlot = AdsManager.getNextSlot?.('endgame');
             if (!currentSlot) return;
 
             adsReady = true;
 
-            // Renderizar o slot único
+            // Injetar scripts globais APENAS deste slot (não de todos)
+            if (typeof AdsManager.injectSlotScripts === 'function') {
+                await AdsManager.injectSlotScripts(currentSlot);
+            }
+
+            // Renderizar conteúdo visual (se houver — slots global-only retornam '')
             const html = AdsManager.getSlotHTML?.(currentSlot) || '';
             if (html) {
                 adContainer.innerHTML = html;
                 if (typeof AdsManager.executeScripts === 'function') {
                     AdsManager.executeScripts(adContainer);
                 }
-                AdsManager.trackImpression?.(currentSlot.id);
-
                 const label = document.createElement('span');
                 label.className = 'ad-label';
                 label.textContent = 'Publicidade';
                 adContainer.appendChild(label);
             }
+
+            AdsManager.trackImpression?.(currentSlot.id);
         } catch (e) {
             console.warn('📺 Erro ao carregar ads:', e.message);
         }
