@@ -536,16 +536,7 @@ if (isset($_GET['edit'])) {
                         </div>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px;">
-                        <div class="form-group">
-                            <label class="form-label">Modo de Injeção *</label>
-                            <select name="position" class="form-control" required>
-                                <option value="center" <?php echo ($editSlot['position'] ?? 'center') === 'center' ? 'selected' : ''; ?>>Container (Display Ad)</option>
-                                <option value="head" <?php echo ($editSlot['position'] ?? '') === 'head' ? 'selected' : ''; ?>>Global (Pop-under/Push)</option>
-                            </select>
-                            <small style="color: var(--text-dim);">Container: Adsterra, a-ads, banners. Global: Monetag, push.</small>
-                        </div>
-
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
                         <div class="form-group">
                             <label class="form-label">Largura</label>
                             <input type="text" name="width" class="form-control"
@@ -567,11 +558,21 @@ if (isset($_GET['edit'])) {
                         </div>
                     </div>
 
+                    <!-- Campo position automático (não precisa de dropdown) -->
+                    <input type="hidden" name="position" value="center">
+
                     <div class="form-group">
-                        <label class="form-label">Código do Anúncio (HTML/JavaScript) *</label>
-                        <textarea name="script_code" class="form-control" rows="8" required
-                                  placeholder="Cole aqui o código fornecido pelo seu provedor de anúncios..."><?php echo htmlspecialchars($editSlot['script_code'] ?? ''); ?></textarea>
-                        <small style="color: var(--text-dim);">Aceita HTML, JavaScript e tags de terceiros</small>
+                        <label class="form-label">Scripts de Display (Adsterra, a-ads, banners visuais)</label>
+                        <textarea name="script_code" class="form-control" rows="8"
+                                  placeholder="Cole aqui o código do banner/display ad (Adsterra, a-ads, etc)... Renderiza dentro de iframe isolado."><?php echo htmlspecialchars($editSlot['script_code'] ?? ''); ?></textarea>
+                        <small style="color: var(--text-dim);">Renderiza dentro de iframe isolado no container do ad</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Scripts Globais (Monetag, push notifications, pop-under)</label>
+                        <textarea name="custom_js" class="form-control" rows="8"
+                                  placeholder="Cole aqui scripts globais (Monetag, push, pop-under)... Injeta direto no <head> da página."><?php echo htmlspecialchars($editSlot['custom_js'] ?? ''); ?></textarea>
+                        <small style="color: var(--text-dim);">Injeta direto no &lt;head&gt; da página para acesso top-level. Permite combinar redes no mesmo slot (ex: Adsterra banner + Monetag pop-under)</small>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -582,9 +583,9 @@ if (isset($_GET['edit'])) {
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">JS Personalizado (opcional)</label>
-                            <textarea name="custom_js" class="form-control" rows="3"
-                                      placeholder="console.log('ad loaded');"><?php echo htmlspecialchars($editSlot['custom_js'] ?? ''); ?></textarea>
+                            <small style="color: #ffc107; display: block; margin-top: 24px; padding: 10px; background: rgba(255,193,7,0.08); border-radius: 6px;">
+                                <i class="fas fa-info-circle"></i> Pelo menos um dos campos de script (Display ou Global) deve ter conteúdo. Ambos são opcionais individualmente.
+                            </small>
                         </div>
                     </div>
 
@@ -646,7 +647,6 @@ function showNewSlot(e) {
     // Limpar todos os campos
     form.querySelector('input[name="slot_name"]').value = '';
     form.querySelector('select[name="slot_type"]').value = 'pregame';
-    form.querySelector('select[name="position"]').value = 'center';
     form.querySelector('input[name="width"]').value = '';
     form.querySelector('input[name="height"]').value = '';
     form.querySelector('input[name="duration_seconds"]').value = '5';

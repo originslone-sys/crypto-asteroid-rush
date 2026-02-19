@@ -370,6 +370,11 @@
                     if (slots.length > 0) {
                         adsReady = true;
 
+                        // Injetar scripts globais (Monetag, push) ANTES de renderizar
+                        if (typeof AdsManager.injectGlobalScripts === 'function') {
+                            AdsManager.injectGlobalScripts('endgame');
+                        }
+
                         // Renderizar primeiro slot
                         renderSlot('endgame');
 
@@ -398,9 +403,13 @@
         }
     }
 
-    // Duração total da tela: usa endgame_total_duration (não rotation_interval)
+    // Duração total da tela: soma dos duration_seconds dos slots (não config global)
     function getDuration() {
         if (adsReady && typeof AdsManager !== 'undefined') {
+            if (typeof AdsManager.getTotalSlotsDuration === 'function') {
+                const slotsDuration = AdsManager.getTotalSlotsDuration('endgame');
+                if (slotsDuration > 0) return slotsDuration;
+            }
             return AdsManager.getConfig?.()?.endgame_total_duration || 10;
         }
         return 3;
