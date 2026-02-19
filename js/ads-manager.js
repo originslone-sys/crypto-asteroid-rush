@@ -114,45 +114,33 @@ const AdsManager = {
     // ============================================
     // CLASSIFICAÇÃO DE SCRIPTS
     // ============================================
+    //
+    // Regra explícita — SEM auto-detecção:
+    //   script_code → SEMPRE display (renderizar no container)
+    //   custom_js   → SEMPRE global (injetar no <head>)
+    //   position='head' (legado) → global
+    //
+    // O admin decide onde colocar o código:
+    //   - Adsterra, a-ads, banners visuais → script_code
+    //   - Monetag push, pop-under, tracking → custom_js
 
-    // Detectar se um código contém APENAS <script> tags (sem HTML visual).
-    // Scripts puros (Monetag, push, pop-under) precisam rodar no <head>,
-    // não dentro de iframe. Display ads (Adsterra, a-ads) sempre têm
-    // elementos visuais (<div>, <ins>, <iframe>, <img>) junto dos scripts.
-    _isGlobalOnlyScript(code) {
-        if (!code) return false;
-        const hasVisual = /<(?:div|ins|iframe|img|a |span|p |section)\b/i.test(code);
-        return !hasVisual && /<script\b/i.test(code);
-    },
-
-    // Verificar se um slot tem conteúdo visual (que precisa de espaço no container)
+    // Verificar se um slot tem conteúdo para exibir no container
     _hasVisualContent(slot) {
         if (!slot) return false;
         if (!slot.script_code) return false;
-        // Se custom_js existe, script_code é sempre visual (display ad)
-        if (slot.custom_js) return true;
-        // Se position=head (legado) ou auto-detectado como global-only, NÃO é visual
+        // position='head' é legado — significa global, não visual
         if (slot.position === 'head') return false;
-        if (this._isGlobalOnlyScript(slot.script_code)) return false;
         return true;
     },
 
-    // Extrair código global de um slot (custom_js, ou script_code se for global-only)
+    // Extrair código global de um slot (apenas custom_js ou position=head legado)
     _getGlobalCode(slot) {
         if (!slot) return null;
         // custom_js é sempre global
         if (slot.custom_js) return slot.custom_js;
-        // script_code pode ser global se for position=head ou auto-detectado
-        if (slot.position === 'head' || this._isGlobalOnlyScript(slot.script_code)) {
-            return slot.script_code;
-        }
+        // position=head (legado) → script_code tratado como global
+        if (slot.position === 'head' && slot.script_code) return slot.script_code;
         return null;
-    },
-
-    // Retornar apenas slots visuais de um tipo (para rotação)
-    _getVisualSlots(type) {
-        const typeSlots = this.slots?.[type] || [];
-        return typeSlots.filter(slot => this._hasVisualContent(slot));
     },
 
     // Gerar fingerprint de um script para deduplicação por conteúdo
@@ -537,33 +525,28 @@ const AdsManager = {
         }
     },
 
-    // Ativar scripts de DISPLAY ads em iframes isolados.
-    // Processa APENAS divs com data-position="center".
-    // Scripts globais (head) já foram tratados por injectGlobalScripts().
+    // Ativar scripts de DISPLAY ads diretamente no container.
+    // innerHTML não executa <script> tags automaticamente —
+    // precisamos re-criar cada elemento <script> para que o browser execute.
+    // Execução direta (sem iframe) garante compatibilidade universal:
+    // Adsterra invoke.js, Monetag, a-ads, qualquer rede ads.
     executeScripts(container) {
         const slotDivs = container.querySelectorAll('.ad-slot-content[data-position="center"]');
         slotDivs.forEach(slotDiv => {
-            const adHTML = slotDiv.innerHTML;
-            if (!adHTML.trim()) return;
-
-            // Se não tem <script> tags, não precisa de iframe — HTML puro (a-ads, iframes nativos)
-            if (!slotDiv.querySelector('script')) return;
-
-            const h = slotDiv.style.height || '250px';
-            const iframe = document.createElement('iframe');
-            iframe.style.cssText = 'border:0;width:100%;height:' + h + ';overflow:hidden;display:block;';
-            iframe.setAttribute('scrolling', 'no');
-            iframe.setAttribute('frameborder', '0');
-
-            slotDiv.innerHTML = '';
-            slotDiv.appendChild(iframe);
-
-            const doc = iframe.contentDocument || iframe.contentWindow.document;
-            doc.open();
-            doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8">'
-                + '<style>body{margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:100vh;}</style>'
-                + '</head><body>' + adHTML + '</body></html>');
-            doc.close();
+            const scripts = Array.from(slotDiv.querySelectorAll('script'));
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement('script');
+                // Copiar todos os atributos (src, async, data-zone, etc.)
+                Array.from(oldScript.attributes).forEach(attr => {
+                    newScript.setAttribute(attr.name, attr.value);
+                });
+                // Copiar conteúdo inline
+                if (!oldScript.src && oldScript.textContent) {
+                    newScript.textContent = oldScript.textContent;
+                }
+                // Substituir o script original pelo novo (ativa execução)
+                oldScript.parentNode.replaceChild(newScript, oldScript);
+            });
         });
     },
 
