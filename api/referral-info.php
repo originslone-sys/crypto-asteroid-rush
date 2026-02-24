@@ -214,7 +214,7 @@ try {
 
     // Ler settings do admin (com fallback)
     $cfgMissions = 100;
-    $cfgCommission = 1.00;
+    $cfgCommission = 5.00;
     $settingsTable = $pdo->query("SHOW TABLES LIKE 'game_settings'")->fetch();
     if ($settingsTable) {
         $sStmt = $pdo->prepare("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN ('referral_missions_required', 'referral_bonus_brl')");
