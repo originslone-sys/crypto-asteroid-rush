@@ -113,7 +113,7 @@ try {
     // 6. LER SETTINGS DO ADMIN
     // ============================================
     $missionsRequired = 100;
-    $commissionBrl = 1.000000;
+    $commissionBrl = 5.000000;
     $settingsTable = $pdo->query("SHOW TABLES LIKE 'game_settings'")->fetch();
     if ($settingsTable) {
         $sStmt = $pdo->prepare("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN ('referral_missions_required', 'referral_bonus_brl')");

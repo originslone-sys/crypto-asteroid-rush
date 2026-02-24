@@ -166,7 +166,7 @@ try {
                     <div class="form-group">
                         <label class="form-label">Bônus Indicação (R$)</label>
                         <input type="number" name="referral_bonus" class="form-control" 
-                               value="<?php echo $settings['referral_bonus_brl'] ?? 1; ?>" 
+                               value="<?php echo $settings['referral_bonus_brl'] ?? 5; ?>" 
                                step="0.1" min="0">
                     </div>
                     
