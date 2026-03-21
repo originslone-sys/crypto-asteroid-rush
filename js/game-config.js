@@ -249,7 +249,7 @@ function formatBRL(value) {
  * Formatar ganhos (4 casas decimais)
  */
 function formatEarnings(value) {
-    return 'R$ ' + (value || 0).toFixed(4).replace('.', ',');
+    return 'R$ ' + (value || 0).toFixed(2).replace('.', ',');
 }
 
 // ============================================

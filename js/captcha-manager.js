@@ -109,7 +109,7 @@ const CaptchaManager = {
                     if (result && result.success && result.credited) {
                         console.log('✅ Ganhos creditados!', result);
 
-                        this.showStatus(`✅ R$ ${result.final_earnings.toFixed(4)} creditados!`, 'success');
+                        this.showStatus(`✅ R$ ${result.final_earnings.toFixed(2)} creditados!`, 'success');
                         this.enableClaimButton();
 
                         this.updateBalanceDisplay(result.new_balance);
@@ -168,7 +168,7 @@ const CaptchaManager = {
         for (const selector of selectors) {
             const el = document.querySelector(selector);
             if (el) {
-                el.textContent = `R$ ${parseFloat(earnings).toFixed(4)}`;
+                el.textContent = `R$ ${parseFloat(earnings).toFixed(2)}`;
                 if (credited) {
                     el.classList.add('credited');
                     el.style.color = '#4CAF50';
