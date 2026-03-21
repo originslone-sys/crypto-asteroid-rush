@@ -207,25 +207,25 @@ try {
                     <div class="form-group">
                         <label class="form-label">Asteroide Comum (R$)</label>
                         <input type="number" name="common_value" class="form-control" 
-                               value="<?php echo $settings['asteroid_common_value_brl'] ?? 0.0001; ?>" step="0.0001">
+                               value="<?php echo $settings['asteroid_common_value_brl'] ?? 0; ?>" step="0.01">
                     </div>
-                    
+
                     <div class="form-group">
                         <label class="form-label">Asteroide Raro (R$)</label>
-                        <input type="number" name="rare_value" class="form-control" 
-                               value="<?php echo $settings['asteroid_rare_value_brl'] ?? 0.001; ?>" step="0.0001">
+                        <input type="number" name="rare_value" class="form-control"
+                               value="<?php echo $settings['asteroid_rare_value_brl'] ?? 0.02; ?>" step="0.01">
                     </div>
-                    
+
                     <div class="form-group">
                         <label class="form-label">Asteroide Épico (R$)</label>
-                        <input type="number" name="epic_value" class="form-control" 
-                               value="<?php echo $settings['asteroid_epic_value_brl'] ?? 0.005; ?>" step="0.0001">
+                        <input type="number" name="epic_value" class="form-control"
+                               value="<?php echo $settings['asteroid_epic_value_brl'] ?? 0.05; ?>" step="0.01">
                     </div>
-                    
+
                     <div class="form-group">
                         <label class="form-label">Asteroide Lendário (R$)</label>
-                        <input type="number" name="legendary_value" class="form-control" 
-                               value="<?php echo $settings['asteroid_legendary_value_brl'] ?? 0.01; ?>" step="0.0001">
+                        <input type="number" name="legendary_value" class="form-control"
+                               value="<?php echo $settings['asteroid_legendary_value_brl'] ?? 0.20; ?>" step="0.01">
                     </div>
                     
                     <div class="form-group">

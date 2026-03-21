@@ -77,16 +77,16 @@ if (!defined('GAME_DURATION')) {
 // ============================================
 if (!defined('REWARD_COMMON')) {
     define('REWARD_COMMON', 0);
-    define('REWARD_RARE', 0.0002);
-    define('REWARD_EPIC', 0.0004);
-    define('REWARD_LEGENDARY', 0.001);
+    define('REWARD_RARE', 0.02);
+    define('REWARD_EPIC', 0.05);
+    define('REWARD_LEGENDARY', 0.20);
 
     define('ASTEROID_REWARDS_BRL', [
         'none'      => 0,
         'common'    => 0,
-        'rare'      => 0.0002,
-        'epic'      => 0.0004,
-        'legendary' => 0.001
+        'rare'      => 0.02,
+        'epic'      => 0.05,
+        'legendary' => 0.20
     ]);
 }
 
