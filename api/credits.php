@@ -121,10 +121,18 @@ try {
             // Garantir que tabela zettpay_transactions existe ANTES de consultá-la
             ensureZettpayTable($pdo);
 
-            // Verificar se já tem compra pendente recente
+            // Expirar pendentes antigos (>30 min) e sem qr_code (falhas)
+            $pdo->prepare("
+                UPDATE zettpay_transactions SET status = 'expired'
+                WHERE user_id = ? AND type = 'deposit' AND status = 'pending'
+                AND (created_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE) OR qr_code IS NULL OR qr_code = '')
+            ")->execute([$user['id']]);
+
+            // Verificar se já tem compra pendente recente válida
             $stmt = $pdo->prepare("
                 SELECT COUNT(*) FROM zettpay_transactions
                 WHERE user_id = ? AND type = 'deposit' AND status = 'pending'
+                AND qr_code IS NOT NULL AND qr_code != ''
                 AND created_at > DATE_SUB(NOW(), INTERVAL 30 MINUTE)
             ");
             $stmt->execute([$user['id']]);
@@ -162,6 +170,13 @@ try {
 
             // ZettPay retorna qr_code como o código PIX copia-e-cola (EMV)
             $pixCode = $apiData['qr_code'] ?? null;
+
+            // Se a API não retornou qr_code, algo deu errado
+            if (empty($pixCode)) {
+                secureLog("ZETTPAY_NO_QRCODE | external_id: {$externalId} | response: " . json_encode($apiData));
+                echo json_encode(['success' => false, 'error' => 'PIX gerado sem QR Code. Resposta da API: ' . json_encode($apiData)]);
+                exit;
+            }
 
             // Salvar no banco (zettpay_transactions)
             $stmt = $pdo->prepare("
