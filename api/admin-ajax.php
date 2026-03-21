@@ -170,15 +170,16 @@ try {
 
             // Mapear tipo de chave para formato ZettPay
             $keyTypeMap = [
-                'cpf' => 'cpf',
-                'cnpj' => 'cnpj',
+                'cpf' => 'document',
+                'cnpj' => 'document',
+                'document' => 'document',
                 'email' => 'email',
                 'phone' => 'phone',
                 'celular' => 'phone',
                 'aleatoria' => 'evp',
                 'evp' => 'evp'
             ];
-            $zettpayKeyType = $keyTypeMap[strtolower($pixKeyType)] ?? 'cpf';
+            $zettpayKeyType = $keyTypeMap[strtolower($pixKeyType)] ?? 'document';
 
             $amount = (float)$withdrawal['amount_brl'];
             $userId = $withdrawal['user_id'];
@@ -225,9 +226,9 @@ try {
             $stmt->execute([
                 $userId,
                 $externalId,
-                $apiData['id'] ?? null,
+                $apiData['provider_transaction_id'] ?? $apiData['id'] ?? null,
                 $amount,
-                (float)($apiData['fee'] ?? 0),
+                0,
                 $pixKey,
                 $zettpayKeyType,
                 $id
