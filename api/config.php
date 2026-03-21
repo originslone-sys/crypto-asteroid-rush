@@ -82,10 +82,10 @@ if (!defined('REWARD_COMMON')) {
 // LIMITES DE SEGURANÇA - ANTI-CHEAT
 // ============================================
 if (!defined('EARNINGS_ALERT_BRL')) {
-    // Limites de ganhos
-    define('EARNINGS_ALERT_BRL', 0.03);     // Alerta se > R$0.03
-    define('EARNINGS_SUSPECT_BRL', 0.05);   // Suspeito se > R$0.05
-    define('EARNINGS_BLOCK_BRL', 0.08);     // Bloqueia se > R$0.08
+    // Limites de ganhos (ajustados para rewards: rare=0.02, epic=0.05, legendary=0.20)
+    define('EARNINGS_ALERT_BRL', 1.50);     // Alerta se > R$1.50 (jogo muito bom)
+    define('EARNINGS_SUSPECT_BRL', 2.50);   // Suspeito se > R$2.50 (quase impossível)
+    define('EARNINGS_BLOCK_BRL', 3.60);     // Bloqueia se > R$3.60 (máximo teórico)
     
     // Limites absolutos por partida
     define('MAX_ASTEROIDS_PER_GAME', 400);
