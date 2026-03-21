@@ -118,6 +118,9 @@ try {
             $amount = (float)$package['price_brl'];
             $totalCredits = (int)$package['credits'] + (int)($package['bonus_credits'] ?? 0);
 
+            // Garantir que tabela zettpay_transactions existe ANTES de consultá-la
+            ensureZettpayTable($pdo);
+
             // Verificar se já tem compra pendente recente
             $stmt = $pdo->prepare("
                 SELECT COUNT(*) FROM zettpay_transactions
@@ -129,8 +132,6 @@ try {
                 echo json_encode(['success' => false, 'error' => 'Você já tem compras pendentes. Aguarde ou pague as existentes.']);
                 exit;
             }
-
-            ensureZettpayTable($pdo);
 
             // Gerar external_id com referência ao pacote
             $externalId = 'CRD-' . $user['id'] . '-PKG' . $packageId . '-' . time() . '-' . bin2hex(random_bytes(4));
@@ -222,8 +223,13 @@ try {
     }
 
 } catch (Throwable $e) {
-    error_log("credits.php error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'error' => 'Erro no servidor']);
+    error_log("credits.php error: " . $e->getMessage() . " | Line: " . $e->getLine() . " | File: " . $e->getFile());
+    $errorMsg = 'Erro no servidor';
+    // Em ambiente de desenvolvimento, mostrar detalhe do erro
+    if (strpos($e->getMessage(), 'Table') !== false || strpos($e->getMessage(), 'column') !== false) {
+        $errorMsg = 'Erro de banco de dados. Tente novamente.';
+    }
+    echo json_encode(['success' => false, 'error' => $errorMsg]);
 }
 
 // ============================================
