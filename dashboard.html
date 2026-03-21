@@ -177,10 +177,10 @@
 <script src="js/main.js"></script>
 
 <script>
-// Formatar valores em BRL (6 casas decimais)
+// Formatar valores em BRL (2 casas decimais)
 function formatBRL(value) {
     const num = parseFloat(value) || 0;
-    const fixed = num.toFixed(6);
+    const fixed = num.toFixed(2);
     const parts = fixed.split('.');
     const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     const decPart = parts[1];
