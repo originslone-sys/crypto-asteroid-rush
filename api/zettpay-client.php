@@ -277,6 +277,16 @@ function ensureZettpayTable($pdo) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
 
+        // Garantir que tabela transactions aceite os tipos necessários (converter ENUM para VARCHAR se necessário)
+        try {
+            $colInfo = $pdo->query("SHOW COLUMNS FROM transactions WHERE Field = 'type'")->fetch();
+            if ($colInfo && stripos($colInfo['Type'], 'enum') !== false) {
+                $pdo->exec("ALTER TABLE transactions MODIFY COLUMN type VARCHAR(30) NOT NULL");
+            }
+        } catch (Exception $e) {
+            // tabela transactions pode não existir ainda
+        }
+
         // Adicionar colunas na tabela withdrawals para integração ZettPay
         try {
             $cols = $pdo->query("SHOW COLUMNS FROM withdrawals LIKE 'zettpay_external_id'")->fetch();
