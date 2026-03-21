@@ -461,6 +461,100 @@ try {
             $response = ["success" => true, "config" => $configs];
             break;
 
+        // -------------------------------------------------------
+        // LISTAR PACOTES DE CRÉDITOS
+        // -------------------------------------------------------
+        case "list_credit_packages":
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS credit_packages (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    credits INT NOT NULL,
+                    bonus_credits INT NOT NULL DEFAULT 0,
+                    price_brl DECIMAL(10,2) NOT NULL,
+                    is_active TINYINT(1) NOT NULL DEFAULT 1,
+                    is_featured TINYINT(1) NOT NULL DEFAULT 0,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+
+            $stmt = $pdo->query("SELECT * FROM credit_packages ORDER BY credits ASC");
+            $response = ["success" => true, "data" => $stmt->fetchAll()];
+            break;
+
+        // -------------------------------------------------------
+        // CRIAR/EDITAR PACOTE DE CRÉDITOS
+        // -------------------------------------------------------
+        case "save_credit_package":
+            $pkgId = intval($input['id'] ?? 0);
+            $name = trim($input['name'] ?? '');
+            $credits = intval($input['credits'] ?? 0);
+            $bonusCredits = intval($input['bonus_credits'] ?? 0);
+            $priceBrl = round((float)($input['price_brl'] ?? 0), 2);
+            $isActive = intval($input['is_active'] ?? 1);
+            $isFeatured = intval($input['is_featured'] ?? 0);
+
+            if (empty($name)) throw new Exception("Nome é obrigatório");
+            if ($credits <= 0) throw new Exception("Créditos deve ser maior que 0");
+            if ($priceBrl <= 0) throw new Exception("Preço deve ser maior que 0");
+
+            if ($pkgId > 0) {
+                // Editar
+                $stmt = $pdo->prepare("
+                    UPDATE credit_packages
+                    SET name = ?, credits = ?, bonus_credits = ?, price_brl = ?,
+                        is_active = ?, is_featured = ?
+                    WHERE id = ?
+                ");
+                $stmt->execute([$name, $credits, $bonusCredits, $priceBrl, $isActive, $isFeatured, $pkgId]);
+                $response = ["success" => true, "message" => "Pacote #{$pkgId} atualizado!"];
+            } else {
+                // Criar
+                $stmt = $pdo->prepare("
+                    INSERT INTO credit_packages (name, credits, bonus_credits, price_brl, is_active, is_featured)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([$name, $credits, $bonusCredits, $priceBrl, $isActive, $isFeatured]);
+                $newId = $pdo->lastInsertId();
+                $response = ["success" => true, "message" => "Pacote #{$newId} criado!", "id" => (int)$newId];
+            }
+            break;
+
+        // -------------------------------------------------------
+        // EXCLUIR PACOTE DE CRÉDITOS
+        // -------------------------------------------------------
+        case "delete_credit_package":
+            $pkgId = intval($input['id'] ?? 0);
+            if ($pkgId <= 0) throw new Exception("ID inválido");
+
+            $stmt = $pdo->prepare("DELETE FROM credit_packages WHERE id = ?");
+            $stmt->execute([$pkgId]);
+            $response = ["success" => true, "message" => "Pacote excluído!"];
+            break;
+
+        // -------------------------------------------------------
+        // ADICIONAR CRÉDITOS MANUALMENTE A UM JOGADOR
+        // -------------------------------------------------------
+        case "add_credits":
+            $targetUid = trim($input['google_uid'] ?? '');
+            $creditsToAdd = intval($input['credits'] ?? 0);
+            $reason = trim($input['reason'] ?? 'Adicionado pelo admin');
+
+            if (empty($targetUid)) throw new Exception("google_uid é obrigatório");
+            if ($creditsToAdd <= 0) throw new Exception("Quantidade de créditos deve ser maior que 0");
+
+            $stmt = $pdo->prepare("UPDATE users SET credits = credits + ? WHERE google_uid = ?");
+            $stmt->execute([$creditsToAdd, $targetUid]);
+
+            if ($stmt->rowCount() === 0) throw new Exception("Jogador não encontrado");
+
+            $pdo->prepare("INSERT INTO transactions (google_uid, type, amount_brl, description, status, created_at) VALUES (?, 'admin_adjust', 0, ?, 'completed', NOW())")
+                ->execute([$targetUid, "Admin adicionou {$creditsToAdd} crédito(s): {$reason}"]);
+
+            $response = ["success" => true, "message" => "✅ {$creditsToAdd} crédito(s) adicionado(s)!"];
+            break;
+
         default:
             $response = ["success" => false, "message" => "Ação não reconhecida: " . htmlspecialchars($action)];
             break;

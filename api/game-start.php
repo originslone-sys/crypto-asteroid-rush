@@ -51,6 +51,19 @@ try {
     $userId = (int)$user['id'];
     $realGoogleUid = $user['google_uid'];
 
+    // Verificar créditos do usuário
+    $userCredits = (int)($user['credits'] ?? 0);
+    if ($userCredits < CREDITS_PER_GAME) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Créditos insuficientes! Você precisa de ' . CREDITS_PER_GAME . ' crédito(s) para jogar. Compre créditos na Carteira.',
+            'error_code' => 'NO_CREDITS',
+            'credits' => $userCredits,
+            'credits_required' => CREDITS_PER_GAME
+        ]);
+        exit;
+    }
+
     // Verificar VPN/Proxy via proxycheck.io
     ensureProxyCacheTable($pdo);
     $proxyCheck = checkProxyVPN($clientIP, $pdo);
@@ -176,8 +189,25 @@ try {
     ]);
     
     $sessionId = (int)$pdo->lastInsertId();
-    
-    secureLog("GAME_START | Session: $sessionId | User: $userId | Mission: $missionNumber | HardMode: " . ($isHardMode ? 'YES' : 'NO'));
+
+    // Debitar crédito do usuário
+    $stmt = $pdo->prepare("UPDATE users SET credits = credits - ? WHERE id = ? AND credits >= ?");
+    $stmt->execute([CREDITS_PER_GAME, $userId, CREDITS_PER_GAME]);
+
+    if ($stmt->rowCount() === 0) {
+        // Race condition: crédito foi usado por outra sessão simultânea
+        $pdo->prepare("UPDATE game_sessions SET status = 'abandoned' WHERE id = ?")->execute([$sessionId]);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Créditos insuficientes! Compre créditos na Carteira.',
+            'error_code' => 'NO_CREDITS'
+        ]);
+        exit;
+    }
+
+    $remainingCredits = $userCredits - CREDITS_PER_GAME;
+
+    secureLog("GAME_START | Session: $sessionId | User: $userId | Mission: $missionNumber | HardMode: " . ($isHardMode ? 'YES' : 'NO') . " | Credits: $remainingCredits");
     
     echo json_encode([
         'success' => true,
@@ -190,6 +220,8 @@ try {
         'is_hard_mode' => $isHardMode,
         'game_duration' => GAME_DURATION,
         'initial_lives' => INITIAL_LIVES,
+        'credits' => $remainingCredits,
+        'credits_per_game' => CREDITS_PER_GAME,
         'missions_remaining' => $missionsRemaining,
         'daily_limit' => MAX_MISSIONS_PER_DAY,
         // Limites para o cliente saber

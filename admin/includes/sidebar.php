@@ -93,11 +93,16 @@ try {
         </div>
         
         <div class="nav-section">
-            <div class="nav-section-title">Monetização</div>
-            
+            <div class="nav-section-title">Monetizacao</div>
+
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=credits" class="nav-item <?php echo $currentPage === 'credits' ? 'active' : ''; ?>">
+                <i class="fas fa-ticket-alt"></i>
+                <span>Creditos</span>
+            </a>
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=ads" class="nav-item <?php echo $currentPage === 'ads' ? 'active' : ''; ?>">
                 <i class="fas fa-ad"></i>
-                <span>Anúncios</span>
+                <span>Anuncios</span>
             </a>
         </div>
         
