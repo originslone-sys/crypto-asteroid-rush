@@ -194,7 +194,10 @@ try {
 
             if (!$result['success']) {
                 $pdo->rollBack();
-                throw new Exception("Erro ZettPay: " . ($result['error'] ?? 'Falha na API'));
+                $errorDetail = $result['error'] ?? 'Falha na API';
+                $apiResponse = json_encode($result['data'] ?? null);
+                secureLog("ADMIN_ZETTPAY_CASHOUT_ERROR | withdrawal_id: {$id} | error: {$errorDetail} | response: {$apiResponse}");
+                throw new Exception("Erro ZettPay: {$errorDetail} | Resposta: {$apiResponse}");
             }
 
             $apiData = $result['data']['data'] ?? $result['data'] ?? [];
