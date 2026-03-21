@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Game Styles -->
-    <link rel="stylesheet" href="css/game.css">
+    <link rel="stylesheet" href="css/game.css?v=2.0">
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -289,7 +289,7 @@
 </div>
 
 <!-- AdsManager -->
-<script src="js/ads-manager.js"></script>
+<script src="js/ads-manager.js?v=2.0"></script>
 
 <script>
 (function() {
@@ -330,7 +330,7 @@
         }
         if (pgData.earnings !== undefined) {
             const val = parseFloat(pgData.earnings);
-            miniEarnings.textContent = 'R$ ' + val.toFixed(6).replace('.', ',');
+            miniEarnings.textContent = 'R$ ' + val.toFixed(2).replace('.', ',');
         }
     } catch (e) {}
     
