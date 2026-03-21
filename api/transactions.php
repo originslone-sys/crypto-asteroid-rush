@@ -130,9 +130,12 @@ function getStatusLabel($status) {
         'completed' => 'Concluído',
         'success' => 'Sucesso',
         'approved' => 'Aprovado',
+        'processing' => 'Processando',
+        'confirmed' => 'Confirmado',
         'failed' => 'Falhou',
         'rejected' => 'Rejeitado',
-        'cancelled' => 'Cancelado'
+        'cancelled' => 'Cancelado',
+        'expired' => 'Expirado'
     ];
     return $labels[$status] ?? ucfirst((string)$status);
 }

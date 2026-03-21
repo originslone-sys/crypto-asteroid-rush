@@ -125,6 +125,19 @@ if (!defined('MIN_WITHDRAW_BRL')) {
 }
 
 // ============================================
+// ZETTPAY - GATEWAY PIX
+// ============================================
+if (!defined('ZETTPAY_BASE_URL')) {
+    define('ZETTPAY_BASE_URL', getenv('ZETTPAY_BASE_URL') ?: 'https://api.zettpay.io/api/v1');
+    define('ZETTPAY_AUTH_URL', getenv('ZETTPAY_AUTH_URL') ?: 'https://api.zettpay.io/api/oauth/token');
+    define('ZETTPAY_CLIENT_ID', getenv('ZETTPAY_CLIENT_ID') ?: '');
+    define('ZETTPAY_CLIENT_SECRET', getenv('ZETTPAY_CLIENT_SECRET') ?: '');
+    define('ZETTPAY_WEBHOOK_SECRET', getenv('ZETTPAY_WEBHOOK_SECRET') ?: '');
+    define('MIN_DEPOSIT_BRL', 1.00);
+    define('MAX_DEPOSIT_BRL', 500.00);
+}
+
+// ============================================
 // STAKING
 // ============================================
 if (!defined('STAKE_APY')) {

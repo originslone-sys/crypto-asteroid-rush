@@ -433,6 +433,73 @@
         </div>
     </section>
     
+    <!-- Seção de Depósito PIX -->
+    <section class="withdraw-section" id="depositSection">
+        <h3><i class="fas fa-arrow-down"></i> Depositar via PIX</h3>
+
+        <div class="withdraw-form" id="depositForm">
+            <div class="form-group">
+                <label>Valor do Depósito (R$)</label>
+                <input type="number" class="withdraw-input" id="depositAmount" placeholder="0,00" step="0.01" min="1.00" max="500.00">
+            </div>
+            <button class="btn btn-primary withdraw-btn" id="depositBtn" onclick="createDeposit()" style="background: linear-gradient(135deg, #32BCAD, #00f0ff);">
+                <i class="fas fa-qrcode"></i> Gerar PIX
+            </button>
+        </div>
+
+        <div class="withdraw-info">
+            <i class="fas fa-info-circle"></i>
+            <span>Minimo: R$ 1,00 | Maximo: R$ 500,00 | Pagamento instantaneo via PIX</span>
+        </div>
+
+        <!-- QR Code e Copia-e-Cola -->
+        <div id="depositQrArea" style="display: none; margin-top: 20px;">
+            <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 25px; text-align: center; border: 1px solid var(--border-color);">
+                <div id="depositStatusBadge" style="margin-bottom: 15px;">
+                    <span class="tx-status pending" style="font-size: 0.9rem; padding: 6px 16px;">
+                        <i class="fas fa-clock"></i> Aguardando Pagamento
+                    </span>
+                </div>
+
+                <div id="depositQrCode" style="margin: 15px auto; max-width: 250px;">
+                    <!-- QR Code image will be inserted here -->
+                </div>
+
+                <p style="color: var(--text-dim); font-size: 0.85rem; margin: 10px 0;">
+                    Valor: <strong id="depositQrAmount" style="color: var(--success);">R$ 0,00</strong>
+                </p>
+
+                <div style="margin-top: 15px;">
+                    <label style="color: var(--text-dim); font-size: 0.8rem; display: block; margin-bottom: 6px;">PIX Copia e Cola:</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="depositPixCopyPaste" class="withdraw-input" readonly style="font-size: 0.75rem; font-family: monospace; cursor: pointer;" onclick="copyPixCode()">
+                        <button onclick="copyPixCode()" class="btn btn-primary" style="white-space: nowrap; padding: 14px 18px;">
+                            <i class="fas fa-copy"></i> Copiar
+                        </button>
+                    </div>
+                </div>
+
+                <div id="depositTimer" style="margin-top: 12px; color: var(--text-dim); font-size: 0.8rem;">
+                    <i class="fas fa-spinner fa-spin"></i> Verificando pagamento...
+                </div>
+            </div>
+        </div>
+
+        <!-- Sucesso -->
+        <div id="depositSuccessArea" style="display: none; margin-top: 20px;">
+            <div style="background: rgba(5, 255, 161, 0.1); border: 1px solid rgba(5, 255, 161, 0.3); border-radius: 12px; padding: 25px; text-align: center;">
+                <i class="fas fa-check-circle" style="font-size: 3rem; color: var(--success); margin-bottom: 10px;"></i>
+                <h4 style="color: var(--success); margin-bottom: 5px;">Deposito Confirmado!</h4>
+                <p style="color: var(--text-dim);" id="depositSuccessMsg">Seu saldo foi atualizado.</p>
+            </div>
+        </div>
+
+        <div class="withdraw-info warning" id="depositWarning" style="display: none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="depositWarningText"></span>
+        </div>
+    </section>
+
     <!-- Seção de Saque -->
     <section class="withdraw-section">
         <h3><i class="fas fa-paper-plane"></i> Solicitar Saque</h3>
@@ -615,9 +682,10 @@ async function loadTransactionHistory() {
         
         if (data.success && data.transactions?.length > 0) {
             container.innerHTML = data.transactions.map(tx => {
-                const isPositive = !tx.type.includes('withdrawal') && !tx.type.includes('stake');
+                const positiveTypes = ['game_earning', 'game_reward', 'stake_reward', 'referral_bonus', 'referral_commission', 'unstake', 'deposit', 'withdraw_reject'];
+                const isPositive = positiveTypes.includes(tx.type);
                 const iconClass = isPositive ? 'positive' : 'negative';
-                const amountClass = isPositive ? 'positive' : '';
+                const amountClass = isPositive ? 'positive' : 'negative';
                 
                 return `
                     <div class="transaction-item">
@@ -721,38 +789,51 @@ function showWarning(message) {
 function getTransactionIcon(type) {
     const icons = {
         'game_earning': 'gamepad',
+        'game_reward': 'gamepad',
         'stake_reward': 'chart-line',
         'referral_bonus': 'users',
+        'referral_commission': 'users',
         'withdrawal': 'arrow-up',
+        'withdraw': 'arrow-up',
         'withdrawal_approved': 'check-circle',
         'withdrawal_rejected': 'times-circle',
+        'withdraw_reject': 'times-circle',
         'stake': 'lock',
-        'unstake': 'unlock'
+        'unstake': 'unlock',
+        'deposit': 'arrow-down'
     };
     return icons[type] || 'circle';
 }
 
 function getTransactionTitle(type) {
     const titles = {
-        'game_earning': 'Ganhos da Missão',
+        'game_earning': 'Ganhos da Missao',
+        'game_reward': 'Recompensa de Missao',
         'stake_reward': 'Rendimento Staking',
-        'referral_bonus': 'Bônus de Indicação',
+        'referral_bonus': 'Bonus de Indicacao',
+        'referral_commission': 'Comissao de Indicacao',
         'withdrawal': 'Saque Solicitado',
+        'withdraw': 'Saque Solicitado',
         'withdrawal_approved': 'Saque Aprovado',
         'withdrawal_rejected': 'Saque Rejeitado',
+        'withdraw_reject': 'Saque Rejeitado (Estorno)',
         'stake': 'Stake Realizado',
-        'unstake': 'Unstake Realizado'
+        'unstake': 'Unstake Realizado',
+        'deposit': 'Deposito PIX'
     };
     return titles[type] || type;
 }
 
 function getStatusText(status) {
     const texts = {
-        'completed': 'Concluído',
+        'completed': 'Concluido',
         'pending': 'Pendente',
         'approved': 'Aprovado',
         'rejected': 'Rejeitado',
-        'failed': 'Falhou'
+        'failed': 'Falhou',
+        'processing': 'Processando',
+        'success': 'Sucesso',
+        'expired': 'Expirado'
     };
     return texts[status] || status;
 }
@@ -767,6 +848,196 @@ function formatDate(dateStr) {
         minute: '2-digit'
     });
 }
+
+// ============================================
+// DEPÓSITO PIX - ZettPay
+// ============================================
+let depositPollingInterval = null;
+let currentDepositExternalId = null;
+
+async function createDeposit() {
+    const user = window.authManager?.currentUser;
+    if (!user) {
+        alert('Voce precisa estar logado!');
+        return;
+    }
+
+    const amount = parseFloat(document.getElementById('depositAmount').value);
+
+    if (!amount || amount < 1) {
+        showDepositWarning('O valor minimo para deposito e R$ 1,00');
+        return;
+    }
+
+    if (amount > 500) {
+        showDepositWarning('O valor maximo para deposito e R$ 500,00');
+        return;
+    }
+
+    const btn = document.getElementById('depositBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando PIX...';
+
+    try {
+        const response = await fetch('api/deposit.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                google_uid: user.uid,
+                amount: amount
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            currentDepositExternalId = data.external_id;
+
+            // Mostrar QR Code area
+            document.getElementById('depositForm').style.display = 'none';
+            document.getElementById('depositQrArea').style.display = 'block';
+            document.getElementById('depositSuccessArea').style.display = 'none';
+            document.getElementById('depositWarning').style.display = 'none';
+
+            // Preencher dados
+            document.getElementById('depositQrAmount').textContent = 'R$ ' + amount.toFixed(2).replace('.', ',');
+            document.getElementById('depositPixCopyPaste').value = data.pix_copy_paste || '';
+
+            // Gerar QR Code visual usando a string do qr_code
+            const qrContainer = document.getElementById('depositQrCode');
+            if (data.qr_code) {
+                // Usar API de QR Code para gerar imagem a partir do texto
+                const qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(data.pix_copy_paste || data.qr_code);
+                qrContainer.innerHTML = '<img src="' + qrImageUrl + '" alt="QR Code PIX" style="width: 100%; max-width: 250px; border-radius: 8px; background: white; padding: 10px;">';
+            } else {
+                qrContainer.innerHTML = '<p style="color: var(--text-dim);">QR Code indisponivel. Use o codigo copia e cola abaixo.</p>';
+            }
+
+            // Iniciar polling
+            startDepositPolling(user.uid, data.external_id);
+
+        } else {
+            showDepositWarning(data.error || 'Erro ao gerar PIX');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showDepositWarning('Erro de conexao. Tente novamente.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-qrcode"></i> Gerar PIX';
+    }
+}
+
+function startDepositPolling(googleUid, externalId) {
+    // Parar polling anterior se existir
+    if (depositPollingInterval) {
+        clearInterval(depositPollingInterval);
+    }
+
+    let attempts = 0;
+    const maxAttempts = 180; // 15 minutos (5s * 180)
+
+    depositPollingInterval = setInterval(async () => {
+        attempts++;
+
+        if (attempts > maxAttempts) {
+            clearInterval(depositPollingInterval);
+            depositPollingInterval = null;
+            document.getElementById('depositTimer').innerHTML =
+                '<i class="fas fa-clock" style="color: var(--warning);"></i> PIX expirado. Gere um novo codigo.';
+            document.getElementById('depositStatusBadge').innerHTML =
+                '<span class="tx-status failed" style="font-size: 0.9rem; padding: 6px 16px;"><i class="fas fa-times"></i> Expirado</span>';
+            return;
+        }
+
+        try {
+            const response = await fetch('api/deposit-status.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    google_uid: googleUid,
+                    external_id: externalId
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.is_confirmed) {
+                // Pagamento confirmado!
+                clearInterval(depositPollingInterval);
+                depositPollingInterval = null;
+
+                document.getElementById('depositQrArea').style.display = 'none';
+                document.getElementById('depositSuccessArea').style.display = 'block';
+                document.getElementById('depositSuccessMsg').textContent =
+                    'R$ ' + data.amount_brl.toFixed(2).replace('.', ',') + ' adicionado ao seu saldo!';
+
+                // Recarregar dados
+                loadWalletData();
+                loadTransactionHistory();
+
+                // Esconder sucesso e mostrar form depois de 8 segundos
+                setTimeout(() => {
+                    document.getElementById('depositSuccessArea').style.display = 'none';
+                    document.getElementById('depositForm').style.display = 'flex';
+                    document.getElementById('depositAmount').value = '';
+                }, 8000);
+
+            } else if (data.is_expired || data.is_failed) {
+                clearInterval(depositPollingInterval);
+                depositPollingInterval = null;
+
+                document.getElementById('depositTimer').innerHTML =
+                    '<i class="fas fa-times" style="color: var(--danger);"></i> Deposito ' + (data.is_expired ? 'expirado' : 'falhou') + '. Gere um novo codigo.';
+                document.getElementById('depositStatusBadge').innerHTML =
+                    '<span class="tx-status failed" style="font-size: 0.9rem; padding: 6px 16px;"><i class="fas fa-times"></i> ' + (data.is_expired ? 'Expirado' : 'Falhou') + '</span>';
+            }
+        } catch (error) {
+            console.error('Erro no polling:', error);
+        }
+    }, 5000); // Poll a cada 5 segundos
+}
+
+function copyPixCode() {
+    const input = document.getElementById('depositPixCopyPaste');
+    const text = input.value;
+
+    if (!text) return;
+
+    navigator.clipboard.writeText(text).then(() => {
+        showDepositCopied();
+    }).catch(() => {
+        // Fallback
+        input.select();
+        document.execCommand('copy');
+        showDepositCopied();
+    });
+}
+
+function showDepositCopied() {
+    const timer = document.getElementById('depositTimer');
+    const original = timer.innerHTML;
+    timer.innerHTML = '<i class="fas fa-check" style="color: var(--success);"></i> Codigo copiado!';
+    setTimeout(() => { timer.innerHTML = original; }, 2000);
+}
+
+function showDepositWarning(message) {
+    const warning = document.getElementById('depositWarning');
+    document.getElementById('depositWarningText').textContent = message;
+    warning.style.display = 'flex';
+    setTimeout(() => { warning.style.display = 'none'; }, 5000);
+}
+
+// Limpar polling ao sair da pagina
+window.addEventListener('beforeunload', () => {
+    if (depositPollingInterval) {
+        clearInterval(depositPollingInterval);
+    }
+});
+
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
 
 // Inicializar
 document.addEventListener('authStateChanged', (e) => {

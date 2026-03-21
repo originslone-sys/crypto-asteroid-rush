@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     try {
         if ($action === 'approve') {
+            // Verificar se é PIX para redirecionar para ZettPay (via AJAX)
             $stmt = $pdo->prepare("UPDATE withdrawals SET status = 'completed', processed_at = NOW() WHERE id = ?");
             $stmt->execute([(int)$_POST['withdrawal_id']]);
             $message = "Saque aprovado!";
@@ -52,12 +53,14 @@ try {
     $withdrawals = $stmt->fetchAll();
     
     $stats = $pdo->query("
-        SELECT 
+        SELECT
             COUNT(*) as total,
             SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing,
             SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as approved,
             SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
             SUM(CASE WHEN status = 'pending' THEN amount_brl ELSE 0 END) as pending_amount,
+            SUM(CASE WHEN status = 'processing' THEN amount_brl ELSE 0 END) as processing_amount,
             SUM(CASE WHEN status = 'completed' THEN amount_brl ELSE 0 END) as completed_amount
         FROM withdrawals
     ")->fetch();
@@ -87,8 +90,14 @@ try {
             <div class="change"><?php echo formatBRL($stats['pending_amount']); ?></div>
         </div>
         <div class="stat-card">
+            <div class="icon" style="background: rgba(0,150,255,0.15); color: #0096ff;"><i class="fas fa-spinner"></i></div>
+            <div class="value"><?php echo $stats['processing'] ?? 0; ?></div>
+            <div class="label">Processando PIX</div>
+            <div class="change"><?php echo formatBRL($stats['processing_amount'] ?? 0); ?></div>
+        </div>
+        <div class="stat-card">
             <div class="icon success"><i class="fas fa-check"></i></div>
-            <div class="value"><?php echo $stats['completed'] ?? 0; ?></div>
+            <div class="value"><?php echo $stats['approved'] ?? 0; ?></div>
             <div class="label">Aprovados</div>
             <div class="change"><?php echo formatBRL($stats['completed_amount']); ?></div>
         </div>
@@ -97,11 +106,6 @@ try {
             <div class="value"><?php echo $stats['rejected'] ?? 0; ?></div>
             <div class="label">Rejeitados</div>
         </div>
-        <div class="stat-card">
-            <div class="icon primary"><i class="fas fa-list"></i></div>
-            <div class="value"><?php echo $stats['total'] ?? 0; ?></div>
-            <div class="label">Total</div>
-        </div>
     </div>
     
     <div class="panel">
@@ -109,6 +113,9 @@ try {
             <div class="tabs">
                 <a href="?page=withdrawals&status=pending" class="tab <?php echo $statusFilter === 'pending' ? 'active' : ''; ?>">
                     <i class="fas fa-clock"></i> Pendentes (<?php echo $stats['pending'] ?? 0; ?>)
+                </a>
+                <a href="?page=withdrawals&status=processing" class="tab <?php echo $statusFilter === 'processing' ? 'active' : ''; ?>">
+                    <i class="fas fa-spinner"></i> Processando (<?php echo $stats['processing'] ?? 0; ?>)
                 </a>
                 <a href="?page=withdrawals&status=completed" class="tab <?php echo $statusFilter === 'completed' ? 'active' : ''; ?>">
                     <i class="fas fa-check"></i> Aprovados
@@ -188,15 +195,28 @@ try {
                             <td><?php echo formatBRL($w['balance_brl']); ?></td>
                             <td>
                                 <?php
-                                $statusClass = ['completed' => 'success', 'pending' => 'warning', 'rejected' => 'danger'][$w['status']] ?? 'primary';
-                                $statusText = ['completed' => 'Concluído', 'pending' => 'Pendente', 'rejected' => 'Rejeitado'][$w['status']] ?? $w['status'];
+                                $statusClass = ['completed' => 'success', 'pending' => 'warning', 'processing' => 'primary', 'rejected' => 'danger'][$w['status']] ?? 'primary';
+                                $statusText = ['completed' => 'Concluido', 'pending' => 'Pendente', 'processing' => 'Processando PIX', 'rejected' => 'Rejeitado'][$w['status']] ?? $w['status'];
                                 ?>
                                 <span class="badge badge-<?php echo $statusClass; ?>"><?php echo $statusText; ?></span>
+                                <?php if (!empty($w['zettpay_external_id'])): ?>
+                                    <br><small style="color: var(--text-dim); font-size: 0.7rem;">ZettPay</small>
+                                <?php endif; ?>
                             </td>
                             <td><?php echo date('d/m/Y H:i', strtotime($w['created_at'])); ?></td>
                             <td>
                                 <?php if ($w['status'] === 'pending'): ?>
+                                <?php
+                                    $isPix = strtoupper($w['wallet_address'] ?? '') === 'PIX';
+                                ?>
                                 <div class="btn-group">
+                                    <?php if ($isPix): ?>
+                                    <!-- PIX: Aprovar via ZettPay (automático) -->
+                                    <button onclick="approveWithdrawalZettpay(<?php echo $w['id']; ?>, <?php echo $w['amount_brl']; ?>)" class="btn btn-success btn-sm" title="Aprovar via PIX ZettPay">
+                                        <i class="fas fa-bolt"></i> PIX
+                                    </button>
+                                    <?php else: ?>
+                                    <!-- Outros métodos: aprovação manual -->
                                     <form method="POST" style="display: inline;">
                                         <input type="hidden" name="action" value="approve">
                                         <input type="hidden" name="withdrawal_id" value="<?php echo $w['id']; ?>">
@@ -204,10 +224,13 @@ try {
                                             <i class="fas fa-check"></i>
                                         </button>
                                     </form>
+                                    <?php endif; ?>
                                     <button onclick="rejectWithdrawal(<?php echo $w['id']; ?>)" class="btn btn-danger btn-sm">
                                         <i class="fas fa-times"></i>
                                     </button>
                                 </div>
+                                <?php elseif ($w['status'] === 'processing'): ?>
+                                    <span class="badge badge-primary"><i class="fas fa-spinner fa-spin"></i> Aguardando ZettPay</span>
                                 <?php else: ?>
                                     <span style="color: var(--text-dim);">-</span>
                                 <?php endif; ?>
