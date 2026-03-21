@@ -143,17 +143,19 @@ function zettpayRequest($method, $endpoint, $body = null, $idempotencyKey = null
  * @param array $metadata Metadados extras
  * @return array Resposta da API
  */
-function zettpayCreateDeposit($amount, $externalId, $description, $payer = [], $metadata = []) {
+function zettpayCreateDeposit($amount, $externalId, $description, $payer = [], $additionalFields = []) {
     $body = [
         'amount' => round($amount, 2),
         'description' => $description,
         'external_id' => $externalId,
-        'metadata' => $metadata
+        'payer_name' => $payer['name'] ?? 'Cliente UNOBIX',
+        'payer_email' => $payer['email'] ?? 'cliente@unobix.com',
+        'payer_document' => $payer['document'] ?? '00000000000'
     ];
 
-    if (!empty($payer['name'])) $body['payer_name'] = $payer['name'];
-    if (!empty($payer['email'])) $body['payer_email'] = $payer['email'];
-    if (!empty($payer['document'])) $body['payer_document'] = $payer['document'];
+    if (!empty($additionalFields)) {
+        $body['additional_fields'] = $additionalFields;
+    }
 
     $idempotencyKey = $externalId; // Usar external_id como chave de idempotência
 

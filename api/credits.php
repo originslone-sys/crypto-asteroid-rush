@@ -160,6 +160,9 @@ try {
 
             $apiData = $result['data'];
 
+            // ZettPay retorna qr_code como o código PIX copia-e-cola (EMV)
+            $pixCode = $apiData['qr_code'] ?? null;
+
             // Salvar no banco (zettpay_transactions)
             $stmt = $pdo->prepare("
                 INSERT INTO zettpay_transactions (
@@ -173,8 +176,8 @@ try {
                 $apiData['id'] ?? null,
                 $amount,
                 (float)($apiData['fee_amount'] ?? 0),
-                $apiData['qr_code'] ?? null,
-                $apiData['pix_copy_paste'] ?? null,
+                $pixCode,
+                $pixCode,
                 $apiData['expires_at'] ?? null
             ]);
 
@@ -212,8 +215,8 @@ try {
                 'amount_brl' => $amount,
                 'credits' => $totalCredits,
                 'package_name' => $package['name'],
-                'qr_code' => $apiData['qr_code'] ?? null,
-                'pix_copy_paste' => $apiData['pix_copy_paste'] ?? null,
+                'qr_code' => $pixCode,
+                'pix_copy_paste' => $pixCode,
                 'expires_at' => $apiData['expires_at'] ?? null
             ]);
             break;
