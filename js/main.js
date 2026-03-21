@@ -725,8 +725,8 @@ async function requestWithdraw() {
     const paymentMethod = document.querySelector('.payment-method.selected')?.dataset?.method || 'pix';
     const paymentDetails = document.getElementById('paymentDetails')?.value?.trim();
     
-    if (!amount || amount < 1) {
-        showNotification('Valor mínimo: R$ 1,00', 'warning');
+    if (!amount || amount < 5) {
+        showNotification('Valor mínimo: R$ 5,00', 'warning');
         return;
     }
     
@@ -756,7 +756,7 @@ async function requestWithdraw() {
         const data = await response.json();
         
         if (data.success) {
-            showNotification('✅ Saque solicitado! Processamento: dias 20-25', 'success');
+            showNotification('✅ Saque solicitado! Processamento em até 24h', 'success');
             document.getElementById('withdrawAmount').value = '';
             document.getElementById('paymentDetails').value = '';
             loadWalletData();
@@ -851,7 +851,7 @@ function updateReferralsTable(referrals) {
     tbody.innerHTML = referrals.map(ref => {
         const statusTexts = { 'pending': 'Em Progresso', 'qualified': 'Completado', 'claimed': 'Resgatado' };
         const userDisplay = ref.display_name || ref.email?.split('@')[0] || ref.referred_short || 'Usuário';
-        const req = ref.missions_required || 100;
+        const req = ref.missions_required || 20;
 
         return `
             <tr>

@@ -128,7 +128,7 @@ try {
 
                         if (!$checkStmt->fetch()) {
                             // Ler settings do admin (com fallback)
-                            $missionsReq = 100;
+                            $missionsReq = 20;
                             $commissionBrl = 5.000000;
                             $settingsTable = $pdo->query("SHOW TABLES LIKE 'game_settings'")->fetch();
                             if ($settingsTable) {

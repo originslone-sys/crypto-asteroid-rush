@@ -182,7 +182,7 @@ try {
         $referrals = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($referrals as $ref) {
-            $missionsRequired = (int)($ref['missions_required'] ?? 100);
+            $missionsRequired = (int)($ref['missions_required'] ?? 20);
             $missionsCompleted = (int)($ref['missions_completed'] ?? 0);
             $progress = $missionsRequired > 0
                 ? min(100, round(($missionsCompleted / $missionsRequired) * 100))
@@ -213,7 +213,7 @@ try {
     }
 
     // Ler settings do admin (com fallback)
-    $cfgMissions = 100;
+    $cfgMissions = 20;
     $cfgCommission = 5.00;
     $settingsTable = $pdo->query("SHOW TABLES LIKE 'game_settings'")->fetch();
     if ($settingsTable) {

@@ -112,7 +112,7 @@ try {
     // ============================================
     // 6. LER SETTINGS DO ADMIN
     // ============================================
-    $missionsRequired = 100;
+    $missionsRequired = 20;
     $commissionBrl = 5.000000;
     $settingsTable = $pdo->query("SHOW TABLES LIKE 'game_settings'")->fetch();
     if ($settingsTable) {

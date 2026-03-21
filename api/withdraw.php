@@ -78,22 +78,6 @@ try {
         exit;
     }
 
-    // Verificar limite semanal usando user_id
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) FROM withdrawals
-        WHERE user_id = ?
-          AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
-          AND status NOT IN ('rejected', 'cancelled')
-    ");
-    $stmt->execute([$player['id']]);
-    $weeklyCount = (int)$stmt->fetchColumn();
-
-    if ($weeklyCount >= WEEKLY_WITHDRAW_LIMIT) {
-        $pdo->rollBack();
-        echo json_encode(['success' => false, 'error' => 'Limite semanal de saques atingido.']);
-        exit;
-    }
-
     // Criar withdrawal - usando colunas corretas da tabela
     $withdrawDetails = json_encode([
         'method' => 'pix',
@@ -152,7 +136,7 @@ try {
         'payment_method' => $paymentMethod,
         'new_balance' => round($newBalance, 6),
         'status' => 'pending',
-        'estimated_processing' => 'Saques são processados entre os dias 20-25 de cada mês'
+        'estimated_processing' => 'Saques são processados em até 24 horas'
     ]);
 
 } catch (Throwable $e) {
