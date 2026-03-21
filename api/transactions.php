@@ -40,7 +40,7 @@ try {
     }
 
     // Tipos válidos
-    $validTypes = ['game_reward', 'stake', 'unstake', 'withdraw', 'withdraw_reject', 'referral_commission', 'deposit'];
+    $validTypes = ['game_reward', 'stake', 'unstake', 'withdraw', 'withdraw_reject', 'referral_commission', 'deposit', 'admin_adjust', 'credit_purchase'];
 
     $where = ["google_uid = ?"];
     $params = [$googleUid];
@@ -72,7 +72,7 @@ try {
     $rows = $stmt->fetchAll();
 
     // Tipos de crédito/débito
-    $creditTypes = ['game_reward', 'referral_commission', 'unstake', 'deposit', 'withdraw_reject'];
+    $creditTypes = ['game_reward', 'referral_commission', 'unstake', 'deposit', 'withdraw_reject', 'admin_adjust'];
     $debitTypes = ['stake', 'withdraw'];
 
     $formatted = [];
@@ -119,7 +119,9 @@ function getTypeLabel($type) {
         'withdraw' => 'Saque',
         'game_reward' => 'Recompensa de Missão',
         'referral_commission' => 'Comissão de Indicação',
-        'withdraw_reject' => 'Saque Rejeitado (Estorno)'
+        'withdraw_reject' => 'Saque Rejeitado (Estorno)',
+        'admin_adjust' => 'Ajuste Administrativo',
+        'credit_purchase' => 'Compra de Créditos'
     ];
     return $labels[$type] ?? ucfirst((string)$type);
 }

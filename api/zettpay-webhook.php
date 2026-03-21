@@ -171,11 +171,21 @@ function processDeposit($pdo, $data, $rawBody) {
 
             if ($isCreditPurchase) {
                 // COMPRA DE CRÉDITOS: creditar créditos, não saldo
-                $purchaseStmt = $pdo->prepare("SELECT * FROM credit_purchases WHERE external_id = ? AND status = 'pending' LIMIT 1");
+                $purchaseStmt = $pdo->prepare("SELECT * FROM credit_purchases WHERE external_id = ? LIMIT 1");
                 $purchaseStmt->execute([$externalId]);
                 $purchase = $purchaseStmt->fetch();
 
-                if ($purchase) {
+                if (!$purchase) {
+                    $pdo->rollBack();
+                    secureLog("CREDIT_PURCHASE_NOT_FOUND | external_id: {$externalId} | user_id: {$user['id']} | PAGAMENTO RECEBIDO MAS SEM REGISTRO DE COMPRA");
+                    return;
+                }
+
+                // Idempotência: se já confirmado, não duplicar créditos
+                if ($purchase['status'] === 'confirmed') {
+                    secureLog("CREDIT_PURCHASE_ALREADY_CONFIRMED | external_id: {$externalId}");
+                    // Ainda marca zettpay_transactions como confirmed abaixo
+                } else {
                     $creditsToAdd = (int)$purchase['credits_amount'];
 
                     // Creditar créditos ao usuário

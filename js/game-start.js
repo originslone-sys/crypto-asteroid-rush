@@ -67,7 +67,7 @@ async function actualStartGame() {
         console.error('❌ Falha ao iniciar sessão:', error);
 
         // Redirecionar para compra de créditos se não tiver créditos
-        if (error.errorCode === 'NO_CREDITS' || (error.message && error.message.includes('credito'))) {
+        if (error.errorCode === 'NO_CREDITS') {
             if (typeof gameAlert === 'function') {
                 await gameAlert('Voce precisa de creditos para jogar! Redirecionando para a loja...', 'warning', 'SEM CREDITOS');
             } else {
