@@ -125,6 +125,13 @@ if (!defined('MIN_WITHDRAW_BRL')) {
 }
 
 // ============================================
+// CRÉDITOS - SISTEMA DE CRÉDITOS PARA JOGAR
+// ============================================
+if (!defined('CREDITS_PER_GAME')) {
+    define('CREDITS_PER_GAME', 1); // 1 crédito por partida
+}
+
+// ============================================
 // ZETTPAY - GATEWAY PIX
 // ============================================
 if (!defined('ZETTPAY_BASE_URL')) {

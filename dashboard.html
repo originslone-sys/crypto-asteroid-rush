@@ -58,7 +58,12 @@
         <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-wallet"></i></div>
             <div class="stat-value" id="statBalance">R$ 0,000000</div>
-            <div class="stat-label">Saldo Disponível</div>
+            <div class="stat-label">Saldo Disponivel</div>
+        </div>
+        <div class="stat-card" style="border-color: var(--primary);">
+            <div class="stat-icon" style="color: var(--primary);"><i class="fas fa-ticket-alt"></i></div>
+            <div class="stat-value" id="statCredits" style="color: var(--primary);">0</div>
+            <div class="stat-label">Creditos</div>
         </div>
         <div class="stat-card success">
             <div class="stat-icon"><i class="fas fa-coins"></i></div>
@@ -68,12 +73,7 @@
         <div class="stat-card warning">
             <div class="stat-icon"><i class="fas fa-gamepad"></i></div>
             <div class="stat-value" id="statGames">0</div>
-            <div class="stat-label">Missões</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-lock"></i></div>
-            <div class="stat-value" id="statStaked">R$ 0,000000</div>
-            <div class="stat-label">Em Staking</div>
+            <div class="stat-label">Missoes</div>
         </div>
     </section>
     
@@ -203,9 +203,9 @@ async function loadDashboardData() {
         
         if (data.success) {
             document.getElementById('statBalance').textContent = formatBRL(data.balance_brl);
+            document.getElementById('statCredits').textContent = data.credits || 0;
             document.getElementById('statEarned').textContent = formatBRL(data.total_earned_brl);
             document.getElementById('statGames').textContent = data.total_played || 0;
-            document.getElementById('statStaked').textContent = formatBRL(data.staked_balance_brl);
         }
     } catch (error) {
         console.error('Erro ao carregar dados:', error);

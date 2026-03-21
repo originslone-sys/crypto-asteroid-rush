@@ -135,14 +135,15 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
 // LISTA DE PÁGINAS PERMITIDAS
 // ============================================
 $allowedPages = [
-    'dashboard', 
-    'withdrawals', 
-    'players', 
-    'transactions', 
-    'sessions', 
-    'stakes', 
-    'security', 
-    'logs', 
+    'dashboard',
+    'withdrawals',
+    'players',
+    'transactions',
+    'sessions',
+    'stakes',
+    'credits',
+    'security',
+    'logs',
     'settings',
     'referrals',
     'ads'

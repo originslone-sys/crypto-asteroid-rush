@@ -55,6 +55,7 @@ try {
     $hasLastStakeUpdate = in_array('last_stake_update', $availableCols);
     $hasTotalWithdrawn = in_array('total_withdrawn_brl', $availableCols);
     $hasIsBanned = in_array('is_banned', $availableCols);
+    $hasCredits = in_array('credits', $availableCols);
 
     // Buscar usuário
     $player = findPlayer($pdo, $googleUid);
@@ -82,6 +83,7 @@ try {
     $stakedBrl = $hasStakedBalance ? (float)($player['staked_balance_brl'] ?? 0) : 0;
     $totalWithdrawnBrl = $hasTotalWithdrawn ? (float)($player['total_withdrawn_brl'] ?? 0) : 0;
     $isBanned = $hasIsBanned ? (bool)($player['is_banned'] ?? 0) : false;
+    $credits = $hasCredits ? (int)($player['credits'] ?? 0) : 0;
 
     // Calcular stake rewards pendentes
     $stakeReward = 0.0;
@@ -105,6 +107,8 @@ try {
         'total_earned_brl' => number_format($totalEarnedBrl, 6, '.', ''),
         'total_withdrawn_brl' => number_format($totalWithdrawnBrl, 6, '.', ''),
         'total_played' => $totalPlayed,
+        'credits' => $credits,
+        'credits_per_game' => defined('CREDITS_PER_GAME') ? CREDITS_PER_GAME : 1,
         'is_banned' => $isBanned,
         'display_name' => $player['display_name'] ?? null,
         'email' => $player['email'] ?? null,

@@ -100,6 +100,16 @@ const SessionManager = {
             } else {
                 console.error('❌ Falha ao criar sessão:', result.error);
 
+                if (result.error_code === 'NO_CREDITS') {
+                    const err = new Error(
+                        'Creditos insuficientes! Voce precisa de creditos para jogar. ' +
+                        'Compre creditos na Carteira.'
+                    );
+                    err.errorCode = 'NO_CREDITS';
+                    err.credits = result.credits || 0;
+                    throw err;
+                }
+
                 if (result.error_code === 'ACTIVE_SESSION_EXISTS') {
                     throw new Error(
                         'Você já tem uma partida em andamento! ' +

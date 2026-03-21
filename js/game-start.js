@@ -65,13 +65,24 @@ async function actualStartGame() {
         
     } catch (error) {
         console.error('❌ Falha ao iniciar sessão:', error);
-        
+
+        // Redirecionar para compra de créditos se não tiver créditos
+        if (error.errorCode === 'NO_CREDITS' || (error.message && error.message.includes('credito'))) {
+            if (typeof gameAlert === 'function') {
+                await gameAlert('Voce precisa de creditos para jogar! Redirecionando para a loja...', 'warning', 'SEM CREDITOS');
+            } else {
+                alert('Voce precisa de creditos para jogar! Redirecionando para a loja...');
+            }
+            setTimeout(() => { window.location.href = 'wallet.html'; }, 1500);
+            return;
+        }
+
         if (typeof gameAlert === 'function') {
-            await gameAlert('Falha ao iniciar missão: ' + error.message, 'error', 'ERRO');
+            await gameAlert('Falha ao iniciar missao: ' + error.message, 'error', 'ERRO');
         } else {
             alert('Erro: ' + error.message);
         }
-        
+
         if (typeof showModal === 'function') {
             showModal('gameMenuModal');
         }
