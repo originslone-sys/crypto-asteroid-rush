@@ -250,6 +250,8 @@ try {
         // Consulta /pix/cashouts/lookup e atualiza localmente
         // -------------------------------------------------------
         case "check_cashout_status":
+            require_once __DIR__ . "/zettpay-client.php";
+
             $id = intval($input["id"] ?? 0);
             if ($id <= 0) throw new Exception("ID inválido");
 
