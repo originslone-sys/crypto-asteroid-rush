@@ -286,4 +286,47 @@ function rejectWithdrawal(id) {
 function closeModal(id) {
     document.getElementById(id).classList.remove('active');
 }
+
+async function approveWithdrawalZettpay(id, amount) {
+    if (!confirm('Aprovar saque #' + id + ' de R$ ' + amount.toFixed(2).replace('.', ',') + ' via PIX ZettPay?')) {
+        return;
+    }
+
+    const btn = event.target.closest('button');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+
+    try {
+        const response = await fetch('../api/admin-ajax.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'approve_zettpay',
+                withdrawal_id: id
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.message || 'Saque enviado para processamento PIX!');
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.error || 'Falha ao processar saque'));
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    } catch (error) {
+        alert('Erro de conexão: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        alert('Copiado!');
+    });
+}
 </script>
