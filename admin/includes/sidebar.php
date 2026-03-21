@@ -78,11 +78,6 @@ try {
                 <?php endif; ?>
             </a>
             
-            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=stakes" class="nav-item <?php echo $currentPage === 'stakes' ? 'active' : ''; ?>">
-                <i class="fas fa-coins"></i>
-                <span>Staking</span>
-            </a>
-
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=referrals" class="nav-item <?php echo $currentPage === 'referrals' ? 'active' : ''; ?>">
                 <i class="fas fa-user-friends"></i>
                 <span>Afiliados</span>

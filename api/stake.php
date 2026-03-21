@@ -9,6 +9,10 @@ require_once __DIR__ . '/config.php';
 
 setCorsHeaders();
 
+// Feature de staking desativada
+echo json_encode(['success' => false, 'error' => 'Staking foi descontinuado. Seu saldo foi devolvido automaticamente.']);
+exit;
+
 // ============================================
 // INPUT
 // ============================================

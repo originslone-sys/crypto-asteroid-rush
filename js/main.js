@@ -94,9 +94,6 @@ function onUserLoggedIn(user) {
         case 'wallet':
             loadWalletData();
             break;
-        case 'staking':
-            loadStakingData();
-            break;
         case 'affiliates':
             loadAffiliateData();
             break;
@@ -439,7 +436,6 @@ function resetUI() {
         balance_brl: 0,
         total_earned_brl: 0,
         games_played: 0,
-        staked_balance_brl: 0,
         total_withdrawn_brl: 0,
         pending_withdrawal_brl: 0
     };
@@ -509,7 +505,6 @@ async function loadDashboardData() {
             if (el('statBalance')) el('statBalance').textContent = formatBRL(userStats.balance_brl);
             if (el('statEarned')) el('statEarned').textContent = formatBRL(userStats.total_earned_brl);
             if (el('statGames')) el('statGames').textContent = userStats.games_played;
-            if (el('statStaked')) el('statStaked').textContent = formatBRL(userStats.staked_balance_brl);
         }
         
         // Carregar atividade recente
@@ -780,208 +775,6 @@ async function requestWithdraw() {
 }
 
 // ============================================
-// STAKING
-// ============================================
-
-const STAKING_APY = 0.05; // 5% ao ano
-let stakingBalance = 0;
-let stakedAmount = 0;
-
-async function loadStakingData() {
-    const user = window.authManager?.currentUser;
-    if (!user) return;
-
-    try {
-        // Carregar saldo
-        const balanceRes = await fetch('/api/balance.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ google_uid: user.uid })
-        });
-        const balanceData = await balanceRes.json();
-        
-        if (balanceData.success) {
-            stakingBalance = parseFloat(balanceData.balance_brl) || 0;
-            stakedAmount = parseFloat(balanceData.staked_balance_brl) || 0;
-            
-            const el = (id) => document.getElementById(id);
-            
-            if (el('stakingBalance')) el('stakingBalance').textContent = formatBRL(stakingBalance);
-            if (el('totalStaked')) el('totalStaked').textContent = formatBRL(stakedAmount);
-            
-            // Habilitar/desabilitar botão unstake
-            const unstakeBtn = document.getElementById('unstakeBtn');
-            if (unstakeBtn) unstakeBtn.disabled = stakedAmount <= 0;
-        }
-
-        // Carregar dados de stake
-        const stakeRes = await fetch('/api/get-stakes.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ google_uid: user.uid })
-        });
-        const stakeData = await stakeRes.json();
-        
-        if (stakeData.success) {
-            const el = (id) => document.getElementById(id);
-            
-            const totalEarned = parseFloat(stakeData.total_earned_brl) || 0;
-            const pendingReward = parseFloat(stakeData.pending_reward_brl) || 0;
-            
-            if (el('stakingEarned')) el('stakingEarned').textContent = formatBRL(totalEarned);
-            if (el('pendingReward')) el('pendingReward').textContent = '+' + formatBRL(pendingReward);
-            if (el('todayEarnings')) el('todayEarnings').textContent = '+' + formatBRL(pendingReward);
-            
-            // Seção de rendimento pendente
-            const pendingSection = document.getElementById('pendingRewardSection');
-            if (pendingSection) {
-                if (pendingReward > 0.001) {
-                    pendingSection.style.display = 'flex';
-                    const pendingValue = document.getElementById('pendingRewardValue');
-                    if (pendingValue) pendingValue.textContent = '+' + formatBRL(pendingReward);
-                } else {
-                    pendingSection.style.display = 'none';
-                }
-            }
-        }
-    } catch (error) {
-        console.error('Erro ao carregar staking:', error);
-    }
-}
-
-function updateProjection() {
-    const amount = parseFloat(document.getElementById('projectionAmount')?.value) || 0;
-    const dailyRate = STAKING_APY / 365;
-    
-    // Juros compostos
-    const projections = {
-        projDay: amount * (Math.pow(1 + dailyRate, 1) - 1),
-        projWeek: amount * (Math.pow(1 + dailyRate, 7) - 1),
-        projMonth: amount * (Math.pow(1 + dailyRate, 30) - 1),
-        proj6Month: amount * (Math.pow(1 + dailyRate, 180) - 1),
-        projYear: amount * (Math.pow(1 + dailyRate, 365) - 1)
-    };
-    
-    Object.entries(projections).forEach(([id, value]) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = formatBRL(value);
-    });
-}
-
-function setStakeAmount(amount) {
-    const input = document.getElementById('stakeAmount');
-    if (input) input.value = amount.toFixed(2);
-}
-
-function setMaxAmount() {
-    const input = document.getElementById('stakeAmount');
-    if (input) input.value = stakingBalance.toFixed(2);
-}
-
-async function stakeFunds() {
-    const user = window.authManager?.currentUser;
-    if (!user) {
-        showNotification('Faça login primeiro!', 'warning');
-        return;
-    }
-
-    const amount = parseFloat(document.getElementById('stakeAmount')?.value);
-    
-    if (!amount || amount < 0.01) {
-        showNotification('Valor mínimo: R$ 0,01', 'warning');
-        return;
-    }
-    
-    if (amount > stakingBalance) {
-        showNotification('Saldo insuficiente!', 'warning');
-        return;
-    }
-
-    const btn = document.getElementById('stakeBtn');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
-    }
-
-    try {
-        const response = await fetch('/api/stake.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                google_uid: user.uid,
-                amount_brl: amount
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('✅ Stake realizado! Rendimento: 5% ao ano', 'success');
-            document.getElementById('stakeAmount').value = '';
-            loadStakingData();
-        } else {
-            showNotification(data.error || 'Erro ao fazer stake', 'error');
-        }
-    } catch (error) {
-        console.error('Erro:', error);
-        showNotification('Erro de conexão', 'error');
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-rocket"></i> FAZER STAKE';
-        }
-    }
-}
-
-async function unstakeFunds() {
-    const user = window.authManager?.currentUser;
-    if (!user) {
-        showNotification('Faça login primeiro!', 'warning');
-        return;
-    }
-
-    if (stakedAmount <= 0) {
-        showNotification('Você não tem nada em stake!', 'warning');
-        return;
-    }
-
-    if (!confirm('Deseja resgatar todo o seu stake?\n\nO rendimento acumulado será creditado junto.')) {
-        return;
-    }
-
-    const btn = document.getElementById('unstakeBtn');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
-    }
-
-    try {
-        const response = await fetch('/api/unstake.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ google_uid: user.uid })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification(`✅ Resgatado! Rendimento: ${formatBRL(data.reward_brl)}`, 'success');
-            loadStakingData();
-        } else {
-            showNotification(data.error || 'Erro ao fazer unstake', 'error');
-        }
-    } catch (error) {
-        console.error('Erro:', error);
-        showNotification('Erro de conexão', 'error');
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-wallet"></i> RESGATAR TUDO';
-        }
-    }
-}
-
-// ============================================
 // AFILIADOS
 // ============================================
 
@@ -1193,11 +986,6 @@ function setupEventListeners() {
         }
     });
     
-    // Staking
-    document.getElementById('stakeBtn')?.addEventListener('click', stakeFunds);
-    document.getElementById('unstakeBtn')?.addEventListener('click', unstakeFunds);
-    document.getElementById('projectionAmount')?.addEventListener('input', updateProjection);
-    
     // FAQ
     document.querySelectorAll('.faq-question').forEach(q => {
         q.addEventListener('click', () => {
@@ -1273,11 +1061,6 @@ function showNotification(message, type = 'info') {
 window.connectWithGoogle = connectWithGoogle;
 window.logout = logout;
 window.requestWithdraw = requestWithdraw;
-window.stakeFunds = stakeFunds;
-window.unstakeFunds = unstakeFunds;
-window.setStakeAmount = setStakeAmount;
-window.setMaxAmount = setMaxAmount;
-window.updateProjection = updateProjection;
 window.showNotification = showNotification;
 window.copyReferralLink = copyReferralLink;
 window.claimCommissions = claimCommissions;
