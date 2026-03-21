@@ -82,17 +82,17 @@ try {
             break;
 
         // -------------------------------------------------------
-        // APROVAR SAQUE
+        // APROVAR SAQUE (manual - FaucetPay/USDT)
         // Tabela: withdrawals (doc 3.4) + users (doc 3.1)
         // -------------------------------------------------------
         case "approve_withdrawal":
             $id = intval($input["id"] ?? 0);
             $txHash = $input["transaction_hash"] ?? $input["tx_hash"] ?? null;
-            
+
             if ($id <= 0) throw new Exception("ID inválido");
 
             $pdo->beginTransaction();
-            
+
             $stmt = $pdo->prepare("SELECT * FROM withdrawals WHERE id = ? FOR UPDATE");
             $stmt->execute([$id]);
             $withdrawal = $stmt->fetch();
@@ -102,7 +102,7 @@ try {
 
             // Atualizar status para completed (doc: status de saque)
             $stmt = $pdo->prepare("
-                UPDATE withdrawals 
+                UPDATE withdrawals
                 SET status = 'completed', processed_at = NOW(), transaction_hash = ?
                 WHERE id = ?
             ");
@@ -111,7 +111,7 @@ try {
             // Atualizar total_withdrawn_brl do jogador
             $amount = $withdrawal['amount_brl'] ?? 0;
             $userId = $withdrawal['user_id'];
-            
+
             $stmt = $pdo->prepare("
                 UPDATE users SET total_withdrawn_brl = total_withdrawn_brl + ? WHERE id = ?
             ");
@@ -122,9 +122,9 @@ try {
             $stmt = $pdo->prepare("SELECT google_uid FROM users WHERE id = ?");
             $stmt->execute([$userId]);
             $user = $stmt->fetch();
-            
+
             $stmt = $pdo->prepare("
-                INSERT INTO transactions 
+                INSERT INTO transactions
                 (google_uid, type, amount_brl, description, status, created_at)
                 VALUES (?, 'withdraw', ?, ?, 'completed', NOW())
             ");
@@ -136,6 +136,108 @@ try {
 
             $pdo->commit();
             $response = ["success" => true, "message" => "✅ Saque #{$id} aprovado com sucesso!"];
+            break;
+
+        // -------------------------------------------------------
+        // APROVAR SAQUE VIA ZETTPAY (PIX automático)
+        // Admin aprova → sistema processa via API ZettPay
+        // -------------------------------------------------------
+        case "approve_withdrawal_zettpay":
+            require_once __DIR__ . "/zettpay-client.php";
+
+            $id = intval($input["id"] ?? 0);
+            if ($id <= 0) throw new Exception("ID inválido");
+
+            $pdo->beginTransaction();
+
+            $stmt = $pdo->prepare("SELECT * FROM withdrawals WHERE id = ? FOR UPDATE");
+            $stmt->execute([$id]);
+            $withdrawal = $stmt->fetch();
+
+            if (!$withdrawal) throw new Exception("Saque não encontrado");
+            if ($withdrawal["status"] !== "pending") throw new Exception("Saque já processado");
+
+            // Extrair dados PIX do admin_notes
+            $notes = json_decode($withdrawal['admin_notes'] ?? '{}', true);
+            $pixKey = $notes['details'] ?? '';
+            $pixKeyType = $notes['pix_key_type'] ?? 'cpf';
+            $paymentMethod = $notes['method'] ?? '';
+
+            if (empty($pixKey)) throw new Exception("Chave PIX não encontrada nos dados do saque");
+
+            // Mapear tipo de chave para formato ZettPay
+            $keyTypeMap = [
+                'cpf' => 'cpf',
+                'cnpj' => 'cnpj',
+                'email' => 'email',
+                'phone' => 'phone',
+                'celular' => 'phone',
+                'aleatoria' => 'evp',
+                'evp' => 'evp'
+            ];
+            $zettpayKeyType = $keyTypeMap[strtolower($pixKeyType)] ?? 'cpf';
+
+            $amount = (float)$withdrawal['amount_brl'];
+            $userId = $withdrawal['user_id'];
+
+            ensureZettpayTable($pdo);
+
+            // Gerar external_id
+            $externalId = zettpayWithdrawExternalId($id);
+
+            // Chamar API ZettPay
+            $result = zettpayCreateCashout(
+                $amount,
+                $pixKey,
+                $zettpayKeyType,
+                $externalId,
+                ['user_id' => (string)$userId, 'withdrawal_id' => (string)$id]
+            );
+
+            if (!$result['success']) {
+                $pdo->rollBack();
+                throw new Exception("Erro ZettPay: " . ($result['error'] ?? 'Falha na API'));
+            }
+
+            $apiData = $result['data']['data'] ?? $result['data'] ?? [];
+
+            // Atualizar withdrawal para processing
+            $stmt = $pdo->prepare("
+                UPDATE withdrawals
+                SET status = 'processing',
+                    zettpay_external_id = ?,
+                    zettpay_status = 'processing'
+                WHERE id = ?
+            ");
+            $stmt->execute([$externalId, $id]);
+
+            // Registrar na tabela zettpay_transactions
+            $stmt = $pdo->prepare("
+                INSERT INTO zettpay_transactions (
+                    user_id, external_id, zettpay_id, type, amount_brl, fee_brl,
+                    status, pix_key, pix_key_type, withdrawal_id, created_at
+                ) VALUES (?, ?, ?, 'cashout', ?, ?, 'processing', ?, ?, ?, NOW())
+            ");
+            $stmt->execute([
+                $userId,
+                $externalId,
+                $apiData['id'] ?? null,
+                $amount,
+                (float)($apiData['fee'] ?? 0),
+                $pixKey,
+                $zettpayKeyType,
+                $id
+            ]);
+
+            $pdo->commit();
+
+            secureLog("ADMIN_ZETTPAY_CASHOUT | withdrawal_id: {$id} | external_id: {$externalId} | amount: R\${$amount} | key_type: {$zettpayKeyType}");
+
+            $response = [
+                "success" => true,
+                "message" => "✅ Saque #{$id} enviado para processamento PIX via ZettPay. Aguarde confirmação automática.",
+                "external_id" => $externalId
+            ];
             break;
 
         // -------------------------------------------------------

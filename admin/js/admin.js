@@ -89,6 +89,39 @@ async function approveWithdrawal(id, amount) {
 }
 
 /**
+ * Aprovar saque PIX via ZettPay (processamento automático)
+ * Admin aprova → sistema envia para ZettPay → webhook confirma
+ */
+async function approveWithdrawalZettpay(id, amount) {
+    const amountFormatted = formatBRL(amount);
+
+    if (!confirm(`⚡ APROVAR SAQUE PIX #${id} VIA ZETTPAY\n\nValor: ${amountFormatted}\n\nO pagamento será processado automaticamente via PIX.\nDeseja continuar?`)) {
+        return false;
+    }
+
+    try {
+        showToast('Enviando para ZettPay...', 'warning');
+
+        const response = await adminAjax({
+            action: 'approve_withdrawal_zettpay',
+            id: id
+        });
+
+        if (response.success) {
+            showToast(response.message || 'Saque enviado para processamento PIX!', 'success');
+            setTimeout(() => location.reload(), 2000);
+            return true;
+        } else {
+            showToast('Erro: ' + (response.error || response.message), 'error');
+            return false;
+        }
+    } catch (error) {
+        showToast('Erro de conexão: ' + error.message, 'error');
+        return false;
+    }
+}
+
+/**
  * Rejeitar saque (devolve saldo ao jogador)
  */
 async function rejectWithdrawal(id) {
