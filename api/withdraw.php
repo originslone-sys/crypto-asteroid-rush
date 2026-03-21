@@ -1,7 +1,7 @@
 <?php
 // ============================================
 // UNOBIX - Solicitação de Saque
-// api/withdraw.php v7.0 - PIX + FaucetPay + USDT BEP20
+// api/withdraw.php v8.0 - PIX only
 // ============================================
 
 require_once __DIR__ . "/config.php";
@@ -39,33 +39,15 @@ if ($amount < MIN_WITHDRAW_BRL) {
     exit;
 }
 
-// Validar dados de pagamento conforme método
+// Validar chave PIX
 if (empty($paymentDetails)) {
-    $fieldNames = [
-        'pix' => 'Chave PIX',
-        'faucetpay' => 'E-mail FaucetPay',
-        'usdt_bep20' => 'Endereço da carteira BEP20'
-    ];
-    $fieldName = $fieldNames[$paymentMethod] ?? 'Dados de pagamento';
-    echo json_encode(['success' => false, 'error' => "$fieldName é obrigatório(a)"]);
+    echo json_encode(['success' => false, 'error' => 'Chave PIX é obrigatória']);
     exit;
 }
 
-if ($paymentMethod === 'faucetpay') {
-    if (!filter_var($paymentDetails, FILTER_VALIDATE_EMAIL)) {
-        echo json_encode(['success' => false, 'error' => 'E-mail FaucetPay inválido']);
-        exit;
-    }
-} elseif ($paymentMethod === 'usdt_bep20') {
-    if (!preg_match('/^0x[a-fA-F0-9]{40}$/', $paymentDetails)) {
-        echo json_encode(['success' => false, 'error' => 'Endereço BEP20 inválido. Deve iniciar com 0x seguido de 40 caracteres hexadecimais.']);
-        exit;
-    }
-} else {
-    if (!validatePixKey($paymentDetails, $pixKeyType)) {
-        echo json_encode(['success' => false, 'error' => 'Chave PIX inválida para o tipo selecionado']);
-        exit;
-    }
+if (!validatePixKey($paymentDetails, $pixKeyType)) {
+    echo json_encode(['success' => false, 'error' => 'Chave PIX inválida para o tipo selecionado']);
+    exit;
 }
 
 try {
@@ -114,18 +96,13 @@ try {
 
     // Criar withdrawal - usando colunas corretas da tabela
     $withdrawDetails = json_encode([
-        'method' => $paymentMethod,
+        'method' => 'pix',
         'details' => $paymentDetails,
-        'pix_key_type' => $paymentMethod === 'pix' ? $pixKeyType : null,
+        'pix_key_type' => $pixKeyType,
         'google_uid' => $googleUid
     ]);
 
-    $methodLabels = [
-        'pix' => 'PIX',
-        'faucetpay' => 'FAUCETPAY',
-        'usdt_bep20' => 'USDT BEP20'
-    ];
-    $methodLabel = $methodLabels[$paymentMethod] ?? strtoupper($paymentMethod);
+    $methodLabel = 'PIX';
 
     $stmt = $pdo->prepare("
         INSERT INTO withdrawals (
