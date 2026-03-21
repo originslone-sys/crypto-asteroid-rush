@@ -143,7 +143,7 @@ try {
                     <div class="form-group">
                         <label class="form-label">Saque Mínimo (R$)</label>
                         <input type="number" name="min_withdraw" class="form-control" 
-                               value="<?php echo $settings['min_withdraw_amount_brl'] ?? 1; ?>" 
+                               value="<?php echo $settings['min_withdraw_amount_brl'] ?? 5; ?>" 
                                step="0.1" min="0.1">
                     </div>
                     
@@ -157,7 +157,7 @@ try {
                     <div class="form-group">
                         <label class="form-label">Missões p/ Indicação</label>
                         <input type="number" name="referral_missions" class="form-control" 
-                               value="<?php echo $settings['referral_missions_required'] ?? 100; ?>" 
+                               value="<?php echo $settings['referral_missions_required'] ?? 20; ?>" 
                                min="1" max="1000">
                     </div>
                     

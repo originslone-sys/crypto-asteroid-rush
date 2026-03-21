@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Afiliados | UNOBIX</title>
-    <meta name="description" content="Convide amigos e ganhe R$ 5,00 por cada indicação que completar 100 missões.">
+    <meta name="description" content="Convide amigos e ganhe R$ 5,00 por cada indicação que completar 20 missões.">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/main.css">
@@ -141,7 +141,7 @@
         <div class="steps-list">
             <div class="step-item"><div class="step-number">1</div><div class="step-content"><h4>Compartilhe seu Link</h4><p>Copie seu link único e envie para amigos.</p></div></div>
             <div class="step-item"><div class="step-number">2</div><div class="step-content"><h4>Amigo se Cadastra</h4><p>Seu amigo clica no link e entra com Google.</p></div></div>
-            <div class="step-item"><div class="step-number">3</div><div class="step-content"><h4>Amigo Joga</h4><p>Seu amigo completa 100 missões no jogo.</p></div></div>
+            <div class="step-item"><div class="step-number">3</div><div class="step-content"><h4>Amigo Joga</h4><p>Seu amigo completa 20 missões no jogo.</p></div></div>
             <div class="step-item"><div class="step-number">4</div><div class="step-content"><h4>Você Ganha</h4><p>R$ 5,00 fica disponível. Resgate para seu saldo!</p></div></div>
         </div>
     </section>
@@ -202,7 +202,7 @@ function updateAffiliateUI(data) {
 function updateReferralsTable(refs) {
     const tbody = document.getElementById('referralsTableBody');
     if (!refs || refs.length === 0) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="fas fa-user-friends"></i><h3>Nenhum indicado ainda</h3><p>Compartilhe seu link!</p></div></td></tr>'; return; }
-    const missionsReq = (affiliateData && affiliateData.config) ? affiliateData.config.missions_required : 100;
+    const missionsReq = (affiliateData && affiliateData.config) ? affiliateData.config.missions_required : 20;
     tbody.innerHTML = refs.map(r => {
         const statusLabels = {'pending':'Em Progresso','qualified':'Completado','claimed':'Resgatado'};
         const st = statusLabels[r.status] || r.status_label || r.status;

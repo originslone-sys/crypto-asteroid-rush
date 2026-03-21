@@ -40,7 +40,7 @@ function updateReferralProgress($pdo, $googleUid = '') {
         if (!$referral) return $result;
 
         $newMissions = (int)$referral['missions_completed'] + 1;
-        $missionsRequired = (int)($referral['missions_required'] ?? 100);
+        $missionsRequired = (int)($referral['missions_required'] ?? 20);
 
         if ($newMissions >= $missionsRequired) {
             // Completou! Marcar como qualificado (disponível para claim)

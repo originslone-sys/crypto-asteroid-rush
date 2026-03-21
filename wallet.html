@@ -558,7 +558,7 @@
         
         <div class="withdraw-info">
             <i class="fas fa-info-circle"></i>
-            <span>Mínimo: R$ 1,00 • Sem taxas • Processamento: dias 20-25 do mês • Limite: 1 saque por semana</span>
+            <span>Mínimo: R$ 5,00 • Sem taxas • Processamento em até 24 horas</span>
         </div>
         
         <div class="withdraw-info warning" id="withdrawWarning" style="display: none;">
@@ -721,8 +721,8 @@ async function requestWithdraw() {
     const amount = parseFloat(document.getElementById('withdrawAmount').value);
     const paymentDetails = document.getElementById('paymentDetails').value.trim();
     
-    if (!amount || amount < 1) {
-        showWarning('O valor mínimo para saque é R$ 1,00');
+    if (!amount || amount < 5) {
+        showWarning('O valor mínimo para saque é R$ 5,00');
         return;
     }
     
@@ -753,7 +753,7 @@ async function requestWithdraw() {
         const data = await response.json();
         
         if (data.success) {
-            alert('✅ Saque solicitado com sucesso!\n\nSeu saque será processado entre os dias 20-25 deste mês.');
+            alert('✅ Saque solicitado com sucesso!\n\nSeu saque será processado em até 24 horas.');
             document.getElementById('withdrawAmount').value = '';
             document.getElementById('paymentDetails').value = '';
             loadWalletData();
