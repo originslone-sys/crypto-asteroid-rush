@@ -117,21 +117,6 @@ const SessionManager = {
                     );
                 }
 
-                if (result.error_code === 'VPN_PROXY_DETECTED') {
-                    throw new Error(
-                        'VPN ou Proxy detectado! Por segurança, desative sua VPN/Proxy para jogar. ' +
-                        'O uso de VPN/Proxy não é permitido.'
-                    );
-                }
-
-                if (result.error_code === 'DAILY_LIMIT_REACHED') {
-                    const hours = Math.ceil((result.wait_seconds || 86400) / 3600);
-                    throw new Error(
-                        `Você atingiu o limite de ${result.daily_limit || 50} missões diárias! ` +
-                        `Tente novamente em aproximadamente ${hours}h.`
-                    );
-                }
-
                 if (result.wait_seconds) {
                     throw new Error(`Aguarde ${Math.ceil(result.wait_seconds / 60)} minuto(s) antes de jogar novamente`);
                 }

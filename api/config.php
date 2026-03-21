@@ -50,16 +50,6 @@ if (!defined('CAPTCHA_ENABLED')) {
 }
 
 // ============================================
-// PROXYCHECK.IO - Detecção de VPN/Proxy
-// ============================================
-if (!defined('PROXYCHECK_ENABLED')) {
-    define('PROXYCHECK_ENABLED', true);
-    define('PROXYCHECK_API_KEY', getenv('PROXYCHECK_API_KEY') ?: '6c6e71ea206d796ed52593fab2bac827aa00295c9a30c67c57c268d276eafb18');
-    define('PROXYCHECK_CACHE_HOURS', 6);    // Cache resultado por 6 horas
-    define('PROXYCHECK_TIMEOUT', 5);        // Timeout da API em segundos
-}
-
-// ============================================
 // JOGO - CONFIGURAÇÕES BÁSICAS
 // ============================================
 if (!defined('GAME_DURATION')) {
@@ -67,9 +57,7 @@ if (!defined('GAME_DURATION')) {
     define('GAME_TOLERANCE', 30);           // 30 segundos tolerância (reduzido de 300!)
     define('CAPTCHA_RESEND_TOLERANCE', 60); // Tolerância extra para reenvio com CAPTCHA (ads + verificação)
     define('INITIAL_LIVES', 6);
-    define('MAX_MISSIONS_PER_DAY', 50);     // 50 missões por dia (24h)
     define('HARD_MODE_PERCENTAGE', 40);
-    define('MAX_ACCOUNTS_PER_IP', 1);       // Apenas 1 conta por IP
 }
 
 // ============================================
@@ -286,146 +274,6 @@ if (!function_exists('getClientIP')) {
     }
 }
 
-// ============================================
-// DETECÇÃO DE VPN/PROXY - proxycheck.io
-// ============================================
-
-if (!function_exists('checkProxyVPN')) {
-    /**
-     * Verifica se o IP usa VPN/Proxy via proxycheck.io
-     * Usa cache no banco para evitar chamadas excessivas à API
-     * @param string $ip Endereço IP para verificar
-     * @param PDO|null $pdo Conexão com banco (para cache)
-     * @return array ['is_proxy' => bool, 'type' => string, 'provider' => string, 'cached' => bool]
-     */
-    function checkProxyVPN($ip, $pdo = null) {
-        $result = [
-            'is_proxy' => false,
-            'type' => '',
-            'provider' => '',
-            'cached' => false
-        ];
-
-        if (!PROXYCHECK_ENABLED) return $result;
-        if (empty($ip) || $ip === '0.0.0.0' || $ip === '127.0.0.1') return $result;
-
-        // Verificar cache no banco
-        if ($pdo) {
-            try {
-                $stmt = $pdo->prepare("
-                    SELECT is_proxy, proxy_type, proxy_provider, checked_at
-                    FROM proxy_check_cache
-                    WHERE ip_address = ?
-                    AND checked_at > DATE_SUB(NOW(), INTERVAL ? HOUR)
-                    LIMIT 1
-                ");
-                $stmt->execute([$ip, PROXYCHECK_CACHE_HOURS]);
-                $cached = $stmt->fetch();
-
-                if ($cached) {
-                    return [
-                        'is_proxy' => (bool)$cached['is_proxy'],
-                        'type' => $cached['proxy_type'] ?? '',
-                        'provider' => $cached['proxy_provider'] ?? '',
-                        'cached' => true
-                    ];
-                }
-            } catch (Exception $e) {
-                // Tabela pode não existir ainda, continuar sem cache
-                error_log("ProxyCheck cache read error: " . $e->getMessage());
-            }
-        }
-
-        // Chamar API proxycheck.io
-        try {
-            $apiUrl = "https://proxycheck.io/v2/{$ip}?key=" . PROXYCHECK_API_KEY . "&vpn=1&asn=1&risk=1";
-
-            $context = stream_context_create([
-                'http' => [
-                    'method' => 'GET',
-                    'timeout' => PROXYCHECK_TIMEOUT,
-                    'header' => "Accept: application/json\r\n"
-                ]
-            ]);
-
-            $response = @file_get_contents($apiUrl, false, $context);
-
-            if ($response === false) {
-                secureLog("PROXYCHECK_API_ERROR | IP: $ip | Falha na conexão");
-                return $result; // Falha silenciosa - não bloquear usuário
-            }
-
-            $data = json_decode($response, true);
-
-            if (!$data || ($data['status'] ?? '') !== 'ok') {
-                secureLog("PROXYCHECK_API_ERROR | IP: $ip | Status: " . ($data['status'] ?? 'unknown'));
-                return $result;
-            }
-
-            $ipData = $data[$ip] ?? [];
-            $isProxy = strtolower($ipData['proxy'] ?? 'no') === 'yes';
-            $proxyType = $ipData['type'] ?? '';
-            $provider = $ipData['provider'] ?? $ipData['organisation'] ?? '';
-
-            $result = [
-                'is_proxy' => $isProxy,
-                'type' => $proxyType,
-                'provider' => $provider,
-                'cached' => false
-            ];
-
-            // Salvar no cache
-            if ($pdo) {
-                try {
-                    $stmt = $pdo->prepare("
-                        INSERT INTO proxy_check_cache (ip_address, is_proxy, proxy_type, proxy_provider, checked_at)
-                        VALUES (?, ?, ?, ?, NOW())
-                        ON DUPLICATE KEY UPDATE
-                            is_proxy = VALUES(is_proxy),
-                            proxy_type = VALUES(proxy_type),
-                            proxy_provider = VALUES(proxy_provider),
-                            checked_at = NOW()
-                    ");
-                    $stmt->execute([$ip, $isProxy ? 1 : 0, $proxyType, $provider]);
-                } catch (Exception $e) {
-                    error_log("ProxyCheck cache write error: " . $e->getMessage());
-                }
-            }
-
-            if ($isProxy) {
-                secureLog("VPN_PROXY_DETECTED | IP: $ip | Type: $proxyType | Provider: $provider");
-            }
-
-            return $result;
-
-        } catch (Exception $e) {
-            secureLog("PROXYCHECK_EXCEPTION | IP: $ip | " . $e->getMessage());
-            return $result; // Falha silenciosa
-        }
-    }
-}
-
-if (!function_exists('ensureProxyCacheTable')) {
-    /**
-     * Cria tabela de cache para proxycheck se não existir
-     */
-    function ensureProxyCacheTable($pdo) {
-        try {
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS proxy_check_cache (
-                    ip_address VARCHAR(45) NOT NULL PRIMARY KEY,
-                    is_proxy TINYINT(1) NOT NULL DEFAULT 0,
-                    proxy_type VARCHAR(50) DEFAULT '',
-                    proxy_provider VARCHAR(255) DEFAULT '',
-                    checked_at DATETIME NOT NULL,
-                    INDEX idx_checked_at (checked_at)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-            ");
-        } catch (Exception $e) {
-            error_log("ProxyCheck table creation error: " . $e->getMessage());
-        }
-    }
-}
 
 if (!function_exists('secureLog')) {
     function secureLog($msg) {

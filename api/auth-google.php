@@ -43,43 +43,7 @@ try {
             $email = substr($email, 0, 255);
             $displayName = substr($displayName, 0, 100);
 
-            // Verificar limite de 1 conta por IP
             $clientIP = getClientIP();
-
-            // Verificar VPN/Proxy via proxycheck.io
-            ensureProxyCacheTable($pdo);
-            $proxyCheck = checkProxyVPN($clientIP, $pdo);
-            if ($proxyCheck['is_proxy']) {
-                secureLog("VPN_PROXY_BLOCKED_LOGIN | IP: $clientIP | Type: {$proxyCheck['type']} | Provider: {$proxyCheck['provider']} | UID: " . substr($googleUid, 0, 15));
-                jsonResponse([
-                    'success' => false,
-                    'error' => 'Detectamos que você está usando VPN ou Proxy. Por segurança, desative a VPN/Proxy e tente novamente.',
-                    'error_code' => 'VPN_PROXY_DETECTED',
-                    'proxy_type' => $proxyCheck['type']
-                ], 403);
-            }
-
-            $stmt = $pdo->prepare("
-                SELECT google_uid, display_name
-                FROM users
-                WHERE last_login_ip = ?
-                AND google_uid != ?
-                AND last_login_ip IS NOT NULL
-                AND last_login_ip != '0.0.0.0'
-                LIMIT 1
-            ");
-            $stmt->execute([$clientIP, $googleUid]);
-            $existingAccount = $stmt->fetch();
-
-            if ($existingAccount) {
-                secureLog("IP_ACCOUNT_LIMIT | IP: $clientIP | Attempted: " . substr($googleUid, 0, 15) . " | Existing: " . substr($existingAccount['google_uid'], 0, 15));
-                jsonResponse([
-                    'success' => false,
-                    'error' => 'Já existe uma conta conectada neste dispositivo/rede. Apenas uma conta por IP é permitida.',
-                    'error_code' => 'IP_ACCOUNT_LIMIT',
-                    'existing_account' => substr($existingAccount['display_name'] ?? 'Outra conta', 0, 3) . '***'
-                ], 403);
-            }
 
             // UPSERT
             $stmt = $pdo->prepare("

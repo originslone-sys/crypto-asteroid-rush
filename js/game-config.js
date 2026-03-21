@@ -222,7 +222,7 @@ const GAME_TIPS = [
     "DICA: 6 vidas por missão - proteja sua nave!",
     "DICA: Cuidado com asteroides rápidos!",
     "DICA: No modo difícil, sobreviva e ainda ganhe!",
-    "DICA: Você pode jogar até 50 missões por dia"
+    "DICA: Jogue quantas missões quiser, sem limite diário!"
 ];
 
 function getRandomTip() {
