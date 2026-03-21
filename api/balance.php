@@ -98,12 +98,23 @@ try {
         }
     }
 
+    // Calcular saldo pendente de saques
+    $pendingWithdrawalBrl = 0.0;
+    try {
+        $wdStmt = $pdo->prepare("SELECT SUM(amount_brl) FROM withdrawals WHERE user_id = ? AND status IN ('pending', 'processing')");
+        $wdStmt->execute([$player['id']]);
+        $pendingWithdrawalBrl = (float)($wdStmt->fetchColumn() ?: 0);
+    } catch (Exception $e) {
+        // Tabela pode não existir ainda
+    }
+
     echo json_encode([
         'success' => true,
         'google_uid' => $googleUid,
         'balance_brl' => number_format($balanceBrl, 6, '.', ''),
         'staked_balance_brl' => number_format($stakedBrl, 6, '.', ''),
         'pending_stake_reward' => number_format($stakeReward, 6, '.', ''),
+        'pending_withdrawal_brl' => number_format($pendingWithdrawalBrl, 6, '.', ''),
         'total_earned_brl' => number_format($totalEarnedBrl, 6, '.', ''),
         'total_withdrawn_brl' => number_format($totalWithdrawnBrl, 6, '.', ''),
         'total_played' => $totalPlayed,
