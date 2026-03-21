@@ -20,8 +20,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'min_withdraw_amount_brl' => (float)$_POST['min_withdraw'],
                     'referral_bonus_brl' => (float)$_POST['referral_bonus'],
                     'referral_missions_required' => (int)$_POST['referral_missions'],
-                    'withdrawal_window_start' => (int)$_POST['withdrawal_start'],
-                    'withdrawal_window_end' => (int)$_POST['withdrawal_end'],
                 ];
                 
                 foreach ($settings as $key => $value) {
@@ -160,20 +158,7 @@ try {
                                value="<?php echo $settings['referral_missions_required'] ?? 20; ?>" 
                                min="1" max="1000">
                     </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <div class="form-group">
-                            <label class="form-label">Saque: Dia Início</label>
-                            <input type="number" name="withdrawal_start" class="form-control" 
-                                   value="<?php echo $settings['withdrawal_window_start'] ?? 20; ?>" min="1" max="28">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Saque: Dia Fim</label>
-                            <input type="number" name="withdrawal_end" class="form-control" 
-                                   value="<?php echo $settings['withdrawal_window_end'] ?? 25; ?>" min="1" max="31">
-                        </div>
-                    </div>
-                    
+
                     <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar</button>
                 </form>
             </div>
