@@ -259,7 +259,7 @@ function formatDate(dateStr) {
  */
 function formatBRL(value) {
     const num = parseFloat(value) || 0;
-    return 'R$ ' + num.toFixed(6).replace('.', ',');
+    return 'R$ ' + num.toFixed(2).replace('.', ',');
 }
 
 /**
