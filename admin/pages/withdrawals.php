@@ -230,7 +230,9 @@ try {
                                     </button>
                                 </div>
                                 <?php elseif ($w['status'] === 'processing'): ?>
-                                    <span class="badge badge-primary"><i class="fas fa-spinner fa-spin"></i> Aguardando ZettPay</span>
+                                    <button onclick="checkCashoutStatus(<?php echo $w['id']; ?>)" class="btn btn-primary btn-sm" title="Verificar status na ZettPay">
+                                        <i class="fas fa-sync-alt"></i> Verificar
+                                    </button>
                                 <?php else: ?>
                                     <span style="color: var(--text-dim);">-</span>
                                 <?php endif; ?>
@@ -314,6 +316,41 @@ async function approveWithdrawalZettpay(id, amount) {
             location.reload();
         } else {
             alert('Erro: ' + (data.error || 'Falha ao processar saque'));
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    } catch (error) {
+        alert('Erro de conexão: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
+}
+
+async function checkCashoutStatus(id) {
+    const btn = event.target.closest('button');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando...';
+
+    try {
+        const response = await fetch('../api/admin-ajax.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'check_cashout_status', id: id })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.message);
+            if (data.status === 'completed' || data.status === 'rejected') {
+                location.reload();
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        } else {
+            alert('Erro: ' + (data.error || 'Falha ao consultar status'));
             btn.disabled = false;
             btn.innerHTML = originalHtml;
         }

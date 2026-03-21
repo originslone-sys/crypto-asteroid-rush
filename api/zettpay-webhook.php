@@ -65,8 +65,8 @@ $event = $payload['event'];
 $type = $payload['type'] ?? '';
 $data = $payload['data'];
 $externalId = $data['external_id'] ?? '';
-$status = $data['status'] ?? '';
-$zettpayId = $data['id'] ?? '';
+$status = strtoupper($data['status'] ?? '');
+$zettpayId = $data['provider_transaction_id'] ?? $data['id'] ?? '';
 $amount = (float)($data['amount'] ?? 0);
 
 secureLog("ZETTPAY_WEBHOOK_RECEIVED | event: {$event} | type: {$type} | external_id: {$externalId} | status: {$status} | amount: {$amount}");
@@ -117,9 +117,9 @@ try {
 // ============================================
 function processDeposit($pdo, $data, $rawBody) {
     $externalId = $data['external_id'];
-    $status = $data['status'];
+    $status = strtoupper($data['status'] ?? '');
     $amount = (float)($data['amount'] ?? 0);
-    $zettpayId = $data['id'] ?? '';
+    $zettpayId = $data['provider_transaction_id'] ?? $data['id'] ?? '';
 
     // Buscar transação no banco
     $stmt = $pdo->prepare("SELECT * FROM zettpay_transactions WHERE external_id = ? AND type = 'deposit' LIMIT 1");
@@ -137,8 +137,8 @@ function processDeposit($pdo, $data, $rawBody) {
         return;
     }
 
-    // Status de sucesso: paid ou completed
-    if ($status === 'paid' || $status === 'completed') {
+    // Status de sucesso: PAID, APPROVED ou COMPLETED
+    if ($status === 'PAID' || $status === 'COMPLETED' || $status === 'APPROVED') {
         $pdo->beginTransaction();
 
         try {
@@ -238,7 +238,7 @@ function processDeposit($pdo, $data, $rawBody) {
         }
     }
     // Status de falha/expiração
-    elseif ($status === 'expired' || $status === 'failed') {
+    elseif ($status === 'EXPIRED' || $status === 'FAILED') {
         $stmt = $pdo->prepare("
             UPDATE zettpay_transactions
             SET status = ?,
@@ -273,8 +273,8 @@ function processDeposit($pdo, $data, $rawBody) {
 // ============================================
 function processCashout($pdo, $data, $rawBody) {
     $externalId = $data['external_id'];
-    $status = $data['status'];
-    $zettpayId = $data['id'] ?? '';
+    $status = strtoupper($data['status'] ?? '');
+    $zettpayId = $data['provider_transaction_id'] ?? $data['id'] ?? '';
 
     // Buscar transação no banco
     $stmt = $pdo->prepare("SELECT * FROM zettpay_transactions WHERE external_id = ? AND type = 'cashout' LIMIT 1");
@@ -294,8 +294,8 @@ function processCashout($pdo, $data, $rawBody) {
 
     $withdrawalId = $tx['withdrawal_id'];
 
-    // Status de sucesso: approved ou completed
-    if ($status === 'approved' || $status === 'completed') {
+    // Status de sucesso: APPROVED ou COMPLETED
+    if ($status === 'APPROVED' || $status === 'COMPLETED') {
         $pdo->beginTransaction();
 
         try {
@@ -360,7 +360,7 @@ function processCashout($pdo, $data, $rawBody) {
         }
     }
     // Status de falha
-    elseif ($status === 'failed' || $status === 'rejected') {
+    elseif ($status === 'FAILED' || $status === 'REJECTED') {
         $pdo->beginTransaction();
 
         try {

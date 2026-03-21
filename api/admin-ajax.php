@@ -246,6 +246,106 @@ try {
             break;
 
         // -------------------------------------------------------
+        // VERIFICAR STATUS DO CASHOUT NA ZETTPAY
+        // Consulta /pix/cashouts/lookup e atualiza localmente
+        // -------------------------------------------------------
+        case "check_cashout_status":
+            $id = intval($input["id"] ?? 0);
+            if ($id <= 0) throw new Exception("ID inválido");
+
+            $stmt = $pdo->prepare("SELECT w.*, zt.external_id as zt_external_id, zt.id as zt_id, zt.status as zt_status
+                FROM withdrawals w
+                LEFT JOIN zettpay_transactions zt ON zt.withdrawal_id = w.id AND zt.type = 'cashout'
+                WHERE w.id = ?");
+            $stmt->execute([$id]);
+            $withdrawal = $stmt->fetch();
+
+            if (!$withdrawal) throw new Exception("Saque não encontrado");
+            if (empty($withdrawal['zt_external_id'])) throw new Exception("Saque não possui external_id ZettPay");
+
+            // Consultar status na ZettPay
+            $lookupResult = zettpayLookupCashout($withdrawal['zt_external_id']);
+
+            if (!$lookupResult['success']) {
+                throw new Exception("Erro ao consultar ZettPay: " . ($lookupResult['error'] ?? 'Falha na conexão'));
+            }
+
+            $apiData = $lookupResult['data']['data'] ?? $lookupResult['data'] ?? [];
+            $apiStatus = strtoupper($apiData['status'] ?? '');
+            $providerTxId = $apiData['provider_transaction_id'] ?? '';
+
+            secureLog("ADMIN_CHECK_CASHOUT | withdrawal_id: {$id} | external_id: {$withdrawal['zt_external_id']} | api_status: {$apiStatus}");
+
+            // Se aprovado na ZettPay, confirmar localmente
+            if ($apiStatus === 'APPROVED' || $apiStatus === 'COMPLETED') {
+                $pdo->beginTransaction();
+                try {
+                    // Atualizar zettpay_transactions
+                    $stmt = $pdo->prepare("
+                        UPDATE zettpay_transactions
+                        SET status = 'confirmed', zettpay_id = ?, confirmed_at = NOW()
+                        WHERE id = ? AND status != 'confirmed'
+                    ");
+                    $stmt->execute([$providerTxId, $withdrawal['zt_id']]);
+
+                    // Atualizar withdrawal
+                    $stmt = $pdo->prepare("
+                        UPDATE withdrawals
+                        SET status = 'completed', processed_at = NOW(), zettpay_status = 'confirmed'
+                        WHERE id = ? AND status = 'processing'
+                    ");
+                    $stmt->execute([$id]);
+
+                    $pdo->commit();
+                    $response = [
+                        "success" => true,
+                        "message" => "✅ Saque #{$id} confirmado! Status ZettPay: {$apiStatus}",
+                        "status" => "completed",
+                        "api_status" => $apiStatus
+                    ];
+                } catch (Exception $e) {
+                    if ($pdo->inTransaction()) $pdo->rollBack();
+                    throw $e;
+                }
+            } elseif ($apiStatus === 'FAILED' || $apiStatus === 'REJECTED') {
+                // Falhou na ZettPay - devolver saldo
+                $pdo->beginTransaction();
+                try {
+                    $amount = (float)$withdrawal['amount_brl'];
+                    $userId = $withdrawal['user_id'];
+
+                    $stmt = $pdo->prepare("UPDATE users SET balance_brl = balance_brl + ?, updated_at = NOW() WHERE id = ?");
+                    $stmt->execute([$amount, $userId]);
+
+                    $stmt = $pdo->prepare("UPDATE withdrawals SET status = 'rejected', processed_at = NOW(), zettpay_status = 'failed' WHERE id = ?");
+                    $stmt->execute([$id]);
+
+                    $stmt = $pdo->prepare("UPDATE zettpay_transactions SET status = 'failed', error_message = ? WHERE id = ?");
+                    $stmt->execute(["ZettPay status: {$apiStatus}", $withdrawal['zt_id']]);
+
+                    $pdo->commit();
+                    $response = [
+                        "success" => true,
+                        "message" => "⚠️ Saque #{$id} falhou na ZettPay ({$apiStatus}). Saldo devolvido ao jogador.",
+                        "status" => "rejected",
+                        "api_status" => $apiStatus
+                    ];
+                } catch (Exception $e) {
+                    if ($pdo->inTransaction()) $pdo->rollBack();
+                    throw $e;
+                }
+            } else {
+                // Ainda processando
+                $response = [
+                    "success" => true,
+                    "message" => "⏳ Saque #{$id} ainda em processamento na ZettPay. Status: {$apiStatus}",
+                    "status" => "processing",
+                    "api_status" => $apiStatus
+                ];
+            }
+            break;
+
+        // -------------------------------------------------------
         // REJEITAR SAQUE
         // Tabela: withdrawals + users
         // -------------------------------------------------------
