@@ -215,16 +215,11 @@ try {
                                     <button onclick="approveWithdrawalZettpay(<?php echo $w['id']; ?>, <?php echo $w['amount_brl']; ?>)" class="btn btn-success btn-sm" title="Aprovar via PIX ZettPay">
                                         <i class="fas fa-bolt"></i> PIX
                                     </button>
-                                    <?php else: ?>
-                                    <!-- Outros métodos: aprovação manual -->
-                                    <form method="POST" style="display: inline;">
-                                        <input type="hidden" name="action" value="approve">
-                                        <input type="hidden" name="withdrawal_id" value="<?php echo $w['id']; ?>">
-                                        <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Aprovar saque de <?php echo formatBRL($w['amount_brl']); ?>?')">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                    </form>
                                     <?php endif; ?>
+                                    <!-- Aprovação manual (qualquer método) -->
+                                    <button onclick="approveWithdrawalManual(<?php echo $w['id']; ?>, <?php echo $w['amount_brl']; ?>)" class="btn btn-success btn-sm" title="Aprovar manualmente (pagamento externo)">
+                                        <i class="fas fa-check"></i>
+                                    </button>
                                     <button onclick="rejectWithdrawal(<?php echo $w['id']; ?>)" class="btn btn-danger btn-sm">
                                         <i class="fas fa-times"></i>
                                     </button>
@@ -316,6 +311,40 @@ async function approveWithdrawalZettpay(id, amount) {
             location.reload();
         } else {
             alert('Erro: ' + (data.error || 'Falha ao processar saque'));
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    } catch (error) {
+        alert('Erro de conexão: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
+}
+
+async function approveWithdrawalManual(id, amount) {
+    if (!confirm('Aprovar manualmente o saque #' + id + ' de R$ ' + amount.toFixed(2).replace('.', ',') + '?\n\nUse esta opção se o pagamento já foi feito por fora.')) {
+        return;
+    }
+
+    const btn = event.target.closest('button');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    try {
+        const response = await fetch('../api/admin-ajax.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'approve_withdrawal', id: id })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.message || 'Saque aprovado com sucesso!');
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.error || 'Falha ao aprovar saque'));
             btn.disabled = false;
             btn.innerHTML = originalHtml;
         }

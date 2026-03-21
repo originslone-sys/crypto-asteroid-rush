@@ -14,7 +14,12 @@ $googleUid = trim($input['google_uid'] ?? '');
 $amount = (float)($input['amount'] ?? $input['amount_brl'] ?? 0);
 $paymentDetails = trim($input['payment_details'] ?? $input['pix_key'] ?? '');
 $paymentMethod = strtolower(trim($input['payment_method'] ?? 'pix'));
-$pixKeyType = strtolower(trim($input['pix_key_type'] ?? 'cpf'));
+$pixKeyType = strtolower(trim($input['pix_key_type'] ?? ''));
+
+// Auto-detectar tipo de chave PIX se não informado
+if ($paymentMethod === 'pix' && empty($pixKeyType)) {
+    $pixKeyType = detectPixKeyType($paymentDetails);
+}
 
 // Validar google_uid
 if (!$googleUid || !validateGoogleUid($googleUid)) {

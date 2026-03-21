@@ -224,9 +224,47 @@ if (!function_exists('validatePixKey')) {
             case 'phone':
             case 'celular':
                 return preg_match('/^\+?\d{10,13}$/', preg_replace('/\D/', '', $key));
+            case 'evp':
+            case 'aleatoria':
+                return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $key);
             default:
                 return strlen($key) >= 5 && strlen($key) <= 100;
         }
+    }
+}
+
+if (!function_exists('detectPixKeyType')) {
+    /**
+     * Detecta automaticamente o tipo de chave PIX
+     * @param string $key Chave PIX
+     * @return string cpf|cnpj|email|phone|evp
+     */
+    function detectPixKeyType($key) {
+        $key = trim($key);
+        $digits = preg_replace('/\D/', '', $key);
+
+        // Email
+        if (filter_var($key, FILTER_VALIDATE_EMAIL)) {
+            return 'email';
+        }
+        // CPF (11 dígitos)
+        if (preg_match('/^\d{11}$/', $digits) || preg_match('/^\d{3}\.\d{3}\.\d{3}-\d{2}$/', $key)) {
+            return 'cpf';
+        }
+        // CNPJ (14 dígitos)
+        if (preg_match('/^\d{14}$/', $digits) || preg_match('/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/', $key)) {
+            return 'cnpj';
+        }
+        // Telefone (+55...)
+        if (preg_match('/^\+?\d{10,13}$/', $digits)) {
+            return 'phone';
+        }
+        // Chave aleatória (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $key)) {
+            return 'evp';
+        }
+        // Fallback
+        return 'cpf';
     }
 }
 
