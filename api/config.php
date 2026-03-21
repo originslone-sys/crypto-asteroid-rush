@@ -117,6 +117,7 @@ if (!defined('MIN_WITHDRAW_BRL')) {
 // ============================================
 if (!defined('CREDITS_PER_GAME')) {
     define('CREDITS_PER_GAME', 1); // 1 crédito por partida
+    define('WELCOME_BONUS_CREDITS', 2); // Bônus de boas-vindas para novos usuários
 }
 
 // ============================================

@@ -64,9 +64,36 @@ try {
             
             // Detectar se é novo usuário (INSERT vs UPDATE)
             $isNewUser = ($stmt->rowCount() === 1);
-            
+
             // Buscar usuário
             $user = findPlayer($pdo, $googleUid);
+
+            // Bônus de boas-vindas: creditar créditos grátis para novos usuários
+            if ($isNewUser && $user && defined('WELCOME_BONUS_CREDITS') && WELCOME_BONUS_CREDITS > 0) {
+                try {
+                    $pdo->prepare("
+                        UPDATE users SET credits = credits + ? WHERE google_uid = ?
+                    ")->execute([WELCOME_BONUS_CREDITS, $googleUid]);
+
+                    $pdo->prepare("
+                        INSERT INTO transactions (
+                            google_uid, type, amount, amount_brl,
+                            description, status, created_at
+                        ) VALUES (?, 'welcome_bonus', ?, 0, ?, 'completed', NOW())
+                    ")->execute([
+                        $googleUid,
+                        WELCOME_BONUS_CREDITS,
+                        'Bônus de boas-vindas: ' . WELCOME_BONUS_CREDITS . ' créditos grátis'
+                    ]);
+
+                    // Atualizar objeto local
+                    $user['credits'] = (int)($user['credits'] ?? 0) + WELCOME_BONUS_CREDITS;
+
+                    secureLog("WELCOME_BONUS | UID: " . substr($googleUid, 0, 15) . " | Credits: " . WELCOME_BONUS_CREDITS);
+                } catch (Exception $e) {
+                    error_log("Welcome bonus error: " . $e->getMessage());
+                }
+            }
             
             if (!$user) {
                 jsonResponse(['success' => false, 'error' => 'Usuário não encontrado'], 500);
