@@ -123,16 +123,28 @@ try {
             $stmt->execute([$userId]);
             $user = $stmt->fetch();
 
+            // Atualizar transação existente no histórico (pending → completed)
             $stmt = $pdo->prepare("
-                INSERT INTO transactions
-                (google_uid, type, amount_brl, description, status, created_at)
-                VALUES (?, 'withdraw', ?, ?, 'completed', NOW())
+                UPDATE transactions
+                SET status = 'completed'
+                WHERE google_uid = ? AND type = 'withdraw' AND description LIKE ? AND status = 'pending'
+                LIMIT 1
             ");
-            $stmt->execute([
-                $user['google_uid'] ?? null,
-                -abs($amount),
-                "Saque #{$id} aprovado"
-            ]);
+            $updated = $stmt->execute([$user['google_uid'] ?? null, "%#{$id}%"]);
+
+            // Se não encontrou transação existente, criar nova
+            if ($stmt->rowCount() === 0) {
+                $stmt = $pdo->prepare("
+                    INSERT INTO transactions
+                    (google_uid, type, amount_brl, description, status, created_at)
+                    VALUES (?, 'withdraw', ?, ?, 'completed', NOW())
+                ");
+                $stmt->execute([
+                    $user['google_uid'] ?? null,
+                    -abs($amount),
+                    "Saque #{$id} aprovado"
+                ]);
+            }
 
             $pdo->commit();
             $response = ["success" => true, "message" => "✅ Saque #{$id} aprovado com sucesso!"];
@@ -298,6 +310,21 @@ try {
                     ");
                     $stmt->execute([$id]);
 
+                    // Atualizar transação no histórico do usuário (pending → completed)
+                    $stmt = $pdo->prepare("SELECT google_uid FROM users WHERE id = ?");
+                    $stmt->execute([$withdrawal['user_id']]);
+                    $user = $stmt->fetch();
+
+                    if ($user) {
+                        $stmt = $pdo->prepare("
+                            UPDATE transactions
+                            SET status = 'completed'
+                            WHERE google_uid = ? AND type = 'withdraw' AND description LIKE ? AND status IN ('pending', 'processing')
+                            LIMIT 1
+                        ");
+                        $stmt->execute([$user['google_uid'], "%#{$id}%"]);
+                    }
+
                     $pdo->commit();
                     $response = [
                         "success" => true,
@@ -324,6 +351,21 @@ try {
 
                     $stmt = $pdo->prepare("UPDATE zettpay_transactions SET status = 'failed', error_message = ? WHERE id = ?");
                     $stmt->execute(["ZettPay status: {$apiStatus}", $withdrawal['zt_id']]);
+
+                    // Atualizar transação no histórico do usuário
+                    $stmt = $pdo->prepare("SELECT google_uid FROM users WHERE id = ?");
+                    $stmt->execute([$userId]);
+                    $user = $stmt->fetch();
+
+                    if ($user) {
+                        $stmt = $pdo->prepare("
+                            UPDATE transactions
+                            SET status = 'failed'
+                            WHERE google_uid = ? AND type = 'withdraw' AND description LIKE ? AND status IN ('pending', 'processing')
+                            LIMIT 1
+                        ");
+                        $stmt->execute([$user['google_uid'], "%#{$id}%"]);
+                    }
 
                     $pdo->commit();
                     $response = [
