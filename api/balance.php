@@ -85,18 +85,8 @@ try {
     $isBanned = $hasIsBanned ? (bool)($player['is_banned'] ?? 0) : false;
     $credits = $hasCredits ? (int)($player['credits'] ?? 0) : 0;
 
-    // Calcular stake rewards pendentes
+    // Staking descontinuado — reward sempre zero
     $stakeReward = 0.0;
-    if ($hasStakedBalance && $hasLastStakeUpdate && $stakedBrl > 0) {
-        $lastUpdate = $player['last_stake_update'] ?? null;
-        if ($lastUpdate) {
-            $secondsPassed = time() - strtotime($lastUpdate);
-            $dailyRate = STAKE_APY / 365;
-            $daysElapsed = $secondsPassed / 86400;
-            $stakeReward = $stakedBrl * (pow(1 + $dailyRate, $daysElapsed) - 1);
-            if ($stakeReward < 0) $stakeReward = 0.0;
-        }
-    }
 
     // Calcular saldo pendente de saques
     $pendingWithdrawalBrl = 0.0;

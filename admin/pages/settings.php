@@ -17,8 +17,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         switch ($action) {
             case 'update_settings':
                 $settings = [
-                    'stake_apy' => (float)$_POST['stake_apy'] / 100,
-                    'min_stake_amount_brl' => (float)$_POST['min_stake'],
                     'min_withdraw_amount_brl' => (float)$_POST['min_withdraw'],
                     'referral_bonus_brl' => (float)$_POST['referral_bonus'],
                     'referral_missions_required' => (int)$_POST['referral_missions'],
@@ -141,20 +139,6 @@ try {
             <div class="panel-body">
                 <form method="POST">
                     <input type="hidden" name="action" value="update_settings">
-                    
-                    <div class="form-group">
-                        <label class="form-label">APY do Staking (%)</label>
-                        <input type="number" name="stake_apy" class="form-control" 
-                               value="<?php echo isset($settings['stake_apy']) ? $settings['stake_apy'] * 100 : 5; ?>" 
-                               step="0.1" min="0" max="100">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Stake Mínimo (R$)</label>
-                        <input type="number" name="min_stake" class="form-control" 
-                               value="<?php echo $settings['min_stake_amount_brl'] ?? 0.01; ?>" 
-                               step="0.01" min="0.01">
-                    </div>
                     
                     <div class="form-group">
                         <label class="form-label">Saque Mínimo (R$)</label>

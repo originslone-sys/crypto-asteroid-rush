@@ -7,6 +7,10 @@
 // Execute via CRON: 0 * * * * (a cada hora)
 // ============================================
 
+// Feature de staking desativada — remover do cron
+echo "Staking desativado. Remover este script do cron.\n";
+exit(0);
+
 require_once __DIR__ . '/config.php';
 
 date_default_timezone_set('America/Sao_Paulo');

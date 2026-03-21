@@ -133,12 +133,12 @@ if (!defined('ZETTPAY_BASE_URL')) {
 }
 
 // ============================================
-// STAKING
+// STAKING (DESCONTINUADO — constantes mantidas para compatibilidade com migração)
 // ============================================
 if (!defined('STAKE_APY')) {
-    define('STAKE_APY', 0.05);            // 5% ao ano
-    define('MIN_STAKE_BRL', 0.01);        // Mínimo R$ 0,01 (consistente com frontend)
-    define('MAX_STAKE_BRL', 1000.00);    // Máximo R$ 1.000,00 por usuário
+    define('STAKE_APY', 0.05);
+    define('MIN_STAKE_BRL', 0.01);
+    define('MAX_STAKE_BRL', 1000.00);
 }
 
 // ============================================

@@ -32,19 +32,6 @@ try {
         FROM withdrawals
     ")->fetch();
 
-    // Estatísticas de staking — tabela: staking
-    // Schema real: earnings (não earned_brl), apy (não apy_rate), start_date (não staked_at)
-    $stakeStats = ['active_stakes' => 0, 'total_staked' => 0, 'total_rewards' => 0];
-    try {
-        $stakeStats = $pdo->query("
-            SELECT 
-                COUNT(CASE WHEN status = 'active' THEN 1 END) as active_stakes,
-                COALESCE(SUM(CASE WHEN status = 'active' THEN amount_brl ELSE 0 END), 0) as total_staked,
-                COALESCE(SUM(earnings), 0) as total_rewards
-            FROM staking
-        ")->fetch() ?: $stakeStats;
-    } catch (Exception $e) {}
-
     // Estatísticas de sessões (hoje) — tabela: game_sessions (doc 3.3)
     $sessionStats = $pdo->query("
         SELECT 
@@ -152,13 +139,6 @@ if (!function_exists('formatBRLShort')) {
     
     <!-- Segunda linha de stats -->
     <div class="stats-grid" style="margin-top: 20px;">
-        <div class="stat-card">
-            <div class="icon primary"><i class="fas fa-coins"></i></div>
-            <div class="value"><?php echo formatBRLShort($stakeStats['total_staked']); ?></div>
-            <div class="label">Em Staking</div>
-            <div class="change"><?php echo $stakeStats['active_stakes'] ?? 0; ?> ativos</div>
-        </div>
-        
         <div class="stat-card">
             <div class="icon success"><i class="fas fa-user-friends"></i></div>
             <div class="value"><?php echo $referralStats['total'] ?? 0; ?></div>
@@ -289,10 +269,6 @@ if (!function_exists('formatBRLShort')) {
                 <div class="info-box" style="padding: 15px; background: rgba(123,245,66,0.1); border-radius: 10px;">
                     <div style="color: var(--text-dim); font-size: 0.85rem;">Saques Pagos (30d)</div>
                     <div style="font-size: 1.3rem; font-weight: 700; color: var(--warning);"><?php echo formatBRLShort($withdrawStats['completed_amount_month']); ?></div>
-                </div>
-                <div class="info-box" style="padding: 15px; background: rgba(255,209,102,0.1); border-radius: 10px;">
-                    <div style="color: var(--text-dim); font-size: 0.85rem;">Rendimentos Staking</div>
-                    <div style="font-size: 1.3rem; font-weight: 700; color: var(--primary);"><?php echo formatBRLShort($stakeStats['total_rewards']); ?></div>
                 </div>
                 <div class="info-box" style="padding: 15px; background: rgba(255,71,87,0.1); border-radius: 10px;">
                     <div style="color: var(--text-dim); font-size: 0.85rem;">Comissões Indicação</div>

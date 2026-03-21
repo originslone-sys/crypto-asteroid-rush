@@ -61,14 +61,8 @@ try {
         // Tabela pode não existir
     }
 
-    // Calcular rendimento de stake pendente
+    // Staking descontinuado — reward sempre zero
     $pendingStakeReward = 0;
-    if ($stakedBalanceBrl > 0 && !empty($player['last_stake_update'])) {
-        $secondsPassed = time() - strtotime($player['last_stake_update']);
-        $dailyRate = STAKE_APY / 365;
-        $daysElapsed = $secondsPassed / 86400;
-        $pendingStakeReward = $stakedBalanceBrl * (pow(1 + $dailyRate, $daysElapsed) - 1);
-    }
 
     echo json_encode([
         'success' => true,
