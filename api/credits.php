@@ -197,15 +197,29 @@ try {
             ]);
 
             // Registrar transação pendente
-            $stmt = $pdo->prepare("
-                INSERT INTO transactions (google_uid, type, amount_brl, description, status, created_at)
-                VALUES (?, 'deposit', ?, ?, 'pending', NOW())
-            ");
-            $stmt->execute([
-                $googleUid,
-                $amount,
-                "Compra de {$totalCredits} créditos [{$externalId}]"
-            ]);
+            try {
+                $stmt = $pdo->prepare("
+                    INSERT INTO transactions (google_uid, type, amount, amount_brl, description, status, created_at)
+                    VALUES (?, 'deposit', ?, ?, ?, 'pending', NOW())
+                ");
+                $stmt->execute([
+                    $googleUid,
+                    $amount,
+                    $amount,
+                    "Compra de {$totalCredits} créditos [{$externalId}]"
+                ]);
+            } catch (Throwable $txErr) {
+                // Se amount_brl não existe, tentar sem
+                $stmt = $pdo->prepare("
+                    INSERT INTO transactions (google_uid, type, amount, description, status, created_at)
+                    VALUES (?, 'deposit', ?, ?, 'pending', NOW())
+                ");
+                $stmt->execute([
+                    $googleUid,
+                    $amount,
+                    "Compra de {$totalCredits} créditos [{$externalId}]"
+                ]);
+            }
 
             secureLog("CREDIT_PURCHASE | uid: {$googleUid} | package: {$packageId} | credits: {$totalCredits} | amount: R\${$amount} | external_id: {$externalId}");
 
@@ -227,12 +241,8 @@ try {
 
 } catch (Throwable $e) {
     error_log("credits.php error: " . $e->getMessage() . " | Line: " . $e->getLine() . " | File: " . $e->getFile());
-    $errorMsg = 'Erro no servidor';
-    // Em ambiente de desenvolvimento, mostrar detalhe do erro
-    if (strpos($e->getMessage(), 'Table') !== false || strpos($e->getMessage(), 'column') !== false) {
-        $errorMsg = 'Erro de banco de dados. Tente novamente.';
-    }
-    echo json_encode(['success' => false, 'error' => $errorMsg]);
+    secureLog("CREDITS_ERROR | " . $e->getMessage() . " | Line: " . $e->getLine());
+    echo json_encode(['success' => false, 'error' => 'Erro: ' . $e->getMessage()]);
 }
 
 // ============================================
@@ -296,6 +306,16 @@ function ensureCreditsTable($pdo) {
                 ('Lendário', 120, 40, 14.00, 0)
             ");
             secureLog("CREDITS_TABLE | Pacotes padrão inseridos");
+        }
+
+        // Garantir coluna amount_brl na tabela transactions
+        try {
+            $col = $pdo->query("SHOW COLUMNS FROM transactions LIKE 'amount_brl'")->fetch();
+            if (!$col) {
+                $pdo->exec("ALTER TABLE transactions ADD COLUMN amount_brl DECIMAL(15,2) DEFAULT 0 AFTER amount");
+            }
+        } catch (Exception $e) {
+            // tabela transactions pode não existir ainda
         }
 
         $checked = true;
