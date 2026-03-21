@@ -180,6 +180,9 @@ try {
             ];
             $zettpayKeyType = $keyTypeMap[strtolower($pixKeyType)] ?? 'cpf';
 
+            $amount = (float)$withdrawal['amount_brl'];
+            $userId = $withdrawal['user_id'];
+
             // Gerar external_id
             $externalId = zettpayWithdrawExternalId($id);
 
