@@ -186,7 +186,7 @@ function createExplosion(x, y, colors, asteroid) {
     if (typeof playSound === 'function') playSound('explosion.mp3', 0.6);
     
     // Notificações em português e formato BRL
-    const rewardText = `+R$ ${asteroid.reward.toFixed(4)}`.replace('.', ',');
+    const rewardText = `+R$ ${asteroid.reward.toFixed(2)}`.replace('.', ',');
     
     if (asteroid.type === 'LEGENDARY') {
         if (typeof showNotification === 'function') showNotification('⭐ LENDÁRIO!', rewardText, true);
@@ -271,7 +271,7 @@ async function gameOver() {
     
     const stats = getGameStats();
     
-    console.log('💀 GAME OVER - Perdeu R$' + lostEarnings.toFixed(4));
+    console.log('💀 GAME OVER - Perdeu R$' + lostEarnings.toFixed(2));
     
     // Finalizar sessão no servidor (uma única requisição)
     if (typeof SessionManager !== 'undefined' && SessionManager.hasActiveSession()) {
@@ -368,7 +368,7 @@ async function endGame() {
     const calculatedEarnings = gameState.destroyedAsteroids.reduce((sum, a) => sum + a.reward, 0);
     gameState.earnings = calculatedEarnings;
     
-    console.log(`🏆 MISSÃO COMPLETA - Ganhou R$${gameState.earnings.toFixed(4)}`);
+    console.log(`🏆 MISSÃO COMPLETA - Ganhou R$${gameState.earnings.toFixed(2)}`);
     console.log(`📊 Stats:`, stats);
     
     // Variáveis para resposta do servidor

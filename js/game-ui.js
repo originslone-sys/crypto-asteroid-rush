@@ -193,10 +193,10 @@ function updateUI() {
 }
 
 /**
- * Formatar ganhos em BRL (4 casas decimais)
+ * Formatar ganhos em BRL (2 casas decimais)
  */
 function formatEarningsBRL(value) {
-    return 'R$ ' + (value || 0).toFixed(4).replace('.', ',');
+    return 'R$ ' + (value || 0).toFixed(2).replace('.', ',');
 }
 
 /**
