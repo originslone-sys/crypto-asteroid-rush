@@ -219,7 +219,7 @@ function processDeposit($pdo, $data, $rawBody) {
             $stmt = $pdo->prepare("
                 UPDATE transactions
                 SET status = 'completed'
-                WHERE google_uid = ? AND type = 'deposit' AND description LIKE ? AND status = 'pending'
+                WHERE google_uid = ? AND type IN ('deposit', 'credit_purchase') AND description LIKE ? AND status = 'pending'
                 LIMIT 1
             ");
             $stmt->execute([$user['google_uid'], '%' . $externalId . '%']);
@@ -258,7 +258,7 @@ function processDeposit($pdo, $data, $rawBody) {
             $stmt = $pdo->prepare("
                 UPDATE transactions
                 SET status = 'failed'
-                WHERE google_uid = ? AND type = 'deposit' AND description LIKE ? AND status = 'pending'
+                WHERE google_uid = ? AND type IN ('deposit', 'credit_purchase') AND description LIKE ? AND status = 'pending'
                 LIMIT 1
             ");
             $stmt->execute([$user['google_uid'], '%' . $externalId . '%']);

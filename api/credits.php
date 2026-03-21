@@ -215,7 +215,7 @@ try {
             try {
                 $stmt = $pdo->prepare("
                     INSERT INTO transactions (google_uid, type, amount, amount_brl, description, status, created_at)
-                    VALUES (?, 'deposit', ?, ?, ?, 'pending', NOW())
+                    VALUES (?, 'credit_purchase', ?, ?, ?, 'pending', NOW())
                 ");
                 $stmt->execute([
                     $googleUid,
@@ -227,7 +227,7 @@ try {
                 // Se amount_brl não existe, tentar sem
                 $stmt = $pdo->prepare("
                     INSERT INTO transactions (google_uid, type, amount, description, status, created_at)
-                    VALUES (?, 'deposit', ?, ?, 'pending', NOW())
+                    VALUES (?, 'credit_purchase', ?, ?, 'pending', NOW())
                 ");
                 $stmt->execute([
                     $googleUid,
