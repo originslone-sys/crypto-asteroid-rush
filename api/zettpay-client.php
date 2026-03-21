@@ -196,7 +196,6 @@ function zettpayLookupDeposit($externalId) {
  * @return array Resposta da API
  */
 function zettpayCreateCashout($amount, $pixKey, $pixKeyType, $externalId, $metadata = []) {
-    // Formatar amount como string com 2 casas decimais (exigência comum de APIs PIX)
     $formattedAmount = number_format(round($amount, 2), 2, '.', '');
 
     $body = [
@@ -206,7 +205,6 @@ function zettpayCreateCashout($amount, $pixKey, $pixKeyType, $externalId, $metad
         'external_id' => $externalId
     ];
 
-    // Adicionar metadata apenas se não vazio
     if (!empty($metadata)) {
         $body['metadata'] = $metadata;
     }
@@ -215,37 +213,8 @@ function zettpayCreateCashout($amount, $pixKey, $pixKeyType, $externalId, $metad
 
     secureLog("ZETTPAY_CASHOUT_REQUEST | external_id: {$externalId} | amount: {$formattedAmount} | key_type: {$pixKeyType} | pix_key: " . substr($pixKey, 0, 6) . "*** | body: " . json_encode($body));
 
-    $result = zettpayRequest('POST', '/pix/pay', $body, $idempotencyKey);
-
-    // Se falhou, tentar com nomes de campo alternativos
-    if (!$result['success']) {
-        secureLog("ZETTPAY_CASHOUT_RETRY | Tentando com campos alternativos (key/key_type)");
-        $body2 = [
-            'amount' => (float)$formattedAmount,
-            'key' => $pixKey,
-            'key_type' => $pixKeyType,
-            'external_id' => $externalId
-        ];
-        if (!empty($metadata)) {
-            $body2['metadata'] = $metadata;
-        }
-        $result = zettpayRequest('POST', '/pix/pay', $body2, $idempotencyKey . '-r');
-
-        // Se ainda falhou, tentar endpoint /cashouts
-        if (!$result['success']) {
-            secureLog("ZETTPAY_CASHOUT_RETRY2 | Tentando endpoint /cashouts");
-            $body3 = [
-                'amount' => $formattedAmount,
-                'pix_key' => $pixKey,
-                'pix_key_type' => $pixKeyType,
-                'external_id' => $externalId
-            ];
-            if (!empty($metadata)) {
-                $body3['metadata'] = $metadata;
-            }
-            $result = zettpayRequest('POST', '/cashouts', $body3, $idempotencyKey . '-r2');
-        }
-    }
+    // Endpoint correto: /pix/cashouts (consistente com lookup em /pix/cashouts/lookup)
+    $result = zettpayRequest('POST', '/pix/cashouts', $body, $idempotencyKey);
 
     secureLog("ZETTPAY_CASHOUT_CREATE | external_id: {$externalId} | amount: R\${$amount} | key_type: {$pixKeyType} | success: " . ($result['success'] ? 'true' : 'false') . " | response: " . json_encode($result['data'] ?? null));
 
