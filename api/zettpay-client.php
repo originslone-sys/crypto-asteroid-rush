@@ -213,8 +213,18 @@ function zettpayCreateCashout($amount, $pixKey, $pixKeyType, $externalId, $metad
 
     secureLog("ZETTPAY_CASHOUT_REQUEST | external_id: {$externalId} | amount: {$formattedAmount} | key_type: {$pixKeyType} | pix_key: " . substr($pixKey, 0, 6) . "*** | body: " . json_encode($body));
 
-    // Endpoint correto: /pix/cashouts (consistente com lookup em /pix/cashouts/lookup)
-    $result = zettpayRequest('POST', '/pix/cashouts', $body, $idempotencyKey);
+    // Tentar endpoints possíveis para cashout
+    $endpoints = ['/pix/cashout', '/transactions/cashout', '/transactions'];
+    $result = null;
+
+    foreach ($endpoints as $endpoint) {
+        $result = zettpayRequest('POST', $endpoint, $body, $idempotencyKey);
+        if ($result['success'] || ($result['http_code'] > 0 && $result['http_code'] !== 404 && $result['http_code'] !== 405)) {
+            secureLog("ZETTPAY_CASHOUT_ENDPOINT_FOUND | endpoint: {$endpoint} | http_code: {$result['http_code']}");
+            break;
+        }
+        secureLog("ZETTPAY_CASHOUT_ENDPOINT_MISS | endpoint: {$endpoint} | http_code: {$result['http_code']} | error: " . ($result['error'] ?? ''));
+    }
 
     secureLog("ZETTPAY_CASHOUT_CREATE | external_id: {$externalId} | amount: R\${$amount} | key_type: {$pixKeyType} | success: " . ($result['success'] ? 'true' : 'false') . " | response: " . json_encode($result['data'] ?? null));
 
