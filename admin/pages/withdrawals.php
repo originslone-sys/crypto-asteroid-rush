@@ -302,8 +302,8 @@ async function approveWithdrawalZettpay(id, amount) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                action: 'approve_zettpay',
-                withdrawal_id: id
+                action: 'approve_withdrawal_zettpay',
+                id: id
             })
         });
 
