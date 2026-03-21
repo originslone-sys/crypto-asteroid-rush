@@ -148,6 +148,9 @@ try {
             $id = intval($input["id"] ?? 0);
             if ($id <= 0) throw new Exception("ID inválido");
 
+            // Garantir tabelas ANTES da transação (DDL causa commit implícito no MySQL)
+            ensureZettpayTable($pdo);
+
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare("SELECT * FROM withdrawals WHERE id = ? FOR UPDATE");
@@ -176,11 +179,6 @@ try {
                 'evp' => 'evp'
             ];
             $zettpayKeyType = $keyTypeMap[strtolower($pixKeyType)] ?? 'cpf';
-
-            $amount = (float)$withdrawal['amount_brl'];
-            $userId = $withdrawal['user_id'];
-
-            ensureZettpayTable($pdo);
 
             // Gerar external_id
             $externalId = zettpayWithdrawExternalId($id);
