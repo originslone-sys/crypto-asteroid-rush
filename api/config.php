@@ -135,7 +135,7 @@ if (!defined('CREDITS_PER_GAME')) {
 // ZETTPAY - GATEWAY PIX
 // ============================================
 if (!defined('ZETTPAY_BASE_URL')) {
-    define('ZETTPAY_BASE_URL', getenv('ZETTPAY_BASE_URL') ?: 'https://api.zettpay.io/api/v1');
+    define('ZETTPAY_BASE_URL', getenv('ZETTPAY_BASE_URL') ?: 'https://api.zettpay.io/api');
     define('ZETTPAY_AUTH_URL', getenv('ZETTPAY_AUTH_URL') ?: 'https://api.zettpay.io/api/oauth/token');
     define('ZETTPAY_CLIENT_ID', getenv('ZETTPAY_CLIENT_ID') ?: '');
     define('ZETTPAY_CLIENT_SECRET', getenv('ZETTPAY_CLIENT_SECRET') ?: '');
