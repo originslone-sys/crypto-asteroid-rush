@@ -287,11 +287,6 @@ if (!function_exists('formatBRLShort')) {
                     <div style="font-size: 1.2rem; font-weight: 700; color: var(--danger);"><?php echo $sessionStats30d['flagged'] ?? 0; ?></div>
                     <div style="font-size: 0.75rem; color: var(--text-dim);"><?php echo $sessionStats['flagged'] ?? 0; ?> hoje | 30d</div>
                 </div>
-                <div style="padding: 15px; background: rgba(255,71,87,0.08); border-radius: 10px;">
-                    <div style="color: var(--text-dim); font-size: 0.8rem;">Jogadores Banidos</div>
-                    <div style="font-size: 1.2rem; font-weight: 700; color: var(--danger);"><?php echo $playerStats['banned'] ?? 0; ?></div>
-                    <div style="font-size: 0.75rem; color: var(--text-dim);">de <?php echo number_format($playerStats['total_players'] ?? 0); ?> total</div>
-                </div>
                 <div style="padding: 15px; background: rgba(0,229,204,0.08); border-radius: 10px;">
                     <div style="color: var(--text-dim); font-size: 0.8rem;">Novos Jogadores (7d)</div>
                     <div style="font-size: 1.2rem; font-weight: 700; color: var(--success);"><?php echo $playerStats['new_week'] ?? 0; ?></div>
