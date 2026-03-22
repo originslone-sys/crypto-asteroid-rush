@@ -72,11 +72,11 @@ try {
         $creditPurchaseStats = $pdo->query("
             SELECT
                 COUNT(CASE WHEN DATE(confirmed_at) = CURDATE() AND status = 'confirmed' THEN 1 END) as today_count,
-                COALESCE(SUM(CASE WHEN DATE(confirmed_at) = CURDATE() AND status = 'confirmed' THEN amount_brl ELSE 0 END), 0) as today_amount,
+                COALESCE(SUM(CASE WHEN DATE(confirmed_at) = CURDATE() AND status = 'confirmed' THEN price_brl ELSE 0 END), 0) as today_amount,
                 COUNT(CASE WHEN confirmed_at > DATE_SUB(NOW(), INTERVAL 30 DAY) AND status = 'confirmed' THEN 1 END) as month_count,
-                COALESCE(SUM(CASE WHEN confirmed_at > DATE_SUB(NOW(), INTERVAL 30 DAY) AND status = 'confirmed' THEN amount_brl ELSE 0 END), 0) as month_amount,
+                COALESCE(SUM(CASE WHEN confirmed_at > DATE_SUB(NOW(), INTERVAL 30 DAY) AND status = 'confirmed' THEN price_brl ELSE 0 END), 0) as month_amount,
                 COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as total_count,
-                COALESCE(SUM(CASE WHEN status = 'confirmed' THEN amount_brl ELSE 0 END), 0) as total_amount
+                COALESCE(SUM(CASE WHEN status = 'confirmed' THEN price_brl ELSE 0 END), 0) as total_amount
             FROM credit_purchases
         ")->fetch() ?: $creditPurchaseStats;
     } catch (Exception $e) {

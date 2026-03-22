@@ -105,7 +105,7 @@ try {
             COALESCE(cp.total_purchases, 0) as total_purchases
         FROM users u
         LEFT JOIN (
-            SELECT user_id, SUM(CASE WHEN status = 'confirmed' THEN amount_brl ELSE 0 END) as total_purchases
+            SELECT user_id, SUM(CASE WHEN status = 'confirmed' THEN price_brl ELSE 0 END) as total_purchases
             FROM credit_purchases
             GROUP BY user_id
         ) cp ON cp.user_id = u.id
