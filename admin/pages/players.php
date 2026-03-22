@@ -267,18 +267,16 @@ try {
                 </div>
             <?php else: ?>
                 <div class="table-container">
-                    <table>
+                    <table class="table-compact">
                         <thead>
                             <tr>
                                 <th>Jogador</th>
-                                <th>Email</th>
                                 <th>Saldo</th>
                                 <th>Compras</th>
                                 <th>Ganhos</th>
                                 <th>Saques</th>
-                                <th>Partidas</th>
+                                <th>Jogos</th>
                                 <th>Status</th>
-                                <th>Cadastro</th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
@@ -288,51 +286,41 @@ try {
                             ?>
                             <tr>
                                 <td>
-                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
                                         <?php if (!empty($p['photo_url'] ?? '')): ?>
                                             <img src="<?php echo htmlspecialchars($p['photo_url']); ?>"
-                                                 style="width: 35px; height: 35px; border-radius: 50%;">
+                                                 style="width: 30px; height: 30px; border-radius: 50%;">
                                         <?php else: ?>
-                                            <div style="width: 35px; height: 35px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center;">
-                                                <i class="fas fa-user" style="font-size: 0.8rem;"></i>
+                                            <div style="width: 30px; height: 30px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center;">
+                                                <i class="fas fa-user" style="font-size: 0.7rem;"></i>
                                             </div>
                                         <?php endif; ?>
                                         <div>
-                                            <strong><?php echo htmlspecialchars($p['display_name'] ?? 'Sem nome'); ?></strong>
-                                            <div style="font-size: 0.75rem; color: var(--text-dim);">
-                                                <?php echo substr($p['google_uid'], 0, 10); ?>...
-                                            </div>
+                                            <strong style="font-size: 0.85rem;"><?php echo htmlspecialchars($p['display_name'] ?? 'Sem nome'); ?></strong>
+                                            <div style="font-size: 0.7rem; color: var(--text-dim);"><?php echo htmlspecialchars($p['email'] ?? substr($p['google_uid'], 0, 10) . '...'); ?></div>
                                         </div>
                                     </div>
                                 </td>
-                                <td style="color: var(--text-dim);"><?php echo htmlspecialchars($p['email'] ?? '-'); ?></td>
-                                <td style="color: var(--success); font-weight: bold;">
+                                <td style="color: var(--success); font-weight: bold; white-space: nowrap;">
                                     <?php echo formatBRL($p['balance_brl']); ?>
                                 </td>
-                                <td style="color: var(--primary);">
+                                <td style="color: var(--primary); white-space: nowrap;">
                                     <?php echo formatBRL($p['total_purchases'] ?? 0); ?>
                                 </td>
-                                <td style="color: var(--warning);"><?php echo formatBRL($p['total_earned_brl']); ?></td>
-                                <td style="color: var(--danger);">
+                                <td style="color: var(--warning); white-space: nowrap;"><?php echo formatBRL($p['total_earned_brl']); ?></td>
+                                <td style="color: var(--danger); white-space: nowrap;">
                                     <?php echo formatBRL($p['total_withdrawn'] ?? 0); ?>
                                 </td>
                                 <td><?php echo $p['total_played']; ?></td>
                                 <td>
                                     <?php if ($p['is_banned']): ?>
-                                        <span class="badge badge-danger"><i class="fas fa-ban"></i> Banido</span>
-                                        <?php if ($p['ban_reason']): ?>
-                                            <div style="font-size: 0.7rem; color: var(--danger);"><?php echo htmlspecialchars($p['ban_reason']); ?></div>
-                                        <?php endif; ?>
+                                        <span class="badge badge-danger" title="<?php echo htmlspecialchars($p['ban_reason'] ?? ''); ?>"><i class="fas fa-ban"></i> Banido</span>
                                     <?php elseif ($isInactive): ?>
-                                        <span class="badge badge-warning"><i class="fas fa-moon"></i> Inativo</span>
-                                        <div style="font-size: 0.7rem; color: var(--text-dim);">
-                                            <?php echo $p['last_login'] ? date('d/m/Y', strtotime($p['last_login'])) : 'Nunca logou'; ?>
-                                        </div>
+                                        <span class="badge badge-warning" title="Último login: <?php echo $p['last_login'] ? date('d/m/Y', strtotime($p['last_login'])) : 'Nunca'; ?>"><i class="fas fa-moon"></i> Inativo</span>
                                     <?php else: ?>
                                         <span class="badge badge-success">Ativo</span>
                                     <?php endif; ?>
                                 </td>
-                                <td style="color: var(--text-dim);"><?php echo date('d/m/Y', strtotime($p['created_at'])); ?></td>
                                 <td>
                                     <div class="btn-group">
                                         <?php if ($p['is_banned']): ?>
@@ -489,6 +477,18 @@ try {
 </div>
 
 <style>
+.table-compact th,
+.table-compact td {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+}
+.table-compact .btn-sm {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+}
+.table-compact .btn-group {
+    gap: 4px;
+}
 .modal-overlay {
     display: none;
     position: fixed;
