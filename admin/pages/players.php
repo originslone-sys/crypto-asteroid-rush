@@ -114,24 +114,29 @@ try {
         ) cp ON cp.user_id = u.id
         WHERE 1=1
     ";
+    $countSql = "SELECT COUNT(*) FROM users u WHERE 1=1";
     $params = [];
+    $filterSql = '';
 
     if ($search) {
-        $sql .= " AND (u.display_name LIKE ? OR u.email LIKE ? OR u.google_uid LIKE ?)";
+        $filterSql .= " AND (u.display_name LIKE ? OR u.email LIKE ? OR u.google_uid LIKE ?)";
         $params[] = "%$search%";
         $params[] = "%$search%";
         $params[] = "%$search%";
     }
 
     if ($filter === 'banned') {
-        $sql .= " AND u.is_banned = 1";
+        $filterSql .= " AND u.is_banned = 1";
     } elseif ($filter === 'active') {
-        $sql .= " AND u.is_banned = 0 AND u.last_login > DATE_SUB(NOW(), INTERVAL 30 DAY)";
+        $filterSql .= " AND u.is_banned = 0 AND u.last_login > DATE_SUB(NOW(), INTERVAL 30 DAY)";
     } elseif ($filter === 'inactive') {
-        $sql .= " AND (u.last_login IS NULL OR u.last_login <= DATE_SUB(NOW(), INTERVAL 30 DAY))";
+        $filterSql .= " AND (u.last_login IS NULL OR u.last_login <= DATE_SUB(NOW(), INTERVAL 30 DAY))";
     } elseif ($filter === 'with_balance') {
-        $sql .= " AND u.is_banned = 0 AND u.balance_brl > 0";
+        $filterSql .= " AND u.is_banned = 0 AND u.balance_brl > 0";
     }
+
+    $sql .= $filterSql;
+    $countSql .= $filterSql;
 
     if ($sort === 'played') {
         $sql .= " ORDER BY u.total_played DESC";
@@ -148,7 +153,6 @@ try {
     }
 
     // Contar total para paginação
-    $countSql = preg_replace('/SELECT .+ FROM/s', 'SELECT COUNT(*) FROM', $sql, 1);
     $stmtCount = $pdo->prepare($countSql);
     $stmtCount->execute($params);
     $totalPlayers = (int)$stmtCount->fetchColumn();
