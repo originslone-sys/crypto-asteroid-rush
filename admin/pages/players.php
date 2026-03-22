@@ -97,6 +97,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $search = $_GET['search'] ?? '';
 $filter = $_GET['filter'] ?? 'all';
 $sort = $_GET['sort'] ?? 'balance';
+$page = max(1, intval($_GET['p'] ?? 1));
+$perPage = 50;
+$offset = ($page - 1) * $perPage;
 
 try {
     $sql = "
@@ -144,7 +147,14 @@ try {
         $sql .= " ORDER BY u.balance_brl DESC";
     }
 
-    $sql .= " LIMIT 100";
+    // Contar total para paginação
+    $countSql = preg_replace('/SELECT .+ FROM/s', 'SELECT COUNT(*) FROM', $sql, 1);
+    $stmtCount = $pdo->prepare($countSql);
+    $stmtCount->execute($params);
+    $totalPlayers = (int)$stmtCount->fetchColumn();
+    $totalPages = max(1, ceil($totalPlayers / $perPage));
+
+    $sql .= " LIMIT {$perPage} OFFSET {$offset}";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -355,6 +365,39 @@ try {
                     </table>
                 </div>
             <?php endif; ?>
+
+            <?php if (($totalPages ?? 1) > 1): ?>
+                <?php
+                    $queryParams = $_GET;
+                    unset($queryParams['p']);
+                    $baseUrl = '?' . http_build_query($queryParams);
+                ?>
+                <div class="pagination">
+                    <?php if ($page > 1): ?>
+                        <a href="<?php echo $baseUrl . '&p=' . ($page - 1); ?>" class="btn btn-outline btn-sm">&laquo; Anterior</a>
+                    <?php endif; ?>
+
+                    <?php
+                        $start = max(1, $page - 2);
+                        $end = min($totalPages, $page + 2);
+                        if ($start > 1) echo '<span class="pagination-dots">...</span>';
+                        for ($i = $start; $i <= $end; $i++):
+                    ?>
+                        <a href="<?php echo $baseUrl . '&p=' . $i; ?>" class="btn btn-sm <?php echo $i === $page ? 'btn-primary' : 'btn-outline'; ?>"><?php echo $i; ?></a>
+                    <?php
+                        endfor;
+                        if ($end < $totalPages) echo '<span class="pagination-dots">...</span>';
+                    ?>
+
+                    <?php if ($page < $totalPages): ?>
+                        <a href="<?php echo $baseUrl . '&p=' . ($page + 1); ?>" class="btn btn-outline btn-sm">Próxima &raquo;</a>
+                    <?php endif; ?>
+
+                    <span style="color: var(--text-dim); font-size: 0.8rem; margin-left: 10px;">
+                        <?php echo $totalPlayers; ?> jogadores | Página <?php echo $page; ?>/<?php echo $totalPages; ?>
+                    </span>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
@@ -489,6 +532,17 @@ try {
 .table-compact .btn-group {
     gap: 4px;
 }
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+    flex-wrap: wrap;
+}
+.pagination .btn { min-width: 36px; text-align: center; text-decoration: none; }
+.pagination-dots { color: var(--text-dim); padding: 0 4px; }
 .modal-overlay {
     display: none;
     position: fixed;
