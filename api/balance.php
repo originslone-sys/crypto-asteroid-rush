@@ -56,6 +56,7 @@ try {
     $hasTotalWithdrawn = in_array('total_withdrawn_brl', $availableCols);
     $hasIsBanned = in_array('is_banned', $availableCols);
     $hasCredits = in_array('credits', $availableCols);
+    $hasWhatsapp = in_array('whatsapp', $availableCols);
 
     // Buscar usuário
     $player = findPlayer($pdo, $googleUid);
@@ -84,6 +85,7 @@ try {
     $totalWithdrawnBrl = $hasTotalWithdrawn ? (float)($player['total_withdrawn_brl'] ?? 0) : 0;
     $isBanned = $hasIsBanned ? (bool)($player['is_banned'] ?? 0) : false;
     $credits = $hasCredits ? (int)($player['credits'] ?? 0) : 0;
+    $whatsapp = $hasWhatsapp ? ($player['whatsapp'] ?? null) : null;
 
     // Staking descontinuado — reward sempre zero
     $stakeReward = 0.0;
@@ -113,7 +115,8 @@ try {
         'is_banned' => $isBanned,
         'display_name' => $player['display_name'] ?? null,
         'email' => $player['email'] ?? null,
-        'is_new_player' => false
+        'is_new_player' => false,
+        'has_whatsapp' => !empty($whatsapp)
     ]);
 
 } catch (Throwable $e) {
