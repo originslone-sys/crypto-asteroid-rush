@@ -107,7 +107,7 @@ if (!defined('EARNINGS_ALERT_BRL')) {
 // SAQUES
 // ============================================
 if (!defined('MIN_WITHDRAW_BRL')) {
-    define('MIN_WITHDRAW_BRL', 5.00);
+    define('MIN_WITHDRAW_BRL', 1.00);
     define('WITHDRAW_METHODS', ['pix']);
 }
 

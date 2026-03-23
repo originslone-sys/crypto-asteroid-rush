@@ -558,7 +558,7 @@
         
         <div class="withdraw-info">
             <i class="fas fa-info-circle"></i>
-            <span>Mínimo: R$ 5,00 • Sem taxas • Processamento em até 24 horas</span>
+            <span>Mínimo: R$ 1,00 • Sem taxas • Processamento em até 24 horas</span>
         </div>
         
         <div class="withdraw-info warning" id="withdrawWarning" style="display: none;">
@@ -721,8 +721,8 @@ async function requestWithdraw() {
     const amount = parseFloat(document.getElementById('withdrawAmount').value);
     const paymentDetails = document.getElementById('paymentDetails').value.trim();
     
-    if (!amount || amount < 5) {
-        showWarning('O valor mínimo para saque é R$ 5,00');
+    if (!amount || amount < 1) {
+        showWarning('O valor mínimo para saque é R$ 1,00');
         return;
     }
     
