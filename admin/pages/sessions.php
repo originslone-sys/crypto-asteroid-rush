@@ -2,34 +2,47 @@
 // ============================================
 // UNOBIX - Sessões de Jogo
 // Arquivo: admin/pages/sessions.php
+// v7.0 - Paginação
 // ============================================
 
 $pageTitle = 'Sessões';
 $filter = $_GET['filter'] ?? 'all';
 $search = $_GET['search'] ?? '';
+$page = max(1, intval($_GET['p'] ?? 1));
+$perPage = 50;
+$offset = ($page - 1) * $perPage;
 
 try {
-    $sql = "SELECT gs.*, p.display_name, p.is_banned FROM game_sessions gs 
+    $baseSql = "FROM game_sessions gs
             LEFT JOIN users p ON gs.google_uid = p.google_uid WHERE 1=1";
     $params = [];
-    
+    $filterSql = '';
+
     if ($filter !== 'all') {
-        $sql .= " AND gs.status = ?";
+        $filterSql .= " AND gs.status = ?";
         $params[] = $filter;
     }
     if ($search) {
-        $sql .= " AND (gs.google_uid LIKE ? OR p.display_name LIKE ?)";
+        $filterSql .= " AND (gs.google_uid LIKE ? OR p.display_name LIKE ?)";
         $params[] = "%$search%";
         $params[] = "%$search%";
     }
-    $sql .= " ORDER BY gs.created_at DESC LIMIT 200";
-    
+
+    // Contagem
+    $stmtCount = $pdo->prepare("SELECT COUNT(*) " . $baseSql . $filterSql);
+    $stmtCount->execute($params);
+    $totalRows = (int)$stmtCount->fetchColumn();
+    $totalPages = max(1, ceil($totalRows / $perPage));
+
+    $sql = "SELECT gs.*, p.display_name, p.is_banned " . $baseSql . $filterSql;
+    $sql .= " ORDER BY gs.created_at DESC LIMIT {$perPage} OFFSET {$offset}";
+
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $sessions = $stmt->fetchAll();
-    
+
     $stats = $pdo->query("
-        SELECT 
+        SELECT
             COUNT(*) as total,
             SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
             SUM(CASE WHEN status = 'flagged' THEN 1 ELSE 0 END) as flagged,
@@ -49,7 +62,11 @@ try {
     <div class="page-header">
         <h1 class="page-title"><i class="fas fa-gamepad"></i> Sessões de Jogo</h1>
     </div>
-    
+
+    <?php if (isset($error)): ?>
+        <div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?></div>
+    <?php endif; ?>
+
     <div class="stats-grid">
         <div class="stat-card">
             <div class="icon primary"><i class="fas fa-play"></i></div>
@@ -72,12 +89,12 @@ try {
             <div class="label">Ganhos Hoje</div>
         </div>
     </div>
-    
+
     <div class="panel">
         <div class="panel-body">
             <form method="GET" class="filters">
                 <input type="hidden" name="page" value="sessions">
-                <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Buscar..." class="form-control" style="width: 200px;">
+                <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Buscar jogador..." class="form-control" style="width: 200px;">
                 <select name="filter" class="form-control">
                     <option value="all">Todos</option>
                     <option value="completed" <?php echo $filter === 'completed' ? 'selected' : ''; ?>>Completadas</option>
@@ -88,7 +105,7 @@ try {
             </form>
         </div>
     </div>
-    
+
     <div class="panel">
         <div class="panel-body">
             <?php if (empty($sessions)): ?>
@@ -122,6 +139,37 @@ try {
                     </tbody>
                 </table>
             </div>
+
+            <?php if ($totalPages > 1): ?>
+                <?php
+                    $queryParams = $_GET;
+                    unset($queryParams['p']);
+                    $baseUrl = '?' . http_build_query($queryParams);
+                ?>
+                <div style="display: flex; align-items: center; gap: 6px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color); flex-wrap: wrap;">
+                    <?php if ($page > 1): ?>
+                        <a href="<?php echo $baseUrl . '&p=' . ($page - 1); ?>" class="btn btn-outline btn-sm">&laquo; Anterior</a>
+                    <?php endif; ?>
+                    <?php
+                        $start = max(1, $page - 2);
+                        $end = min($totalPages, $page + 2);
+                        if ($start > 1) echo '<span style="color: var(--text-dim); padding: 0 4px;">...</span>';
+                        for ($i = $start; $i <= $end; $i++):
+                    ?>
+                        <a href="<?php echo $baseUrl . '&p=' . $i; ?>" class="btn btn-sm <?php echo $i === $page ? 'btn-primary' : 'btn-outline'; ?>" style="min-width: 36px; text-align: center; text-decoration: none;"><?php echo $i; ?></a>
+                    <?php
+                        endfor;
+                        if ($end < $totalPages) echo '<span style="color: var(--text-dim); padding: 0 4px;">...</span>';
+                    ?>
+                    <?php if ($page < $totalPages): ?>
+                        <a href="<?php echo $baseUrl . '&p=' . ($page + 1); ?>" class="btn btn-outline btn-sm">Próxima &raquo;</a>
+                    <?php endif; ?>
+                    <span style="color: var(--text-dim); font-size: 0.8rem; margin-left: 10px;">
+                        <?php echo number_format($totalRows); ?> sessões | Página <?php echo $page; ?>/<?php echo $totalPages; ?>
+                    </span>
+                </div>
+            <?php endif; ?>
+
             <?php endif; ?>
         </div>
     </div>
