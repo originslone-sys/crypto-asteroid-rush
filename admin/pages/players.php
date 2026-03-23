@@ -48,6 +48,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = "Saldo ajustado!";
                 break;
 
+            case 'add_credits':
+                $googleUid = $_POST['google_uid'];
+                $credits = intval($_POST['credits'] ?? 0);
+                $reason = $_POST['reason'] ?? 'Adicionado pelo admin';
+
+                if ($credits <= 0) throw new Exception("Quantidade deve ser maior que 0");
+
+                $pdo->prepare("UPDATE users SET credits = credits + ? WHERE google_uid = ?")
+                    ->execute([$credits, $googleUid]);
+
+                $pdo->prepare("INSERT INTO transactions (google_uid, type, amount_brl, description, status) VALUES (?, 'admin_adjust', 0, ?, 'completed')")
+                    ->execute([$googleUid, "Admin adicionou {$credits} crédito(s): {$reason}"]);
+
+                $message = "{$credits} crédito(s) adicionado(s) com sucesso!";
+                break;
+
             case 'delete_player':
                 $googleUid = $_POST['google_uid'];
                 $playerName = $_POST['player_name'] ?? 'Desconhecido';
@@ -357,6 +373,11 @@ try {
                                             <i class="fas fa-edit"></i>
                                         </button>
 
+                                        <button onclick="addCredits('<?php echo $p['google_uid']; ?>', '<?php echo htmlspecialchars($p['display_name']); ?>', <?php echo $p['credits'] ?? 0; ?>)"
+                                                class="btn btn-sm" style="background: var(--primary); color: var(--bg);" title="Adicionar créditos">
+                                            <i class="fas fa-ticket-alt"></i>
+                                        </button>
+
                                         <button onclick="deletePlayer('<?php echo $p['google_uid']; ?>', '<?php echo htmlspecialchars($p['display_name']); ?>')"
                                                 class="btn btn-outline btn-sm" style="border-color: var(--danger); color: var(--danger);" title="Excluir jogador">
                                             <i class="fas fa-trash-alt"></i>
@@ -523,6 +544,47 @@ try {
     </div>
 </div>
 
+<!-- Modal Adicionar Créditos -->
+<div id="creditsModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-ticket-alt" style="color: var(--primary);"></i> Adicionar Créditos</h3>
+            <button onclick="closeModal('creditsModal')" class="modal-close">&times;</button>
+        </div>
+        <form method="POST">
+            <input type="hidden" name="action" value="add_credits">
+            <input type="hidden" name="google_uid" id="creditsGoogleUid">
+
+            <div class="form-group">
+                <label class="form-label">Jogador</label>
+                <input type="text" id="creditsPlayerName" class="form-control" readonly>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Créditos Atuais</label>
+                <input type="text" id="creditsCurrentAmount" class="form-control" readonly>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Quantidade</label>
+                    <input type="number" name="credits" class="form-control" min="1" value="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Motivo</label>
+                    <input type="text" name="reason" class="form-control" required placeholder="Ex: Bônus, compensação">
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" onclick="closeModal('creditsModal')" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Adicionar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <style>
 .table-compact th,
 .table-compact td {
@@ -603,6 +665,13 @@ function adjustBalance(googleUid, name, balance) {
     document.getElementById('adjustPlayerName').value = name;
     document.getElementById('adjustCurrentBalance').value = 'R$ ' + balance.toFixed(2);
     document.getElementById('adjustModal').classList.add('active');
+}
+
+function addCredits(googleUid, name, currentCredits) {
+    document.getElementById('creditsGoogleUid').value = googleUid;
+    document.getElementById('creditsPlayerName').value = name;
+    document.getElementById('creditsCurrentAmount').value = currentCredits + ' crédito(s)';
+    document.getElementById('creditsModal').classList.add('active');
 }
 
 function deletePlayer(googleUid, name) {
