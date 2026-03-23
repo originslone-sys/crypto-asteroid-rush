@@ -99,6 +99,11 @@ try {
                 <i class="fas fa-ad"></i>
                 <span>Anuncios</span>
             </a>
+
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=whatsapp" class="nav-item <?php echo $currentPage === 'whatsapp' ? 'active' : ''; ?>">
+                <i class="fab fa-whatsapp"></i>
+                <span>WhatsApp</span>
+            </a>
         </div>
         
         <div class="nav-section">

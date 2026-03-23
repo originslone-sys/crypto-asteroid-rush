@@ -146,7 +146,8 @@ $allowedPages = [
     'logs',
     'settings',
     'referrals',
-    'ads'
+    'ads',
+    'whatsapp'
 ];
 
 if (!in_array($page, $allowedPages)) {
