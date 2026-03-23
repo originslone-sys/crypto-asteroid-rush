@@ -122,7 +122,7 @@ try {
         INSERT INTO transactions (google_uid, type, amount, amount_brl, description, status, created_at)
         VALUES (?, 'withdraw', ?, ?, ?, 'pending', NOW())
     ");
-    $stmt->execute([$googleUid, $amount, $amount, "Saque $methodLabel #$withdrawalId"]);
+    $stmt->execute([$googleUid, -abs($amount), -abs($amount), "Saque $methodLabel #$withdrawalId"]);
 
     $pdo->commit();
 
