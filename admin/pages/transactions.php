@@ -2,7 +2,7 @@
 // ============================================
 // UNOBIX - Transações
 // Arquivo: admin/pages/transactions.php
-// v7.0 - Paginação, tipos corretos
+// v8.0 - Edição manual de status
 // ============================================
 
 $pageTitle = 'Transações';
@@ -11,6 +11,97 @@ $search = $_GET['search'] ?? '';
 $page = max(1, intval($_GET['p'] ?? 1));
 $perPage = 50;
 $offset = ($page - 1) * $perPage;
+
+// ============================================
+// AÇÕES POST - Editar status da transação
+// ============================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    try {
+        if ($_POST['action'] === 'update_status') {
+            $txId = (int)($_POST['tx_id'] ?? 0);
+            $newStatus = trim($_POST['new_status'] ?? '');
+            $validStatuses = ['pending', 'completed', 'failed'];
+
+            if (!$txId || !in_array($newStatus, $validStatuses)) {
+                $actionError = 'Parâmetros inválidos';
+            } else {
+                // Buscar transação atual
+                $stmt = $pdo->prepare("SELECT t.*, p.id as user_db_id FROM transactions t LEFT JOIN users p ON t.google_uid = p.google_uid WHERE t.id = ?");
+                $stmt->execute([$txId]);
+                $tx = $stmt->fetch();
+
+                if (!$tx) {
+                    $actionError = 'Transação não encontrada';
+                } elseif ($tx['status'] === $newStatus) {
+                    $actionError = 'Status já é ' . $newStatus;
+                } else {
+                    $oldStatus = $tx['status'];
+
+                    // Se é compra de créditos sendo confirmada manualmente
+                    if ($tx['type'] === 'credit_purchase' && $newStatus === 'completed' && $oldStatus === 'pending') {
+                        $pdo->beginTransaction();
+                        try {
+                            // Atualizar status da transação
+                            $stmt = $pdo->prepare("UPDATE transactions SET status = 'completed' WHERE id = ?");
+                            $stmt->execute([$txId]);
+
+                            // Buscar compra de créditos pelo external_id na descrição
+                            $externalId = null;
+                            if (preg_match('/\[([^\]]+)\]/', $tx['description'] ?? '', $matches)) {
+                                $externalId = $matches[1];
+                            }
+
+                            if ($externalId && $tx['user_db_id']) {
+                                // Verificar se credit_purchase existe e está pendente
+                                $stmt = $pdo->prepare("SELECT * FROM credit_purchases WHERE external_id = ? AND status = 'pending' LIMIT 1");
+                                $stmt->execute([$externalId]);
+                                $purchase = $stmt->fetch();
+
+                                if ($purchase) {
+                                    $creditsToAdd = (int)$purchase['credits_amount'];
+
+                                    // Creditar créditos ao usuário
+                                    $stmt = $pdo->prepare("UPDATE users SET credits = credits + ?, updated_at = NOW() WHERE id = ?");
+                                    $stmt->execute([$creditsToAdd, $tx['user_db_id']]);
+
+                                    // Marcar compra como confirmada
+                                    $stmt = $pdo->prepare("UPDATE credit_purchases SET status = 'confirmed', confirmed_at = NOW() WHERE id = ?");
+                                    $stmt->execute([$purchase['id']]);
+
+                                    $actionSuccess = "Compra confirmada! {$creditsToAdd} créditos adicionados ao jogador.";
+                                } else {
+                                    $actionSuccess = "Status atualizado para completed. (Compra de créditos não encontrada ou já confirmada)";
+                                }
+                            } else {
+                                $actionSuccess = "Status atualizado para completed.";
+                            }
+
+                            // Atualizar zettpay_transactions se existir
+                            if ($externalId) {
+                                try {
+                                    $stmt = $pdo->prepare("UPDATE zettpay_transactions SET status = 'confirmed', confirmed_at = NOW() WHERE external_id = ? AND status = 'pending'");
+                                    $stmt->execute([$externalId]);
+                                } catch (Exception $e) {}
+                            }
+
+                            $pdo->commit();
+                        } catch (Exception $e) {
+                            if ($pdo->inTransaction()) $pdo->rollBack();
+                            throw $e;
+                        }
+                    } else {
+                        // Atualização simples de status
+                        $stmt = $pdo->prepare("UPDATE transactions SET status = ? WHERE id = ?");
+                        $stmt->execute([$newStatus, $txId]);
+                        $actionSuccess = "Status alterado de {$oldStatus} para {$newStatus}.";
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        $actionError = $e->getMessage();
+    }
+}
 
 try {
     $baseSql = "FROM transactions t
@@ -82,6 +173,12 @@ $debitTypes = ['withdraw', 'withdrawal', 'stake'];
         <h1 class="page-title"><i class="fas fa-exchange-alt"></i> Transações</h1>
     </div>
 
+    <?php if (isset($actionSuccess)): ?>
+        <div class="alert alert-success"><i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($actionSuccess); ?></div>
+    <?php endif; ?>
+    <?php if (isset($actionError)): ?>
+        <div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($actionError); ?></div>
+    <?php endif; ?>
     <?php if (isset($error)): ?>
         <div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?></div>
     <?php endif; ?>
@@ -134,7 +231,7 @@ $debitTypes = ['withdraw', 'withdrawal', 'stake'];
             <div class="table-container">
                 <table class="table-compact">
                     <thead>
-                        <tr><th>ID</th><th>Jogador</th><th>Tipo</th><th>Valor</th><th>Descrição</th><th>Status</th><th>Data</th></tr>
+                        <tr><th>ID</th><th>Jogador</th><th>Tipo</th><th>Valor</th><th>Descrição</th><th>Status</th><th>Data</th><th>Ações</th></tr>
                     </thead>
                     <tbody>
                     <?php foreach ($transactions as $t):
@@ -145,6 +242,7 @@ $debitTypes = ['withdraw', 'withdrawal', 'stake'];
                             $amountBrl = -$amountBrl;
                         }
                         $isPositive = $amountBrl >= 0;
+                        $statusClass = $t['status'] === 'completed' ? 'success' : ($t['status'] === 'failed' ? 'danger' : 'warning');
                     ?>
                     <tr>
                         <td style="color: var(--text-dim);">#<?php echo $t['id']; ?></td>
@@ -154,8 +252,18 @@ $debitTypes = ['withdraw', 'withdrawal', 'stake'];
                             <?php echo $isPositive ? '+' : ''; ?><?php echo formatBRL($amountBrl); ?>
                         </td>
                         <td style="color: var(--text-dim); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><?php echo htmlspecialchars($t['description'] ?? '-'); ?></td>
-                        <td><span class="badge badge-<?php echo $t['status'] === 'completed' ? 'success' : ($t['status'] === 'failed' ? 'danger' : 'warning'); ?>"><?php echo $t['status']; ?></span></td>
+                        <td><span class="badge badge-<?php echo $statusClass; ?>"><?php echo $t['status']; ?></span></td>
                         <td style="white-space: nowrap; color: var(--text-dim);"><?php echo date('d/m/Y H:i', strtotime($t['created_at'])); ?></td>
+                        <td>
+                            <button class="btn btn-outline btn-sm btn-edit-status"
+                                data-id="<?php echo $t['id']; ?>"
+                                data-status="<?php echo htmlspecialchars($t['status']); ?>"
+                                data-type="<?php echo htmlspecialchars($t['type']); ?>"
+                                data-player="<?php echo htmlspecialchars($t['display_name'] ?? 'Usuário'); ?>"
+                                title="Editar status">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                     </tbody>
@@ -200,6 +308,38 @@ $debitTypes = ['withdraw', 'withdrawal', 'stake'];
     </div>
 </div>
 
+<!-- Modal Editar Status -->
+<div class="modal-overlay" id="modalEditStatus" style="display:none;">
+    <div class="modal-content" style="max-width: 420px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-edit"></i> Editar Status</h3>
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <form method="POST" id="formEditStatus">
+            <input type="hidden" name="action" value="update_status">
+            <input type="hidden" name="tx_id" id="editTxId">
+            <div class="modal-body">
+                <p style="margin-bottom: 12px; color: var(--text-dim);">
+                    Transação <strong id="editTxLabel"></strong> - <span id="editTxPlayer"></span>
+                </p>
+                <div id="editCreditWarning" style="display:none; background: rgba(255,193,7,0.15); border: 1px solid rgba(255,193,7,0.3); border-radius: 8px; padding: 10px; margin-bottom: 12px;">
+                    <small style="color: #ffc107;"><i class="fas fa-exclamation-triangle"></i> Compra de créditos: ao confirmar, os créditos serão adicionados automaticamente ao jogador.</small>
+                </div>
+                <label style="display:block; margin-bottom: 6px; font-weight: 600;">Novo Status</label>
+                <select name="new_status" id="editNewStatus" class="form-control" style="width: 100%;">
+                    <option value="pending">Pendente</option>
+                    <option value="completed">Completado</option>
+                    <option value="failed">Falhou</option>
+                </select>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 15px; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-outline btn-sm" onclick="closeEditModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <style>
 .table-compact th,
 .table-compact td {
@@ -217,4 +357,64 @@ $debitTypes = ['withdraw', 'withdrawal', 'stake'];
 }
 .pagination .btn { min-width: 36px; text-align: center; text-decoration: none; }
 .pagination-dots { color: var(--text-dim); padding: 0 4px; }
+.btn-edit-status {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+}
+.modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6); z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+}
+.modal-content {
+    background: var(--bg-card, #1a1a2e); border-radius: 12px; padding: 20px;
+    width: 90%; border: 1px solid var(--border-color);
+}
+.modal-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;
+}
+.modal-header h3 { margin: 0; font-size: 1.1rem; }
+.modal-close {
+    background: none; border: none; color: var(--text-dim); font-size: 1.5rem; cursor: pointer;
+}
+.modal-close:hover { color: var(--text-color); }
 </style>
+
+<script>
+document.querySelectorAll('.btn-edit-status').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        const status = this.dataset.status;
+        const type = this.dataset.type;
+        const player = this.dataset.player;
+
+        document.getElementById('editTxId').value = id;
+        document.getElementById('editTxLabel').textContent = '#' + id;
+        document.getElementById('editTxPlayer').textContent = player;
+        document.getElementById('editNewStatus').value = status;
+
+        // Mostrar aviso se for compra de créditos
+        const warning = document.getElementById('editCreditWarning');
+        warning.style.display = (type === 'credit_purchase') ? 'block' : 'none';
+
+        document.getElementById('modalEditStatus').style.display = 'flex';
+    });
+});
+
+function closeEditModal() {
+    document.getElementById('modalEditStatus').style.display = 'none';
+}
+
+document.getElementById('modalEditStatus').addEventListener('click', function(e) {
+    if (e.target === this) closeEditModal();
+});
+
+document.getElementById('formEditStatus').addEventListener('submit', function(e) {
+    const status = document.getElementById('editNewStatus').value;
+    if (status === 'completed') {
+        if (!confirm('Confirma alterar o status para COMPLETADO?')) {
+            e.preventDefault();
+        }
+    }
+});
+</script>
