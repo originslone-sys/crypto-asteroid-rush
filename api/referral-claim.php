@@ -2,12 +2,18 @@
 // ============================================
 // UNOBIX - Resgatar Comissões de Referral
 // Arquivo: api/referral-claim.php
-// v3.0 - Google Auth + users + 6 casas decimais
+// v4.0 - Fix 500 error
 // ============================================
 
 require_once __DIR__ . "/config.php";
 
 setCorsHeaders();
+
+// Responder OPTIONS (preflight CORS)
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 
 $input = getRequestInput();
 
@@ -31,11 +37,35 @@ try {
         exit;
     }
 
-    $pdo->beginTransaction();
+    // ============================================
+    // ANTES da transação: garantir colunas extras
+    // ALTER TABLE causa commit implícito no MySQL
+    // ============================================
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM referrals LIKE 'commission_paid_at'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE referrals ADD COLUMN commission_paid_at DATETIME DEFAULT NULL");
+        }
+    } catch (Exception $e) {
+        error_log("referral-claim: ALTER referrals warning: " . $e->getMessage());
+    }
+
+    // Verificar se transactions tem amount_brl
+    $hasAmountBrl = false;
+    try {
+        $txTable = $pdo->query("SHOW TABLES LIKE 'transactions'")->fetch();
+        if ($txTable) {
+            $col = $pdo->query("SHOW COLUMNS FROM transactions LIKE 'amount_brl'")->fetch();
+            $hasAmountBrl = (bool)$col;
+        }
+    } catch (Exception $e) {}
 
     // ============================================
-    // 1. BUSCAR COMISSÕES DISPONÍVEIS (LOCK)
+    // INICIAR TRANSAÇÃO
     // ============================================
+    $pdo->beginTransaction();
+
+    // 1. BUSCAR COMISSÕES DISPONÍVEIS (LOCK)
     $stmt = $pdo->prepare("
         SELECT id, commission_brl
         FROM referrals
@@ -60,19 +90,8 @@ try {
         $referralIds[] = (int)$commission['id'];
     }
 
-    // ============================================
     // 2. ATUALIZAR STATUS PARA 'claimed'
-    // ============================================
     $placeholders = implode(',', array_fill(0, count($referralIds), '?'));
-
-    // Garantir coluna commission_paid_at
-    try {
-        $col = $pdo->query("SHOW COLUMNS FROM referrals LIKE 'commission_paid_at'")->fetch();
-        if (!$col) {
-            $pdo->exec("ALTER TABLE referrals ADD COLUMN commission_paid_at DATETIME DEFAULT NULL");
-        }
-    } catch (Exception $e) {}
-
     $stmt = $pdo->prepare("
         UPDATE referrals
         SET status = 'claimed',
@@ -81,9 +100,7 @@ try {
     ");
     $stmt->execute($referralIds);
 
-    // ============================================
     // 3. CREDITAR NO SALDO DO USUÁRIO
-    // ============================================
     $stmt = $pdo->prepare("
         UPDATE users
         SET balance_brl = balance_brl + ?,
@@ -93,59 +110,35 @@ try {
     ");
     $stmt->execute([$totalAmount, $totalAmount, $googleUid]);
 
-    $rowsAffected = $stmt->rowCount();
-
-    if ($rowsAffected === 0) {
-        // Usuário não existe — situação anormal, mas trata
+    if ($stmt->rowCount() === 0) {
         $pdo->rollBack();
         echo json_encode(['success' => false, 'error' => 'Usuário não encontrado']);
         exit;
     }
 
-    // ============================================
     // 4. REGISTRAR TRANSAÇÃO
-    // ============================================
-    $txExists = $pdo->query("SHOW TABLES LIKE 'transactions'")->fetch();
-    if ($txExists) {
-        $description = 'Comissão de afiliados (' . count($referralIds) . ' indicação(ões))';
+    $description = 'Comissão de afiliados (' . count($referralIds) . ' indicação(ões))';
 
-        try {
-            $stmt = $pdo->prepare("
-                INSERT INTO transactions (
-                    google_uid, type, amount, amount_brl,
-                    description, status, created_at
-                ) VALUES (?, 'referral_commission', ?, ?, ?, 'completed', NOW())
-            ");
-            $stmt->execute([
-                $googleUid,
-                $totalAmount,
-                $totalAmount,
-                $description
-            ]);
-        } catch (Exception $txErr) {
-            // Fallback sem coluna amount_brl
-            $stmt = $pdo->prepare("
-                INSERT INTO transactions (
-                    google_uid, type, amount,
-                    description, status, created_at
-                ) VALUES (?, 'referral_commission', ?, ?, 'completed', NOW())
-            ");
-            $stmt->execute([
-                $googleUid,
-                $totalAmount,
-                $description
-            ]);
-        }
+    if ($hasAmountBrl) {
+        $stmt = $pdo->prepare("
+            INSERT INTO transactions (
+                google_uid, type, amount, amount_brl,
+                description, status, created_at
+            ) VALUES (?, 'referral_commission', ?, ?, ?, 'completed', NOW())
+        ");
+        $stmt->execute([$googleUid, $totalAmount, $totalAmount, $description]);
+    } else {
+        $stmt = $pdo->prepare("
+            INSERT INTO transactions (
+                google_uid, type, amount,
+                description, status, created_at
+            ) VALUES (?, 'referral_commission', ?, ?, 'completed', NOW())
+        ");
+        $stmt->execute([$googleUid, $totalAmount, $description]);
     }
 
-    // ============================================
     // 5. BUSCAR NOVO SALDO
-    // ============================================
-    $stmt = $pdo->prepare("
-        SELECT balance_brl FROM users
-        WHERE google_uid = ?
-        LIMIT 1
-    ");
+    $stmt = $pdo->prepare("SELECT balance_brl FROM users WHERE google_uid = ? LIMIT 1");
     $stmt->execute([$googleUid]);
     $newBalance = (float)$stmt->fetchColumn();
 
@@ -165,7 +158,7 @@ try {
     if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    error_log("Erro em referral-claim.php: " . $e->getMessage());
+    error_log("Erro em referral-claim.php: " . $e->getMessage() . " | Line: " . $e->getLine() . " | File: " . $e->getFile());
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Erro no servidor']);
+    echo json_encode(['success' => false, 'error' => 'Erro no servidor: ' . $e->getMessage()]);
 }
