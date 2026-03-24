@@ -609,7 +609,7 @@
         <div class="withdraw-form">
             <div class="form-group">
                 <label>Valor (R$)</label>
-                <input type="number" class="withdraw-input" id="withdrawAmount" placeholder="0,00" step="0.01" min="1.00">
+                <input type="number" class="withdraw-input" id="withdrawAmount" placeholder="0,00" step="0.01" min="5.00">
             </div>
             <div class="form-group visible" id="paymentDetailsGroup">
                 <label id="paymentDetailsLabel">Chave PIX</label>
@@ -636,7 +636,7 @@
         
         <div class="withdraw-info">
             <i class="fas fa-info-circle"></i>
-            <span>Mínimo: R$ 1,00 • Sem taxas • Processamento em até 24 horas</span>
+            <span>Mínimo: R$ 5,00 • Sem taxas • Processamento em até 24 horas</span>
         </div>
         
         <div class="withdraw-info warning" id="withdrawWarning" style="display: none;">
@@ -880,8 +880,8 @@ async function requestWithdraw() {
     const amount = parseFloat(document.getElementById('withdrawAmount').value);
     let paymentDetails = document.getElementById('paymentDetails').value.trim();
 
-    if (!amount || amount < 1) {
-        showWarning('O valor mínimo para saque é R$ 1,00');
+    if (!amount || amount < 5) {
+        showWarning('O valor mínimo para saque é R$ 5,00');
         return;
     }
 
