@@ -211,7 +211,8 @@ if (!function_exists('validatePixKey')) {
                 return filter_var($key, FILTER_VALIDATE_EMAIL) !== false;
             case 'phone':
             case 'celular':
-                return preg_match('/^\+?\d{10,13}$/', preg_replace('/\D/', '', $key));
+                $phoneDigits = preg_replace('/\D/', '', $key);
+                return preg_match('/^\d{10,13}$/', $phoneDigits);
             case 'evp':
             case 'aleatoria':
                 return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $key);

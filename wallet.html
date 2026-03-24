@@ -155,7 +155,41 @@
         .withdraw-info.warning i {
             color: var(--warning);
         }
-        
+
+        .pix-type-selector {
+            margin-bottom: 12px;
+        }
+        .pix-type-options {
+            display: flex;
+            gap: 10px;
+        }
+        .pix-type-btn {
+            flex: 1;
+            padding: 10px 14px;
+            border: 2px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--text-dim);
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .pix-type-btn:hover {
+            border-color: var(--primary);
+            color: var(--text-color);
+        }
+        .pix-type-btn.active {
+            border-color: var(--primary);
+            background: rgba(108, 92, 231, 0.15);
+            color: var(--primary);
+        }
+        .pix-type-detected {
+            font-size: 0.8rem;
+            color: var(--success);
+            margin-bottom: 10px;
+        }
+
         /* Histórico de Transações */
         .transactions-section {
             background: var(--card-bg);
@@ -579,7 +613,21 @@
             </div>
             <div class="form-group visible" id="paymentDetailsGroup">
                 <label id="paymentDetailsLabel">Chave PIX</label>
-                <input type="text" class="withdraw-input" id="paymentDetails" placeholder="CPF, e-mail, celular ou chave aleatória">
+                <input type="text" class="withdraw-input" id="paymentDetails" placeholder="CPF, e-mail, celular ou chave aleatória" oninput="checkPixKeyType()">
+            </div>
+            <div class="pix-type-selector" id="pixTypeSelector" style="display: none;">
+                <label style="font-size: 0.85rem; margin-bottom: 6px; display: block;">Qual o tipo da chave?</label>
+                <div class="pix-type-options">
+                    <button type="button" class="pix-type-btn" data-type="cpf" onclick="selectPixType('cpf')">
+                        <i class="fas fa-id-card"></i> CPF
+                    </button>
+                    <button type="button" class="pix-type-btn" data-type="phone" onclick="selectPixType('phone')">
+                        <i class="fas fa-phone"></i> Telefone
+                    </button>
+                </div>
+            </div>
+            <div class="pix-type-detected" id="pixTypeDetected" style="display: none;">
+                <i class="fas fa-check-circle"></i> <span id="pixTypeDetectedText"></span>
             </div>
             <button class="btn btn-primary withdraw-btn" id="withdrawBtn" onclick="requestWithdraw()">
                 <i class="fas fa-paper-plane"></i> Solicitar Saque
@@ -741,6 +789,87 @@ async function loadTransactionHistory() {
 }
 
 // Solicitar saque
+// ============================================
+// Detecção de tipo de chave PIX
+// ============================================
+let selectedPixKeyType = '';
+
+function checkPixKeyType() {
+    const input = document.getElementById('paymentDetails').value.trim();
+    const selector = document.getElementById('pixTypeSelector');
+    const detected = document.getElementById('pixTypeDetected');
+    const detectedText = document.getElementById('pixTypeDetectedText');
+    const digits = input.replace(/\D/g, '');
+
+    selectedPixKeyType = '';
+    selector.style.display = 'none';
+    detected.style.display = 'none';
+
+    if (!input) return;
+
+    // Email
+    if (input.includes('@') && input.includes('.')) {
+        selectedPixKeyType = 'email';
+        detectedText.textContent = 'Tipo detectado: E-mail';
+        detected.style.display = 'block';
+        return;
+    }
+
+    // Chave aleatória (UUID)
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input)) {
+        selectedPixKeyType = 'evp';
+        detectedText.textContent = 'Tipo detectado: Chave aleatória';
+        detected.style.display = 'block';
+        return;
+    }
+
+    // CNPJ (14 dígitos)
+    if (digits.length === 14) {
+        selectedPixKeyType = 'cnpj';
+        detectedText.textContent = 'Tipo detectado: CNPJ';
+        detected.style.display = 'block';
+        return;
+    }
+
+    // 10 dígitos = telefone fixo
+    if (digits.length === 10) {
+        selectedPixKeyType = 'phone';
+        detectedText.textContent = 'Tipo detectado: Telefone';
+        detected.style.display = 'block';
+        return;
+    }
+
+    // 13 dígitos (com +55) = telefone
+    if (digits.length === 13 && digits.startsWith('55')) {
+        selectedPixKeyType = 'phone';
+        detectedText.textContent = 'Tipo detectado: Telefone';
+        detected.style.display = 'block';
+        return;
+    }
+
+    // 11 dígitos = ambíguo (CPF ou celular) - perguntar ao usuário
+    if (digits.length === 11) {
+        selector.style.display = 'block';
+        // Limpar seleção anterior
+        document.querySelectorAll('.pix-type-btn').forEach(b => b.classList.remove('active'));
+        return;
+    }
+
+    // 12 dígitos (55 + DDD + 8 dígitos fixo)
+    if (digits.length === 12 && digits.startsWith('55')) {
+        selectedPixKeyType = 'phone';
+        detectedText.textContent = 'Tipo detectado: Telefone';
+        detected.style.display = 'block';
+        return;
+    }
+}
+
+function selectPixType(type) {
+    selectedPixKeyType = type;
+    document.querySelectorAll('.pix-type-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.pix-type-btn[data-type="${type}"]`).classList.add('active');
+}
+
 async function requestWithdraw() {
     const user = window.authManager?.currentUser;
     if (!user) {
@@ -749,16 +878,33 @@ async function requestWithdraw() {
     }
 
     const amount = parseFloat(document.getElementById('withdrawAmount').value);
-    const paymentDetails = document.getElementById('paymentDetails').value.trim();
-    
+    let paymentDetails = document.getElementById('paymentDetails').value.trim();
+
     if (!amount || amount < 1) {
         showWarning('O valor mínimo para saque é R$ 1,00');
         return;
     }
-    
+
     if (!paymentDetails) {
         showWarning('Preencha os dados de pagamento');
         return;
+    }
+
+    // Verificar se precisa selecionar tipo (11 dígitos)
+    const digits = paymentDetails.replace(/\D/g, '');
+    if (digits.length === 11 && !selectedPixKeyType) {
+        showWarning('Selecione se a chave é CPF ou Telefone');
+        return;
+    }
+
+    // Adicionar +55 para telefone se não tiver
+    if (selectedPixKeyType === 'phone') {
+        const phoneDigits = paymentDetails.replace(/\D/g, '');
+        if (!phoneDigits.startsWith('55')) {
+            paymentDetails = '+55' + phoneDigits;
+        } else if (!paymentDetails.startsWith('+')) {
+            paymentDetails = '+' + phoneDigits;
+        }
     }
 
     const btn = document.getElementById('withdrawBtn');
@@ -776,7 +922,8 @@ async function requestWithdraw() {
                 session_token: sessionToken,
                 amount_brl: amount,
                 payment_method: selectedPaymentMethod,
-                payment_details: paymentDetails
+                payment_details: paymentDetails,
+                pix_key_type: selectedPixKeyType
             })
         });
         
@@ -786,6 +933,9 @@ async function requestWithdraw() {
             alert('✅ Saque solicitado com sucesso!\n\nSeu saque será processado em até 24 horas.');
             document.getElementById('withdrawAmount').value = '';
             document.getElementById('paymentDetails').value = '';
+            selectedPixKeyType = '';
+            document.getElementById('pixTypeSelector').style.display = 'none';
+            document.getElementById('pixTypeDetected').style.display = 'none';
             loadWalletData();
             loadTransactionHistory();
         } else {
