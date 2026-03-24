@@ -357,6 +357,36 @@
             margin-top: 6px;
         }
 
+        .credit-package .pkg-buy-btn {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 8px 20px;
+            background: var(--primary);
+            color: #000;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .credit-package .pkg-buy-btn:hover {
+            background: var(--primary-light, #7c4dff);
+            transform: scale(1.05);
+        }
+
+        .credit-package.featured .pkg-buy-btn {
+            background: var(--warning);
+        }
+
+        .credit-package.featured .pkg-buy-btn:hover {
+            background: #ffbb33;
+        }
+
         /* Responsivo */
         @media (max-width: 768px) {
             .balance-cards {
@@ -874,6 +904,7 @@ async function loadCreditPackages() {
                         <div class="pkg-name">${pkg.name}</div>
                         <div class="pkg-price">${priceFormatted}</div>
                         <div class="pkg-unit">${unitPrice}</div>
+                        <button class="pkg-buy-btn"><i class="fas fa-shopping-cart"></i> Comprar</button>
                     </div>
                 `;
             }).join('');
