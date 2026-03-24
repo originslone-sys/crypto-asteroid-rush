@@ -1306,7 +1306,7 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 2px; }
 
 /* ============================================
-   HARD MODE INDICATOR (40% das missões)
+   HARD MODE INDICATOR (50% das missões)
    ============================================ */
 .hard-mode-badge {
     display: inline-flex;
