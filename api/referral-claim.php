@@ -50,6 +50,24 @@ try {
         error_log("referral-claim: ALTER referrals warning: " . $e->getMessage());
     }
 
+    // Garantir que status aceita 'claimed' (pode ser ENUM sem esse valor)
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM referrals LIKE 'status'")->fetch();
+        if ($col && stripos($col['Type'], 'enum') !== false) {
+            // Verificar se 'claimed' está no ENUM
+            if (stripos($col['Type'], 'claimed') === false) {
+                // Extrair valores atuais e adicionar 'claimed'
+                preg_match_all("/'([^']+)'/", $col['Type'], $matches);
+                $values = $matches[1] ?? [];
+                $values[] = 'claimed';
+                $enumStr = implode("','", $values);
+                $pdo->exec("ALTER TABLE referrals MODIFY COLUMN status ENUM('{$enumStr}') NOT NULL DEFAULT 'pending'");
+            }
+        }
+    } catch (Exception $e) {
+        error_log("referral-claim: ALTER status ENUM warning: " . $e->getMessage());
+    }
+
     // Verificar se transactions tem amount_brl
     $hasAmountBrl = false;
     try {
