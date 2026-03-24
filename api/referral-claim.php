@@ -64,6 +64,15 @@ try {
     // 2. ATUALIZAR STATUS PARA 'claimed'
     // ============================================
     $placeholders = implode(',', array_fill(0, count($referralIds), '?'));
+
+    // Garantir coluna commission_paid_at
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM referrals LIKE 'commission_paid_at'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE referrals ADD COLUMN commission_paid_at DATETIME DEFAULT NULL");
+        }
+    } catch (Exception $e) {}
+
     $stmt = $pdo->prepare("
         UPDATE referrals
         SET status = 'claimed',
@@ -100,18 +109,33 @@ try {
     if ($txExists) {
         $description = 'Comissão de afiliados (' . count($referralIds) . ' indicação(ões))';
 
-        $stmt = $pdo->prepare("
-            INSERT INTO transactions (
-                google_uid, type, amount, amount_brl,
-                description, status, created_at
-            ) VALUES (?, 'referral_commission', ?, ?, ?, 'completed', NOW())
-        ");
-        $stmt->execute([
-            $googleUid,
-            $totalAmount,
-            $totalAmount,
-            $description
-        ]);
+        try {
+            $stmt = $pdo->prepare("
+                INSERT INTO transactions (
+                    google_uid, type, amount, amount_brl,
+                    description, status, created_at
+                ) VALUES (?, 'referral_commission', ?, ?, ?, 'completed', NOW())
+            ");
+            $stmt->execute([
+                $googleUid,
+                $totalAmount,
+                $totalAmount,
+                $description
+            ]);
+        } catch (Exception $txErr) {
+            // Fallback sem coluna amount_brl
+            $stmt = $pdo->prepare("
+                INSERT INTO transactions (
+                    google_uid, type, amount,
+                    description, status, created_at
+                ) VALUES (?, 'referral_commission', ?, ?, 'completed', NOW())
+            ");
+            $stmt->execute([
+                $googleUid,
+                $totalAmount,
+                $description
+            ]);
+        }
     }
 
     // ============================================
