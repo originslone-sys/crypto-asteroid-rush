@@ -725,8 +725,8 @@ async function requestWithdraw() {
     const paymentMethod = document.querySelector('.payment-method.selected')?.dataset?.method || 'pix';
     const paymentDetails = document.getElementById('paymentDetails')?.value?.trim();
     
-    if (!amount || amount < 1) {
-        showNotification('Valor mínimo: R$ 1,00', 'warning');
+    if (!amount || amount < 5) {
+        showNotification('Valor mínimo: R$ 5,00', 'warning');
         return;
     }
     
