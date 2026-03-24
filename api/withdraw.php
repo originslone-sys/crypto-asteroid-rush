@@ -21,6 +21,17 @@ if ($paymentMethod === 'pix' && empty($pixKeyType)) {
     $pixKeyType = detectPixKeyType($paymentDetails);
 }
 
+// Para chave tipo telefone, garantir prefixo +55
+if ($pixKeyType === 'phone' || $pixKeyType === 'celular') {
+    $phoneDigits = preg_replace('/\D/', '', $paymentDetails);
+    if (!str_starts_with($phoneDigits, '55')) {
+        $paymentDetails = '+55' . $phoneDigits;
+    } elseif (!str_starts_with($paymentDetails, '+')) {
+        $paymentDetails = '+' . $phoneDigits;
+    }
+    $pixKeyType = 'phone';
+}
+
 // Validar google_uid
 if (!$googleUid || !validateGoogleUid($googleUid)) {
     echo json_encode(['success' => false, 'error' => 'google_uid inválido. Faça login novamente.']);
