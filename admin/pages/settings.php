@@ -200,7 +200,7 @@ try {
                     <div class="form-group">
                         <label class="form-label">Chance Hard Mode (%)</label>
                         <input type="number" name="hard_mode_chance" class="form-control" 
-                               value="<?php echo isset($settings['hard_mode_chance']) ? $settings['hard_mode_chance'] * 100 : 40; ?>" min="0" max="100">
+                               value="<?php echo isset($settings['hard_mode_chance']) ? $settings['hard_mode_chance'] * 100 : 50; ?>" min="0" max="100">
                     </div>
                     
                     <div class="form-group">
