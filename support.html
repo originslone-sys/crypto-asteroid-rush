@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <link rel="icon" type="image/png" href="img/logo.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suporte | UNOBIX</title>
+    <meta name="description" content="Central de suporte - Abra um ticket e receba ajuda da nossa equipe.">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+
+    <!-- Firebase SDK -->
+
+    <style>
+        .support-section {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 30px;
+        }
+
+        .support-section h3 {
+            color: var(--primary);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Formulário de novo ticket */
+        .ticket-form .form-group {
+            margin-bottom: 18px;
+        }
+
+        .ticket-form label {
+            display: block;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+        }
+
+        .ticket-form input,
+        .ticket-form select,
+        .ticket-form textarea {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-light);
+            font-size: 1rem;
+            font-family: 'Exo 2', sans-serif;
+            transition: all 0.3s;
+            box-sizing: border-box;
+        }
+
+        .ticket-form input:focus,
+        .ticket-form select:focus,
+        .ticket-form textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+        }
+
+        .ticket-form textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .ticket-form select option {
+            background: #0a0a1a;
+            color: #fff;
+        }
+
+        .char-count {
+            text-align: right;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        /* Lista de tickets */
+        .ticket-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .ticket-item {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .ticket-item:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .ticket-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            gap: 10px;
+        }
+
+        .ticket-id {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .ticket-subject {
+            font-weight: 600;
+            color: #fff;
+            font-size: 1rem;
+            flex: 1;
+        }
+
+        .ticket-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .ticket-status {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .ticket-status.open { background: rgba(0, 200, 255, 0.15); color: #00c8ff; }
+        .ticket-status.in_progress { background: rgba(255, 170, 0, 0.15); color: #ffaa00; }
+        .ticket-status.resolved { background: rgba(0, 255, 136, 0.15); color: #00ff88; }
+        .ticket-status.closed { background: rgba(150, 150, 150, 0.15); color: #999; }
+
+        .ticket-category {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            background: rgba(108, 92, 231, 0.15);
+            color: #a78bfa;
+        }
+
+        /* Chat de mensagens */
+        .ticket-detail {
+            display: none;
+        }
+
+        .ticket-detail.active {
+            display: block;
+        }
+
+        .ticket-detail-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .back-btn {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .back-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .ticket-detail-info h4 {
+            color: #fff;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+
+        .ticket-detail-info span {
+            color: var(--text-dim);
+            font-size: 0.8rem;
+        }
+
+        .messages-container {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 10px 0;
+            margin-bottom: 20px;
+        }
+
+        .message-bubble {
+            max-width: 80%;
+            padding: 14px 18px;
+            border-radius: 14px;
+            font-size: 0.92rem;
+            line-height: 1.5;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .message-bubble.user {
+            align-self: flex-end;
+            background: rgba(0, 200, 255, 0.1);
+            border: 1px solid rgba(0, 200, 255, 0.2);
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-bubble.admin {
+            align-self: flex-start;
+            background: rgba(108, 92, 231, 0.1);
+            border: 1px solid rgba(108, 92, 231, 0.2);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-sender {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .message-bubble.user .message-sender { color: #00c8ff; }
+        .message-bubble.admin .message-sender { color: #a78bfa; }
+
+        .message-time {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            margin-top: 6px;
+            text-align: right;
+        }
+
+        .reply-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .reply-form textarea {
+            flex: 1;
+            padding: 12px 14px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-light);
+            font-size: 0.92rem;
+            font-family: 'Exo 2', sans-serif;
+            resize: none;
+            min-height: 50px;
+            max-height: 120px;
+        }
+
+        .reply-form textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .reply-form button {
+            align-self: flex-end;
+        }
+
+        .reply-closed {
+            text-align: center;
+            padding: 15px;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Tabs */
+        .support-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .support-tab {
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-family: 'Exo 2', sans-serif;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .support-tab:hover { border-color: var(--primary); color: var(--text-light); }
+        .support-tab.active { border-color: var(--primary); background: rgba(0, 240, 255, 0.1); color: var(--primary); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--text-dim);
+        }
+
+        .empty-state i { font-size: 3rem; margin-bottom: 15px; opacity: 0.3; }
+        .empty-state h3 { color: var(--text-light); margin-bottom: 8px; font-size: 1.1rem; }
+        .empty-state p { font-size: 0.9rem; }
+
+        .btn-sm {
+            padding: 8px 18px;
+            font-size: 0.85rem;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+
+        .alert-success { background: rgba(0, 255, 136, 0.1); border: 1px solid rgba(0, 255, 136, 0.3); color: #00ff88; }
+        .alert-danger { background: rgba(255, 71, 87, 0.1); border: 1px solid rgba(255, 71, 87, 0.3); color: #ff4757; }
+
+        @media (max-width: 768px) {
+            .message-bubble { max-width: 92%; }
+            .support-tabs { flex-wrap: wrap; }
+            .reply-form { flex-direction: column; }
+            .reply-form button { width: 100%; }
+        }
+    </style>
+</head>
+<body data-page="support">
+<div class="cosmic-bg"></div>
+
+<!-- Overlay de Login -->
+<div id="connectOverlay" class="connect-overlay">
+    <div class="connect-box">
+        <div class="connect-icon"><i class="fas fa-rocket"></i></div>
+        <h2 class="connect-title">BEM-VINDO, COMANDANTE</h2>
+        <p class="connect-desc">Entre com sua conta Google para acessar o suporte.</p>
+        <button id="connectBtn" class="btn btn-primary btn-lg">
+            <i class="fab fa-google"></i> Entrar com Google
+        </button>
+    </div>
+</div>
+
+<div class="container">
+    <header class="header">
+        <a href="index.html" class="logo">
+            <span class="logo-icon"><img src="img/logo.png" alt="Unobix"></span>
+            <span class="logo-text">UNOBIX</span>
+        </a>
+        <nav class="nav" id="nav">
+            <a href="dashboard.html" class="nav-link">Painel</a>
+            <a href="game.html" class="nav-link">Jogar</a>
+            <a href="wallet.html" class="nav-link">Carteira</a>
+            <a href="affiliates.html" class="nav-link">Afiliados</a>
+            <a href="support.html" class="nav-link active">Suporte</a>
+        </nav>
+        <button id="walletBtn" class="wallet-btn">
+            <i class="fas fa-user-circle"></i>
+            <span id="userDisplayName">Entrar</span>
+        </button>
+        <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
+    </header>
+
+    <section class="page-header">
+        <h1 class="page-title">CENTRAL DE SUPORTE</h1>
+        <p class="page-subtitle">Precisa de ajuda? Abra um ticket e nossa equipe vai te responder.</p>
+    </section>
+
+    <!-- Tabs -->
+    <div class="support-tabs">
+        <button class="support-tab active" onclick="switchTab('tickets')">
+            <i class="fas fa-list"></i> Meus Tickets
+        </button>
+        <button class="support-tab" onclick="switchTab('new')">
+            <i class="fas fa-plus"></i> Novo Ticket
+        </button>
+    </div>
+
+    <!-- Alert container -->
+    <div id="supportAlert" style="display:none;"></div>
+
+    <!-- Tab: Lista de tickets -->
+    <div id="tabTickets" class="tab-content active">
+        <div class="support-section">
+            <h3><i class="fas fa-headset"></i> Seus Tickets</h3>
+
+            <!-- Lista -->
+            <div id="ticketListView">
+                <div id="ticketList" class="ticket-list">
+                    <div class="empty-state" id="emptyTickets">
+                        <i class="fas fa-ticket-alt"></i>
+                        <h3>Nenhum ticket aberto</h3>
+                        <p>Quando precisar de ajuda, abra um ticket que responderemos o mais breve possivel.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detalhe do ticket -->
+            <div id="ticketDetailView" class="ticket-detail">
+                <div class="ticket-detail-header">
+                    <button class="back-btn" onclick="backToList()">
+                        <i class="fas fa-arrow-left"></i> Voltar
+                    </button>
+                    <div class="ticket-detail-info">
+                        <h4 id="detailSubject"></h4>
+                        <span id="detailMeta"></span>
+                    </div>
+                    <span id="detailStatus" class="ticket-status"></span>
+                </div>
+
+                <div id="messagesContainer" class="messages-container"></div>
+
+                <div id="replyArea">
+                    <div class="reply-form" id="replyForm">
+                        <textarea id="replyMessage" placeholder="Digite sua resposta..." maxlength="5000"></textarea>
+                        <button class="btn btn-primary btn-sm" onclick="sendReply()" id="replyBtn">
+                            <i class="fas fa-paper-plane"></i> Enviar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Novo ticket -->
+    <div id="tabNew" class="tab-content">
+        <div class="support-section">
+            <h3><i class="fas fa-plus-circle"></i> Abrir Novo Ticket</h3>
+
+            <form class="ticket-form" id="newTicketForm" onsubmit="createTicket(event)">
+                <div class="form-group">
+                    <label>Categoria</label>
+                    <select id="ticketCategory">
+                        <option value="account">Minha Conta</option>
+                        <option value="payment">Pagamentos / Saques</option>
+                        <option value="game">Jogo / Partidas</option>
+                        <option value="bug">Reportar Bug</option>
+                        <option value="other">Outro</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Assunto</label>
+                    <input type="text" id="ticketSubject" placeholder="Descreva brevemente o problema" maxlength="255" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Mensagem</label>
+                    <textarea id="ticketMessage" placeholder="Explique detalhadamente o que aconteceu, inclua o maximo de informacoes possiveis..." maxlength="5000" required></textarea>
+                    <div class="char-count"><span id="charCount">0</span>/5000</div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="createBtn">
+                    <i class="fas fa-paper-plane"></i> Enviar Ticket
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2025 UNOBIX. Todos os direitos reservados.</p>
+    </footer>
+</div>
+
+<script src="js/main.js"></script>
+
+<script>
+// ============================================
+// SUPPORT TICKETS - FRONTEND
+// ============================================
+
+const API_URL = 'api/support-tickets.php';
+let currentTicketId = null;
+
+// ============================================
+// TABS
+// ============================================
+function switchTab(tab) {
+    document.querySelectorAll('.support-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+
+    if (tab === 'new') {
+        document.querySelectorAll('.support-tab')[1].classList.add('active');
+        document.getElementById('tabNew').classList.add('active');
+    } else {
+        document.querySelectorAll('.support-tab')[0].classList.add('active');
+        document.getElementById('tabTickets').classList.add('active');
+    }
+    hideAlert();
+}
+
+// ============================================
+// ALERTAS
+// ============================================
+function showAlert(msg, type) {
+    const el = document.getElementById('supportAlert');
+    el.className = `alert alert-${type}`;
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 6000);
+}
+
+function hideAlert() {
+    document.getElementById('supportAlert').style.display = 'none';
+}
+
+// ============================================
+// CARREGAR TICKETS
+// ============================================
+async function loadTickets() {
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'list', google_uid: user.uid })
+        });
+        const data = await res.json();
+
+        if (!data.success) return;
+
+        const list = document.getElementById('ticketList');
+        const empty = document.getElementById('emptyTickets');
+
+        if (!data.tickets || data.tickets.length === 0) {
+            list.innerHTML = '';
+            list.appendChild(createEmptyState());
+            return;
+        }
+
+        list.innerHTML = data.tickets.map(t => `
+            <div class="ticket-item" onclick="viewTicket(${t.id})">
+                <div class="ticket-item-header">
+                    <span class="ticket-id">#${t.id}</span>
+                    <span class="ticket-subject">${escapeHtml(t.subject)}</span>
+                    <span class="ticket-status ${t.status}">${statusLabel(t.status)}</span>
+                </div>
+                <div class="ticket-meta">
+                    <span class="ticket-category">${categoryLabel(t.category)}</span>
+                    <span><i class="fas fa-clock"></i> ${formatDateShort(t.updated_at)}</span>
+                    ${t.admin_replies > 0 ? `<span><i class="fas fa-reply" style="color: #a78bfa;"></i> ${t.admin_replies} resposta(s)</span>` : ''}
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Erro ao carregar tickets:', e);
+    }
+}
+
+function createEmptyState() {
+    const div = document.createElement('div');
+    div.className = 'empty-state';
+    div.id = 'emptyTickets';
+    div.innerHTML = `
+        <i class="fas fa-ticket-alt"></i>
+        <h3>Nenhum ticket aberto</h3>
+        <p>Quando precisar de ajuda, abra um ticket que responderemos o mais breve possivel.</p>
+    `;
+    return div;
+}
+
+// ============================================
+// VER TICKET
+// ============================================
+async function viewTicket(ticketId) {
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    currentTicketId = ticketId;
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'view', google_uid: user.uid, ticket_id: ticketId })
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+            showAlert(data.error, 'danger');
+            return;
+        }
+
+        const t = data.ticket;
+        document.getElementById('detailSubject').textContent = t.subject;
+        document.getElementById('detailMeta').textContent = `#${t.id} - ${categoryLabel(t.category)} - Aberto em ${formatDateShort(t.created_at)}`;
+
+        const statusEl = document.getElementById('detailStatus');
+        statusEl.className = `ticket-status ${t.status}`;
+        statusEl.textContent = statusLabel(t.status);
+
+        // Mensagens
+        const container = document.getElementById('messagesContainer');
+        container.innerHTML = data.messages.map(m => `
+            <div class="message-bubble ${m.sender_type}">
+                <div class="message-sender">${m.sender_type === 'admin' ? 'Equipe UNOBIX' : 'Voce'}</div>
+                <div class="message-text">${escapeHtml(m.message)}</div>
+                <div class="message-time">${formatDateShort(m.created_at)}</div>
+            </div>
+        `).join('');
+
+        // Scroll para baixo
+        setTimeout(() => container.scrollTop = container.scrollHeight, 50);
+
+        // Área de resposta
+        const replyArea = document.getElementById('replyArea');
+        if (t.status === 'closed') {
+            replyArea.innerHTML = '<div class="reply-closed"><i class="fas fa-lock"></i> Este ticket esta fechado</div>';
+        } else {
+            replyArea.innerHTML = `
+                <div class="reply-form" id="replyForm">
+                    <textarea id="replyMessage" placeholder="Digite sua resposta..." maxlength="5000"></textarea>
+                    <button class="btn btn-primary btn-sm" onclick="sendReply()" id="replyBtn">
+                        <i class="fas fa-paper-plane"></i> Enviar
+                    </button>
+                </div>
+            `;
+        }
+
+        // Mostrar detalhe
+        document.getElementById('ticketListView').style.display = 'none';
+        document.getElementById('ticketDetailView').classList.add('active');
+
+    } catch (e) {
+        console.error('Erro ao ver ticket:', e);
+        showAlert('Erro ao carregar ticket', 'danger');
+    }
+}
+
+// ============================================
+// VOLTAR À LISTA
+// ============================================
+function backToList() {
+    currentTicketId = null;
+    document.getElementById('ticketDetailView').classList.remove('active');
+    document.getElementById('ticketListView').style.display = 'block';
+    loadTickets();
+}
+
+// ============================================
+// CRIAR TICKET
+// ============================================
+async function createTicket(e) {
+    e.preventDefault();
+
+    const user = window.authManager?.currentUser;
+    if (!user) {
+        showAlert('Voce precisa estar logado', 'danger');
+        return;
+    }
+
+    const subject = document.getElementById('ticketSubject').value.trim();
+    const message = document.getElementById('ticketMessage').value.trim();
+    const category = document.getElementById('ticketCategory').value;
+
+    if (subject.length < 3) {
+        showAlert('Assunto muito curto (minimo 3 caracteres)', 'danger');
+        return;
+    }
+
+    if (message.length < 10) {
+        showAlert('Mensagem muito curta (minimo 10 caracteres)', 'danger');
+        return;
+    }
+
+    const btn = document.getElementById('createBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'create',
+                google_uid: user.uid,
+                subject, message, category
+            })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showAlert('Ticket #' + data.ticket_id + ' criado com sucesso! Nossa equipe vai responder em breve.', 'success');
+            document.getElementById('newTicketForm').reset();
+            document.getElementById('charCount').textContent = '0';
+            switchTab('tickets');
+            loadTickets();
+        } else {
+            showAlert(data.error || 'Erro ao criar ticket', 'danger');
+        }
+    } catch (e) {
+        showAlert('Erro de conexao. Tente novamente.', 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar Ticket';
+    }
+}
+
+// ============================================
+// RESPONDER TICKET
+// ============================================
+async function sendReply() {
+    const user = window.authManager?.currentUser;
+    if (!user || !currentTicketId) return;
+
+    const textarea = document.getElementById('replyMessage');
+    const message = textarea.value.trim();
+
+    if (message.length < 2) {
+        showAlert('Mensagem muito curta', 'danger');
+        return;
+    }
+
+    const btn = document.getElementById('replyBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'reply',
+                google_uid: user.uid,
+                ticket_id: currentTicketId,
+                message
+            })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            textarea.value = '';
+            viewTicket(currentTicketId);
+        } else {
+            showAlert(data.error || 'Erro ao enviar resposta', 'danger');
+        }
+    } catch (e) {
+        showAlert('Erro de conexao', 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar';
+    }
+}
+
+// ============================================
+// UTILITÁRIOS
+// ============================================
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function statusLabel(status) {
+    const labels = {
+        'open': 'Aberto',
+        'in_progress': 'Em Andamento',
+        'resolved': 'Resolvido',
+        'closed': 'Fechado'
+    };
+    return labels[status] || status;
+}
+
+function categoryLabel(cat) {
+    const labels = {
+        'account': 'Conta',
+        'payment': 'Pagamento',
+        'game': 'Jogo',
+        'bug': 'Bug',
+        'other': 'Outro'
+    };
+    return labels[cat] || cat;
+}
+
+function formatDateShort(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+    });
+}
+
+// Contador de caracteres
+document.getElementById('ticketMessage')?.addEventListener('input', function() {
+    document.getElementById('charCount').textContent = this.value.length;
+});
+
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
+document.addEventListener('authStateChanged', (e) => {
+    if (e.detail.user) {
+        document.getElementById('connectOverlay').classList.remove('active');
+        loadTickets();
+    } else {
+        document.getElementById('connectOverlay').classList.add('active');
+    }
+});
+
+if (window.authManager?.currentUser) {
+    document.getElementById('connectOverlay').classList.remove('active');
+    loadTickets();
+}
+</script>
+</body>
+</html>
