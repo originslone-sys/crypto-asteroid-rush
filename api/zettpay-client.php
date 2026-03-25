@@ -226,27 +226,6 @@ function zettpayLookupCashout($externalId) {
 }
 
 // ============================================
-// WEBHOOK - VALIDAÇÃO DE ASSINATURA
-// ============================================
-
-/**
- * Valida assinatura HMAC SHA256 do webhook ZettPay
- * @param string $rawBody Corpo bruto da requisição
- * @param string $signature Header X-Signature
- * @param string $timestamp Header X-Timestamp
- * @return bool
- */
-function zettpayVerifyWebhookSignature($rawBody, $signature, $timestamp) {
-    if (empty($signature) || empty($timestamp) || empty(ZETTPAY_WEBHOOK_SECRET)) {
-        return false;
-    }
-
-    $expectedSignature = hash_hmac('sha256', $rawBody . $timestamp, ZETTPAY_WEBHOOK_SECRET);
-
-    return hash_equals($expectedSignature, $signature);
-}
-
-// ============================================
 // TABELA - AUTO-CRIAÇÃO
 // ============================================
 

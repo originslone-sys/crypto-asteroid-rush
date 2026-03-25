@@ -128,7 +128,6 @@ if (!defined('ZETTPAY_BASE_URL')) {
     define('ZETTPAY_AUTH_URL', getenv('ZETTPAY_AUTH_URL') ?: 'https://api.zettpay.io/api/oauth/token');
     define('ZETTPAY_CLIENT_ID', getenv('ZETTPAY_CLIENT_ID') ?: 'clt_ev1pwgo5nhgy4yv5ydajnghf');
     define('ZETTPAY_CLIENT_SECRET', getenv('ZETTPAY_CLIENT_SECRET') ?: 'sec_SfcnrJKTF2TIDgcFBmNVXIPPfhJ6262Y6mV3tXBSWxax5Rav');
-    define('ZETTPAY_WEBHOOK_SECRET', getenv('ZETTPAY_WEBHOOK_SECRET') ?: '');
     define('MIN_DEPOSIT_BRL', 1.00);
     define('MAX_DEPOSIT_BRL', 500.00);
 }
