@@ -8,8 +8,7 @@
 // Seguro para produção:
 // - Idempotente (pode rodar várias vezes sem duplicar)
 // - Usa FOR UPDATE para evitar race conditions
-// - Reutiliza lógica existente do deposit-status.php
-// - Só processa depósitos entre 5min e 48h
+// - Só processa depósitos entre 5min e 1h
 // ============================================
 
 require_once __DIR__ . "/config.php";
@@ -44,16 +43,16 @@ try {
     exit;
 }
 
-// Buscar depósitos pendentes entre 5 minutos e 48 horas
+// Buscar depósitos pendentes entre 5 minutos e 1 hora
 $stmt = $pdo->prepare("
     SELECT id, external_id, user_id, amount_brl, created_at
     FROM zettpay_transactions
     WHERE type = 'deposit'
       AND status = 'pending'
       AND created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
-      AND created_at > DATE_SUB(NOW(), INTERVAL 48 HOUR)
+      AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
     ORDER BY created_at ASC
-    LIMIT 50
+    LIMIT 20
 ");
 $stmt->execute();
 $pendingDeposits = $stmt->fetchAll();
@@ -67,9 +66,7 @@ $results = [
     'details' => []
 ];
 
-if ($isCli) {
-    echo "Reconciliação iniciada | " . count($pendingDeposits) . " depósito(s) pendente(s)\n";
-}
+secureLog("RECONCILE_START | found: " . count($pendingDeposits) . " pending deposit(s)");
 
 foreach ($pendingDeposits as $tx) {
     $externalId = $tx['external_id'];
@@ -80,22 +77,33 @@ foreach ($pendingDeposits as $tx) {
 
         if (!$apiResult['success'] || empty($apiResult['data'])) {
             $results['still_pending']++;
-            $results['details'][] = ['external_id' => $externalId, 'result' => 'api_error'];
-            secureLog("RECONCILE_API_FAIL | external_id: {$externalId} | error: " . ($apiResult['error'] ?? 'sem dados'));
+            $results['details'][] = ['external_id' => $externalId, 'result' => 'api_error', 'http_code' => $apiResult['http_code'] ?? 0, 'error' => $apiResult['error'] ?? 'sem dados'];
+            secureLog("RECONCILE_API_FAIL | external_id: {$externalId} | http: " . ($apiResult['http_code'] ?? 0) . " | error: " . ($apiResult['error'] ?? 'sem dados'));
             continue;
         }
 
-        $apiData = $apiResult['data'];
-        if (isset($apiData['data']) && is_array($apiData['data'])) {
-            $apiData = $apiData['data'];
+        // Extrair dados da transação - a API pode retornar em vários formatos:
+        // {"status":"paid",...}
+        // {"data":{"status":"paid",...}}
+        // {"data":[{"status":"paid",...}]}
+        $txData = extractTransactionData($apiResult['data']);
+
+        if (!$txData) {
+            $results['still_pending']++;
+            $rawResponse = json_encode($apiResult['data']);
+            $results['details'][] = ['external_id' => $externalId, 'result' => 'parse_error', 'raw' => substr($rawResponse, 0, 300)];
+            secureLog("RECONCILE_PARSE_FAIL | external_id: {$externalId} | raw: " . substr($rawResponse, 0, 500));
+            continue;
         }
 
-        $apiStatus = strtolower($apiData['status'] ?? '');
-        $zettpayId = $apiData['id'] ?? '';
+        $apiStatus = strtolower($txData['status'] ?? '');
+        $zettpayId = $txData['provider_transaction_id'] ?? $txData['id'] ?? '';
+
+        secureLog("RECONCILE_CHECK | external_id: {$externalId} | api_status: {$apiStatus} | zettpay_id: {$zettpayId}");
 
         if (in_array($apiStatus, ['paid', 'completed', 'approved'])) {
             // Pago! Confirmar depósito
-            $confirmed = confirmPendingDeposit($pdo, $tx, $zettpayId, json_encode($apiData));
+            $confirmed = confirmPendingDeposit($pdo, $tx, $zettpayId, json_encode($txData));
             if ($confirmed) {
                 $results['confirmed']++;
                 $results['details'][] = ['external_id' => $externalId, 'result' => 'confirmed', 'amount' => $tx['amount_brl']];
@@ -128,6 +136,7 @@ foreach ($pendingDeposits as $tx) {
             // Ainda pendente na ZettPay
             $results['still_pending']++;
             $results['details'][] = ['external_id' => $externalId, 'result' => 'pending', 'api_status' => $apiStatus];
+            secureLog("RECONCILE_STILL_PENDING | external_id: {$externalId} | api_status: {$apiStatus}");
         }
 
     } catch (Exception $e) {
@@ -144,10 +153,41 @@ $results['success'] = true;
 
 secureLog("RECONCILE_DONE | checked: {$results['total_checked']} | confirmed: {$results['confirmed']} | expired: {$results['expired']} | pending: {$results['still_pending']} | errors: {$results['errors']}");
 
-if ($isCli) {
-    echo "Concluído | Confirmados: {$results['confirmed']} | Expirados: {$results['expired']} | Pendentes: {$results['still_pending']} | Erros: {$results['errors']}\n";
-} else {
-    echo json_encode($results);
+echo json_encode($results);
+
+// ============================================
+// EXTRAIR DADOS DA TRANSAÇÃO DA RESPOSTA API
+// Normaliza diferentes formatos de resposta
+// ============================================
+function extractTransactionData($responseData) {
+    if (!is_array($responseData)) return null;
+
+    // Formato 1: {"status":"paid","id":"...",...} (dados direto na raiz)
+    if (isset($responseData['status'])) {
+        return $responseData;
+    }
+
+    // Formato 2: {"data":{"status":"paid",...}} (objeto dentro de data)
+    if (isset($responseData['data']) && is_array($responseData['data'])) {
+        $inner = $responseData['data'];
+
+        // Formato 2a: {"data":{"status":"paid",...}}
+        if (isset($inner['status'])) {
+            return $inner;
+        }
+
+        // Formato 3: {"data":[{"status":"paid",...}]} (array dentro de data)
+        if (isset($inner[0]) && is_array($inner[0]) && isset($inner[0]['status'])) {
+            return $inner[0];
+        }
+    }
+
+    // Formato 4: {"transaction":{"status":"paid",...}}
+    if (isset($responseData['transaction']) && is_array($responseData['transaction'])) {
+        return $responseData['transaction'];
+    }
+
+    return null;
 }
 
 // ============================================
