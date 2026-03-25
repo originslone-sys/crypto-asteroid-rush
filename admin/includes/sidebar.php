@@ -9,27 +9,35 @@ $pendingWithdrawals = 0;
 $flaggedSessions = 0;
 $pendingReferrals = 0;
 $totalPlayers = 0;
+$openTickets = 0;
 
 try {
     if (isset($pdo)) {
         // Saques pendentes
         $stmt = $pdo->query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
         $pendingWithdrawals = $stmt->fetchColumn();
-        
+
         // Sessões flagged
         $stmt = $pdo->query("SELECT COUNT(*) FROM game_sessions WHERE status = 'flagged'");
         $flaggedSessions = $stmt->fetchColumn();
-        
+
         // Referrals qualificados (prontos para claim)
         $tableExists = $pdo->query("SHOW TABLES LIKE 'referrals'")->fetch();
         if ($tableExists) {
             $stmt = $pdo->query("SELECT COUNT(*) FROM referrals WHERE status = 'qualified'");
             $pendingReferrals = $stmt->fetchColumn();
         }
-        
+
         // Total de usuários
         $stmt = $pdo->query("SELECT COUNT(*) FROM users");
         $totalPlayers = $stmt->fetchColumn();
+
+        // Tickets de suporte abertos
+        $ticketTable = $pdo->query("SHOW TABLES LIKE 'support_tickets'")->fetch();
+        if ($ticketTable) {
+            $stmt = $pdo->query("SELECT COUNT(*) FROM support_tickets WHERE status IN ('open','in_progress')");
+            $openTickets = $stmt->fetchColumn();
+        }
     }
 } catch (Exception $e) {}
 ?>
@@ -83,6 +91,14 @@ try {
                 <span>Afiliados</span>
                 <?php if ($pendingReferrals > 0): ?>
                     <span class="badge"><?php echo $pendingReferrals; ?></span>
+                <?php endif; ?>
+            </a>
+
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=support" class="nav-item <?php echo $currentPage === 'support' ? 'active' : ''; ?>">
+                <i class="fas fa-headset"></i>
+                <span>Suporte</span>
+                <?php if ($openTickets > 0): ?>
+                    <span class="badge"><?php echo $openTickets; ?></span>
                 <?php endif; ?>
             </a>
         </div>
