@@ -59,16 +59,11 @@ steps:
     args:
       - '-c'
       - |
-        SERVICE_URL=$(gcloud run services describe crypto-asteroid --region=us-west1 --format='value(status.url)' 2>/dev/null)
-        if [ -z "$SERVICE_URL" ]; then
-          echo "AVISO: Não foi possível obter URL do Cloud Run. Scheduler não atualizado."
-          exit 0
-        fi
         gcloud scheduler jobs delete reconcile-deposits --location=us-west1 --quiet 2>/dev/null || true
         gcloud scheduler jobs create http reconcile-deposits \
           --location=us-west1 \
           --schedule="*/10 * * * *" \
-          --uri="${SERVICE_URL}/api/reconcile-deposits.php?token=rcn_unobix_7f3a9c2e1b5d8k4m" \
+          --uri="https://crypto-asteroid-234282032979.us-west1.run.app/api/reconcile-deposits.php?token=rcn_unobix_7f3a9c2e1b5d8k4m" \
           --http-method=GET \
           --attempt-deadline=120s \
           --description="Verifica depositos pendentes na ZettPay a cada 10 minutos"
