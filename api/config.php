@@ -7,6 +7,7 @@
 ini_set('display_errors', '0');
 ini_set('html_errors', '0');
 error_reporting(E_ALL);
+date_default_timezone_set('America/Sao_Paulo');
 
 // ============================================
 // BANCO DE DADOS - CLOUD SQL
@@ -162,6 +163,7 @@ if (!function_exists('getDatabaseConnection')) {
                     PDO::ATTR_EMULATE_PREPARES => false,
                     PDO::ATTR_TIMEOUT => 10
                 ]);
+                $pdo->exec("SET time_zone = '-03:00'");
             } catch (PDOException $e) {
                 error_log("❌ DB Error: " . $e->getMessage());
                 return null;
