@@ -98,6 +98,91 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
             }
         }
+        if ($_POST['action'] === 'reconcile_deposits') {
+            require_once __DIR__ . '/../../api/zettpay-client.php';
+            ensureZettpayTable($pdo);
+
+            $stmt = $pdo->prepare("
+                SELECT id, external_id, user_id, amount_brl, created_at
+                FROM zettpay_transactions
+                WHERE type = 'deposit' AND status = 'pending'
+                  AND created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+                  AND created_at > DATE_SUB(NOW(), INTERVAL 48 HOUR)
+                ORDER BY created_at ASC LIMIT 50
+            ");
+            $stmt->execute();
+            $pendingDeposits = $stmt->fetchAll();
+
+            $confirmed = 0;
+            $expired = 0;
+
+            foreach ($pendingDeposits as $ptx) {
+                try {
+                    $apiResult = zettpayLookupDeposit($ptx['external_id']);
+                    if (!$apiResult['success'] || empty($apiResult['data'])) continue;
+
+                    $apiData = $apiResult['data'];
+                    if (isset($apiData['data']) && is_array($apiData['data'])) $apiData = $apiData['data'];
+                    $apiStatus = strtolower($apiData['status'] ?? '');
+                    $zettpayId = $apiData['id'] ?? '';
+
+                    if (in_array($apiStatus, ['paid', 'completed', 'approved'])) {
+                        // Confirmar depósito
+                        $pdo->beginTransaction();
+                        $lockStmt = $pdo->prepare("SELECT * FROM zettpay_transactions WHERE id = ? FOR UPDATE");
+                        $lockStmt->execute([$ptx['id']]);
+                        $locked = $lockStmt->fetch();
+                        if ($locked['status'] === 'confirmed') { $pdo->rollBack(); continue; }
+
+                        $userStmt = $pdo->prepare("SELECT id, google_uid, balance_brl FROM users WHERE id = ? FOR UPDATE");
+                        $userStmt->execute([$ptx['user_id']]);
+                        $usr = $userStmt->fetch();
+                        if (!$usr) { $pdo->rollBack(); continue; }
+
+                        $amt = (float)$ptx['amount_brl'];
+                        $isCrd = strpos($ptx['external_id'], 'CRD-') === 0;
+
+                        if ($isCrd) {
+                            $cpStmt = $pdo->prepare("SELECT * FROM credit_purchases WHERE external_id = ? AND status = 'pending' LIMIT 1");
+                            $cpStmt->execute([$ptx['external_id']]);
+                            $cp = $cpStmt->fetch();
+                            if ($cp) {
+                                $pdo->prepare("UPDATE users SET credits = credits + ?, updated_at = NOW() WHERE id = ?")->execute([(int)$cp['credits_amount'], $usr['id']]);
+                                $pdo->prepare("UPDATE credit_purchases SET status = 'confirmed', confirmed_at = NOW() WHERE id = ?")->execute([$cp['id']]);
+                            }
+                        } else {
+                            $pdo->prepare("UPDATE users SET balance_brl = balance_brl + ?, total_earned_brl = total_earned_brl + ?, updated_at = NOW() WHERE id = ?")->execute([$amt, $amt, $usr['id']]);
+                        }
+
+                        $pdo->prepare("UPDATE zettpay_transactions SET status = 'confirmed', zettpay_id = ?, confirmed_at = NOW() WHERE id = ?")->execute([$zettpayId, $ptx['id']]);
+                        $pdo->prepare("UPDATE transactions SET status = 'completed' WHERE google_uid = ? AND description LIKE ? AND status = 'pending' LIMIT 1")->execute([$usr['google_uid'], '%' . $ptx['external_id'] . '%']);
+                        $pdo->commit();
+                        $confirmed++;
+                        secureLog("ADMIN_RECONCILE_CONFIRMED | external_id: {$ptx['external_id']} | user_id: {$usr['id']} | amount: R\${$amt}");
+
+                    } elseif (in_array($apiStatus, ['expired', 'failed', 'cancelled', 'canceled'])) {
+                        $fs = in_array($apiStatus, ['cancelled', 'canceled']) ? 'expired' : $apiStatus;
+                        $pdo->prepare("UPDATE zettpay_transactions SET status = ?, error_message = ? WHERE id = ? AND status = 'pending'")->execute([$fs, "Reconciliação admin: {$apiStatus}", $ptx['id']]);
+                        $userStmt = $pdo->prepare("SELECT google_uid FROM users WHERE id = ?");
+                        $userStmt->execute([$ptx['user_id']]);
+                        $usr = $userStmt->fetch();
+                        if ($usr) {
+                            $pdo->prepare("UPDATE transactions SET status = 'failed' WHERE google_uid = ? AND description LIKE ? AND status = 'pending' LIMIT 1")->execute([$usr['google_uid'], '%' . $ptx['external_id'] . '%']);
+                        }
+                        $expired++;
+                    }
+
+                    usleep(300000);
+                } catch (Exception $e) {
+                    if ($pdo->inTransaction()) $pdo->rollBack();
+                    secureLog("ADMIN_RECONCILE_ERROR | external_id: {$ptx['external_id']} | " . $e->getMessage());
+                }
+            }
+
+            $total = count($pendingDeposits);
+            $actionSuccess = "Reconciliação concluída! Verificados: {$total} | Confirmados: {$confirmed} | Expirados: {$expired}";
+            secureLog("ADMIN_RECONCILE_DONE | checked: {$total} | confirmed: {$confirmed} | expired: {$expired}");
+        }
     } catch (Exception $e) {
         $actionError = $e->getMessage();
     }
@@ -219,6 +304,12 @@ $debitTypes = ['withdraw', 'withdrawal', 'stake'];
                     <option value="unstake" <?php echo $typeFilter === 'unstake' ? 'selected' : ''; ?>>Unstakes</option>
                 </select>
                 <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i></button>
+            </form>
+            <form method="POST" style="margin-left:auto;" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Verificando...';">
+                <input type="hidden" name="action" value="reconcile_deposits">
+                <button type="submit" class="btn btn-warning btn-sm" title="Verifica depósitos pendentes na API ZettPay e confirma os que já foram pagos">
+                    <i class="fas fa-sync-alt"></i> Reconciliar Depósitos
+                </button>
             </form>
         </div>
     </div>
