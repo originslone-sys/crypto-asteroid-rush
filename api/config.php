@@ -58,7 +58,7 @@ if (!defined('GAME_DURATION')) {
     define('GAME_TOLERANCE', 30);           // 30 segundos tolerância (reduzido de 300!)
     define('CAPTCHA_RESEND_TOLERANCE', 60); // Tolerância extra para reenvio com CAPTCHA (ads + verificação)
     define('INITIAL_LIVES', 6);
-    define('HARD_MODE_PERCENTAGE', 50);
+    define('HARD_MODE_PERCENTAGE', 60);
 }
 
 // ============================================
