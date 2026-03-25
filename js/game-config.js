@@ -44,7 +44,7 @@ const CONFIG = {
     },
     
     // ============================================
-    // TAXAS DE SPAWN (hard mode - 50%)
+    // TAXAS DE SPAWN (hard mode - 60%)
     // Mais asteroides comuns, mais rápidos
     // ============================================
     SPAWN_RATES_HARD: {
@@ -71,8 +71,8 @@ const CONFIG = {
         MAX_ASTEROIDS: 14
     },
     
-    // 50% das missões são hard mode
-    HOUSE_EDGE_PERCENT: 50
+    // 60% das missões são hard mode
+    HOUSE_EDGE_PERCENT: 60
 };
 
 // ============================================
