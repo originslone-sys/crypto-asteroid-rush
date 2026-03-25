@@ -102,6 +102,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             break;
+
+        case 'delete_ticket':
+            if ($ticketId) {
+                try {
+                    $stmt = $pdo->prepare("SELECT status FROM support_tickets WHERE id = ?");
+                    $stmt->execute([$ticketId]);
+                    $ticket = $stmt->fetch();
+                    if ($ticket && in_array($ticket['status'], ['resolved', 'closed'])) {
+                        $pdo->prepare("DELETE FROM support_tickets WHERE id = ?")->execute([$ticketId]);
+                        $message = "Ticket #$ticketId excluido!";
+                        $messageType = 'success';
+                    } else {
+                        $message = "So e possivel excluir tickets resolvidos ou fechados.";
+                        $messageType = 'danger';
+                    }
+                } catch (Exception $e) {
+                    $message = "Erro: " . $e->getMessage();
+                    $messageType = 'danger';
+                }
+            }
+            break;
+
+        case 'delete_resolved':
+            try {
+                $stmt = $pdo->query("DELETE FROM support_tickets WHERE status IN ('resolved', 'closed')");
+                $deleted = $stmt->rowCount();
+                $message = "$deleted ticket(s) excluido(s)!";
+                $messageType = 'success';
+            } catch (Exception $e) {
+                $message = "Erro: " . $e->getMessage();
+                $messageType = 'danger';
+            }
+            break;
     }
 }
 
@@ -338,6 +371,16 @@ $categoryLabels = [
                             <button type="submit" class="btn btn-primary" style="padding:6px 12px;font-size:0.8rem;">OK</button>
                         </div>
                     </form>
+
+                    <?php if (in_array($viewTicket['status'], ['resolved', 'closed'])): ?>
+                    <form method="POST" style="margin-top:12px;" onsubmit="return confirm('Excluir ticket #<?php echo $viewTicket['id']; ?> permanentemente?');">
+                        <input type="hidden" name="action" value="delete_ticket">
+                        <input type="hidden" name="ticket_id" value="<?php echo $viewTicket['id']; ?>">
+                        <button type="submit" class="btn btn-danger" style="width:100%;font-size:0.8rem;padding:8px;">
+                            <i class="fas fa-trash"></i> Excluir Ticket
+                        </button>
+                    </form>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -421,6 +464,16 @@ $categoryLabels = [
                     <option value="other" <?php echo $categoryFilter === 'other' ? 'selected' : ''; ?>>Outro</option>
                 </select>
             </div>
+            <?php if ($stats['resolved'] + $stats['closed'] > 0): ?>
+            <div style="margin-left:auto;align-self:center;">
+                <form method="POST" style="display:inline;" onsubmit="return confirm('Excluir todos os <?php echo $stats['resolved'] + $stats['closed']; ?> tickets resolvidos/fechados?');">
+                    <input type="hidden" name="action" value="delete_resolved">
+                    <button type="submit" class="btn btn-danger" style="font-size:0.8rem;padding:8px 14px;">
+                        <i class="fas fa-trash"></i> Limpar resolvidos/fechados (<?php echo $stats['resolved'] + $stats['closed']; ?>)
+                    </button>
+                </form>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -474,6 +527,13 @@ $categoryLabels = [
                                     <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=support&view=<?php echo $t['id']; ?>" class="btn btn-primary" style="padding:5px 12px;font-size:0.8rem;text-decoration:none;">
                                         <i class="fas fa-eye"></i> Ver
                                     </a>
+                                    <?php if (in_array($t['status'], ['resolved', 'closed'])): ?>
+                                    <form method="POST" style="display:inline;" onsubmit="return confirm('Excluir ticket #<?php echo $t['id']; ?>?');">
+                                        <input type="hidden" name="action" value="delete_ticket">
+                                        <input type="hidden" name="ticket_id" value="<?php echo $t['id']; ?>">
+                                        <button type="submit" class="btn btn-danger" style="padding:5px 10px;font-size:0.8rem;"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
