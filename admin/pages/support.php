@@ -286,16 +286,8 @@ $categoryLabels = [
                 </span>
             </div>
 
-            <div style="padding:20px;max-height:500px;overflow-y:auto;" id="msgContainer">
-                <?php foreach ($viewMessages as $msg): ?>
-                    <div style="margin-bottom:6px;display:flex;flex-direction:column;align-items:<?php echo $msg['sender_type'] === 'admin' ? 'flex-start' : 'flex-end'; ?>;">
-                        <div style="max-width:55%;padding:8px 12px;border-radius:12px;<?php if ($msg['sender_type'] === 'admin'): ?>background:rgba(108,92,231,0.08);border:1px solid rgba(108,92,231,0.15);border-bottom-left-radius:3px;<?php else: ?>background:rgba(0,200,255,0.06);border:1px solid rgba(0,200,255,0.12);border-bottom-right-radius:3px;<?php endif; ?>word-wrap:break-word;">
-                            <div style="font-size:0.6rem;font-weight:600;text-transform:uppercase;margin-bottom:2px;letter-spacing:0.3px;color:<?php echo $msg['sender_type'] === 'admin' ? '#a78bfa' : '#00c8ff'; ?>;"><?php echo $msg['sender_type'] === 'admin' ? 'Admin' : 'Usuario'; ?></div>
-                            <div style="font-size:0.88rem;line-height:1.4;white-space:pre-wrap;"><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div>
-                            <div style="font-size:0.6rem;color:var(--text-dim);margin-top:2px;text-align:right;"><?php echo date('d/m/Y H:i', strtotime($msg['created_at'])); ?></div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
+            <div style="padding:20px;max-height:500px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;" id="msgContainer">
+                <?php foreach ($viewMessages as $msg): ?><div style="padding:8px 12px;border-radius:12px;word-wrap:break-word;<?php if ($msg['sender_type'] === 'admin'): ?>background:rgba(108,92,231,0.08);border:1px solid rgba(108,92,231,0.15);border-left:3px solid #a78bfa;<?php else: ?>background:rgba(0,200,255,0.06);border:1px solid rgba(0,200,255,0.12);border-left:3px solid #00c8ff;<?php endif; ?>"><div style="font-size:0.6rem;font-weight:600;text-transform:uppercase;margin-bottom:2px;letter-spacing:0.3px;color:<?php echo $msg['sender_type'] === 'admin' ? '#a78bfa' : '#00c8ff'; ?>;display:inline-block;"><?php echo $msg['sender_type'] === 'admin' ? 'Admin' : 'Usuario'; ?></div><span style="font-size:0.6rem;color:var(--text-dim);margin-left:8px;"><?php echo date('d/m/Y H:i', strtotime($msg['created_at'])); ?></span><div style="font-size:0.88rem;line-height:1.4;white-space:pre-wrap;margin-top:2px;"><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div></div><?php endforeach; ?>
             </div>
 
             <!-- Formulário de resposta admin -->
