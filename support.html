@@ -803,7 +803,7 @@ function categoryLabel(cat) {
 
 function formatDateShort(dateStr) {
     if (!dateStr) return '';
-    const d = new Date(dateStr);
+    const d = new Date(dateStr.replace(/-/g, '/'));
     return d.toLocaleDateString('pt-BR', {
         day: '2-digit', month: '2-digit', year: '2-digit',
         hour: '2-digit', minute: '2-digit'
