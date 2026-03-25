@@ -218,6 +218,9 @@
             font-size: 0.88rem;
             line-height: 1.4;
             word-wrap: break-word;
+        }
+
+        .message-text {
             white-space: pre-wrap;
         }
 
@@ -620,13 +623,9 @@ async function viewTicket(ticketId) {
 
         // Mensagens
         const container = document.getElementById('messagesContainer');
-        container.innerHTML = data.messages.map(m => `
-            <div class="message-bubble ${m.sender_type}">
-                <div class="message-sender">${m.sender_type === 'admin' ? 'Equipe UNOBIX' : 'Voce'}</div>
-                <div class="message-text">${escapeHtml(m.message)}</div>
-                <div class="message-time">${formatDateShort(m.created_at)}</div>
-            </div>
-        `).join('');
+        container.innerHTML = data.messages.map(m =>
+            `<div class="message-bubble ${m.sender_type}"><div class="message-sender">${m.sender_type === 'admin' ? 'Equipe UNOBIX' : 'Voce'}</div><div class="message-text">${escapeHtml(m.message)}</div><div class="message-time">${formatDateShort(m.created_at)}</div></div>`
+        ).join('');
 
         // Scroll para baixo
         setTimeout(() => container.scrollTop = container.scrollHeight, 50);
