@@ -102,13 +102,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             require_once __DIR__ . '/../../api/zettpay-client.php';
             ensureZettpayTable($pdo);
 
+            // Função para extrair dados da transação de diferentes formatos de resposta
+            function extractTransactionDataAdmin($responseData) {
+                if (!is_array($responseData)) return null;
+                if (isset($responseData['status'])) return $responseData;
+                if (isset($responseData['data']) && is_array($responseData['data'])) {
+                    $inner = $responseData['data'];
+                    if (isset($inner['status'])) return $inner;
+                    if (isset($inner[0]) && is_array($inner[0]) && isset($inner[0]['status'])) return $inner[0];
+                }
+                if (isset($responseData['transaction']) && is_array($responseData['transaction'])) return $responseData['transaction'];
+                return null;
+            }
+
             $stmt = $pdo->prepare("
                 SELECT id, external_id, user_id, amount_brl, created_at
                 FROM zettpay_transactions
                 WHERE type = 'deposit' AND status = 'pending'
                   AND created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
-                  AND created_at > DATE_SUB(NOW(), INTERVAL 48 HOUR)
-                ORDER BY created_at ASC LIMIT 50
+                  AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+                ORDER BY created_at ASC LIMIT 20
             ");
             $stmt->execute();
             $pendingDeposits = $stmt->fetchAll();
@@ -121,10 +134,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $apiResult = zettpayLookupDeposit($ptx['external_id']);
                     if (!$apiResult['success'] || empty($apiResult['data'])) continue;
 
-                    $apiData = $apiResult['data'];
-                    if (isset($apiData['data']) && is_array($apiData['data'])) $apiData = $apiData['data'];
+                    $apiData = extractTransactionDataAdmin($apiResult['data']);
+                    if (!$apiData) continue;
                     $apiStatus = strtolower($apiData['status'] ?? '');
-                    $zettpayId = $apiData['id'] ?? '';
+                    $zettpayId = $apiData['provider_transaction_id'] ?? $apiData['id'] ?? '';
 
                     if (in_array($apiStatus, ['paid', 'completed', 'approved'])) {
                         // Confirmar depósito
