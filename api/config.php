@@ -132,6 +132,11 @@ if (!defined('ZETTPAY_BASE_URL')) {
     define('MAX_DEPOSIT_BRL', 500.00);
 }
 
+// Token para cron de reconciliação
+if (!defined('RECONCILE_CRON_TOKEN')) {
+    define('RECONCILE_CRON_TOKEN', getenv('RECONCILE_CRON_TOKEN') ?: 'rcn_unobix_7f3a9c2e1b5d8k4m');
+}
+
 // ============================================
 // STAKING (DESCONTINUADO — constantes mantidas para compatibilidade com migração)
 // ============================================

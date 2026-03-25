@@ -15,11 +15,21 @@
 require_once __DIR__ . "/config.php";
 require_once __DIR__ . "/zettpay-client.php";
 
-// Pode ser chamado via admin (POST) ou cron (CLI)
+// Pode ser chamado via admin (POST), cron HTTP (GET com token) ou CLI
 $isCli = php_sapi_name() === 'cli';
 
 if (!$isCli) {
     header('Content-Type: application/json; charset=utf-8');
+
+    // Proteger endpoint: aceitar apenas com token válido ou via POST do admin
+    $token = $_GET['token'] ?? $_SERVER['HTTP_X_CRON_TOKEN'] ?? '';
+    $isAdminPost = $_SERVER['REQUEST_METHOD'] === 'POST';
+
+    if (!$isAdminPost && $token !== RECONCILE_CRON_TOKEN) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Forbidden']);
+        exit;
+    }
 }
 
 try {
