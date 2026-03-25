@@ -88,7 +88,8 @@ function ensureSupportTables($pdo) {
 // CRIAR TICKET
 // ============================================
 function createTicket($pdo, $input) {
-    $googleUid = getUserIdentifier($input);
+    $identifier = getUserIdentifier($input);
+    $googleUid = $identifier['value'] ?? null;
     if (!$googleUid || !validateGoogleUid($googleUid)) {
         echo json_encode(['success' => false, 'error' => 'Não autenticado']);
         return;
@@ -161,7 +162,8 @@ function createTicket($pdo, $input) {
 // LISTAR TICKETS DO USUÁRIO
 // ============================================
 function listTickets($pdo, $input) {
-    $googleUid = getUserIdentifier($input);
+    $identifier = getUserIdentifier($input);
+    $googleUid = $identifier['value'] ?? null;
     if (!$googleUid || !validateGoogleUid($googleUid)) {
         echo json_encode(['success' => false, 'error' => 'Não autenticado']);
         return;
@@ -195,7 +197,8 @@ function listTickets($pdo, $input) {
 // VER TICKET COM MENSAGENS
 // ============================================
 function viewTicket($pdo, $input) {
-    $googleUid = getUserIdentifier($input);
+    $identifier = getUserIdentifier($input);
+    $googleUid = $identifier['value'] ?? null;
     if (!$googleUid || !validateGoogleUid($googleUid)) {
         echo json_encode(['success' => false, 'error' => 'Não autenticado']);
         return;
@@ -240,7 +243,8 @@ function viewTicket($pdo, $input) {
 // RESPONDER TICKET (USUÁRIO)
 // ============================================
 function replyTicket($pdo, $input) {
-    $googleUid = getUserIdentifier($input);
+    $identifier = getUserIdentifier($input);
+    $googleUid = $identifier['value'] ?? null;
     if (!$googleUid || !validateGoogleUid($googleUid)) {
         echo json_encode(['success' => false, 'error' => 'Não autenticado']);
         return;
