@@ -212,7 +212,6 @@
         }
 
         .message-bubble {
-            max-width: 55%;
             padding: 8px 12px;
             border-radius: 12px;
             font-size: 0.88rem;
@@ -222,27 +221,31 @@
 
         .message-text {
             white-space: pre-wrap;
+            margin-top: 2px;
         }
 
         .message-bubble.user {
-            align-self: flex-end;
             background: rgba(0, 200, 255, 0.08);
             border: 1px solid rgba(0, 200, 255, 0.15);
-            border-bottom-right-radius: 3px;
+            border-left: 3px solid #00c8ff;
         }
 
         .message-bubble.admin {
-            align-self: flex-start;
             background: rgba(108, 92, 231, 0.08);
             border: 1px solid rgba(108, 92, 231, 0.15);
-            border-bottom-left-radius: 3px;
+            border-left: 3px solid #a78bfa;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .message-sender {
             font-size: 0.6rem;
             font-weight: 600;
             text-transform: uppercase;
-            margin-bottom: 2px;
             letter-spacing: 0.3px;
         }
 
@@ -252,8 +255,6 @@
         .message-time {
             font-size: 0.6rem;
             color: var(--text-dim);
-            margin-top: 2px;
-            text-align: right;
         }
 
         .reply-form {
@@ -624,7 +625,7 @@ async function viewTicket(ticketId) {
         // Mensagens
         const container = document.getElementById('messagesContainer');
         container.innerHTML = data.messages.map(m =>
-            `<div class="message-bubble ${m.sender_type}"><div class="message-sender">${m.sender_type === 'admin' ? 'Equipe UNOBIX' : 'Voce'}</div><div class="message-text">${escapeHtml(m.message)}</div><div class="message-time">${formatDateShort(m.created_at)}</div></div>`
+            `<div class="message-bubble ${m.sender_type}"><div class="message-header"><span class="message-sender">${m.sender_type === 'admin' ? 'Equipe UNOBIX' : 'Voce'}</span><span class="message-time">${formatDateShort(m.created_at)}</span></div><div class="message-text">${escapeHtml(m.message)}</div></div>`
         ).join('');
 
         // Scroll para baixo
