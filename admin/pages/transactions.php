@@ -7,6 +7,7 @@
 
 $pageTitle = 'Transações';
 $typeFilter = $_GET['type'] ?? 'all';
+$statusFilter = $_GET['status'] ?? 'all';
 $search = $_GET['search'] ?? '';
 $page = max(1, intval($_GET['p'] ?? 1));
 $perPage = 50;
@@ -211,6 +212,10 @@ try {
         $filterSql .= " AND t.type = ?";
         $params[] = $typeFilter;
     }
+    if ($statusFilter !== 'all') {
+        $filterSql .= " AND t.status = ?";
+        $params[] = $statusFilter;
+    }
     if ($search) {
         $filterSql .= " AND (t.google_uid LIKE ? OR p.display_name LIKE ? OR t.description LIKE ?)";
         $params[] = "%$search%";
@@ -315,6 +320,12 @@ $debitTypes = ['withdraw', 'withdrawal', 'stake'];
                     <option value="admin_adjust" <?php echo $typeFilter === 'admin_adjust' ? 'selected' : ''; ?>>Ajustes Admin</option>
                     <option value="stake" <?php echo $typeFilter === 'stake' ? 'selected' : ''; ?>>Stakes</option>
                     <option value="unstake" <?php echo $typeFilter === 'unstake' ? 'selected' : ''; ?>>Unstakes</option>
+                </select>
+                <select name="status" class="form-control">
+                    <option value="all">Todos Status</option>
+                    <option value="pending" <?php echo $statusFilter === 'pending' ? 'selected' : ''; ?>>Pendentes</option>
+                    <option value="completed" <?php echo $statusFilter === 'completed' ? 'selected' : ''; ?>>Completadas</option>
+                    <option value="failed" <?php echo $statusFilter === 'failed' ? 'selected' : ''; ?>>Falhadas</option>
                 </select>
                 <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i></button>
             </form>
