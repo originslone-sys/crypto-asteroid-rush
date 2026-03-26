@@ -460,22 +460,27 @@
 (function() {
     const API_URL = 'api/weekly-ranking.php';
     let countdownInterval = null;
+    let refreshInterval = null;
+    let loaded = false;
 
     async function loadRanking() {
         try {
-            const res = await fetch(API_URL);
+            const res = await fetch(API_URL + '?_t=' + Date.now());
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Erro');
 
             document.getElementById('loadingState').style.display = 'none';
             document.getElementById('rankingContent').style.display = 'block';
+            loaded = true;
 
             renderTimer(data);
             renderRanking(data.ranking);
             renderPreviousWinners(data.previous_winners, data.prizes);
             startCountdown(data.week_end, data.server_time, data.challenge_active);
         } catch (e) {
-            document.getElementById('loadingState').innerHTML = '<p style="color:var(--danger);">Erro ao carregar ranking.</p>';
+            if (!loaded) {
+                document.getElementById('loadingState').innerHTML = '<p style="color:var(--danger);">Erro ao carregar ranking. Recarregue a p\u00e1gina.</p>';
+            }
         }
     }
 
@@ -491,6 +496,11 @@
     }
 
     function startCountdown(weekEnd, serverTime, active) {
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+
         const endTime = new Date(weekEnd.replace(/-/g, '/')).getTime();
         const serverNow = new Date(serverTime.replace(/-/g, '/')).getTime();
         const offset = Date.now() - serverNow;
@@ -502,10 +512,11 @@
             if (diff <= 0) {
                 document.getElementById('countdownValue').textContent = 'ENCERRADO';
                 document.getElementById('timerCountdown').classList.add('challenge-ended');
-                if (countdownInterval) clearInterval(countdownInterval);
+                if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
                 return;
             }
 
+            document.getElementById('timerCountdown').classList.remove('challenge-ended');
             const h = Math.floor(diff / 3600000);
             const m = Math.floor((diff % 3600000) / 60000);
             const s = Math.floor((diff % 60000) / 1000);
@@ -523,12 +534,15 @@
 
     function renderRanking(ranking) {
         const tbody = document.getElementById('rankingBody');
+        const emptyEl = document.getElementById('emptyRanking');
 
         if (!ranking || ranking.length === 0) {
-            document.getElementById('emptyRanking').style.display = 'block';
+            tbody.innerHTML = '';
+            emptyEl.style.display = 'block';
             return;
         }
 
+        emptyEl.style.display = 'none';
         tbody.innerHTML = ranking.map(function(player, i) {
             const pos = i + 1;
             var rankClass = '';
@@ -556,12 +570,15 @@
     }
 
     function renderPreviousWinners(winners, prizes) {
-        if (!winners || winners.length === 0) return;
-
         var section = document.getElementById('previousWinnersSection');
         var list = document.getElementById('previousWinnersList');
-        section.style.display = 'block';
 
+        if (!winners || winners.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
         list.innerHTML = winners.map(function(w, i) {
             var prize = prizes[i] || 0;
             return '<div class="winner-card pos-' + (i + 1) + '">' +
@@ -581,9 +598,8 @@
         return d.innerHTML;
     }
 
-    // Auto-refresh a cada 60 segundos
     loadRanking();
-    setInterval(loadRanking, 60000);
+    refreshInterval = setInterval(loadRanking, 60000);
 })();
 </script>
 </body>
