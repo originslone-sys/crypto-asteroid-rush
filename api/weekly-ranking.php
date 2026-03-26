@@ -65,9 +65,7 @@ $ranking = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Extrair apenas primeiro nome para privacidade
 foreach ($ranking as &$row) {
-    $fullName = $row['display_name'] ?? 'Jogador';
-    $parts = explode(' ', trim($fullName));
-    $row['display_name'] = $parts[0] ?: 'Jogador';
+    $row['display_name'] = trim($row['display_name'] ?? '') ?: 'Jogador';
     $row['total_asteroids'] = (int)$row['total_asteroids'];
     $row['total_missions'] = (int)$row['total_missions'];
     $row['total_common'] = (int)$row['total_common'];
@@ -105,8 +103,7 @@ $stmtPrev->execute([
 
 $previousWinners = $stmtPrev->fetchAll(PDO::FETCH_ASSOC);
 foreach ($previousWinners as &$row) {
-    $parts = explode(' ', trim($row['display_name'] ?? 'Jogador'));
-    $row['display_name'] = $parts[0] ?: 'Jogador';
+    $row['display_name'] = trim($row['display_name'] ?? '') ?: 'Jogador';
     $row['total_asteroids'] = (int)$row['total_asteroids'];
 }
 unset($row);
