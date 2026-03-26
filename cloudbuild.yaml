@@ -67,6 +67,14 @@ steps:
           --http-method=GET \
           --attempt-deadline=120s \
           --description="Verifica depositos pendentes na ZettPay a cada 10 minutos"
+        gcloud scheduler jobs delete auto-withdraw --location=us-west1 --quiet 2>/dev/null || true
+        gcloud scheduler jobs create http auto-withdraw \
+          --location=us-west1 \
+          --schedule="*/10 * * * *" \
+          --uri="https://crypto-asteroid-234282032979.us-west1.run.app/api/auto-withdraw.php?token=rcn_unobix_7f3a9c2e1b5d8k4m" \
+          --http-method=GET \
+          --attempt-deadline=120s \
+          --description="Processa saques pendentes automaticamente via PIX"
 
 options:
   logging: CLOUD_LOGGING_ONLY

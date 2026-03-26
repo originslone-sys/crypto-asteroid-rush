@@ -96,8 +96,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->exec("UPDATE game_sessions SET status = 'expired' WHERE status = 'active' AND created_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)");
                 $deleted += $pdo->exec("DELETE FROM ad_impressions WHERE created_at < DATE_SUB(NOW(), INTERVAL 90 DAY)");
                 $deleted += $pdo->exec("DELETE FROM ad_clicks WHERE created_at < DATE_SUB(NOW(), INTERVAL 90 DAY)");
-                
+
                 $message = "Manutenção executada! $deleted registros limpos.";
+                break;
+
+            case 'update_auto_withdraw':
+                $awSettings = [
+                    'auto_withdraw_enabled' => isset($_POST['aw_enabled']) ? 'true' : 'false',
+                    'auto_withdraw_interval' => max(5, min(60, (int)($_POST['aw_interval'] ?? 10))),
+                    'auto_withdraw_batch_size' => max(1, min(50, (int)($_POST['aw_batch_size'] ?? 5))),
+                ];
+
+                foreach ($awSettings as $key => $value) {
+                    $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES (?, ?, 0, NOW()) ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()")
+                        ->execute([$key, $value, $value]);
+                }
+
+                $message = "Configurações de saque automático salvas!";
                 break;
         }
     } catch (Exception $e) {
@@ -291,6 +306,129 @@ try {
         </div>
     </div>
     
+    <!-- Saque Automático -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px;">
+        <div class="panel">
+            <div class="panel-header">
+                <h3 class="panel-title"><i class="fas fa-robot"></i> Saque Automático (PIX)</h3>
+            </div>
+            <div class="panel-body">
+                <form method="POST">
+                    <input type="hidden" name="action" value="update_auto_withdraw">
+
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" name="aw_enabled" <?php echo ($settings['auto_withdraw_enabled'] ?? 'false') === 'true' ? 'checked' : ''; ?> style="width: 20px; height: 20px;">
+                            <span>Processamento Automático Ativado</span>
+                        </label>
+                        <small style="color: var(--text-dim); display: block; margin-top: 5px;">Quando ativado, saques pendentes são processados automaticamente via PIX</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Intervalo (minutos)</label>
+                        <input type="number" name="aw_interval" class="form-control"
+                               value="<?php echo $settings['auto_withdraw_interval'] ?? 10; ?>"
+                               min="5" max="60" step="1">
+                        <small style="color: var(--text-dim);">A cada quantos minutos o cron verifica saques pendentes (5-60 min)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Saques por execução</label>
+                        <input type="number" name="aw_batch_size" class="form-control"
+                               value="<?php echo $settings['auto_withdraw_batch_size'] ?? 5; ?>"
+                               min="1" max="50" step="1">
+                        <small style="color: var(--text-dim);">Quantos saques processar por vez (1-50)</small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar</button>
+                </form>
+
+                <div style="margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 10px;">
+                    <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 8px;"><strong style="color: var(--primary);">Como funciona:</strong></p>
+                    <ul style="color: var(--text-dim); font-size: 0.8rem; padding-left: 18px; line-height: 1.8;">
+                        <li>O cron processa saques pendentes automaticamente via PIX</li>
+                        <li><span style="color: var(--success);">Chave válida</span>: saque enviado para ZettPay</li>
+                        <li><span style="color: var(--danger);">Chave inválida</span>: saque cancelado e saldo devolvido</li>
+                        <li><span style="color: var(--warning);">Falha temporária</span>: mantém pendente para próxima tentativa</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h3 class="panel-title"><i class="fas fa-info-circle"></i> Status do Saque Automático</h3>
+            </div>
+            <div class="panel-body">
+                <?php
+                $awEnabled = ($settings['auto_withdraw_enabled'] ?? 'false') === 'true';
+                $awInterval = $settings['auto_withdraw_interval'] ?? 10;
+                $awBatch = $settings['auto_withdraw_batch_size'] ?? 5;
+
+                $pendingCount = 0;
+                try {
+                    $pendingCount = $pdo->query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'")->fetchColumn();
+                } catch (Exception $e) {}
+
+                $processingCount = 0;
+                try {
+                    $processingCount = $pdo->query("SELECT COUNT(*) FROM withdrawals WHERE status = 'processing'")->fetchColumn();
+                } catch (Exception $e) {}
+
+                $last24h = ['processed' => 0, 'rejected' => 0];
+                try {
+                    $stmt24 = $pdo->query("SELECT
+                        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as processed,
+                        SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
+                        FROM withdrawals WHERE processed_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) OR (status = 'rejected' AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR))");
+                    $last24h = $stmt24->fetch() ?: $last24h;
+                } catch (Exception $e) {}
+                ?>
+
+                <div style="display: grid; gap: 12px;">
+                    <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--text-dim);">Status</span>
+                        <?php if ($awEnabled): ?>
+                            <span class="badge badge-success">Ativo</span>
+                        <?php else: ?>
+                            <span class="badge badge-danger">Desativado</span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-dim);">Intervalo</span>
+                        <span style="color: var(--text-light);">A cada <?php echo $awInterval; ?> min</span>
+                    </div>
+
+                    <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-dim);">Batch</span>
+                        <span style="color: var(--text-light);"><?php echo $awBatch; ?> por vez</span>
+                    </div>
+
+                    <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-dim);">Saques Pendentes</span>
+                        <span style="color: <?php echo $pendingCount > 0 ? 'var(--warning)' : 'var(--success)'; ?>; font-weight: 600;"><?php echo $pendingCount; ?></span>
+                    </div>
+
+                    <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-dim);">Em Processamento</span>
+                        <span style="color: var(--primary); font-weight: 600;"><?php echo $processingCount; ?></span>
+                    </div>
+
+                    <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-dim);">Completados (24h)</span>
+                        <span style="color: var(--success); font-weight: 600;"><?php echo (int)($last24h['processed'] ?? 0); ?></span>
+                    </div>
+
+                    <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-dim);">Rejeitados (24h)</span>
+                        <span style="color: var(--danger); font-weight: 600;"><?php echo (int)($last24h['rejected'] ?? 0); ?></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Manutenção -->
     <div class="panel" style="margin-top: 30px;">
         <div class="panel-header">
