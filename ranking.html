@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafio Semanal | UNOBIX</title>
+    <meta name="description" content="Ranking semanal dos maiores destruidores de asteroides do Unobix. Compita e ganhe créditos!">
+    <link rel="icon" type="image/png" href="img/logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+
+    <style>
+        .ranking-header {
+            text-align: center;
+            padding: 40px 0 20px;
+        }
+
+        .ranking-header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .ranking-header p {
+            color: var(--text-dim);
+            font-size: 1rem;
+        }
+
+        .challenge-timer {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px 30px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .timer-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .timer-label {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        .timer-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+
+        .timer-countdown {
+            text-align: center;
+        }
+
+        .countdown-label {
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+        }
+
+        .countdown-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            color: var(--warning);
+        }
+
+        .challenge-ended .countdown-value {
+            color: var(--danger);
+        }
+
+        .prizes-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .prize-badge {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 18px;
+            text-align: center;
+            min-width: 100px;
+            transition: all 0.3s ease;
+        }
+
+        .prize-badge:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .prize-badge.gold { border-color: #FFD700; }
+        .prize-badge.silver { border-color: #C0C0C0; }
+        .prize-badge.bronze { border-color: #CD7F32; }
+
+        .prize-position {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+
+        .prize-badge.gold .prize-position { color: #FFD700; }
+        .prize-badge.silver .prize-position { color: #C0C0C0; }
+        .prize-badge.bronze .prize-position { color: #CD7F32; }
+
+        .prize-amount {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+        }
+
+        .prize-label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .ranking-table-wrapper {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .ranking-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .ranking-table th {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            color: var(--primary);
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(0, 229, 204, 0.05);
+        }
+
+        .ranking-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .ranking-table tbody tr:hover {
+            background: rgba(0, 229, 204, 0.03);
+        }
+
+        .ranking-table .rank-cell {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            width: 60px;
+            text-align: center;
+        }
+
+        .rank-1 { color: #FFD700; }
+        .rank-2 { color: #C0C0C0; }
+        .rank-3 { color: #CD7F32; }
+        .rank-top5 { color: var(--primary); }
+
+        .rank-icon {
+            font-size: 1.1rem;
+        }
+
+        .player-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .asteroids-cell {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .rank-1 .asteroids-cell,
+        tr.rank-1 .asteroids-cell { color: #FFD700; }
+        tr.rank-2 .asteroids-cell { color: #C0C0C0; }
+        tr.rank-3 .asteroids-cell { color: #CD7F32; }
+
+        .asteroid-breakdown {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .asteroid-tag {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .tag-common { color: #8892a4; }
+        .tag-rare { color: #00d4ff; }
+        .tag-epic { color: #b44aff; }
+        .tag-legendary { color: #FFD700; }
+
+        .missions-cell {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        .empty-ranking {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-dim);
+        }
+
+        .empty-ranking i {
+            font-size: 3rem;
+            color: var(--primary);
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-ranking p {
+            font-size: 1.1rem;
+        }
+
+        /* Vencedores da semana anterior */
+        .previous-winners {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .previous-winners h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            color: var(--warning);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .winners-list {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .winner-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 180px;
+        }
+
+        .winner-card.pos-1 { border-color: rgba(255, 215, 0, 0.3); }
+        .winner-card.pos-2 { border-color: rgba(192, 192, 192, 0.3); }
+        .winner-card.pos-3 { border-color: rgba(205, 127, 50, 0.3); }
+
+        .winner-pos {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .winner-card.pos-1 .winner-pos { color: #FFD700; }
+        .winner-card.pos-2 .winner-pos { color: #C0C0C0; }
+        .winner-card.pos-3 .winner-pos { color: #CD7F32; }
+        .winner-card.pos-4 .winner-pos,
+        .winner-card.pos-5 .winner-pos { color: var(--primary); }
+
+        .winner-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .winner-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        .winner-score {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .winner-prize {
+            margin-left: auto;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            color: var(--secondary);
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-dim);
+        }
+
+        .loading-spinner i {
+            font-size: 2rem;
+            color: var(--primary);
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsivo */
+        @media (max-width: 768px) {
+            .ranking-header h1 { font-size: 1.4rem; }
+            .challenge-timer { flex-direction: column; text-align: center; }
+            .prizes-bar { gap: 6px; }
+            .prize-badge { min-width: 60px; padding: 10px 12px; }
+            .prize-amount { font-size: 0.9rem; }
+            .ranking-table th,
+            .ranking-table td { padding: 10px 8px; font-size: 0.8rem; }
+            .asteroid-breakdown { display: none; }
+            .winner-card { min-width: 140px; }
+            .hide-mobile { display: none; }
+        }
+    </style>
+</head>
+<body>
+<div class="cosmic-bg"></div>
+<div class="container">
+    <header class="header">
+        <a href="index.html" class="logo">
+            <img src="img/logo.png" alt="Unobix" class="logo-img">
+            <span class="logo-text">UNOBIX</span>
+        </a>
+        <nav class="nav" id="nav">
+            <a href="dashboard.html" class="nav-link">Painel</a>
+            <a href="game.html" class="nav-link">Jogar</a>
+            <a href="wallet.html" class="nav-link">Carteira</a>
+            <a href="ranking.html" class="nav-link active">Ranking</a>
+        </nav>
+        <a href="game.html" class="wallet-btn"><i class="fas fa-play"></i> Jogar</a>
+        <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
+    </header>
+
+    <div class="ranking-header">
+        <h1><i class="fas fa-trophy"></i> DESAFIO SEMANAL</h1>
+        <p>Destrua o maior n&uacute;mero de asteroides e ganhe cr&eacute;ditos!</p>
+    </div>
+
+    <div id="loadingState" class="loading-spinner">
+        <i class="fas fa-spinner"></i>
+        <p>Carregando ranking...</p>
+    </div>
+
+    <div id="rankingContent" style="display:none;">
+
+        <div class="challenge-timer" id="challengeTimer">
+            <div class="timer-info">
+                <span class="timer-label">In&iacute;cio</span>
+                <span class="timer-value" id="weekStart">-</span>
+            </div>
+            <div class="timer-countdown" id="timerCountdown">
+                <div class="countdown-label">Tempo restante</div>
+                <div class="countdown-value" id="countdownValue">--:--:--</div>
+            </div>
+            <div class="timer-info" style="text-align:right;">
+                <span class="timer-label">Encerra</span>
+                <span class="timer-value" id="weekEnd">-</span>
+            </div>
+        </div>
+
+        <div class="prizes-bar">
+            <div class="prize-badge gold">
+                <div class="prize-position"><i class="fas fa-crown"></i> 1&ordm;</div>
+                <div class="prize-amount">100</div>
+                <div class="prize-label">cr&eacute;ditos</div>
+            </div>
+            <div class="prize-badge silver">
+                <div class="prize-position">2&ordm;</div>
+                <div class="prize-amount">50</div>
+                <div class="prize-label">cr&eacute;ditos</div>
+            </div>
+            <div class="prize-badge bronze">
+                <div class="prize-position">3&ordm;</div>
+                <div class="prize-amount">30</div>
+                <div class="prize-label">cr&eacute;ditos</div>
+            </div>
+            <div class="prize-badge">
+                <div class="prize-position">4&ordm;</div>
+                <div class="prize-amount">20</div>
+                <div class="prize-label">cr&eacute;ditos</div>
+            </div>
+            <div class="prize-badge">
+                <div class="prize-position">5&ordm;</div>
+                <div class="prize-amount">10</div>
+                <div class="prize-label">cr&eacute;ditos</div>
+            </div>
+        </div>
+
+        <div id="previousWinnersSection" class="previous-winners" style="display:none;">
+            <h2><i class="fas fa-medal"></i> VENCEDORES DA SEMANA ANTERIOR</h2>
+            <div class="winners-list" id="previousWinnersList"></div>
+        </div>
+
+        <div class="ranking-table-wrapper">
+            <table class="ranking-table">
+                <thead>
+                    <tr>
+                        <th style="text-align:center;">#</th>
+                        <th>JOGADOR</th>
+                        <th>ASTEROIDES</th>
+                        <th class="hide-mobile">DETALHES</th>
+                        <th class="hide-mobile">MISS&Otilde;ES</th>
+                    </tr>
+                </thead>
+                <tbody id="rankingBody">
+                </tbody>
+            </table>
+            <div id="emptyRanking" class="empty-ranking" style="display:none;">
+                <i class="fas fa-rocket"></i>
+                <p>Nenhuma partida registrada ainda esta semana.</p>
+                <p style="font-size:0.9rem;margin-top:8px;">Seja o primeiro a jogar!</p>
+            </div>
+        </div>
+
+    </div>
+
+    <footer class="footer">
+        <a href="https://t.me/comunidade_unobix" target="_blank" class="btn btn-telegram"><i class="fab fa-telegram"></i> Entre no Telegram</a>
+        <div class="footer-links">
+            <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> Como Jogar</a>
+            <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economia</a>
+            <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
+            <a href="terms.html" class="footer-link"><i class="fas fa-file-contract"></i> Termos</a>
+        </div>
+        <p class="footer-copy">&copy; 2026 Unobix. Jogue Esperto, Ganhe Recompensas.</p>
+    </footer>
+</div>
+
+<script src="js/main.js"></script>
+<script>
+(function() {
+    const API_URL = 'api/weekly-ranking.php';
+    let countdownInterval = null;
+
+    async function loadRanking() {
+        try {
+            const res = await fetch(API_URL);
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Erro');
+
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('rankingContent').style.display = 'block';
+
+            renderTimer(data);
+            renderRanking(data.ranking);
+            renderPreviousWinners(data.previous_winners, data.prizes);
+            startCountdown(data.week_end, data.server_time, data.challenge_active);
+        } catch (e) {
+            document.getElementById('loadingState').innerHTML = '<p style="color:var(--danger);">Erro ao carregar ranking.</p>';
+        }
+    }
+
+    function formatDateBR(dateStr) {
+        const d = new Date(dateStr.replace(/-/g, '/'));
+        const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'S\u00e1b'];
+        return dias[d.getDay()] + ', ' + d.getDate().toString().padStart(2, '0') + '/' + (d.getMonth() + 1).toString().padStart(2, '0') + ' \u00e0s ' + d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+    }
+
+    function renderTimer(data) {
+        document.getElementById('weekStart').textContent = formatDateBR(data.week_start);
+        document.getElementById('weekEnd').textContent = formatDateBR(data.week_end);
+    }
+
+    function startCountdown(weekEnd, serverTime, active) {
+        const endTime = new Date(weekEnd.replace(/-/g, '/')).getTime();
+        const serverNow = new Date(serverTime.replace(/-/g, '/')).getTime();
+        const offset = Date.now() - serverNow;
+
+        function update() {
+            const now = Date.now() - offset;
+            const diff = endTime - now;
+
+            if (diff <= 0) {
+                document.getElementById('countdownValue').textContent = 'ENCERRADO';
+                document.getElementById('timerCountdown').classList.add('challenge-ended');
+                if (countdownInterval) clearInterval(countdownInterval);
+                return;
+            }
+
+            const h = Math.floor(diff / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
+            const s = Math.floor((diff % 60000) / 1000);
+            document.getElementById('countdownValue').textContent = h.toString().padStart(2, '0') + ':' + m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0');
+        }
+
+        if (!active) {
+            document.getElementById('countdownValue').textContent = 'ENCERRADO';
+            document.getElementById('timerCountdown').classList.add('challenge-ended');
+        } else {
+            update();
+            countdownInterval = setInterval(update, 1000);
+        }
+    }
+
+    function renderRanking(ranking) {
+        const tbody = document.getElementById('rankingBody');
+
+        if (!ranking || ranking.length === 0) {
+            document.getElementById('emptyRanking').style.display = 'block';
+            return;
+        }
+
+        tbody.innerHTML = ranking.map(function(player, i) {
+            const pos = i + 1;
+            var rankClass = '';
+            var rankContent = '';
+
+            if (pos === 1) { rankClass = 'rank-1'; rankContent = '<i class="fas fa-crown rank-icon"></i>'; }
+            else if (pos === 2) { rankClass = 'rank-2'; rankContent = '<i class="fas fa-medal rank-icon"></i>'; }
+            else if (pos === 3) { rankClass = 'rank-3'; rankContent = '<i class="fas fa-medal rank-icon"></i>'; }
+            else if (pos <= 5) { rankClass = 'rank-top5'; rankContent = pos; }
+            else { rankContent = pos; }
+
+            return '<tr class="' + rankClass + '">' +
+                '<td class="rank-cell">' + rankContent + '</td>' +
+                '<td class="player-name">' + escapeHtml(player.display_name) + '</td>' +
+                '<td class="asteroids-cell">' + player.total_asteroids.toLocaleString('pt-BR') + '</td>' +
+                '<td class="hide-mobile"><div class="asteroid-breakdown">' +
+                    (player.total_common > 0 ? '<span class="asteroid-tag tag-common">' + player.total_common + ' comuns</span>' : '') +
+                    (player.total_rare > 0 ? '<span class="asteroid-tag tag-rare">' + player.total_rare + ' raros</span>' : '') +
+                    (player.total_epic > 0 ? '<span class="asteroid-tag tag-epic">' + player.total_epic + ' \u00e9picos</span>' : '') +
+                    (player.total_legendary > 0 ? '<span class="asteroid-tag tag-legendary">' + player.total_legendary + ' lend.</span>' : '') +
+                '</div></td>' +
+                '<td class="missions-cell hide-mobile">' + player.total_missions + '</td>' +
+            '</tr>';
+        }).join('');
+    }
+
+    function renderPreviousWinners(winners, prizes) {
+        if (!winners || winners.length === 0) return;
+
+        var section = document.getElementById('previousWinnersSection');
+        var list = document.getElementById('previousWinnersList');
+        section.style.display = 'block';
+
+        list.innerHTML = winners.map(function(w, i) {
+            var prize = prizes[i] || 0;
+            return '<div class="winner-card pos-' + (i + 1) + '">' +
+                '<span class="winner-pos">' + (i + 1) + '\u00ba</span>' +
+                '<div class="winner-info">' +
+                    '<span class="winner-name">' + escapeHtml(w.display_name) + '</span>' +
+                    '<span class="winner-score">' + w.total_asteroids.toLocaleString('pt-BR') + ' asteroides</span>' +
+                '</div>' +
+                '<span class="winner-prize">+' + prize + '</span>' +
+            '</div>';
+        }).join('');
+    }
+
+    function escapeHtml(text) {
+        var d = document.createElement('div');
+        d.textContent = text;
+        return d.innerHTML;
+    }
+
+    // Auto-refresh a cada 60 segundos
+    loadRanking();
+    setInterval(loadRanking, 60000);
+})();
+</script>
+</body>
+</html>
