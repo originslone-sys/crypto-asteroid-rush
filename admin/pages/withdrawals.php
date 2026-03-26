@@ -42,7 +42,7 @@ try {
     if ($statusFilter !== 'all') {
         $sql .= " WHERE w.status = :status";
     }
-    $sql .= " ORDER BY w.created_at DESC LIMIT " . ($statusFilter === 'all' ? '500' : '100');
+    $sql .= " ORDER BY w.created_at DESC LIMIT 500";
     
     $stmt = $pdo->prepare($sql);
     if ($statusFilter !== 'all') {
