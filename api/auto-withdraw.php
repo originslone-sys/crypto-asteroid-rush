@@ -3,8 +3,11 @@
  * Auto-Withdraw - Processamento automático de saques via ZettPay PIX
  * Roda via Cloud Scheduler (cron) ou manualmente pelo admin
  *
- * Proteção por token (cron) ou sessão admin (POST)
+ * Proteção por token (cron) ou sessão admin
  * Configurável via game_settings no painel admin
+ *
+ * FLUXO: O status 'pending' só muda para 'processing' APÓS a API confirmar aceite.
+ * Usa zettpay_status='sending' como lock temporário para evitar duplicatas.
  */
 
 header('Content-Type: application/json');
@@ -12,7 +15,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/zettpay-client.php';
 
-// Autenticação: token via query (cron/admin) ou sessão admin (POST)
+// Autenticação: token via query (cron/admin) ou sessão admin
 $token = $_GET['token'] ?? '';
 $isAuthorized = false;
 $cronToken = defined('RECONCILE_CRON_TOKEN') ? RECONCILE_CRON_TOKEN : '';
@@ -34,7 +37,6 @@ if (!$isAuthorized) {
     exit;
 }
 
-// Forçar execução? (admin clicou "Processar Agora")
 $forceRun = isset($_GET['force']) || (isset($_POST['force']) && $_POST['force']);
 
 try {
@@ -44,21 +46,18 @@ try {
     exit;
 }
 
-// Carregar configurações do banco
+// Carregar configurações
 $settings = [];
 try {
     $result = $pdo->query("SELECT setting_key, setting_value FROM game_settings WHERE setting_key LIKE 'auto_withdraw_%'");
     while ($row = $result->fetch()) {
         $settings[$row['setting_key']] = $row['setting_value'];
     }
-} catch (Exception $e) {
-    // Tabela pode não existir ainda, continuar com defaults
-}
+} catch (Exception $e) {}
 
 $enabled = ($settings['auto_withdraw_enabled'] ?? 'false') === 'true';
 $batchSize = max(1, min(50, (int)($settings['auto_withdraw_batch_size'] ?? 5)));
 
-// Se desativado e não é forçado, sai
 if (!$enabled && !$forceRun) {
     echo json_encode([
         'success' => true,
@@ -71,14 +70,21 @@ if (!$enabled && !$forceRun) {
 
 secureLog("AUTO_WITHDRAW_START | batch_size: {$batchSize} | forced: " . ($forceRun ? 'yes' : 'no'));
 
-// Garantir tabela zettpay_transactions ANTES de qualquer transação
 ensureZettpayTable($pdo);
 
-// Buscar saques pendentes (mais antigos primeiro)
+// Limpar locks antigos (sending há mais de 5 min = travou, liberar)
+try {
+    $pdo->exec("UPDATE withdrawals SET zettpay_status = NULL WHERE status = 'pending' AND zettpay_status = 'sending' AND updated_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)");
+} catch (Exception $e) {
+    // Coluna updated_at pode não existir, ignorar
+}
+
+// Buscar saques pendentes que NÃO estão sendo processados por outro processo
 $stmt = $pdo->prepare("
     SELECT id, user_id, amount_brl, admin_notes, created_at
     FROM withdrawals
     WHERE status = 'pending'
+      AND (zettpay_status IS NULL OR zettpay_status = '' OR zettpay_status = 'retry')
       AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
     ORDER BY created_at ASC
     LIMIT ?
@@ -107,16 +113,10 @@ if (count($pendingWithdrawals) === 0) {
     exit;
 }
 
-// Mapeamento de tipos de chave para ZettPay
 $keyTypeMap = [
-    'cpf' => 'document',
-    'cnpj' => 'document',
-    'document' => 'document',
-    'email' => 'email',
-    'phone' => 'phone',
-    'celular' => 'phone',
-    'aleatoria' => 'evp',
-    'evp' => 'evp'
+    'cpf' => 'document', 'cnpj' => 'document', 'document' => 'document',
+    'email' => 'email', 'phone' => 'phone', 'celular' => 'phone',
+    'aleatoria' => 'evp', 'evp' => 'evp'
 ];
 
 foreach ($pendingWithdrawals as $withdrawal) {
@@ -130,7 +130,7 @@ foreach ($pendingWithdrawals as $withdrawal) {
         $pixKeyType = $notes['pix_key_type'] ?? 'cpf';
 
         if (empty($pixKey)) {
-            secureLog("AUTO_WITHDRAW_SKIP | id: {$wId} | reason: no_pix_key | admin_notes: " . substr($withdrawal['admin_notes'] ?? '', 0, 200));
+            secureLog("AUTO_WITHDRAW_SKIP | id: {$wId} | reason: no_pix_key");
             $results['skipped']++;
             $results['errors'][] = "#{$wId}: chave PIX não encontrada nos dados";
             continue;
@@ -140,34 +140,26 @@ foreach ($pendingWithdrawals as $withdrawal) {
         $amount = (float)$withdrawal['amount_brl'];
         $userId = $withdrawal['user_id'];
 
-        // PASSO 1: Lock rápido para verificar status e marcar como 'processing' ANTES da API
-        $pdo->beginTransaction();
-
-        $lockStmt = $pdo->prepare("SELECT id, status FROM withdrawals WHERE id = ? FOR UPDATE");
+        // PASSO 1: Soft-lock - marcar zettpay_status='sending' sem mudar o status principal
+        // Usa UPDATE condicional como lock atômico (se outra instância já marcou, affected=0)
+        $lockStmt = $pdo->prepare("
+            UPDATE withdrawals
+            SET zettpay_status = 'sending'
+            WHERE id = ? AND status = 'pending' AND (zettpay_status IS NULL OR zettpay_status = '' OR zettpay_status = 'retry')
+        ");
         $lockStmt->execute([$wId]);
-        $locked = $lockStmt->fetch();
 
-        if (!$locked || $locked['status'] !== 'pending') {
-            $pdo->rollBack();
-            secureLog("AUTO_WITHDRAW_SKIP | id: {$wId} | reason: status_changed ({$locked['status']})");
+        if ($lockStmt->rowCount() === 0) {
+            // Outro processo já está tratando este saque
+            secureLog("AUTO_WITHDRAW_SKIP | id: {$wId} | reason: already_locked");
             $results['skipped']++;
             continue;
         }
 
-        // Gerar external_id
+        // PASSO 2: Chamar API ZettPay (status ainda é 'pending', visível no admin)
         $externalId = zettpayWithdrawExternalId($wId);
 
-        // Marcar como 'processing' ANTES de chamar a API (evita que outro processo tente o mesmo saque)
-        $pdo->prepare("
-            UPDATE withdrawals
-            SET status = 'processing', zettpay_external_id = ?, zettpay_status = 'processing'
-            WHERE id = ? AND status = 'pending'
-        ")->execute([$externalId, $wId]);
-
-        $pdo->commit(); // Libera o lock rápido
-
-        // PASSO 2: Chamar API ZettPay FORA da transação (pode demorar)
-        secureLog("AUTO_WITHDRAW_CALLING_API | id: {$wId} | external_id: {$externalId} | amount: R\${$amount} | key_type: {$zettpayKeyType}");
+        secureLog("AUTO_WITHDRAW_CALLING_API | id: {$wId} | external_id: {$externalId} | amount: R\${$amount} | key: {$zettpayKeyType}");
 
         $apiResult = zettpayCreateCashout(
             $amount,
@@ -178,8 +170,28 @@ foreach ($pendingWithdrawals as $withdrawal) {
         );
 
         if ($apiResult['success']) {
-            // PASSO 3a: API ok - registrar na zettpay_transactions
+            // PASSO 3a: API aceitou - AGORA sim mudar para 'processing'
             $apiData = $apiResult['data']['data'] ?? $apiResult['data'] ?? [];
+
+            $pdo->beginTransaction();
+
+            // Verificar novamente se ninguém mexeu enquanto a API rodava
+            $checkStmt = $pdo->prepare("SELECT status FROM withdrawals WHERE id = ? FOR UPDATE");
+            $checkStmt->execute([$wId]);
+            $current = $checkStmt->fetch();
+
+            if (!$current || $current['status'] !== 'pending') {
+                $pdo->rollBack();
+                secureLog("AUTO_WITHDRAW_SKIP | id: {$wId} | reason: status_changed_during_api ({$current['status']})");
+                $results['skipped']++;
+                continue;
+            }
+
+            $pdo->prepare("
+                UPDATE withdrawals
+                SET status = 'processing', zettpay_external_id = ?, zettpay_status = 'processing'
+                WHERE id = ?
+            ")->execute([$externalId, $wId]);
 
             $pdo->prepare("
                 INSERT INTO zettpay_transactions (
@@ -196,11 +208,12 @@ foreach ($pendingWithdrawals as $withdrawal) {
                 $wId
             ]);
 
+            $pdo->commit();
             $results['processed']++;
             secureLog("AUTO_WITHDRAW_SENT | id: {$wId} | external_id: {$externalId} | amount: R\${$amount}");
 
         } else {
-            // PASSO 3b: API falhou - analisar tipo de erro
+            // PASSO 3b: API falhou - analisar erro
             $errorMsg = $apiResult['error'] ?? 'Unknown error';
             $httpCode = $apiResult['http_code'] ?? 0;
             $errorData = $apiResult['data'] ?? [];
@@ -216,8 +229,8 @@ foreach ($pendingWithdrawals as $withdrawal) {
             $errorCodeLower = strtolower((string)$errorCode);
             $errorMsgLower = strtolower((string)$errorMsg);
 
-            // Erros de chave inválida: cancelar e devolver saldo
-            $invalidKeyErrors = ['invalid_key', 'invalid_pix_key', 'key_not_found', 'invalid_document', 'receiver_not_found', 'pix_key_not_found', 'invalid_receiver'];
+            $invalidKeyErrors = ['invalid_key', 'invalid_pix_key', 'key_not_found', 'invalid_document',
+                                 'receiver_not_found', 'pix_key_not_found', 'invalid_receiver'];
             $isInvalidKey = false;
             foreach ($invalidKeyErrors as $ike) {
                 if (strpos($errorCodeLower, $ike) !== false || strpos($errorMsgLower, $ike) !== false) {
@@ -248,7 +261,7 @@ foreach ($pendingWithdrawals as $withdrawal) {
                 }
 
                 $pdo->prepare("
-                    UPDATE withdrawals SET status = 'rejected',
+                    UPDATE withdrawals SET status = 'rejected', zettpay_status = 'failed',
                     admin_notes = JSON_SET(COALESCE(admin_notes, '{}'), '$.auto_reject_reason', ?)
                     WHERE id = ?
                 ")->execute(["Chave PIX inválida: {$errorMsg}", $wId]);
@@ -259,10 +272,10 @@ foreach ($pendingWithdrawals as $withdrawal) {
                 secureLog("AUTO_WITHDRAW_REJECTED | id: {$wId} | reason: invalid_key | error: {$errorMsg}");
 
             } else {
-                // Erro temporário: voltar para 'pending' para tentar novamente
+                // Erro temporário: liberar o lock, manter como 'pending'
                 $pdo->prepare("
-                    UPDATE withdrawals SET status = 'pending', zettpay_status = NULL, zettpay_external_id = NULL
-                    WHERE id = ? AND status = 'processing'
+                    UPDATE withdrawals SET zettpay_status = 'retry'
+                    WHERE id = ? AND status = 'pending'
                 ")->execute([$wId]);
 
                 $results['failed_api']++;
@@ -271,15 +284,14 @@ foreach ($pendingWithdrawals as $withdrawal) {
             }
         }
 
-        // Delay entre requisições
-        usleep(500000); // 500ms
+        usleep(500000);
 
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
 
-        // Se já marcou como processing, voltar para pending
+        // Liberar lock se travou
         try {
-            $pdo->prepare("UPDATE withdrawals SET status = 'pending', zettpay_status = NULL, zettpay_external_id = NULL WHERE id = ? AND status = 'processing'")->execute([$wId]);
+            $pdo->prepare("UPDATE withdrawals SET zettpay_status = NULL WHERE id = ? AND status = 'pending'")->execute([$wId]);
         } catch (Exception $e2) {}
 
         $results['errors'][] = "#{$wId}: " . $e->getMessage();
