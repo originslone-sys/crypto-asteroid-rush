@@ -45,5 +45,6 @@ if (!isset($currentPage)) {
     <button class="mobile-toggle" onclick="toggleSidebar()">
         <i class="fas fa-bars"></i>
     </button>
-    
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
     <div class="admin-wrapper">

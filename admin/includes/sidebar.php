@@ -50,15 +50,15 @@ try {
         </div>
     </div>
     
-    <nav class="sidebar-nav">
+    <nav class="sidebar-nav" onclick="if(window.innerWidth<=992)closeSidebar()">
         <div class="nav-section">
             <div class="nav-section-title">Principal</div>
-            
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=dashboard" class="nav-item <?php echo $currentPage === 'dashboard' ? 'active' : ''; ?>">
                 <i class="fas fa-chart-line"></i>
                 <span>Dashboard</span>
             </a>
-            
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=withdrawals" class="nav-item <?php echo $currentPage === 'withdrawals' ? 'active' : ''; ?>">
                 <i class="fas fa-money-bill-wave"></i>
                 <span>Saques</span>
@@ -66,18 +66,18 @@ try {
                     <span class="badge"><?php echo $pendingWithdrawals; ?></span>
                 <?php endif; ?>
             </a>
-            
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=players" class="nav-item <?php echo $currentPage === 'players' ? 'active' : ''; ?>">
                 <i class="fas fa-users"></i>
                 <span>Jogadores</span>
                 <span class="badge badge-info"><?php echo $totalPlayers; ?></span>
             </a>
-            
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=transactions" class="nav-item <?php echo $currentPage === 'transactions' ? 'active' : ''; ?>">
                 <i class="fas fa-exchange-alt"></i>
                 <span>Transações</span>
             </a>
-            
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=sessions" class="nav-item <?php echo $currentPage === 'sessions' ? 'active' : ''; ?>">
                 <i class="fas fa-gamepad"></i>
                 <span>Sessões</span>
@@ -85,7 +85,7 @@ try {
                     <span class="badge badge-warning"><?php echo $flaggedSessions; ?></span>
                 <?php endif; ?>
             </a>
-            
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=referrals" class="nav-item <?php echo $currentPage === 'referrals' ? 'active' : ''; ?>">
                 <i class="fas fa-user-friends"></i>
                 <span>Afiliados</span>
@@ -102,7 +102,7 @@ try {
                 <?php endif; ?>
             </a>
         </div>
-        
+
         <div class="nav-section">
             <div class="nav-section-title">Monetizacao</div>
 
@@ -121,29 +121,29 @@ try {
                 <span>WhatsApp</span>
             </a>
         </div>
-        
+
         <div class="nav-section">
             <div class="nav-section-title">Sistema</div>
-            
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=security" class="nav-item <?php echo $currentPage === 'security' ? 'active' : ''; ?>">
                 <i class="fas fa-shield-alt"></i>
                 <span>Segurança</span>
             </a>
-            
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=logs" class="nav-item <?php echo $currentPage === 'logs' ? 'active' : ''; ?>">
                 <i class="fas fa-clipboard-list"></i>
                 <span>Logs</span>
             </a>
-            
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=settings" class="nav-item <?php echo $currentPage === 'settings' ? 'active' : ''; ?>">
                 <i class="fas fa-cog"></i>
                 <span>Configurações</span>
             </a>
         </div>
-        
+
         <div class="nav-section">
             <div class="nav-section-title">Conta</div>
-            
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?logout=1" class="nav-item logout">
                 <i class="fas fa-sign-out-alt"></i>
                 <span>Sair</span>
