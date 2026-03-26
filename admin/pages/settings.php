@@ -425,6 +425,56 @@ try {
                         <span style="color: var(--danger); font-weight: 600;"><?php echo (int)($last24h['rejected'] ?? 0); ?></span>
                     </div>
                 </div>
+
+                <button type="button" class="btn btn-warning btn-block" style="margin-top: 16px;" id="btnProcessNow" onclick="processWithdrawalsNow()">
+                    <i class="fas fa-bolt"></i> Processar Agora
+                </button>
+                <div id="processResult" style="margin-top: 12px; display: none; padding: 12px; border-radius: 8px; background: rgba(0,0,0,0.3); font-size: 0.85rem;"></div>
+
+                <script>
+                async function processWithdrawalsNow() {
+                    var btn = document.getElementById('btnProcessNow');
+                    var resultDiv = document.getElementById('processResult');
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+                    resultDiv.style.display = 'none';
+
+                    try {
+                        var res = await fetch('../api/auto-withdraw.php?force=1', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ force: true }),
+                            credentials: 'same-origin'
+                        });
+                        var data = await res.json();
+
+                        resultDiv.style.display = 'block';
+                        if (data.success && data.results) {
+                            var r = data.results;
+                            var html = '<div style="color: var(--success); margin-bottom: 8px;"><strong>Concluído!</strong></div>';
+                            html += '<div>Encontrados: <strong>' + r.total_found + '</strong></div>';
+                            html += '<div style="color: var(--success);">Processados: <strong>' + r.processed + '</strong></div>';
+                            if (r.failed_invalid_key > 0) html += '<div style="color: var(--danger);">Chave inválida: <strong>' + r.failed_invalid_key + '</strong> (saldo devolvido)</div>';
+                            if (r.failed_api > 0) html += '<div style="color: var(--warning);">Falha temporária: <strong>' + r.failed_api + '</strong> (tentará novamente)</div>';
+                            if (r.skipped > 0) html += '<div>Pulados: <strong>' + r.skipped + '</strong></div>';
+                            if (r.errors && r.errors.length > 0) {
+                                html += '<div style="margin-top: 8px; color: var(--text-dim); font-size: 0.8rem;">';
+                                r.errors.forEach(function(e) { html += '<div>' + e + '</div>'; });
+                                html += '</div>';
+                            }
+                            resultDiv.innerHTML = html;
+                        } else {
+                            resultDiv.innerHTML = '<div style="color: var(--warning);">' + (data.message || 'Nenhum saque processado') + '</div>';
+                        }
+                    } catch (e) {
+                        resultDiv.style.display = 'block';
+                        resultDiv.innerHTML = '<div style="color: var(--danger);">Erro: ' + e.message + '</div>';
+                    }
+
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-bolt"></i> Processar Agora';
+                }
+                </script>
             </div>
         </div>
     </div>
