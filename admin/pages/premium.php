@@ -2,7 +2,7 @@
 // ============================================
 // UNOBIX - Admin Premium Management
 // Arquivo: admin/pages/premium.php
-// v1.0 - Dashboard de assinaturas Premium
+// v1.1 - Dashboard de assinaturas Premium
 // ============================================
 
 $pageTitle = 'Premium';
@@ -87,7 +87,6 @@ $totalRevenue = 0;
 $recentSubscriptions = [];
 
 try {
-    // Ensure tables exist
     $tableCheck = $pdo->query("SHOW TABLES LIKE 'premium_subscriptions'")->fetch();
 
     if ($tableCheck) {
@@ -110,7 +109,6 @@ try {
         $recentSubscriptions = $stmt->fetchAll();
     }
 
-    // Active premium users
     $cols = $pdo->query("SHOW COLUMNS FROM users LIKE 'is_premium'")->fetch();
     if ($cols) {
         $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE is_premium = 1 AND premium_expires_at > NOW()");
@@ -120,60 +118,53 @@ try {
 ?>
 
 <?php if ($message): ?>
-    <div class="alert alert-success"><?php echo htmlspecialchars($message); ?></div>
+    <div class="alert alert-success"><i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($message); ?></div>
 <?php endif; ?>
 <?php if ($error): ?>
-    <div class="alert alert-error"><?php echo htmlspecialchars($error); ?></div>
+    <div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?></div>
 <?php endif; ?>
 
-<div class="page-header-admin">
-    <h1><i class="fas fa-crown" style="color: #ffd700;"></i> Premium</h1>
+<div class="page-header">
+    <h1 class="page-title"><i class="fas fa-crown" style="color: #ffd700;"></i> Premium</h1>
+    <p class="page-subtitle">Gerenciamento de assinaturas Premium</p>
 </div>
 
 <!-- Stats -->
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-icon"><i class="fas fa-crown" style="color: #ffd700;"></i></div>
-        <div class="stat-info">
-            <div class="stat-value"><?php echo $activePremium; ?></div>
-            <div class="stat-label">Premium Ativos</div>
-        </div>
+        <div class="icon warning"><i class="fas fa-crown"></i></div>
+        <div class="value"><?php echo $activePremium; ?></div>
+        <div class="label">Premium Ativos</div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon"><i class="fas fa-receipt" style="color: var(--primary);"></i></div>
-        <div class="stat-info">
-            <div class="stat-value"><?php echo $totalPremium; ?></div>
-            <div class="stat-label">Total Assinaturas</div>
-        </div>
+        <div class="icon primary"><i class="fas fa-receipt"></i></div>
+        <div class="value"><?php echo $totalPremium; ?></div>
+        <div class="label">Total Assinaturas</div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon"><i class="fas fa-dollar-sign" style="color: var(--success);"></i></div>
-        <div class="stat-info">
-            <div class="stat-value">R$ <?php echo number_format($totalRevenue, 2, ',', '.'); ?></div>
-            <div class="stat-label">Receita Premium</div>
-        </div>
+        <div class="icon success"><i class="fas fa-dollar-sign"></i></div>
+        <div class="value">R$ <?php echo number_format($totalRevenue, 2, ',', '.'); ?></div>
+        <div class="label">Receita Premium</div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon"><i class="fas fa-tag" style="color: var(--warning);"></i></div>
-        <div class="stat-info">
-            <div class="stat-value">R$ <?php echo number_format($premiumPrice, 2, ',', '.'); ?></div>
-            <div class="stat-label">Preco Atual</div>
-        </div>
+        <div class="icon warning"><i class="fas fa-tag"></i></div>
+        <div class="value">R$ <?php echo number_format($premiumPrice, 2, ',', '.'); ?></div>
+        <div class="label">Preco Atual</div>
     </div>
 </div>
 
 <!-- Settings -->
-<div class="card" style="margin-top: 20px;">
-    <div class="card-header">
-        <h3><i class="fas fa-cog"></i> Configuracoes Premium</h3>
+<div class="panel">
+    <div class="panel-header">
+        <h3 class="panel-title"><i class="fas fa-cog"></i> Configuracoes Premium</h3>
     </div>
-    <div class="card-body">
+    <div class="panel-body">
         <form method="POST">
             <input type="hidden" name="action" value="update_premium_settings">
 
-            <div class="form-row" style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px;">
-                <div class="form-group" style="flex: 1; min-width: 200px;">
-                    <label>Status</label>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Status</label>
                     <div style="margin-top: 8px;">
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                             <input type="checkbox" name="premium_enabled" <?php echo $premiumEnabled ? 'checked' : ''; ?>>
@@ -181,12 +172,12 @@ try {
                         </label>
                     </div>
                 </div>
-                <div class="form-group" style="flex: 1; min-width: 200px;">
-                    <label>Preco (R$)</label>
+                <div class="form-group">
+                    <label class="form-label">Preco (R$)</label>
                     <input type="number" name="premium_price" value="<?php echo $premiumPrice; ?>" step="0.01" min="1" max="999" class="form-control">
                 </div>
-                <div class="form-group" style="flex: 1; min-width: 200px;">
-                    <label>Duracao (dias)</label>
+                <div class="form-group">
+                    <label class="form-label">Duracao (dias)</label>
                     <input type="number" name="premium_duration" value="<?php echo $premiumDuration; ?>" min="1" max="365" class="form-control">
                 </div>
             </div>
@@ -197,31 +188,31 @@ try {
 </div>
 
 <!-- Manual Premium Management -->
-<div class="card" style="margin-top: 20px;">
-    <div class="card-header">
-        <h3><i class="fas fa-user-cog"></i> Gerenciamento Manual</h3>
+<div class="panel">
+    <div class="panel-header">
+        <h3 class="panel-title"><i class="fas fa-user-cog"></i> Gerenciamento Manual</h3>
     </div>
-    <div class="card-body">
-        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-            <form method="POST" style="flex: 1; min-width: 250px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+    <div class="panel-body">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <form method="POST" style="padding: 20px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid var(--border-color);">
                 <input type="hidden" name="action" value="extend_premium">
-                <h4 style="margin-bottom: 10px; color: var(--success);"><i class="fas fa-plus-circle"></i> Estender Premium</h4>
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label>ID do Usuario</label>
+                <h4 style="margin-bottom: 15px; color: var(--success); font-family: 'Orbitron', sans-serif; font-size: 0.95rem;"><i class="fas fa-plus-circle"></i> Estender Premium</h4>
+                <div class="form-group">
+                    <label class="form-label">ID do Usuario</label>
                     <input type="number" name="user_id" required class="form-control" placeholder="Ex: 123">
                 </div>
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label>Dias para Estender</label>
+                <div class="form-group">
+                    <label class="form-label">Dias para Estender</label>
                     <input type="number" name="extend_days" value="30" min="1" max="365" class="form-control">
                 </div>
                 <button type="submit" class="btn btn-success"><i class="fas fa-crown"></i> Estender</button>
             </form>
 
-            <form method="POST" style="flex: 1; min-width: 250px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px;" onsubmit="return confirm('Tem certeza que deseja revogar o Premium?')">
+            <form method="POST" style="padding: 20px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid var(--border-color);" onsubmit="return confirm('Tem certeza que deseja revogar o Premium?')">
                 <input type="hidden" name="action" value="revoke_premium">
-                <h4 style="margin-bottom: 10px; color: var(--danger);"><i class="fas fa-ban"></i> Revogar Premium</h4>
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label>ID do Usuario</label>
+                <h4 style="margin-bottom: 15px; color: var(--danger); font-family: 'Orbitron', sans-serif; font-size: 0.95rem;"><i class="fas fa-ban"></i> Revogar Premium</h4>
+                <div class="form-group">
+                    <label class="form-label">ID do Usuario</label>
                     <input type="number" name="user_id" required class="form-control" placeholder="Ex: 123">
                 </div>
                 <button type="submit" class="btn btn-danger"><i class="fas fa-times"></i> Revogar</button>
@@ -231,64 +222,67 @@ try {
 </div>
 
 <!-- Recent Subscriptions -->
-<div class="card" style="margin-top: 20px;">
-    <div class="card-header">
-        <h3><i class="fas fa-list"></i> Assinaturas Recentes</h3>
+<div class="panel">
+    <div class="panel-header">
+        <h3 class="panel-title"><i class="fas fa-list"></i> Assinaturas Recentes</h3>
     </div>
-    <div class="card-body" style="overflow-x: auto;">
+    <div class="panel-body">
         <?php if (count($recentSubscriptions) > 0): ?>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Usuario</th>
-                        <th>Valor</th>
-                        <th>Duracao</th>
-                        <th>Status</th>
-                        <th>Ativado em</th>
-                        <th>Expira em</th>
-                        <th>Criado em</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($recentSubscriptions as $sub): ?>
+            <div class="table-container">
+                <table>
+                    <thead>
                         <tr>
-                            <td>#<?php echo $sub['id']; ?></td>
-                            <td>
-                                <div><?php echo htmlspecialchars($sub['display_name'] ?? 'N/A'); ?></div>
-                                <small style="color: var(--text-dim);">ID: <?php echo $sub['user_id']; ?></small>
-                            </td>
-                            <td>R$ <?php echo number_format($sub['price_brl'], 2, ',', '.'); ?></td>
-                            <td><?php echo $sub['duration_days']; ?> dias</td>
-                            <td>
-                                <?php
-                                $statusClass = match($sub['status']) {
-                                    'active' => 'badge-success',
-                                    'pending' => 'badge-warning',
-                                    'expired' => 'badge-info',
-                                    'revoked' => 'badge-danger',
-                                    default => ''
-                                };
-                                $statusText = match($sub['status']) {
-                                    'active' => 'Ativo',
-                                    'pending' => 'Pendente',
-                                    'expired' => 'Expirado',
-                                    'revoked' => 'Revogado',
-                                    default => $sub['status']
-                                };
-                                ?>
-                                <span class="badge <?php echo $statusClass; ?>"><?php echo $statusText; ?></span>
-                            </td>
-                            <td><?php echo $sub['activated_at'] ? date('d/m/Y H:i', strtotime($sub['activated_at'])) : '-'; ?></td>
-                            <td><?php echo $sub['expires_at'] ? date('d/m/Y H:i', strtotime($sub['expires_at'])) : '-'; ?></td>
-                            <td><?php echo date('d/m/Y H:i', strtotime($sub['created_at'])); ?></td>
+                            <th>ID</th>
+                            <th>Usuario</th>
+                            <th>Valor</th>
+                            <th>Duracao</th>
+                            <th>Status</th>
+                            <th>Ativado em</th>
+                            <th>Expira em</th>
+                            <th>Criado em</th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($recentSubscriptions as $sub): ?>
+                            <tr>
+                                <td>#<?php echo $sub['id']; ?></td>
+                                <td>
+                                    <div style="font-weight: 600;"><?php echo htmlspecialchars($sub['display_name'] ?? 'N/A'); ?></div>
+                                    <small style="color: var(--text-dim);">ID: <?php echo $sub['user_id']; ?></small>
+                                </td>
+                                <td style="font-weight: 600; color: var(--success);">R$ <?php echo number_format($sub['price_brl'], 2, ',', '.'); ?></td>
+                                <td><?php echo $sub['duration_days']; ?> dias</td>
+                                <td>
+                                    <?php
+                                    $statusClass = match($sub['status']) {
+                                        'active' => 'badge-success',
+                                        'pending' => 'badge-warning',
+                                        'expired' => 'badge-info',
+                                        'revoked' => 'badge-danger',
+                                        default => ''
+                                    };
+                                    $statusText = match($sub['status']) {
+                                        'active' => 'Ativo',
+                                        'pending' => 'Pendente',
+                                        'expired' => 'Expirado',
+                                        'revoked' => 'Revogado',
+                                        default => $sub['status']
+                                    };
+                                    ?>
+                                    <span class="badge <?php echo $statusClass; ?>"><?php echo $statusText; ?></span>
+                                </td>
+                                <td><?php echo $sub['activated_at'] ? date('d/m/Y H:i', strtotime($sub['activated_at'])) : '-'; ?></td>
+                                <td><?php echo $sub['expires_at'] ? date('d/m/Y H:i', strtotime($sub['expires_at'])) : '-'; ?></td>
+                                <td><?php echo date('d/m/Y H:i', strtotime($sub['created_at'])); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         <?php else: ?>
             <div class="empty-state">
-                <i class="fas fa-crown" style="opacity: 0.3;"></i>
+                <i class="fas fa-crown"></i>
+                <h3>Nenhuma assinatura</h3>
                 <p>Nenhuma assinatura Premium ainda.</p>
             </div>
         <?php endif; ?>
