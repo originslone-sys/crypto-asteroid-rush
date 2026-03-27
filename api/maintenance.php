@@ -71,7 +71,33 @@ try {
     maintenanceLog("=== INÍCIO DA MANUTENÇÃO UNOBIX ===");
 
     // ============================================
-    // 0. TENTAR EXECUTAR STORED PROCEDURE PRIMEIRO
+    // 0a. GARANTIR ÍNDICES CRÍTICOS (idempotente)
+    // Sem índices, queries fazem full table scan e causam 504
+    // ============================================
+    $indexDefs = [
+        ['game_sessions', 'idx_gs_uid_status', '(google_uid, status)'],
+        ['game_sessions', 'idx_gs_uid',        '(google_uid)'],
+        ['users',         'idx_users_google_uid', '(google_uid)'],
+        ['referrals',     'idx_ref_referred_status', '(referred_google_uid, status)'],
+        ['referrals',     'idx_ref_referrer', '(referrer_google_uid)'],
+        ['transactions',  'idx_tx_created_at', '(created_at)'],
+        ['transactions',  'idx_tx_type_status', '(type, status)'],
+    ];
+    foreach ($indexDefs as [$table, $name, $cols]) {
+        if (!tableExists($pdo, $table)) continue;
+        try {
+            $pdo->exec("ALTER TABLE `{$table}` ADD INDEX `{$name}` {$cols}");
+            maintenanceLog("Indice criado: {$table}.{$name}");
+        } catch (PDOException $e) {
+            // 1061 = Duplicate key name (already exists) - expected
+            if (strpos($e->getMessage(), 'Duplicate key name') === false) {
+                maintenanceLog("Indice {$table}.{$name}: " . $e->getMessage());
+            }
+        }
+    }
+
+    // ============================================
+    // 0b. TENTAR EXECUTAR STORED PROCEDURE PRIMEIRO
     // ============================================
     try {
         $stmt = $pdo->query("CALL sp_cleanup_old_data()");
