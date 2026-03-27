@@ -28,8 +28,8 @@ try {
         SELECT
             COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
             SUM(CASE WHEN status = 'pending' THEN amount_brl ELSE 0 END) as pending_amount,
-            COUNT(CASE WHEN status = 'completed' AND DATE(processed_at) = CURDATE() THEN 1 END) as completed_today_count,
-            SUM(CASE WHEN status = 'completed' AND DATE(processed_at) = CURDATE() THEN amount_brl ELSE 0 END) as completed_today_amount,
+            COUNT(CASE WHEN status = 'completed' AND processed_at >= CURDATE() AND processed_at < CURDATE() + INTERVAL 1 DAY THEN 1 END) as completed_today_count,
+            SUM(CASE WHEN status = 'completed' AND processed_at >= CURDATE() AND processed_at < CURDATE() + INTERVAL 1 DAY THEN amount_brl ELSE 0 END) as completed_today_amount,
             COUNT(CASE WHEN status = 'completed' AND processed_at > DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as completed_month_count,
             SUM(CASE WHEN status = 'completed' AND processed_at > DATE_SUB(NOW(), INTERVAL 30 DAY) THEN amount_brl ELSE 0 END) as completed_month_amount,
             COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_total_count,
@@ -47,7 +47,7 @@ try {
             SUM(earnings_brl) as earnings_today,
             SUM(asteroids_destroyed) as asteroids_today
         FROM game_sessions
-        WHERE DATE(created_at) = CURDATE()
+        WHERE created_at >= CURDATE() AND created_at < CURDATE() + INTERVAL 1 DAY
     ")->fetch();
 
     // Estatísticas de sessões (30 dias)
@@ -71,8 +71,8 @@ try {
     try {
         $creditPurchaseStats = $pdo->query("
             SELECT
-                COUNT(CASE WHEN DATE(confirmed_at) = CURDATE() AND status = 'confirmed' THEN 1 END) as today_count,
-                COALESCE(SUM(CASE WHEN DATE(confirmed_at) = CURDATE() AND status = 'confirmed' THEN price_brl ELSE 0 END), 0) as today_amount,
+                COUNT(CASE WHEN confirmed_at >= CURDATE() AND confirmed_at < CURDATE() + INTERVAL 1 DAY AND status = 'confirmed' THEN 1 END) as today_count,
+                COALESCE(SUM(CASE WHEN confirmed_at >= CURDATE() AND confirmed_at < CURDATE() + INTERVAL 1 DAY AND status = 'confirmed' THEN price_brl ELSE 0 END), 0) as today_amount,
                 COUNT(CASE WHEN confirmed_at > DATE_SUB(NOW(), INTERVAL 30 DAY) AND status = 'confirmed' THEN 1 END) as month_count,
                 COALESCE(SUM(CASE WHEN confirmed_at > DATE_SUB(NOW(), INTERVAL 30 DAY) AND status = 'confirmed' THEN price_brl ELSE 0 END), 0) as month_amount,
                 COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as total_count,
@@ -84,8 +84,8 @@ try {
         try {
             $creditPurchaseStats = $pdo->query("
                 SELECT
-                    COUNT(CASE WHEN DATE(created_at) = CURDATE() AND type = 'credit_purchase' AND status = 'completed' THEN 1 END) as today_count,
-                    COALESCE(SUM(CASE WHEN DATE(created_at) = CURDATE() AND type = 'credit_purchase' AND status = 'completed' THEN amount_brl ELSE 0 END), 0) as today_amount,
+                    COUNT(CASE WHEN created_at >= CURDATE() AND created_at < CURDATE() + INTERVAL 1 DAY AND type = 'credit_purchase' AND status = 'completed' THEN 1 END) as today_count,
+                    COALESCE(SUM(CASE WHEN created_at >= CURDATE() AND created_at < CURDATE() + INTERVAL 1 DAY AND type = 'credit_purchase' AND status = 'completed' THEN amount_brl ELSE 0 END), 0) as today_amount,
                     COUNT(CASE WHEN created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) AND type = 'credit_purchase' AND status = 'completed' THEN 1 END) as month_count,
                     COALESCE(SUM(CASE WHEN created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) AND type = 'credit_purchase' AND status = 'completed' THEN amount_brl ELSE 0 END), 0) as month_amount,
                     COUNT(CASE WHEN type = 'credit_purchase' AND status = 'completed' THEN 1 END) as total_count,
@@ -100,7 +100,7 @@ try {
     try {
         $depositStats = $pdo->query("
             SELECT
-                COALESCE(SUM(CASE WHEN DATE(created_at) = CURDATE() AND type = 'deposit' AND status = 'completed' THEN amount_brl ELSE 0 END), 0) as today_amount,
+                COALESCE(SUM(CASE WHEN created_at >= CURDATE() AND created_at < CURDATE() + INTERVAL 1 DAY AND type = 'deposit' AND status = 'completed' THEN amount_brl ELSE 0 END), 0) as today_amount,
                 COALESCE(SUM(CASE WHEN created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) AND type = 'deposit' AND status = 'completed' THEN amount_brl ELSE 0 END), 0) as month_amount,
                 COALESCE(SUM(CASE WHEN type = 'deposit' AND status = 'completed' THEN amount_brl ELSE 0 END), 0) as total_amount
             FROM transactions
@@ -115,7 +115,7 @@ try {
                 COUNT(*) as total,
                 COUNT(CASE WHEN status = 'qualified' THEN 1 END) as qualified,
                 COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_brl ELSE 0 END), 0) as total_paid,
-                COALESCE(SUM(CASE WHEN status = 'paid' AND DATE(created_at) = CURDATE() THEN commission_brl ELSE 0 END), 0) as paid_today,
+                COALESCE(SUM(CASE WHEN status = 'paid' AND created_at >= CURDATE() AND created_at < CURDATE() + INTERVAL 1 DAY THEN commission_brl ELSE 0 END), 0) as paid_today,
                 COALESCE(SUM(CASE WHEN status = 'paid' AND created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) THEN commission_brl ELSE 0 END), 0) as paid_month
             FROM referrals
         ")->fetch() ?: $referralStats;
