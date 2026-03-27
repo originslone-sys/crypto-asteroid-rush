@@ -111,6 +111,11 @@ try {
                 <span>Creditos</span>
             </a>
 
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=premium" class="nav-item <?php echo $currentPage === 'premium' ? 'active' : ''; ?>">
+                <i class="fas fa-crown" style="color: #ffd700;"></i>
+                <span>Premium</span>
+            </a>
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=ads" class="nav-item <?php echo $currentPage === 'ads' ? 'active' : ''; ?>">
                 <i class="fas fa-ad"></i>
                 <span>Anuncios</span>

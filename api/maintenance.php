@@ -183,7 +183,36 @@ try {
     }
 
     // ============================================
-    // 8. LIMPAR USER SESSIONS EXPIRADAS
+    // 8. EXPIRAR ASSINATURAS PREMIUM
+    // ============================================
+    $premiumExpired = 0;
+    try {
+        $cols = $pdo->query("SHOW COLUMNS FROM users LIKE 'is_premium'")->fetch();
+        if ($cols) {
+            $stmt = $pdo->prepare("
+                UPDATE users SET is_premium = 0
+                WHERE is_premium = 1 AND premium_expires_at IS NOT NULL AND premium_expires_at < NOW()
+            ");
+            $stmt->execute();
+            $premiumExpired = $stmt->rowCount();
+            if ($premiumExpired > 0) {
+                maintenanceLog("Premium expirado para {$premiumExpired} usuarios");
+            }
+
+            // Also update premium_subscriptions table
+            if (tableExists($pdo, 'premium_subscriptions')) {
+                $pdo->exec("
+                    UPDATE premium_subscriptions SET status = 'expired'
+                    WHERE status = 'active' AND expires_at IS NOT NULL AND expires_at < NOW()
+                ");
+            }
+        }
+    } catch (Exception $e) {
+        maintenanceLog("Erro ao expirar premium: " . $e->getMessage());
+    }
+
+    // ============================================
+    // 9. LIMPAR USER SESSIONS EXPIRADAS
     // ============================================
     if (tableExists($pdo, 'user_sessions')) {
         $stmt = $pdo->exec("
@@ -195,7 +224,7 @@ try {
     }
 
     // ============================================
-    // 9. OTIMIZAR TABELAS PRINCIPAIS
+    // 10. OTIMIZAR TABELAS PRINCIPAIS
     // ============================================
     $tables = ['game_sessions', 'game_events', 'players', 'transactions', 'stakes', 'withdrawals'];
     foreach ($tables as $table) {
@@ -209,7 +238,7 @@ try {
     }
 
     // ============================================
-    // 10. ESTATÍSTICAS FINAIS
+    // 11. ESTATÍSTICAS FINAIS
     // ============================================
     $dbStats = [];
     

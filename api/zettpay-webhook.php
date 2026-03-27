@@ -147,10 +147,39 @@ function processDeposit($pdo, $data, $rawBody) {
 
             $depositAmount = (float)$tx['amount_brl'];
 
-            // Verificar se é compra de créditos (external_id começa com CRD-)
+            // Verificar tipo de depósito pelo prefixo do external_id
             $isCreditPurchase = strpos($externalId, 'CRD-') === 0;
+            $isPremiumPurchase = strpos($externalId, 'PRM-') === 0;
 
-            if ($isCreditPurchase) {
+            if ($isPremiumPurchase) {
+                // COMPRA DE PREMIUM: ativar assinatura
+                $premiumStmt = $pdo->prepare("SELECT * FROM premium_subscriptions WHERE external_id = ? LIMIT 1");
+                $premiumStmt->execute([$externalId]);
+                $premiumSub = $premiumStmt->fetch();
+
+                if (!$premiumSub) {
+                    $pdo->rollBack();
+                    secureLog("PREMIUM_PURCHASE_NOT_FOUND | external_id: {$externalId} | user_id: {$user['id']} | PAGAMENTO RECEBIDO MAS SEM REGISTRO");
+                    return;
+                }
+
+                if ($premiumSub['status'] === 'active') {
+                    secureLog("PREMIUM_PURCHASE_ALREADY_ACTIVE | external_id: {$externalId}");
+                } else {
+                    $durationDays = (int)($premiumSub['duration_days'] ?: 30);
+                    $expiresAt = date('Y-m-d H:i:s', strtotime("+{$durationDays} days"));
+
+                    // Activate premium on user
+                    $pdo->prepare("UPDATE users SET is_premium = 1, premium_expires_at = ?, updated_at = NOW() WHERE id = ?")
+                        ->execute([$expiresAt, $user['id']]);
+
+                    // Update subscription record
+                    $pdo->prepare("UPDATE premium_subscriptions SET status = 'active', activated_at = NOW(), expires_at = ? WHERE id = ?")
+                        ->execute([$expiresAt, $premiumSub['id']]);
+
+                    secureLog("PREMIUM_ACTIVATED | external_id: {$externalId} | user_id: {$user['id']} | duration: {$durationDays}d | expires: {$expiresAt}");
+                }
+            } elseif ($isCreditPurchase) {
                 // COMPRA DE CRÉDITOS: creditar créditos, não saldo
                 $purchaseStmt = $pdo->prepare("SELECT * FROM credit_purchases WHERE external_id = ? LIMIT 1");
                 $purchaseStmt->execute([$externalId]);
@@ -200,7 +229,7 @@ function processDeposit($pdo, $data, $rawBody) {
             $stmt = $pdo->prepare("
                 UPDATE transactions
                 SET status = 'completed'
-                WHERE google_uid = ? AND type IN ('deposit', 'credit_purchase') AND description LIKE ? AND status = 'pending'
+                WHERE google_uid = ? AND type IN ('deposit', 'credit_purchase', 'premium_purchase') AND description LIKE ? AND status = 'pending'
                 LIMIT 1
             ");
             $stmt->execute([$user['google_uid'], '%' . $externalId . '%']);
@@ -239,7 +268,7 @@ function processDeposit($pdo, $data, $rawBody) {
             $stmt = $pdo->prepare("
                 UPDATE transactions
                 SET status = 'failed'
-                WHERE google_uid = ? AND type IN ('deposit', 'credit_purchase') AND description LIKE ? AND status = 'pending'
+                WHERE google_uid = ? AND type IN ('deposit', 'credit_purchase', 'premium_purchase') AND description LIKE ? AND status = 'pending'
                 LIMIT 1
             ");
             $stmt->execute([$user['google_uid'], '%' . $externalId . '%']);

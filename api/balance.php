@@ -57,6 +57,8 @@ try {
     $hasIsBanned = in_array('is_banned', $availableCols);
     $hasCredits = in_array('credits', $availableCols);
     $hasWhatsapp = in_array('whatsapp', $availableCols);
+    $hasIsPremium = in_array('is_premium', $availableCols);
+    $hasPremiumExpires = in_array('premium_expires_at', $availableCols);
 
     // Buscar usuário
     $player = findPlayer($pdo, $googleUid);
@@ -86,6 +88,13 @@ try {
     $isBanned = $hasIsBanned ? (bool)($player['is_banned'] ?? 0) : false;
     $credits = $hasCredits ? (int)($player['credits'] ?? 0) : 0;
     $whatsapp = $hasWhatsapp ? ($player['whatsapp'] ?? null) : null;
+    $isPremium = false;
+    $premiumExpiresAt = null;
+    if ($hasIsPremium && $hasPremiumExpires) {
+        $premiumExpiresAt = $player['premium_expires_at'] ?? null;
+        $isPremium = !empty($player['is_premium']) && !empty($premiumExpiresAt) && strtotime($premiumExpiresAt) > time();
+        if (!$isPremium) $premiumExpiresAt = null;
+    }
 
     // Staking descontinuado — reward sempre zero
     $stakeReward = 0.0;
@@ -116,7 +125,9 @@ try {
         'display_name' => $player['display_name'] ?? null,
         'email' => $player['email'] ?? null,
         'is_new_player' => false,
-        'has_whatsapp' => !empty($whatsapp)
+        'has_whatsapp' => !empty($whatsapp),
+        'is_premium' => $isPremium,
+        'premium_expires_at' => $premiumExpiresAt
     ]);
 
 } catch (Throwable $e) {
