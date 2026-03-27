@@ -197,6 +197,7 @@ function confirmPendingDeposit($pdo, $tx, $zettpayId, $rawPayload) {
     $externalId = $tx['external_id'];
     $depositAmount = (float)$tx['amount_brl'];
     $isCreditPurchase = strpos($externalId, 'CRD-') === 0;
+    $isPremiumPurchase = strpos($externalId, 'PRM-') === 0;
 
     $pdo->beginTransaction();
 
@@ -223,7 +224,31 @@ function confirmPendingDeposit($pdo, $tx, $zettpayId, $rawPayload) {
             return false;
         }
 
-        if ($isCreditPurchase) {
+        if ($isPremiumPurchase) {
+            // COMPRA DE PREMIUM: ativar assinatura
+            $stmt = $pdo->prepare("SELECT * FROM premium_subscriptions WHERE external_id = ? LIMIT 1");
+            $stmt->execute([$externalId]);
+            $premiumSub = $stmt->fetch();
+
+            if (!$premiumSub) {
+                $pdo->rollBack();
+                secureLog("RECONCILE_PREMIUM_NOT_FOUND | external_id: {$externalId} | user_id: {$user['id']}");
+                return false;
+            }
+
+            if ($premiumSub['status'] !== 'active') {
+                $durationDays = (int)($premiumSub['duration_days'] ?: 30);
+                $expiresAt = date('Y-m-d H:i:s', strtotime("+{$durationDays} days"));
+
+                $pdo->prepare("UPDATE users SET is_premium = 1, premium_expires_at = ?, updated_at = NOW() WHERE id = ?")
+                    ->execute([$expiresAt, $user['id']]);
+
+                $pdo->prepare("UPDATE premium_subscriptions SET status = 'active', activated_at = NOW(), expires_at = ? WHERE id = ?")
+                    ->execute([$expiresAt, $premiumSub['id']]);
+
+                secureLog("RECONCILE_PREMIUM_ACTIVATED | external_id: {$externalId} | user_id: {$user['id']} | duration: {$durationDays}d | expires: {$expiresAt}");
+            }
+        } elseif ($isCreditPurchase) {
             $stmt = $pdo->prepare("SELECT * FROM credit_purchases WHERE external_id = ? LIMIT 1");
             $stmt->execute([$externalId]);
             $purchase = $stmt->fetch();
@@ -249,7 +274,7 @@ function confirmPendingDeposit($pdo, $tx, $zettpayId, $rawPayload) {
         $pdo->prepare("UPDATE zettpay_transactions SET status = 'confirmed', zettpay_id = ?, webhook_payload = ?, confirmed_at = NOW() WHERE id = ?")->execute([$zettpayId, $rawPayload, $tx['id']]);
 
         // Atualizar histórico
-        $pdo->prepare("UPDATE transactions SET status = 'completed' WHERE google_uid = ? AND type IN ('deposit', 'credit_purchase') AND description LIKE ? AND status = 'pending' LIMIT 1")->execute([$user['google_uid'], '%' . $externalId . '%']);
+        $pdo->prepare("UPDATE transactions SET status = 'completed' WHERE google_uid = ? AND type IN ('deposit', 'credit_purchase', 'premium_purchase') AND description LIKE ? AND status = 'pending' LIMIT 1")->execute([$user['google_uid'], '%' . $externalId . '%']);
 
         $pdo->commit();
         return true;

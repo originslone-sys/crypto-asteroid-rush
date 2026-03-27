@@ -117,6 +117,8 @@ try {
 } catch (Exception $e) {}
 ?>
 
+<div class="main-content">
+
 <?php if ($message): ?>
     <div class="alert alert-success"><i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($message); ?></div>
 <?php endif; ?>
@@ -288,3 +290,5 @@ try {
         <?php endif; ?>
     </div>
 </div>
+
+</div><!-- /.main-content -->

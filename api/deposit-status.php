@@ -116,6 +116,7 @@ function confirmDeposit($pdo, $tx, $user, $zettpayId, $rawPayload) {
     $externalId = $tx['external_id'];
     $depositAmount = (float)$tx['amount_brl'];
     $isCreditPurchase = strpos($externalId, 'CRD-') === 0;
+    $isPremiumPurchase = strpos($externalId, 'PRM-') === 0;
 
     $pdo->beginTransaction();
 
@@ -142,7 +143,31 @@ function confirmDeposit($pdo, $tx, $user, $zettpayId, $rawPayload) {
             return;
         }
 
-        if ($isCreditPurchase) {
+        if ($isPremiumPurchase) {
+            // COMPRA DE PREMIUM: ativar assinatura
+            $stmt = $pdo->prepare("SELECT * FROM premium_subscriptions WHERE external_id = ? LIMIT 1");
+            $stmt->execute([$externalId]);
+            $premiumSub = $stmt->fetch();
+
+            if (!$premiumSub) {
+                $pdo->rollBack();
+                secureLog("DEPOSIT_STATUS_PREMIUM_NOT_FOUND | external_id: {$externalId} | user_id: {$lockedUser['id']}");
+                return;
+            }
+
+            if ($premiumSub['status'] !== 'active') {
+                $durationDays = (int)($premiumSub['duration_days'] ?: 30);
+                $expiresAt = date('Y-m-d H:i:s', strtotime("+{$durationDays} days"));
+
+                $pdo->prepare("UPDATE users SET is_premium = 1, premium_expires_at = ?, updated_at = NOW() WHERE id = ?")
+                    ->execute([$expiresAt, $lockedUser['id']]);
+
+                $pdo->prepare("UPDATE premium_subscriptions SET status = 'active', activated_at = NOW(), expires_at = ? WHERE id = ?")
+                    ->execute([$expiresAt, $premiumSub['id']]);
+
+                secureLog("DEPOSIT_STATUS_PREMIUM_ACTIVATED | external_id: {$externalId} | user_id: {$lockedUser['id']} | duration: {$durationDays}d | expires: {$expiresAt}");
+            }
+        } elseif ($isCreditPurchase) {
             // Buscar credit_purchase
             $stmt = $pdo->prepare("SELECT * FROM credit_purchases WHERE external_id = ? LIMIT 1");
             $stmt->execute([$externalId]);
@@ -187,7 +212,7 @@ function confirmDeposit($pdo, $tx, $user, $zettpayId, $rawPayload) {
         $stmt = $pdo->prepare("
             UPDATE transactions
             SET status = 'completed'
-            WHERE google_uid = ? AND type IN ('deposit', 'credit_purchase') AND description LIKE ? AND status = 'pending'
+            WHERE google_uid = ? AND type IN ('deposit', 'credit_purchase', 'premium_purchase') AND description LIKE ? AND status = 'pending'
             LIMIT 1
         ");
         $stmt->execute([$lockedUser['google_uid'], '%' . $externalId . '%']);
