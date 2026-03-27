@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         switch ($action) {
             case 'update_premium_settings':
                 $premSettings = [
-                    'premium_price_brl' => max(1, min(999, (float)($_POST['premium_price'] ?? 9.90))),
+                    'premium_price_brl' => max(1, min(999, (float)($_POST['premium_price'] ?? 19.90))),
                     'premium_duration_days' => max(1, min(365, (int)($_POST['premium_duration'] ?? 30))),
                     'premium_enabled' => isset($_POST['premium_enabled']) ? 'true' : 'false',
                 ];
@@ -76,7 +76,7 @@ try {
     }
 } catch (Exception $e) {}
 
-$premiumPrice = (float)($settings['premium_price_brl'] ?? 9.90);
+$premiumPrice = (float)($settings['premium_price_brl'] ?? 19.90);
 $premiumDuration = (int)($settings['premium_duration_days'] ?? 30);
 $premiumEnabled = ($settings['premium_enabled'] ?? 'true') === 'true';
 
