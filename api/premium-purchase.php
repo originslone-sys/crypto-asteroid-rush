@@ -43,7 +43,7 @@ try {
 
             // Load price from settings
             $priceStmt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'premium_price_brl'");
-            $price = $priceStmt ? (float)($priceStmt->fetchColumn() ?: 9.90) : 9.90;
+            $price = $priceStmt ? (float)($priceStmt->fetchColumn() ?: 19.90) : 19.90;
 
             $durationStmt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'premium_duration_days'");
             $duration = $durationStmt ? (int)($durationStmt->fetchColumn() ?: 30) : 30;
@@ -80,7 +80,7 @@ try {
 
             // Load price from settings
             $priceStmt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'premium_price_brl'");
-            $price = $priceStmt ? (float)($priceStmt->fetchColumn() ?: 9.90) : 9.90;
+            $price = $priceStmt ? (float)($priceStmt->fetchColumn() ?: 19.90) : 19.90;
 
             $durationStmt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'premium_duration_days'");
             $duration = $durationStmt ? (int)($durationStmt->fetchColumn() ?: 30) : 30;
@@ -260,7 +260,7 @@ function ensurePremiumTable($pdo) {
         $stmt->execute();
         if ((int)$stmt->fetchColumn() === 0) {
             $defaults = [
-                ['premium_price_brl', '9.90', 1],
+                ['premium_price_brl', '19.90', 1],
                 ['premium_duration_days', '30', 1],
                 ['premium_enabled', 'true', 1],
             ];
