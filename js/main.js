@@ -498,6 +498,10 @@ async function loadDashboardData() {
                 games_played: parseInt(data.total_played) || 0,
                 staked_balance_brl: parseFloat(data.staked_balance_brl) || 0
             };
+
+            // Set premium flag for ads-manager (window + localStorage for cross-page)
+            window._userIsPremium = !!data.is_premium;
+            localStorage.setItem('userIsPremium', data.is_premium ? '1' : '0');
             
             // Atualizar UI
             const el = (id) => document.getElementById(id);

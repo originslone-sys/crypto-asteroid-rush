@@ -175,7 +175,22 @@ try {
     // 6. VERIFICAR CAPTCHA (se necessário)
     // ============================================
     
-    if ($isVictory && $finalEarnings > 0 && CAPTCHA_REQUIRED_ON_VICTORY) {
+    // Premium users skip CAPTCHA
+    $userIsPremium = false;
+    if ($session['user_id']) {
+        try {
+            $premStmt = $pdo->prepare("SELECT is_premium, premium_expires_at FROM users WHERE id = ?");
+            $premStmt->execute([$session['user_id']]);
+            $premData = $premStmt->fetch();
+            if ($premData && !empty($premData['is_premium']) && !empty($premData['premium_expires_at']) && strtotime($premData['premium_expires_at']) > time()) {
+                $userIsPremium = true;
+            }
+        } catch (Exception $e) {
+            // Column may not exist yet, ignore
+        }
+    }
+
+    if ($isVictory && $finalEarnings > 0 && CAPTCHA_REQUIRED_ON_VICTORY && !$userIsPremium) {
         $captchaResult = verifyCaptcha($captchaToken);
         
         if (!$captchaResult['success']) {

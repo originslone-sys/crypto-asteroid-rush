@@ -604,6 +604,87 @@
         </div>
     </section>
 
+    <!-- Seção Premium -->
+    <section class="withdraw-section" id="premiumSection">
+        <h3><i class="fas fa-crown" style="color: #ffd700;"></i> Premium <span style="font-size: 0.7rem; color: var(--text-dim); font-family: 'Exo 2', sans-serif; font-weight: 400; margin-left: 8px;">Opcional</span></h3>
+
+        <!-- Card Premium - Status Ativo -->
+        <div id="premiumActiveCard" style="display: none; padding: 20px; background: linear-gradient(135deg, rgba(255, 215, 0, 0.12), rgba(255, 140, 0, 0.06)); border: 2px solid rgba(255, 215, 0, 0.4); border-radius: 12px; margin-bottom: 15px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <i class="fas fa-crown" style="font-size: 2rem; color: #ffd700;"></i>
+                <div>
+                    <div style="font-family: 'Orbitron', sans-serif; font-size: 1.1rem; font-weight: 700; color: #ffd700;">PREMIUM ATIVO</div>
+                    <div style="color: var(--text-dim); font-size: 0.85rem;">Sem anuncios e sem CAPTCHA</div>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                <i class="fas fa-clock" style="color: var(--warning);"></i>
+                <span style="color: var(--text-dim); font-size: 0.85rem;">Expira em: <strong id="premiumExpiresText" style="color: #fff;">-</strong></span>
+            </div>
+        </div>
+
+        <!-- Card Premium - Compra -->
+        <div id="premiumBuyCard" style="display: none;">
+            <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
+                <div style="background: linear-gradient(135deg, rgba(255, 215, 0, 0.08), transparent); border: 2px solid rgba(255, 215, 0, 0.3); border-radius: 12px; padding: 22px; text-align: center; cursor: pointer; transition: all 0.3s; position: relative;" onclick="buyPremium()" onmouseover="this.style.borderColor='#ffd700'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255, 215, 0, 0.3)'; this.style.transform='none'">
+                    <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #ffd700, #ff8c00); color: #000; font-size: 0.65rem; font-weight: 700; padding: 2px 12px; border-radius: 8px; font-family: 'Orbitron', sans-serif;">PREMIUM</div>
+                    <i class="fas fa-crown" style="font-size: 2.5rem; color: #ffd700; margin-bottom: 10px; display: block;"></i>
+                    <div style="font-family: 'Orbitron', sans-serif; font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 6px;">Assinatura Premium</div>
+                    <div style="color: var(--text-dim); font-size: 0.8rem; margin-bottom: 12px;">
+                        <span id="premiumDurationText">30</span> dias sem anuncios e sem CAPTCHA
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 12px;">
+                        <span style="background: rgba(255,215,0,0.15); color: #ffd700; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem;"><i class="fas fa-ban"></i> Sem Ads</span>
+                        <span style="background: rgba(255,215,0,0.15); color: #ffd700; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem;"><i class="fas fa-shield-alt"></i> Sem CAPTCHA</span>
+                    </div>
+                    <div style="font-family: 'Orbitron', sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--success); background: rgba(5,255,161,0.1); padding: 8px 16px; border-radius: 8px; display: inline-block;" id="premiumPriceText">R$ 9,90</div>
+                    <button style="display: block; margin: 12px auto 0; padding: 10px 24px; background: linear-gradient(135deg, #ffd700, #ff8c00); color: #000; font-family: 'Orbitron', sans-serif; font-size: 0.75rem; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;" id="premiumBuyBtn"><i class="fas fa-crown"></i> Assinar Premium</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- QR Code Premium -->
+        <div id="premiumQrArea" style="display: none; margin-top: 20px;">
+            <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 25px; text-align: center; border: 1px solid rgba(255,215,0,0.3);">
+                <div id="premiumStatusBadge" style="margin-bottom: 15px;">
+                    <span class="tx-status pending" style="font-size: 0.9rem; padding: 6px 16px;">
+                        <i class="fas fa-clock"></i> Aguardando Pagamento
+                    </span>
+                </div>
+                <div id="premiumQrCode" style="margin: 15px auto; max-width: 250px;"></div>
+                <p style="color: var(--text-dim); font-size: 0.85rem; margin: 10px 0;">
+                    Valor: <strong id="premiumQrAmount" style="color: #ffd700;">R$ 0,00</strong>
+                </p>
+                <div style="margin-top: 15px;">
+                    <label style="color: var(--text-dim); font-size: 0.8rem; display: block; margin-bottom: 6px;">PIX Copia e Cola:</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="premiumPixCopyPaste" class="withdraw-input" readonly style="font-size: 0.75rem; font-family: monospace; cursor: pointer;" onclick="copyPremiumPixCode()">
+                        <button onclick="copyPremiumPixCode()" class="btn btn-primary" style="white-space: nowrap; padding: 14px 18px;">
+                            <i class="fas fa-copy"></i> Copiar
+                        </button>
+                    </div>
+                </div>
+                <div id="premiumTimer" style="margin-top: 12px; color: var(--text-dim); font-size: 0.8rem;">
+                    <i class="fas fa-spinner fa-spin"></i> Verificando pagamento...
+                </div>
+            </div>
+        </div>
+
+        <!-- Sucesso Premium -->
+        <div id="premiumSuccessArea" style="display: none; margin-top: 20px;">
+            <div style="background: rgba(255, 215, 0, 0.1); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 12px; padding: 25px; text-align: center;">
+                <i class="fas fa-crown" style="font-size: 3rem; color: #ffd700; margin-bottom: 10px;"></i>
+                <h4 style="color: #ffd700; margin-bottom: 5px;">Premium Ativado!</h4>
+                <p style="color: var(--text-dim);" id="premiumSuccessMsg">Aproveite sua experiencia sem anuncios e sem CAPTCHA!</p>
+            </div>
+        </div>
+
+        <div class="withdraw-info" style="margin-top: 15px;">
+            <i class="fas fa-info-circle"></i>
+            <span>Pagamento via PIX | Ativacao automatica apos confirmacao | Opcional</span>
+        </div>
+    </section>
+
     <!-- Seção de Saque -->
     <section class="withdraw-section">
         <h3><i class="fas fa-paper-plane"></i> Solicitar Saque via PIX</h3>
@@ -724,6 +805,11 @@ async function loadWalletData() {
             document.getElementById('walletEarned').textContent = formatBRL(data.total_earned_brl);
             document.getElementById('walletWithdrawn').textContent = formatBRL(data.total_withdrawn_brl);
             document.getElementById('walletPending').textContent = formatBRL(data.pending_withdrawal_brl || 0);
+
+            // Premium status
+            window._userIsPremium = !!data.is_premium;
+            localStorage.setItem('userIsPremium', data.is_premium ? '1' : '0');
+            updatePremiumUI(data.is_premium, data.premium_expires_at);
         }
     } catch (error) {
         console.error('Erro ao carregar carteira:', error);
@@ -973,7 +1059,9 @@ function getTransactionIcon(type) {
         'withdraw_reject': 'times-circle',
         'stake': 'lock',
         'unstake': 'unlock',
-        'deposit': 'arrow-down'
+        'deposit': 'arrow-down',
+        'premium_purchase': 'crown',
+        'credit_purchase': 'ticket-alt'
     };
     return icons[type] || 'circle';
 }
@@ -992,7 +1080,9 @@ function getTransactionTitle(type) {
         'withdraw_reject': 'Saque Rejeitado (Estorno)',
         'stake': 'Stake Realizado',
         'unstake': 'Unstake Realizado',
-        'deposit': 'Deposito PIX'
+        'deposit': 'Deposito PIX',
+        'premium_purchase': 'Assinatura Premium',
+        'credit_purchase': 'Compra de Creditos'
     };
     return titles[type] || type;
 }
@@ -1246,12 +1336,174 @@ function showDepositWarning(message) {
     setTimeout(() => { warning.style.display = 'none'; }, 5000);
 }
 
-// Limpar polling ao sair da pagina
-window.addEventListener('beforeunload', () => {
-    if (depositPollingInterval) {
-        clearInterval(depositPollingInterval);
+// (polling cleanup moved to end of script)
+
+// ============================================
+// PREMIUM - Assinatura Premium
+// ============================================
+let premiumPollingInterval = null;
+
+function updatePremiumUI(isPremium, expiresAt) {
+    const activeCard = document.getElementById('premiumActiveCard');
+    const buyCard = document.getElementById('premiumBuyCard');
+
+    if (isPremium && expiresAt) {
+        activeCard.style.display = 'block';
+        buyCard.style.display = 'none';
+
+        const expDate = new Date(expiresAt);
+        const now = new Date();
+        const diffDays = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
+        const formatted = expDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        document.getElementById('premiumExpiresText').textContent = formatted + ' (' + diffDays + ' dias restantes)';
+    } else {
+        activeCard.style.display = 'none';
+        buyCard.style.display = 'block';
+        loadPremiumPrice();
     }
-});
+}
+
+async function loadPremiumPrice() {
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    try {
+        const response = await fetch('api/premium-purchase.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid, action: 'get_status' })
+        });
+        const data = await response.json();
+        if (data.success) {
+            const price = 'R$ ' + parseFloat(data.price_brl).toFixed(2).replace('.', ',');
+            document.getElementById('premiumPriceText').textContent = price;
+            document.getElementById('premiumDurationText').textContent = data.duration_days || 30;
+        }
+    } catch (e) {
+        console.error('Erro ao carregar preco premium:', e);
+    }
+}
+
+async function buyPremium() {
+    const user = window.authManager?.currentUser;
+    if (!user) {
+        alert('Voce precisa estar logado!');
+        return;
+    }
+
+    const btn = document.getElementById('premiumBuyBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando PIX...';
+
+    try {
+        const response = await fetch('api/premium-purchase.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid, action: 'purchase' })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Show QR Code
+            document.getElementById('premiumBuyCard').style.display = 'none';
+            document.getElementById('premiumQrArea').style.display = 'block';
+            document.getElementById('premiumSuccessArea').style.display = 'none';
+
+            const priceText = 'R$ ' + data.amount_brl.toFixed(2).replace('.', ',');
+            document.getElementById('premiumQrAmount').textContent = priceText + ' (Premium ' + data.duration_days + ' dias)';
+            document.getElementById('premiumPixCopyPaste').value = data.pix_copy_paste || '';
+
+            // QR Code
+            const qrContainer = document.getElementById('premiumQrCode');
+            if (data.pix_copy_paste) {
+                const qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(data.pix_copy_paste);
+                qrContainer.innerHTML = '<img src="' + qrImageUrl + '" alt="QR Code PIX" style="width: 100%; max-width: 250px; border-radius: 8px; background: white; padding: 10px;">';
+            }
+
+            // Start polling
+            startPremiumPolling(user.uid, data.external_id);
+        } else {
+            alert(data.error || 'Erro ao gerar PIX');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro de conexao. Tente novamente.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-crown"></i> Assinar Premium';
+    }
+}
+
+function startPremiumPolling(googleUid, externalId) {
+    if (premiumPollingInterval) clearInterval(premiumPollingInterval);
+
+    let attempts = 0;
+    const maxAttempts = 180;
+
+    premiumPollingInterval = setInterval(async () => {
+        attempts++;
+
+        if (attempts > maxAttempts) {
+            clearInterval(premiumPollingInterval);
+            premiumPollingInterval = null;
+            document.getElementById('premiumTimer').innerHTML = '<i class="fas fa-clock" style="color: var(--warning);"></i> PIX expirado. Tente novamente.';
+            document.getElementById('premiumStatusBadge').innerHTML = '<span class="tx-status failed" style="font-size: 0.9rem; padding: 6px 16px;"><i class="fas fa-times"></i> Expirado</span>';
+            return;
+        }
+
+        try {
+            const response = await fetch('api/deposit-status.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ google_uid: googleUid, external_id: externalId })
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.is_confirmed) {
+                clearInterval(premiumPollingInterval);
+                premiumPollingInterval = null;
+
+                document.getElementById('premiumQrArea').style.display = 'none';
+                document.getElementById('premiumSuccessArea').style.display = 'block';
+
+                window._userIsPremium = true;
+                loadWalletData();
+                loadTransactionHistory();
+
+                setTimeout(() => {
+                    document.getElementById('premiumSuccessArea').style.display = 'none';
+                    // Show active card
+                    loadWalletData();
+                }, 8000);
+            } else if (data.is_expired || data.is_failed) {
+                clearInterval(premiumPollingInterval);
+                premiumPollingInterval = null;
+                document.getElementById('premiumTimer').innerHTML = '<i class="fas fa-times" style="color: var(--danger);"></i> ' + (data.is_expired ? 'Expirado' : 'Falhou') + '. Tente novamente.';
+                document.getElementById('premiumStatusBadge').innerHTML = '<span class="tx-status failed" style="font-size: 0.9rem; padding: 6px 16px;"><i class="fas fa-times"></i> ' + (data.is_expired ? 'Expirado' : 'Falhou') + '</span>';
+            }
+        } catch (error) {
+            console.error('Erro no polling premium:', error);
+        }
+    }, 5000);
+}
+
+function copyPremiumPixCode() {
+    const input = document.getElementById('premiumPixCopyPaste');
+    const text = input.value;
+    if (!text) return;
+
+    navigator.clipboard.writeText(text).then(() => {
+        const timer = document.getElementById('premiumTimer');
+        const original = timer.innerHTML;
+        timer.innerHTML = '<i class="fas fa-check" style="color: var(--success);"></i> Codigo copiado!';
+        setTimeout(() => { timer.innerHTML = original; }, 2000);
+    }).catch(() => {
+        input.select();
+        document.execCommand('copy');
+    });
+}
 
 // ============================================
 // INICIALIZAÇÃO
@@ -1280,6 +1532,12 @@ if (window.authManager?.currentUser) {
     loadTransactionHistory();
     selectPaymentMethod('pix'); // Default
 }
+
+// Clean up polling on page exit
+window.addEventListener('beforeunload', () => {
+    if (depositPollingInterval) clearInterval(depositPollingInterval);
+    if (premiumPollingInterval) clearInterval(premiumPollingInterval);
+});
 </script>
 </body>
 </html>

@@ -64,9 +64,15 @@ const AdsManager = {
 
         this._initPromise = (async () => {
             this.log('📺 AdsManager v5.0 inicializando...');
+
+            // Check premium status from localStorage (set by main.js/wallet.html)
+            if (!window._userIsPremium && localStorage.getItem('userIsPremium') === '1') {
+                window._userIsPremium = true;
+            }
+
             await this.loadConfig();
             this.isInitialized = true;
-            this.log('📺 AdsManager inicializado', this.config?.enabled ? '(ativo)' : '(desativado)');
+            this.log('📺 AdsManager inicializado', this.config?.enabled ? '(ativo)' : '(desativado)', window._userIsPremium ? '(premium)' : '');
         })();
 
         return this._initPromise;
@@ -248,6 +254,12 @@ const AdsManager = {
         const container = document.getElementById(containerId);
         if (!container) return Promise.resolve();
 
+        // Premium users skip all ads
+        if (window._userIsPremium) {
+            this.log('📺 Premium user - skipping pregame ad');
+            return Promise.resolve();
+        }
+
         if (!this.config?.enabled || !this.config?.pregame_enabled) {
             this.log('📺 Pregame ads desabilitados');
             return Promise.resolve();
@@ -286,6 +298,12 @@ const AdsManager = {
     async showEndGameAd(containerId = 'endgameAdContainer') {
         const container = document.getElementById(containerId);
         if (!container) return;
+
+        // Premium users skip all ads
+        if (window._userIsPremium) {
+            this.log('📺 Premium user - skipping endgame ad');
+            return;
+        }
 
         if (!this.config?.enabled || !this.config?.endgame_enabled) {
             this.log('📺 Endgame ads desabilitados');
@@ -337,6 +355,7 @@ const AdsManager = {
     // ============================================
 
     async showInterstitial() {
+        if (window._userIsPremium) return Promise.resolve();
         if (!this.config?.enabled || !this.config?.interstitial_enabled) {
             return Promise.resolve();
         }
@@ -408,6 +427,7 @@ const AdsManager = {
     // ============================================
 
     showBanner(position = null) {
+        if (window._userIsPremium) return;
         if (!this.config?.enabled || !this.config?.banner_enabled) return;
 
         // Injetar globais de banner
