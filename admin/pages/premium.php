@@ -41,6 +41,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
 
+            case 'activate_premium':
+                $subId = (int)($_POST['subscription_id'] ?? 0);
+                if ($subId > 0) {
+                    $stmt = $pdo->prepare("SELECT * FROM premium_subscriptions WHERE id = ? LIMIT 1");
+                    $stmt->execute([$subId]);
+                    $sub = $stmt->fetch();
+
+                    if ($sub && $sub['status'] === 'pending') {
+                        $durationDays = (int)($sub['duration_days'] ?: 30);
+                        $expiresAt = date('Y-m-d H:i:s', strtotime("+{$durationDays} days"));
+
+                        $pdo->prepare("UPDATE users SET is_premium = 1, premium_expires_at = ?, updated_at = NOW() WHERE id = ?")
+                            ->execute([$expiresAt, $sub['user_id']]);
+
+                        $pdo->prepare("UPDATE premium_subscriptions SET status = 'active', activated_at = NOW(), expires_at = ? WHERE id = ?")
+                            ->execute([$expiresAt, $subId]);
+
+                        $message = "Assinatura #{$subId} ativada manualmente! Expira em: {$expiresAt}";
+                    } else {
+                        $error = "Assinatura não encontrada ou não está pendente.";
+                    }
+                }
+                break;
+
             case 'extend_premium':
                 $userId = (int)($_POST['user_id'] ?? 0);
                 $days = max(1, (int)($_POST['extend_days'] ?? 30));
@@ -242,6 +266,7 @@ try {
                             <th>Ativado em</th>
                             <th>Expira em</th>
                             <th>Criado em</th>
+                            <th>Acoes</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -276,6 +301,19 @@ try {
                                 <td><?php echo $sub['activated_at'] ? date('d/m/Y H:i', strtotime($sub['activated_at'])) : '-'; ?></td>
                                 <td><?php echo $sub['expires_at'] ? date('d/m/Y H:i', strtotime($sub['expires_at'])) : '-'; ?></td>
                                 <td><?php echo date('d/m/Y H:i', strtotime($sub['created_at'])); ?></td>
+                                <td>
+                                    <?php if ($sub['status'] === 'pending'): ?>
+                                        <form method="POST" style="display:inline;" onsubmit="return confirm('Ativar premium para <?php echo htmlspecialchars($sub['display_name'] ?? 'N/A'); ?>?')">
+                                            <input type="hidden" name="action" value="activate_premium">
+                                            <input type="hidden" name="subscription_id" value="<?php echo $sub['id']; ?>">
+                                            <button type="submit" class="btn btn-success" style="padding: 4px 12px; font-size: 0.8rem;"><i class="fas fa-check"></i> Ativar</button>
+                                        </form>
+                                    <?php elseif ($sub['status'] === 'active'): ?>
+                                        <span style="color: var(--success); font-size: 0.85rem;"><i class="fas fa-check-circle"></i></span>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
