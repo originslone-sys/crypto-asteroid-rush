@@ -156,7 +156,7 @@ pm.min_spare_servers = ${PM_MIN_SPARE}
 pm.max_spare_servers = ${PM_MAX_SPARE}
 
 ; reciclagem para estabilidade
-pm.max_requests = 300
+pm.max_requests = 1000
 
 ; timeouts coerentes (nginx tem endpoints até 60s)
 request_terminate_timeout = 90s

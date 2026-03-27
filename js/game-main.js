@@ -498,6 +498,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // Fallback: se o authStateChanged já disparou antes do listener acima,
+    // o evento foi perdido. Verificar se auth já está pronto.
+    if (window.authManager?.currentUser) {
+        const user = window.authManager.currentUser;
+        console.log('🔐 Auth já pronto (fallback), disparando manualmente');
+        document.dispatchEvent(new CustomEvent('authStateChanged', { detail: { user } }));
+    }
+
     // Unlock audio on any interaction
     const unlockOnInteraction = () => {
         if (typeof unlockAudio === 'function' && typeof isAudioUnlocked !== 'undefined' && !isAudioUnlocked) {
