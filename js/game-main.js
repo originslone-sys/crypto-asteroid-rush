@@ -206,8 +206,13 @@ async function startGameSession() {
     startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Preparando...</span>';
     
     try {
-        // Redirecionar para página de loading pré-jogo (com anúncios)
-        window.location.href = 'pregame.html';
+        // Premium: pular anúncios, ir direto pro jogo
+        if (window._userIsPremium) {
+            window.location.href = 'game.html?start=true';
+        } else {
+            // Redirecionar para página de loading pré-jogo (com anúncios)
+            window.location.href = 'pregame.html';
+        }
         
     } catch (error) {
         console.error('❌ Erro:', error);
@@ -244,7 +249,12 @@ function updateUserUI(user) {
 // Main initialization
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🎮 Unobix v4.1 - Inicializando...');
-    
+
+    // Carregar flag premium do localStorage
+    if (!window._userIsPremium && localStorage.getItem('userIsPremium') === '1') {
+        window._userIsPremium = true;
+    }
+
     // Initialize UI elements
     if (typeof initUIElements === 'function') {
         initUIElements();
