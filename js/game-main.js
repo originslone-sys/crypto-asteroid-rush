@@ -245,9 +245,24 @@ function updateUserUI(user) {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🎮 Unobix v4.1 - Inicializando...');
 
-    // Carregar flag premium do localStorage
+    // Carregar flag premium do localStorage (instantâneo)
     if (!window._userIsPremium && localStorage.getItem('userIsPremium') === '1') {
         window._userIsPremium = true;
+    }
+
+    // Atualizar flag premium do servidor em background (pega ativação pelo admin)
+    const cachedUid = localStorage.getItem('googleUid');
+    if (cachedUid) {
+        fetch('api/balance.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: cachedUid })
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                window._userIsPremium = !!data.is_premium;
+                localStorage.setItem('userIsPremium', data.is_premium ? '1' : '0');
+            }
+        }).catch(() => {});
     }
 
     // Initialize UI elements

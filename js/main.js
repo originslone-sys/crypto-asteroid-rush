@@ -660,7 +660,11 @@ async function loadWalletData() {
         
         if (data.success) {
             const el = (id) => document.getElementById(id);
-            
+
+            // Atualizar flag premium (mesmo ponto que loadDashboardData)
+            window._userIsPremium = !!data.is_premium;
+            localStorage.setItem('userIsPremium', data.is_premium ? '1' : '0');
+
             if (el('walletBalance')) el('walletBalance').textContent = formatBRL(data.balance_brl);
             if (el('walletEarned')) el('walletEarned').textContent = formatBRL(data.total_earned_brl);
             if (el('walletWithdrawn')) el('walletWithdrawn').textContent = formatBRL(data.total_withdrawn_brl);
