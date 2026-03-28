@@ -152,6 +152,22 @@ try {
     
     $sessionId = (int)$pdo->lastInsertId();
 
+    // Proteção contra loop de sessões: se última sessão foi abandonada há menos de 30s,
+    // reembolsar o crédito dela (era bug de redirect/auth, não uso legítimo)
+    $recentAbandoned = $pdo->prepare("
+        SELECT id FROM game_sessions
+        WHERE google_uid = ? AND status = 'abandoned'
+        AND earnings_brl = 0 AND asteroids_destroyed = 0
+        AND ended_at >= DATE_SUB(NOW(), INTERVAL 30 SECOND)
+        ORDER BY ended_at DESC LIMIT 1
+    ");
+    $recentAbandoned->execute([$realGoogleUid]);
+    if ($recentAbandoned->fetch()) {
+        // Sessão fantasma (loop de auth) — devolver crédito
+        $pdo->prepare("UPDATE users SET credits = credits + ? WHERE id = ?")->execute([CREDITS_PER_GAME, $userId]);
+        secureLog("CREDIT_REFUND_LOOP | User: $userId | Reason: abandoned session with 0 score within 30s");
+    }
+
     // Debitar crédito do usuário
     $stmt = $pdo->prepare("UPDATE users SET credits = credits - ? WHERE id = ? AND credits >= ?");
     $stmt->execute([CREDITS_PER_GAME, $userId, CREDITS_PER_GAME]);
