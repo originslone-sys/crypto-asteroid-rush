@@ -75,28 +75,34 @@ try {
     $stmt->execute([$realGoogleUid]);
     $activeSession = $stmt->fetch();
 
+    $forceStart = !empty($input['force_start']);
+
     if ($activeSession) {
         $elapsed = (int)$activeSession['elapsed'];
         $maxSessionTime = GAME_DURATION + GAME_TOLERANCE + (defined('CAPTCHA_RESEND_TOLERANCE') ? CAPTCHA_RESEND_TOLERANCE : 60);
 
-        if ($elapsed < $maxSessionTime) {
-            // Sessão ainda é válida — bloquear nova partida
-            echo json_encode([
-                'success' => false,
-                'error' => 'Você já tem uma partida em andamento! Finalize a partida atual antes de iniciar outra.',
-                'error_code' => 'ACTIVE_SESSION_EXISTS',
-                'active_session_id' => (int)$activeSession['id'],
-                'elapsed_seconds' => $elapsed
-            ]);
-            exit;
-        } else {
+        // Auto-expirar se: sessão ultrapassou tempo máximo OU jogo já acabou (>180s) e usuário pediu force_start
+        $shouldExpire = ($elapsed >= $maxSessionTime) || ($forceStart && $elapsed > GAME_DURATION);
+
+        if ($shouldExpire) {
             // Sessão expirada/travada — auto-expirar
             $pdo->prepare("
                 UPDATE game_sessions
                 SET status = 'abandoned', ended_at = NOW()
                 WHERE id = ?
             ")->execute([$activeSession['id']]);
-            secureLog("AUTO_EXPIRE_SESSION | Session: {$activeSession['id']} | Elapsed: {$elapsed}s | User: $userId");
+            secureLog("AUTO_EXPIRE_SESSION | Session: {$activeSession['id']} | Elapsed: {$elapsed}s | User: $userId | Force: " . ($forceStart ? 'YES' : 'NO'));
+        } else {
+            // Sessão ainda é válida — bloquear nova partida
+            echo json_encode([
+                'success' => false,
+                'error' => 'Você já tem uma partida em andamento! Finalize a partida atual antes de iniciar outra.',
+                'error_code' => 'ACTIVE_SESSION_EXISTS',
+                'active_session_id' => (int)$activeSession['id'],
+                'elapsed_seconds' => $elapsed,
+                'can_force' => $elapsed > GAME_DURATION
+            ]);
+            exit;
         }
     }
     
