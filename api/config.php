@@ -605,6 +605,12 @@ if (!function_exists('getUserIdentifier')) {
 // FORMATAR VALORES
 // ============================================
 
+// Carregar sistema de métricas (auto-registra shutdown function)
+if (!defined('METRICS_LOADED')) {
+    define('METRICS_LOADED', true);
+    require_once __DIR__ . '/metrics.php';
+}
+
 if (!function_exists('formatBRL')) {
     function formatBRL($value) {
         return 'R$ ' . number_format((float)$value, 2, ',', '.');
