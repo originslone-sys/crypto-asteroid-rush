@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UNOBIX | Fila de Saques</title>
+    <meta name="description" content="Acompanhe em tempo real o processamento de saques na plataforma Unobix.">
+
+    <link rel="icon" type="image/png" href="img/logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+
+    <style>
+        .page-header { text-align: center; padding: 40px 0 20px; }
+        .page-title {
+            font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 2rem;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+            margin-bottom: 8px;
+        }
+        .page-subtitle { color: var(--text-dim); font-size: 0.95rem; }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px; margin: 25px 0;
+        }
+        .stat-card {
+            background: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 20px; text-align: center;
+            transition: all 0.3s ease;
+        }
+        .stat-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+        .stat-icon { font-size: 1.5rem; margin-bottom: 8px; }
+        .stat-value { font-family: 'Orbitron', sans-serif; font-size: 1.6rem; font-weight: 700; }
+        .stat-label { color: var(--text-dim); font-size: 0.8rem; margin-top: 4px; }
+        .stat-card.pending .stat-icon { color: var(--warning); }
+        .stat-card.pending .stat-value { color: var(--warning); }
+        .stat-card.processing .stat-icon { color: var(--primary); }
+        .stat-card.processing .stat-value { color: var(--primary); }
+        .stat-card.completed .stat-icon { color: var(--success); }
+        .stat-card.completed .stat-value { color: var(--success); }
+        .stat-card.rejected .stat-icon { color: var(--danger); }
+        .stat-card.rejected .stat-value { color: var(--danger); }
+
+        /* Monitor de Previsao */
+        .monitor-card {
+            background: linear-gradient(135deg, rgba(0, 229, 204, 0.05), rgba(123, 245, 66, 0.05));
+            border: 1px solid var(--border-color); border-radius: 15px;
+            padding: 25px; margin-bottom: 25px;
+        }
+        .monitor-title {
+            font-family: 'Orbitron', sans-serif; font-size: 1rem;
+            color: var(--primary); margin-bottom: 15px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .monitor-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .monitor-item { text-align: center; }
+        .monitor-value {
+            font-family: 'Orbitron', sans-serif; font-size: 1.3rem;
+            font-weight: 700; color: #fff;
+        }
+        .monitor-value.highlight { color: var(--success); }
+        .monitor-label { color: var(--text-dim); font-size: 0.8rem; margin-top: 4px; }
+
+        /* Filtros */
+        .filter-bar {
+            display: flex; gap: 8px; margin-bottom: 20px;
+            flex-wrap: wrap; justify-content: center;
+        }
+        .filter-btn {
+            background: var(--card-bg); border: 1px solid var(--border-color);
+            color: var(--text-dim); padding: 8px 18px; border-radius: 20px;
+            font-family: 'Exo 2', sans-serif; font-size: 0.85rem;
+            cursor: pointer; transition: all 0.3s ease;
+        }
+        .filter-btn:hover { border-color: var(--primary); color: #fff; }
+        .filter-btn.active {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--deep-space); border-color: transparent; font-weight: 600;
+        }
+
+        /* Tabela */
+        .queue-table-container {
+            background: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 15px; overflow: hidden;
+        }
+        .queue-table { width: 100%; border-collapse: collapse; }
+        .queue-table th {
+            font-family: 'Orbitron', sans-serif; font-size: 0.7rem;
+            color: var(--text-dim); text-align: left; padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.2); text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .queue-table td {
+            padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.03);
+            font-size: 0.9rem; color: var(--text-secondary);
+        }
+        .queue-table tr:hover td { background: rgba(0, 229, 204, 0.03); }
+        .queue-table tr:last-child td { border-bottom: none; }
+
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 12px; border-radius: 20px; font-size: 0.75rem;
+            font-weight: 600; white-space: nowrap;
+        }
+        .status-badge.pending { background: rgba(255, 209, 102, 0.15); color: var(--warning); }
+        .status-badge.processing { background: rgba(0, 229, 204, 0.15); color: var(--primary); }
+        .status-badge.completed { background: rgba(0, 255, 136, 0.15); color: var(--success); }
+        .status-badge.rejected { background: rgba(255, 71, 87, 0.15); color: var(--danger); }
+
+        .user-name { color: var(--text-dim); }
+        .amount-value { font-family: 'Orbitron', sans-serif; font-weight: 600; font-size: 0.85rem; color: #fff; }
+        .date-value { color: var(--text-dim); font-size: 0.8rem; white-space: nowrap; }
+        .method-badge {
+            background: rgba(0, 229, 204, 0.1); color: var(--primary);
+            padding: 3px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 600;
+        }
+
+        /* Paginacao */
+        .pagination {
+            display: flex; justify-content: center; align-items: center;
+            gap: 8px; margin: 25px 0; flex-wrap: wrap;
+        }
+        .page-btn {
+            background: var(--card-bg); border: 1px solid var(--border-color);
+            color: var(--text-dim); padding: 8px 14px; border-radius: 8px;
+            font-family: 'Exo 2', sans-serif; font-size: 0.85rem;
+            cursor: pointer; transition: all 0.3s ease;
+        }
+        .page-btn:hover { border-color: var(--primary); color: #fff; }
+        .page-btn.active {
+            background: var(--primary); color: var(--deep-space);
+            border-color: var(--primary); font-weight: 600;
+        }
+        .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .page-info { color: var(--text-dim); font-size: 0.8rem; }
+
+        /* Auto-refresh indicator */
+        .refresh-bar {
+            display: flex; align-items: center; justify-content: center;
+            gap: 8px; color: var(--text-dim); font-size: 0.8rem; margin-bottom: 20px;
+        }
+        .refresh-dot {
+            width: 8px; height: 8px; border-radius: 50%; background: var(--success);
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* Loading */
+        .loading-spinner {
+            text-align: center; padding: 60px 0; color: var(--text-dim);
+        }
+        .loading-spinner i { font-size: 2rem; color: var(--primary); margin-bottom: 10px; }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center; padding: 60px 20px; color: var(--text-dim);
+        }
+        .empty-state i { font-size: 3rem; color: var(--border-color); margin-bottom: 15px; display: block; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .page-title { font-size: 1.5rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .monitor-grid { grid-template-columns: 1fr; }
+            .queue-table th, .queue-table td { padding: 10px 10px; font-size: 0.8rem; }
+            .hide-mobile { display: none; }
+        }
+        @media (max-width: 480px) {
+            .page-header { padding: 30px 0 15px; }
+            .stats-grid { gap: 10px; }
+            .stat-card { padding: 15px 10px; }
+            .stat-value { font-size: 1.3rem; }
+            .filter-btn { padding: 6px 14px; font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body data-page="fila-saques">
+<div class="cosmic-bg"></div>
+<div class="container">
+    <header class="header">
+        <a href="index.html" class="logo">
+            <img src="img/logo.png" alt="Unobix" class="logo-img">
+            <span class="logo-text">UNOBIX</span>
+        </a>
+        <nav class="nav" id="nav">
+            <a href="dashboard.html" class="nav-link">Painel</a>
+            <a href="game.html" class="nav-link">Jogar</a>
+            <a href="wallet.html" class="nav-link">Carteira</a>
+            <a href="affiliates.html" class="nav-link">Afiliados</a>
+            <a href="support.html" class="nav-link">Suporte</a>
+            <a href="how-to-play.html" class="nav-link">Como Jogar</a>
+            <a href="ranking.html" class="nav-link">Ranking</a>
+        </nav>
+        <a href="dashboard.html" class="wallet-btn" id="walletBtn"><i class="fas fa-rocket"></i> Entrar</a>
+        <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
+    </header>
+
+    <section class="page-header">
+        <h1 class="page-title"><i class="fas fa-list-check"></i> Fila de Saques</h1>
+        <p class="page-subtitle">Acompanhe em tempo real o processamento de saques</p>
+    </section>
+
+    <!-- Stats -->
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card pending">
+            <div class="stat-icon"><i class="fas fa-clock"></i></div>
+            <div class="stat-value" id="countPending">-</div>
+            <div class="stat-label">Pendentes</div>
+        </div>
+        <div class="stat-card processing">
+            <div class="stat-icon"><i class="fas fa-spinner fa-pulse"></i></div>
+            <div class="stat-value" id="countProcessing">-</div>
+            <div class="stat-label">Processando</div>
+        </div>
+        <div class="stat-card completed">
+            <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+            <div class="stat-value" id="countCompleted">-</div>
+            <div class="stat-label">Completados</div>
+        </div>
+        <div class="stat-card rejected">
+            <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+            <div class="stat-value" id="countRejected">-</div>
+            <div class="stat-label">Rejeitados</div>
+        </div>
+    </div>
+
+    <!-- Monitor de Previsao -->
+    <div class="monitor-card" id="monitorCard">
+        <div class="monitor-title"><i class="fas fa-chart-line"></i> Monitor de Processamento</div>
+        <div class="monitor-grid">
+            <div class="monitor-item">
+                <div class="monitor-value" id="monitorSpeed">-</div>
+                <div class="monitor-label">Processados / hora (24h)</div>
+            </div>
+            <div class="monitor-item">
+                <div class="monitor-value" id="monitorCompleted24h">-</div>
+                <div class="monitor-label">Completados nas ultimas 24h</div>
+            </div>
+            <div class="monitor-item">
+                <div class="monitor-value highlight" id="monitorEstimate">-</div>
+                <div class="monitor-label">Tempo estimado para processar fila</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refresh indicator -->
+    <div class="refresh-bar">
+        <span class="refresh-dot"></span>
+        <span>Atualiza automaticamente a cada 30 segundos</span>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filter-bar">
+        <button class="filter-btn active" data-status="all">Todos</button>
+        <button class="filter-btn" data-status="pending"><i class="fas fa-clock"></i> Pendentes</button>
+        <button class="filter-btn" data-status="processing"><i class="fas fa-spinner"></i> Processando</button>
+        <button class="filter-btn" data-status="completed"><i class="fas fa-check"></i> Completados</button>
+        <button class="filter-btn" data-status="rejected"><i class="fas fa-times"></i> Rejeitados</button>
+    </div>
+
+    <!-- Tabela -->
+    <div class="queue-table-container">
+        <table class="queue-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Usuario</th>
+                    <th>Valor</th>
+                    <th class="hide-mobile">Metodo</th>
+                    <th>Status</th>
+                    <th>Solicitado</th>
+                    <th class="hide-mobile">Processado</th>
+                </tr>
+            </thead>
+            <tbody id="queueBody">
+                <tr>
+                    <td colspan="7">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Carregando fila de saques...</p>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginacao -->
+    <div class="pagination" id="pagination"></div>
+
+    <footer class="footer">
+        <div class="footer-links">
+            <a href="how-to-play.html" class="footer-link"><i class="fas fa-book"></i> Como Jogar</a>
+            <a href="gameplay.html" class="footer-link"><i class="fas fa-gamepad"></i> Guia do Jogo</a>
+            <a href="economy.html" class="footer-link"><i class="fas fa-coins"></i> Economia</a>
+            <a href="faq.html" class="footer-link"><i class="fas fa-question-circle"></i> FAQ</a>
+            <a href="terms.html" class="footer-link"><i class="fas fa-file-contract"></i> Termos</a>
+            <a href="privacy.html" class="footer-link"><i class="fas fa-shield-alt"></i> Privacidade</a>
+        </div>
+        <p class="footer-copy">&copy; 2026 Unobix. Todos os direitos reservados.</p>
+    </footer>
+</div>
+
+<script>
+(function() {
+    let currentPage = 1;
+    let currentStatus = 'all';
+    let refreshTimer = null;
+
+    const statusLabels = {
+        pending: 'Pendente',
+        processing: 'Processando',
+        completed: 'Completado',
+        rejected: 'Rejeitado'
+    };
+
+    const statusIcons = {
+        pending: 'fas fa-clock',
+        processing: 'fas fa-spinner fa-pulse',
+        completed: 'fas fa-check-circle',
+        rejected: 'fas fa-times-circle'
+    };
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr.replace(' ', 'T'));
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const hour = String(d.getHours()).padStart(2, '0');
+        const min = String(d.getMinutes()).padStart(2, '0');
+        return day + '/' + month + ' ' + hour + ':' + min;
+    }
+
+    function formatEstimate(hours) {
+        if (hours === null) return 'Aguardando dados';
+        if (hours < 1) {
+            const mins = Math.round(hours * 60);
+            return mins <= 0 ? 'Menos de 1 min' : mins + ' min';
+        }
+        if (hours < 24) {
+            return hours.toFixed(1).replace('.', ',') + 'h';
+        }
+        const days = Math.floor(hours / 24);
+        const remainHours = Math.round(hours % 24);
+        return days + 'd ' + remainHours + 'h';
+    }
+
+    async function loadQueue() {
+        try {
+            const res = await fetch('api/withdrawal-queue.php?page=' + currentPage + '&status=' + currentStatus);
+            const data = await res.json();
+            if (!data.success) return;
+
+            // Stats
+            document.getElementById('countPending').textContent = data.counts.pending;
+            document.getElementById('countProcessing').textContent = data.counts.processing;
+            document.getElementById('countCompleted').textContent = data.counts.completed;
+            document.getElementById('countRejected').textContent = data.counts.rejected;
+
+            // Monitor
+            document.getElementById('monitorSpeed').textContent = data.monitor.avg_per_hour + '/h';
+            document.getElementById('monitorCompleted24h').textContent = data.monitor.completed_24h;
+            document.getElementById('monitorEstimate').textContent = formatEstimate(data.monitor.estimated_hours);
+
+            // Tabela
+            const tbody = document.getElementById('queueBody');
+
+            if (data.items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">' +
+                    '<i class="fas fa-inbox"></i><p>Nenhuma solicitacao encontrada</p></div></td></tr>';
+            } else {
+                tbody.innerHTML = data.items.map(function(item) {
+                    return '<tr>' +
+                        '<td><span style="color:var(--text-dim);font-size:0.8rem;">#' + item.id + '</span></td>' +
+                        '<td><span class="user-name">' + escapeHtml(item.name) + '</span></td>' +
+                        '<td><span class="amount-value">R$ ' + item.amount + '</span></td>' +
+                        '<td class="hide-mobile"><span class="method-badge">' + escapeHtml(item.method) + '</span></td>' +
+                        '<td><span class="status-badge ' + item.status + '"><i class="' + statusIcons[item.status] + '"></i> ' + statusLabels[item.status] + '</span></td>' +
+                        '<td><span class="date-value">' + formatDate(item.created_at) + '</span></td>' +
+                        '<td class="hide-mobile"><span class="date-value">' + formatDate(item.processed_at) + '</span></td>' +
+                    '</tr>';
+                }).join('');
+            }
+
+            // Paginacao
+            renderPagination(data.pagination);
+
+        } catch (e) {
+            console.error('Erro ao carregar fila:', e);
+        }
+    }
+
+    function renderPagination(p) {
+        const container = document.getElementById('pagination');
+        if (p.total_pages <= 1) { container.innerHTML = ''; return; }
+
+        let html = '';
+
+        html += '<button class="page-btn" ' + (p.page <= 1 ? 'disabled' : '') +
+            ' onclick="window._queueGoPage(' + (p.page - 1) + ')"><i class="fas fa-chevron-left"></i></button>';
+
+        const start = Math.max(1, p.page - 2);
+        const end = Math.min(p.total_pages, p.page + 2);
+
+        if (start > 1) {
+            html += '<button class="page-btn" onclick="window._queueGoPage(1)">1</button>';
+            if (start > 2) html += '<span class="page-info">...</span>';
+        }
+
+        for (let i = start; i <= end; i++) {
+            html += '<button class="page-btn ' + (i === p.page ? 'active' : '') +
+                '" onclick="window._queueGoPage(' + i + ')">' + i + '</button>';
+        }
+
+        if (end < p.total_pages) {
+            if (end < p.total_pages - 1) html += '<span class="page-info">...</span>';
+            html += '<button class="page-btn" onclick="window._queueGoPage(' + p.total_pages + ')">' + p.total_pages + '</button>';
+        }
+
+        html += '<button class="page-btn" ' + (p.page >= p.total_pages ? 'disabled' : '') +
+            ' onclick="window._queueGoPage(' + (p.page + 1) + ')"><i class="fas fa-chevron-right"></i></button>';
+
+        html += '<span class="page-info">' + p.total_items + ' solicitacoes</span>';
+
+        container.innerHTML = html;
+    }
+
+    window._queueGoPage = function(page) {
+        currentPage = page;
+        loadQueue();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // Filtros
+    document.querySelectorAll('.filter-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            currentStatus = btn.dataset.status;
+            currentPage = 1;
+            loadQueue();
+        });
+    });
+
+    // Mobile menu
+    var menuBtn = document.getElementById('mobileMenuBtn');
+    var nav = document.getElementById('nav');
+    if (menuBtn && nav) {
+        menuBtn.addEventListener('click', function() { nav.classList.toggle('active'); });
+    }
+
+    // Auto-refresh a cada 30s
+    function startAutoRefresh() {
+        if (refreshTimer) clearInterval(refreshTimer);
+        refreshTimer = setInterval(loadQueue, 30000);
+    }
+
+    // Iniciar
+    loadQueue();
+    startAutoRefresh();
+})();
+</script>
+</body>
+</html>
