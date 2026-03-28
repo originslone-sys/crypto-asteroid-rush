@@ -17,10 +17,13 @@ if (preg_match('~/(pages|includes)$~', $__scriptDir)) {
 $ADMIN_BASE_URL  = $__scriptDir;            // ex: '' ou '/admin'
 $ADMIN_INDEX_URL = $ADMIN_BASE_URL . '/index.php';
 
-// Verificar sessão
+// Restaurar sessão via cookie se perdida (Cloud Run stateless)
 if (!isset($_SESSION['admin'])) {
-    header('Location: ' . $ADMIN_INDEX_URL);
-    exit;
+    require_once __DIR__ . '/admin-auth.php';
+    if (!adminRestoreSession()) {
+        header('Location: ' . $ADMIN_INDEX_URL);
+        exit;
+    }
 }
 
 // Página atual - usar variável já definida ou detectar
