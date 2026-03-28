@@ -402,8 +402,10 @@ function showEndGameResults(stats, serverEarnings = null, serverBalance = null) 
         sessionStorage.removeItem('_showResultsDirect');
     }
 
-    if (isReturning || !_shouldShowPostgameAds()) {
-        // Exibir resultados direto (sem redirecionar)
+    // Premium: exibir resultados direto sem redirecionar (evita reload de página e re-auth)
+    const isPremium = localStorage.getItem('userIsPremium') === '1';
+
+    if (isReturning || isPremium || !_shouldShowPostgameAds()) {
         _displayResultsFinal(stats, displayEarnings, serverBalance);
         return;
     }
