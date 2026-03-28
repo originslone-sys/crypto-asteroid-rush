@@ -94,8 +94,9 @@ const CaptchaManager = {
      * Processar após verificação do reCAPTCHA
      * Reenvia ao servidor para creditar ganhos
      */
-    async processAfterVerification() {
-        console.log('🔄 Processando crédito após CAPTCHA...');
+    async processAfterVerification(retryCount = 0) {
+        const MAX_RETRIES = 2;
+        console.log('🔄 Processando crédito após CAPTCHA...' + (retryCount > 0 ? ` (tentativa ${retryCount + 1})` : ''));
 
         if (typeof SessionManager !== 'undefined' && SessionManager.hasPendingCaptcha()) {
             const token = this.getToken();
@@ -108,10 +109,8 @@ const CaptchaManager = {
 
                     if (result && result.success && result.credited) {
                         console.log('✅ Ganhos creditados!', result);
-
                         this.showStatus(`✅ R$ ${result.final_earnings.toFixed(2)} creditados!`, 'success');
                         this.enableClaimButton();
-
                         this.updateBalanceDisplay(result.new_balance);
                         this.updateEarningsDisplay(result.final_earnings, true);
 
@@ -120,16 +119,44 @@ const CaptchaManager = {
                         this.showStatus('✅ Ganhos já creditados!', 'success');
                         this.enableClaimButton();
 
+                    } else if (result && result.captcha_required) {
+                        // Token expirou no Google — resetar e pedir novo CAPTCHA
+                        console.warn('⚠️ Token CAPTCHA expirou, pedindo novo...');
+                        this.showStatus('⚠️ Verificação expirou. Complete novamente.', 'error');
+                        this.isVerified = false;
+                        this.lastToken = null;
+                        if (this.widgetId !== null && typeof grecaptcha !== 'undefined') {
+                            try { grecaptcha.reset(this.widgetId); } catch (e) {}
+                        }
+                        this.disableClaimButton();
+
                     } else if (result && result.error) {
                         console.error('❌ Erro ao creditar:', result.error);
-                        this.showStatus('❌ Erro: ' + result.error, 'error');
+                        if (result.error === 'Sessão expirada' || result.error.includes('expirada')) {
+                            this.showStatus('❌ Tempo esgotado. Ganhos não creditados.', 'error');
+                            this.enableClaimButton();
+                        } else {
+                            this.showStatus('❌ Erro: ' + result.error, 'error');
+                        }
                     } else {
                         this.showStatus('✅ Verificado! Clique para resgatar.', 'success');
                         this.enableClaimButton();
                     }
                 } catch (e) {
                     console.error('❌ Erro no processamento:', e);
-                    this.showStatus('❌ Erro ao processar. Tente novamente.', 'error');
+                    if (retryCount < MAX_RETRIES) {
+                        this.showStatus('🔄 Erro de conexão, tentando novamente...', 'info');
+                        setTimeout(() => this.processAfterVerification(retryCount + 1), 2000 * (retryCount + 1));
+                    } else {
+                        this.showStatus('❌ Erro ao processar. Tente completar o CAPTCHA novamente.', 'error');
+                        // Resetar para permitir nova tentativa
+                        this.isVerified = false;
+                        this.lastToken = null;
+                        if (this.widgetId !== null && typeof grecaptcha !== 'undefined') {
+                            try { grecaptcha.reset(this.widgetId); } catch (e2) {}
+                        }
+                        this.disableClaimButton();
+                    }
                 }
             }
         } else {

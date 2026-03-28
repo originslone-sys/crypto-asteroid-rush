@@ -409,19 +409,42 @@ document.addEventListener('DOMContentLoaded', () => {
             const btn = claimRewardBtn;
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
-            
-            // Show success after brief delay
-            setTimeout(() => {
-                btn.style.display = 'none';
-                const playAgain = document.getElementById('playAgainBtn');
-                const wallet = document.getElementById('walletBtn');
-                if (playAgain) playAgain.style.display = 'inline-flex';
-                if (wallet) wallet.style.display = 'inline-flex';
-                
-                if (typeof showNotification === 'function') {
-                    showNotification('✅ RESGATADO', 'Ganhos adicionados ao saldo!');
+
+            // Se tem CAPTCHA pendente, tentar processar primeiro
+            if (typeof CaptchaManager !== 'undefined' && CaptchaManager.isComplete() &&
+                typeof SessionManager !== 'undefined' && SessionManager.hasPendingCaptcha()) {
+                try {
+                    const token = CaptchaManager.getToken();
+                    if (token) {
+                        const result = await SessionManager.resendAfterCaptcha(token);
+                        if (!result || (!result.credited && !result.already_completed)) {
+                            // Falhou — reabilitar botão
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="fas fa-check"></i> <span>RESGATAR GANHOS</span>';
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Erro ao resgatar:', e);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check"></i> <span>RESGATAR GANHOS</span>';
+                    if (typeof CaptchaManager !== 'undefined') {
+                        CaptchaManager.showStatus('❌ Erro ao resgatar. Tente novamente.', 'error');
+                    }
+                    return;
                 }
-            }, 1500);
+            }
+
+            // Sucesso — mostrar botões de navegação
+            btn.style.display = 'none';
+            const playAgain = document.getElementById('playAgainBtn');
+            const wallet = document.getElementById('walletBtn');
+            if (playAgain) playAgain.style.display = 'inline-flex';
+            if (wallet) wallet.style.display = 'inline-flex';
+
+            if (typeof showNotification === 'function') {
+                showNotification('✅ RESGATADO', 'Ganhos adicionados ao saldo!');
+            }
         });
     }
     
