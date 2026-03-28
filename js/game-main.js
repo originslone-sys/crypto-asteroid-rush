@@ -440,80 +440,106 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listen for auth state changes
     document.addEventListener('authStateChanged', (e) => {
         const user = e.detail.user;
-        
+
         if (user) {
             gameState.user = user;
             gameState.googleUid = user.uid;
             gameState.isConnected = true;
-            
+
             updateUserUI(user);
-            
-            // Check if should auto-start (voltando do pregame.html)
-            const params = new URLSearchParams(window.location.search);
-            const shouldStart = params.get('start') === 'true';
-            const loadingComplete = sessionStorage.getItem('loadingComplete') === 'true';
-            
-            // Check if returning from postgame.html with results
-            const showResults = params.get('results') === 'true';
-            const postgameComplete = sessionStorage.getItem('postgameComplete') === 'true';
-            
-            if (showResults && postgameComplete) {
-                // Voltando do postgame.html — exibir resultados
-                sessionStorage.removeItem('postgameComplete');
-                window.history.replaceState({}, '', 'game.html');
 
-                try {
-                    const pgData = JSON.parse(sessionStorage.getItem('postgameData') || '{}');
-                    sessionStorage.removeItem('postgameData');
-
-                    // Restaurar sessão pendente de CAPTCHA (persistida antes do redirect)
-                    const pendingCaptcha = sessionStorage.getItem('pendingCaptchaSession');
-                    if (pendingCaptcha && typeof SessionManager !== 'undefined') {
-                        try {
-                            SessionManager.pendingEndSession = JSON.parse(pendingCaptcha);
-                            console.log('🔐 Sessão pendente de CAPTCHA restaurada');
-                        } catch (ce) {
-                            console.warn('⚠️ Erro ao restaurar sessão CAPTCHA:', ce);
-                        }
-                        sessionStorage.removeItem('pendingCaptchaSession');
-                    }
-
-                    if (pgData.stats && typeof showEndGameResults === 'function') {
-                        console.log('📊 Exibindo resultados do postgame');
-                        // Flag para showEndGameResults NÃO redirecionar de volta
-                        sessionStorage.setItem('_showResultsDirect', 'true');
-                        showEndGameResults(pgData.stats, pgData.serverEarnings, pgData.serverBalance);
-                    } else {
-                        showModal('gameMenuModal');
-                    }
-                } catch (e) {
-                    console.error('Erro ao restaurar resultados:', e);
-                    showModal('gameMenuModal');
-                }
-            } else if (shouldStart && loadingComplete) {
-                sessionStorage.removeItem('loadingComplete');
-                window.history.replaceState({}, '', 'game.html');
-                console.log('🎮 Auto-starting game');
-                setTimeout(() => {
-                    if (typeof startGameWithLoading === 'function') {
-                        startGameWithLoading();
-                    }
-                }, 500);
-            } else {
-                showModal('gameMenuModal');
+            // Se a UI já foi mostrada pelo cache, não repetir navegação
+            if (window._uiAlreadyShown) {
+                window._uiAlreadyShown = false;
+                return;
             }
+
+            _handlePostAuthNavigation();
         } else {
             // Not logged in, show connect modal
-            showModal('connectModal');
+            if (!window._uiAlreadyShown) {
+                showModal('connectModal');
+            }
         }
     });
-    
+
+    // Carregamento instantâneo: usar cache do localStorage enquanto Firebase inicializa
+    const cachedUid = localStorage.getItem('googleUid');
+    if (cachedUid && cachedUid.length > 10) {
+        console.log('⚡ Auth cache: carregando UI instantaneamente');
+        gameState.googleUid = cachedUid;
+        gameState.isConnected = true;
+
+        // Mostrar UI com dados em cache
+        const cachedUser = {
+            uid: cachedUid,
+            displayName: localStorage.getItem('userDisplayName') || '',
+            email: localStorage.getItem('userEmail') || '',
+            photoURL: localStorage.getItem('userPhotoURL') || ''
+        };
+        updateUserUI(cachedUser);
+        window._uiAlreadyShown = true;
+        _handlePostAuthNavigation();
+    }
+
     // Fallback: se o authStateChanged já disparou antes do listener acima,
     // o evento foi perdido. Verificar se auth já está pronto.
     if (window.authManager?.currentUser) {
         const user = window.authManager.currentUser;
         console.log('🔐 Auth já pronto (fallback), disparando manualmente');
         document.dispatchEvent(new CustomEvent('authStateChanged', { detail: { user } }));
+    }
+
+    // Lógica de navegação pós-auth (reutilizada por cache e auth real)
+    function _handlePostAuthNavigation() {
+        const params = new URLSearchParams(window.location.search);
+        const shouldStart = params.get('start') === 'true';
+        const loadingComplete = sessionStorage.getItem('loadingComplete') === 'true';
+        const showResults = params.get('results') === 'true';
+        const postgameComplete = sessionStorage.getItem('postgameComplete') === 'true';
+
+        if (showResults && postgameComplete) {
+            sessionStorage.removeItem('postgameComplete');
+            window.history.replaceState({}, '', 'game.html');
+
+            try {
+                const pgData = JSON.parse(sessionStorage.getItem('postgameData') || '{}');
+                sessionStorage.removeItem('postgameData');
+
+                const pendingCaptcha = sessionStorage.getItem('pendingCaptchaSession');
+                if (pendingCaptcha && typeof SessionManager !== 'undefined') {
+                    try {
+                        SessionManager.pendingEndSession = JSON.parse(pendingCaptcha);
+                        console.log('🔐 Sessão pendente de CAPTCHA restaurada');
+                    } catch (ce) {
+                        console.warn('⚠️ Erro ao restaurar sessão CAPTCHA:', ce);
+                    }
+                    sessionStorage.removeItem('pendingCaptchaSession');
+                }
+
+                if (pgData.stats && typeof showEndGameResults === 'function') {
+                    console.log('📊 Exibindo resultados do postgame');
+                    sessionStorage.setItem('_showResultsDirect', 'true');
+                    showEndGameResults(pgData.stats, pgData.serverEarnings, pgData.serverBalance);
+                } else {
+                    showModal('gameMenuModal');
+                }
+            } catch (e) {
+                console.error('Erro ao restaurar resultados:', e);
+                showModal('gameMenuModal');
+            }
+        } else if (shouldStart && loadingComplete) {
+            sessionStorage.removeItem('loadingComplete');
+            window.history.replaceState({}, '', 'game.html');
+            console.log('🎮 Auto-starting game');
+            setTimeout(() => {
+                if (typeof startGameWithLoading === 'function') {
+                    startGameWithLoading();
+                }
+            }, 500);
+        } else {
+            showModal('gameMenuModal');
+        }
     }
 
     // Unlock audio on any interaction
