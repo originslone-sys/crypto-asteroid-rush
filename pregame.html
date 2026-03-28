@@ -289,9 +289,15 @@
     let adsReady = false;
     let currentSlot = null;
 
+    // Verificar premium do localStorage
+    const isPremium = localStorage.getItem('userIsPremium') === '1';
+
     // Carregar 1 ÚNICO slot por sessão (rodízio sequencial via localStorage)
     // Cada sessão mostra o próximo slot da fila, sem conflito entre scripts
     async function loadAd() {
+        // Premium: não carregar anúncios
+        if (isPremium) return;
+
         try {
             if (typeof AdsManager === 'undefined') return;
             await AdsManager.init();
@@ -331,6 +337,7 @@
 
     // Duração: duration_seconds do slot atual, ou config global
     function getDuration() {
+        if (isPremium) return 2; // Premium: loading rápido sem anúncio
         if (adsReady && currentSlot) {
             const slotDuration = parseInt(currentSlot.duration_seconds);
             if (slotDuration > 0) return slotDuration;

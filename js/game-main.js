@@ -206,13 +206,8 @@ async function startGameSession() {
     startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Preparando...</span>';
     
     try {
-        // Premium: pular anúncios, ir direto pro jogo
-        if (window._userIsPremium) {
-            window.location.href = 'game.html?start=true';
-        } else {
-            // Redirecionar para página de loading pré-jogo (com anúncios)
-            window.location.href = 'pregame.html';
-        }
+        // Redirecionar para página de loading pré-jogo
+        window.location.href = 'pregame.html';
         
     } catch (error) {
         console.error('❌ Erro:', error);

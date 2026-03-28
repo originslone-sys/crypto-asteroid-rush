@@ -430,7 +430,6 @@ function showEndGameResults(stats, serverEarnings = null, serverBalance = null) 
  * Verificar se deve mostrar tela de ads pós-jogo
  */
 function _shouldShowPostgameAds() {
-    if (window._userIsPremium) return false;
     if (typeof AdsManager === 'undefined') return false;
     if (!AdsManager.isEnabled?.()) return false;
     const slots = AdsManager.getSlots?.()?.endgame || [];
