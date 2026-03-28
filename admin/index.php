@@ -157,7 +157,8 @@ $allowedPages = [
     'ads',
     'whatsapp',
     'support',
-    'premium'
+    'premium',
+    'metrics'
 ];
 
 if (!in_array($page, $allowedPages)) {
