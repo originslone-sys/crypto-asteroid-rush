@@ -251,12 +251,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Atualizar flag premium do servidor em background (pega ativação pelo admin)
-    const cachedUid = localStorage.getItem('googleUid');
-    if (cachedUid) {
+    const premiumCheckUid = localStorage.getItem('googleUid');
+    if (premiumCheckUid) {
         fetch('api/balance.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ google_uid: cachedUid })
+            body: JSON.stringify({ google_uid: premiumCheckUid })
         }).then(r => r.json()).then(data => {
             if (data.success) {
                 window._userIsPremium = !!data.is_premium;
