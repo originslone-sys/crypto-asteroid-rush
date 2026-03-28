@@ -34,11 +34,11 @@ steps:
       - '--memory'
       - '2Gi'
       - '--min-instances'
-      - '2'
+      - '3'
       - '--concurrency'
-      - '20'
+      - '50'
       - '--timeout'
-      - '120'
+      - '300'
       - '--set-env-vars'
       - >-
         CLOUDSQL_INSTANCE=project-7be1cae5-5f08-45fb-aca:us-west1:unobix,
