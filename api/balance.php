@@ -44,23 +44,7 @@ try {
     $pdo = getDatabaseConnection();
     if (!$pdo) throw new Exception("Falha na conexão com o banco");
 
-    // Detectar colunas disponíveis
-    $availableCols = [];
-    $stmt = $pdo->query("SHOW COLUMNS FROM users");
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $availableCols[] = $row['Field'];
-    }
-
-    $hasStakedBalance = in_array('staked_balance_brl', $availableCols);
-    $hasLastStakeUpdate = in_array('last_stake_update', $availableCols);
-    $hasTotalWithdrawn = in_array('total_withdrawn_brl', $availableCols);
-    $hasIsBanned = in_array('is_banned', $availableCols);
-    $hasCredits = in_array('credits', $availableCols);
-    $hasWhatsapp = in_array('whatsapp', $availableCols);
-    $hasIsPremium = in_array('is_premium', $availableCols);
-    $hasPremiumExpires = in_array('premium_expires_at', $availableCols);
-
-    // Buscar usuário
+    // Buscar usuário (todas as colunas já existem no schema atual)
     $player = findPlayer($pdo, $googleUid);
 
     if (!$player) {
@@ -77,23 +61,21 @@ try {
         exit;
     }
 
-    // Extrair valores
+    // Extrair valores (acesso direto com ?? fallback seguro)
     $balanceBrl = (float)($player['balance_brl'] ?? 0);
     $totalEarnedBrl = (float)($player['total_earned_brl'] ?? 0);
     $totalPlayed = (int)($player['total_played'] ?? 0);
-    
-    // Colunas opcionais
-    $stakedBrl = $hasStakedBalance ? (float)($player['staked_balance_brl'] ?? 0) : 0;
-    $totalWithdrawnBrl = $hasTotalWithdrawn ? (float)($player['total_withdrawn_brl'] ?? 0) : 0;
-    $isBanned = $hasIsBanned ? (bool)($player['is_banned'] ?? 0) : false;
-    $credits = $hasCredits ? (int)($player['credits'] ?? 0) : 0;
-    $whatsapp = $hasWhatsapp ? ($player['whatsapp'] ?? null) : null;
+    $stakedBrl = (float)($player['staked_balance_brl'] ?? 0);
+    $totalWithdrawnBrl = (float)($player['total_withdrawn_brl'] ?? 0);
+    $isBanned = (bool)($player['is_banned'] ?? 0);
+    $credits = (int)($player['credits'] ?? 0);
+    $whatsapp = $player['whatsapp'] ?? null;
     $isPremium = false;
-    $premiumExpiresAt = null;
-    if ($hasIsPremium && $hasPremiumExpires) {
-        $premiumExpiresAt = $player['premium_expires_at'] ?? null;
-        $isPremium = !empty($player['is_premium']) && !empty($premiumExpiresAt) && strtotime($premiumExpiresAt) > time();
-        if (!$isPremium) $premiumExpiresAt = null;
+    $premiumExpiresAt = $player['premium_expires_at'] ?? null;
+    if (!empty($player['is_premium']) && !empty($premiumExpiresAt) && strtotime($premiumExpiresAt) > time()) {
+        $isPremium = true;
+    } else {
+        $premiumExpiresAt = null;
     }
 
     // Staking descontinuado — reward sempre zero
