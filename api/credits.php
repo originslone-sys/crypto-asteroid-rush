@@ -267,6 +267,12 @@ function ensureCreditsTable($pdo) {
     static $checked = false;
     if ($checked) return;
 
+    $flagFile = sys_get_temp_dir() . '/unobix_table_credits.flag';
+    if (file_exists($flagFile) && (time() - filemtime($flagFile)) < 3600) {
+        $checked = true;
+        return;
+    }
+
     try {
         // Tabela de pacotes de créditos
         $pdo->exec("
@@ -333,6 +339,7 @@ function ensureCreditsTable($pdo) {
             // tabela transactions pode não existir ainda
         }
 
+        @touch($flagFile);
         $checked = true;
     } catch (Exception $e) {
         error_log("Credits table creation error: " . $e->getMessage());

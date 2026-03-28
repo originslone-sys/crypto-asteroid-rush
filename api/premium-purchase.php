@@ -223,6 +223,12 @@ function ensurePremiumTable($pdo) {
     static $checked = false;
     if ($checked) return;
 
+    $flagFile = sys_get_temp_dir() . '/unobix_table_premium.flag';
+    if (file_exists($flagFile) && (time() - filemtime($flagFile)) < 3600) {
+        $checked = true;
+        return;
+    }
+
     try {
         // Premium subscriptions table
         $pdo->exec("
@@ -271,6 +277,7 @@ function ensurePremiumTable($pdo) {
             secureLog("PREMIUM_TABLE | Configurações padrão inseridas");
         }
 
+        @touch($flagFile);
         $checked = true;
     } catch (Exception $e) {
         error_log("Premium table creation error: " . $e->getMessage());

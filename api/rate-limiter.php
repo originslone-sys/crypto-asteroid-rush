@@ -50,6 +50,15 @@ class RateLimiter {
     }
     
     private function ensureTableExists() {
+        static $checked = false;
+        if ($checked) return;
+
+        $flagFile = sys_get_temp_dir() . '/unobix_table_rate_limits.flag';
+        if (file_exists($flagFile) && (time() - filemtime($flagFile)) < 3600) {
+            $checked = true;
+            return;
+        }
+
         $this->pdo->exec("
             CREATE TABLE IF NOT EXISTS rate_limits (
                 id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -65,6 +74,9 @@ class RateLimiter {
                 INDEX idx_created (created_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+
+        @touch($flagFile);
+        $checked = true;
     }
     
     /**
@@ -89,15 +101,21 @@ class RateLimiter {
             VALUES (?, ?, ?, ?)
         ");
         $stmt->execute([$this->ip, $this->googleUid, $this->wallet, $actionType]);
+
+        // Cleanup automático probabilístico (1% das requests)
+        if (mt_rand(1, 100) === 1) {
+            $this->cleanup();
+        }
     }
-    
+
     /**
      * Limpar registros antigos
      */
     public function cleanup() {
         $this->pdo->exec("
-            DELETE FROM rate_limits 
+            DELETE FROM rate_limits
             WHERE created_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)
+            LIMIT 5000
         ");
     }
     
@@ -215,18 +233,26 @@ class RateLimiter {
      * Verificar se IP está na blacklist
      */
     public function checkIPBlacklist() {
-        $this->pdo->exec("
-            CREATE TABLE IF NOT EXISTS ip_blacklist (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                ip_address VARCHAR(45) NOT NULL UNIQUE,
-                reason VARCHAR(255) DEFAULT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                expires_at DATETIME DEFAULT NULL,
-                INDEX idx_ip (ip_address),
-                INDEX idx_expires (expires_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        ");
-        
+        static $tableChecked = false;
+        if (!$tableChecked) {
+            $flagFile = sys_get_temp_dir() . '/unobix_table_ip_blacklist.flag';
+            if (!file_exists($flagFile) || (time() - filemtime($flagFile)) >= 3600) {
+                $this->pdo->exec("
+                    CREATE TABLE IF NOT EXISTS ip_blacklist (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        ip_address VARCHAR(45) NOT NULL UNIQUE,
+                        reason VARCHAR(255) DEFAULT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        expires_at DATETIME DEFAULT NULL,
+                        INDEX idx_ip (ip_address),
+                        INDEX idx_expires (expires_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                ");
+                @touch($flagFile);
+            }
+            $tableChecked = true;
+        }
+
         $stmt = $this->pdo->prepare("
             SELECT reason FROM ip_blacklist
             WHERE ip_address = ?
@@ -321,18 +347,17 @@ class RateLimiter {
         // 1. IP blacklist
         $check = $this->checkIPBlacklist();
         if (!$check['allowed']) return $check;
-        
-        // 2. Requests por minuto
+
+        // 2. Requests por minuto (Nginx já faz rate limit primário,
+        //    aqui é segunda camada — só checa, não loga api_request
+        //    para reduzir writes no banco)
         $check = $this->checkRequestsPerMinute();
         if (!$check['allowed']) return $check;
-        
+
         // 3. Requests por hora
         $check = $this->checkRequestsPerHour();
         if (!$check['allowed']) return $check;
-        
-        // Registrar
-        $this->logAction('api_request');
-        
+
         return ['allowed' => true];
     }
     
