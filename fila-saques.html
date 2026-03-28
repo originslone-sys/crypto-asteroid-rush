@@ -168,7 +168,9 @@
             .page-title { font-size: 1.5rem; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
             .monitor-grid { grid-template-columns: 1fr; }
-            .queue-table th, .queue-table td { padding: 10px 10px; font-size: 0.8rem; }
+            .queue-table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .queue-table { min-width: 500px; }
+            .queue-table th, .queue-table td { padding: 10px 8px; font-size: 0.8rem; }
             .hide-mobile { display: none; }
         }
         @media (max-width: 480px) {
@@ -177,6 +179,10 @@
             .stat-card { padding: 15px 10px; }
             .stat-value { font-size: 1.3rem; }
             .filter-btn { padding: 6px 14px; font-size: 0.8rem; }
+            .queue-table { min-width: 420px; }
+            .queue-table th, .queue-table td { padding: 8px 6px; font-size: 0.75rem; }
+            .status-badge { padding: 3px 8px; font-size: 0.7rem; }
+            .amount-value { font-size: 0.75rem; }
         }
     </style>
 </head>
