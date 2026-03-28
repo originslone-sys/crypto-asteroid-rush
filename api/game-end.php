@@ -95,10 +95,13 @@ try {
     $gameDuration = time() - $startedAt;
     
     // Verificar se não passou muito tempo
-    // Reenvio com captcha_token recebe tolerância extra (tempo de ads postgame + CAPTCHA)
+    // Reenvio com captcha_token recebe tolerância generosa:
+    // O jogo já foi validado no primeiro request — o segundo é apenas para verificar CAPTCHA.
+    // Dar tempo suficiente para: ads postgame + renderizar CAPTCHA + resolver + rede lenta mobile.
     $maxAllowed = GAME_DURATION + GAME_TOLERANCE;
     if (!empty($captchaToken)) {
         $maxAllowed += defined('CAPTCHA_RESEND_TOLERANCE') ? CAPTCHA_RESEND_TOLERANCE : 60;
+        $maxAllowed += 120; // +2 minutos extra para mobile lento, ads, retry de CAPTCHA
     }
 
     if ($gameDuration > $maxAllowed) {
