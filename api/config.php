@@ -178,8 +178,44 @@ if (!function_exists('getDatabaseConnection')) {
 }
 
 if (!function_exists('getDBConnection')) {
-    function getDBConnection() { 
-        return getDatabaseConnection(); 
+    function getDBConnection() {
+        return getDatabaseConnection();
+    }
+}
+
+// ============================================
+// GARANTIR ÍNDICES CRÍTICOS (1x por hora)
+// ============================================
+
+if (!function_exists('ensureCriticalIndexes')) {
+    function ensureCriticalIndexes($pdo) {
+        static $checked = false;
+        if ($checked) return;
+
+        $flagFile = sys_get_temp_dir() . '/unobix_critical_indexes.flag';
+        if (file_exists($flagFile) && (time() - filemtime($flagFile)) < 3600) {
+            $checked = true;
+            return;
+        }
+
+        $indexes = [
+            "ALTER TABLE users ADD UNIQUE INDEX idx_google_uid (google_uid)",
+            "ALTER TABLE game_sessions ADD INDEX idx_status_started_uid (status, started_at, google_uid)",
+            "ALTER TABLE game_sessions ADD INDEX idx_google_uid_status (google_uid, status)",
+            "ALTER TABLE transactions ADD INDEX idx_uid_created (google_uid, created_at DESC)",
+            "ALTER TABLE zettpay_transactions ADD INDEX idx_ext_user (external_id, user_id)",
+        ];
+
+        foreach ($indexes as $sql) {
+            try {
+                $pdo->exec($sql);
+            } catch (Exception $e) {
+                // Índice já existe — ok
+            }
+        }
+
+        @touch($flagFile);
+        $checked = true;
     }
 }
 
@@ -610,6 +646,14 @@ if (!defined('METRICS_LOADED')) {
     define('METRICS_LOADED', true);
     require_once __DIR__ . '/metrics.php';
 }
+
+// Garantir índices críticos (1x por hora, após primeira conexão)
+register_shutdown_function(function() {
+    try {
+        $pdo = getDatabaseConnection();
+        if ($pdo) ensureCriticalIndexes($pdo);
+    } catch (Exception $e) {}
+});
 
 if (!function_exists('formatBRL')) {
     function formatBRL($value) {
