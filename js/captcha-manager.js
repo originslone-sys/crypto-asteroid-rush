@@ -185,6 +185,7 @@ const CaptchaManager = {
         const claimBtn = document.getElementById('claimRewardBtn');
         if (claimBtn) {
             claimBtn.disabled = false;
+            claimBtn.innerHTML = '<i class="fas fa-check"></i> <span>RESGATAR GANHOS</span>';
         }
     },
 
@@ -265,9 +266,19 @@ const observeEndGameModal = () => {
             mutations.forEach((mutation) => {
                 if (mutation.attributeName === 'class') {
                     if (endGameModal.classList.contains('active')) {
-                        // Modal aberto, inicializar reCAPTCHA
-                        CaptchaManager.reset();
-                        setTimeout(() => CaptchaManager.init(), 300);
+                        // Premium: esconder CAPTCHA e habilitar botão direto
+                        const isPremium = localStorage.getItem('userIsPremium') === '1';
+                        const captchaContainer = document.getElementById('captchaContainer');
+
+                        if (isPremium) {
+                            if (captchaContainer) captchaContainer.style.display = 'none';
+                            CaptchaManager.enableClaimButton();
+                        } else {
+                            if (captchaContainer) captchaContainer.style.display = '';
+                            // Modal aberto, inicializar reCAPTCHA
+                            CaptchaManager.reset();
+                            setTimeout(() => CaptchaManager.init(), 300);
+                        }
                     }
                 }
             });
