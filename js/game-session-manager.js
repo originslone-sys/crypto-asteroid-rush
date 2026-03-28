@@ -8,12 +8,15 @@
 const SessionManager = {
     currentSession: null,
     pendingEndSession: null, // Armazena dados para reenvio após CAPTCHA
-    
+    _lockedGoogleUid: null,  // UID travado durante jogo ativo (não é apagado por auth null)
+
     /**
      * Obter Google UID de várias fontes
+     * Prioriza UID travado durante jogo ativo
      */
     getGoogleUid() {
         const sources = [
+            () => this._lockedGoogleUid,
             () => window.gameState?.googleUid,
             () => window.gameState?.user?.uid,
             () => window.authManager?.currentUser?.uid,
@@ -21,7 +24,7 @@ const SessionManager = {
             () => localStorage.getItem('googleUid'),
             () => sessionStorage.getItem('googleUid')
         ];
-        
+
         for (const source of sources) {
             try {
                 const uid = source();
@@ -30,7 +33,7 @@ const SessionManager = {
                 }
             } catch (e) {}
         }
-        
+
         console.warn('⚠️ Nenhum Google UID encontrado!');
         return null;
     },
@@ -78,7 +81,10 @@ const SessionManager = {
                     isHardMode: result.is_hard_mode || false,
                     limits: result.limits || {}
                 };
-                
+
+                // Travar UID para proteger contra auth null durante jogo
+                this._lockedGoogleUid = this.currentSession.googleUid;
+
                 // Limpar pending anterior
                 this.pendingEndSession = null;
                 
@@ -219,20 +225,21 @@ const SessionManager = {
                     credited: result.credited
                 });
                 
-                // Limpar sessão e pending
+                // Limpar sessão, pending e UID travado
                 this.currentSession = null;
                 this.pendingEndSession = null;
-                
+                this._lockedGoogleUid = null;
+
                 if (typeof gameState !== 'undefined') {
                     gameState.sessionId = null;
                     gameState.sessionToken = null;
                 }
-                
+
                 // Atualizar saldo local
                 if (result.new_balance !== null && result.new_balance !== undefined) {
                     localStorage.setItem('userBalance', result.new_balance.toString());
                 }
-                
+
                 return result;
             } else {
                 console.error('❌ Falha ao finalizar:', result.error);
@@ -285,10 +292,11 @@ const SessionManager = {
                     newBalance: result.new_balance
                 });
                 
-                // Limpar tudo
+                // Limpar tudo incluindo UID travado
                 this.currentSession = null;
                 this.pendingEndSession = null;
-                
+                this._lockedGoogleUid = null;
+
                 if (typeof gameState !== 'undefined') {
                     gameState.sessionId = null;
                     gameState.sessionToken = null;
@@ -379,6 +387,7 @@ const SessionManager = {
         console.log('🧹 Sessão limpa');
         this.currentSession = null;
         this.pendingEndSession = null;
+        this._lockedGoogleUid = null;
         if (typeof gameState !== 'undefined') {
             gameState.sessionId = null;
             gameState.sessionToken = null;

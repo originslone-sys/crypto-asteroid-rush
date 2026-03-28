@@ -10,7 +10,8 @@ class AuthManager {
         this.provider = null;
         this.onAuthStateChangedCallbacks = [];
         this.isInitialized = false;
-        
+        this._logoutDebounceTimer = null;
+
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.init());
         } else {
@@ -54,9 +55,16 @@ class AuthManager {
     
     handleAuthStateChange(user) {
         const previousUser = this.currentUser;
-        this.currentUser = user;
 
         if (user) {
+            // Cancelar qualquer logout pendente (era estado intermediário)
+            if (this._logoutDebounceTimer) {
+                clearTimeout(this._logoutDebounceTimer);
+                this._logoutDebounceTimer = null;
+                console.log('✅ Auth restaurada (cancelou logout pendente)');
+            }
+
+            this.currentUser = user;
             console.log('✅ Usuário autenticado:', user.displayName || user.email);
 
             // Salvar no localStorage
@@ -81,12 +89,40 @@ class AuthManager {
             if (!previousUser) {
                 this.syncUserWithBackend(user);
             }
+
+            this.dispatchAuthEvent(user);
         } else {
-            // Só limpar dados se era um logout real (havia user antes).
-            // Firebase dispara onAuthStateChanged(null) como estado intermediário
-            // enquanto resolve o auth do IndexedDB — não é logout real.
-            if (previousUser) {
-                console.log('👋 Usuário deslogado');
+            // Firebase disparou null — pode ser estado intermediário ou logout real.
+            // Usar debounce: esperar 3s antes de tratar como logout real.
+            // Se o Firebase restaurar o user dentro de 3s, o logout é cancelado.
+
+            if (!previousUser) {
+                // Nunca teve user — estado intermediário, ignorar
+                console.log('⏳ Auth pendente (estado intermediário), mantendo cache');
+                return;
+            }
+
+            // Se há jogo ativo, NÃO fazer logout — preservar sessão
+            const hasActiveGame = window.SessionManager?.hasActiveSession?.() ||
+                (typeof gameState !== 'undefined' && gameState?.sessionId);
+            if (hasActiveGame) {
+                console.log('🎮 Auth null durante jogo ativo — ignorando, mantendo sessão');
+                // Não limpar currentUser nem localStorage durante jogo
+                return;
+            }
+
+            console.log('⏳ Auth null detectado — aguardando 3s para confirmar logout...');
+            this._logoutDebounceTimer = setTimeout(() => {
+                this._logoutDebounceTimer = null;
+
+                // Verificar novamente se user voltou (Firebase pode ter restaurado)
+                if (this.auth && this.auth.currentUser) {
+                    console.log('✅ Firebase restaurou auth, cancelando logout');
+                    return;
+                }
+
+                console.log('👋 Logout confirmado após debounce');
+                this.currentUser = null;
 
                 localStorage.removeItem('googleUid');
                 localStorage.removeItem('userDisplayName');
@@ -102,14 +138,10 @@ class AuthManager {
                     gameState.isConnected = false;
                     gameState.sessionToken = null;
                 }
-            } else {
-                // Estado intermediário do Firebase — ignorar, manter cache
-                console.log('⏳ Auth pendente (estado intermediário), mantendo cache');
-                return; // Não disparar evento com null
-            }
-        }
 
-        this.dispatchAuthEvent(user);
+                this.dispatchAuthEvent(null);
+            }, 3000);
+        }
     }
     
     async signIn() {
@@ -166,8 +198,13 @@ class AuthManager {
         if (!this.auth) {
             throw new Error('Auth não inicializado');
         }
-        
+
         try {
+            // Cancelar debounce — este é logout explícito
+            if (this._logoutDebounceTimer) {
+                clearTimeout(this._logoutDebounceTimer);
+                this._logoutDebounceTimer = null;
+            }
             await this.auth.signOut();
             this.currentUser = null;
             return true;
@@ -189,15 +226,16 @@ class AuthManager {
         return this.currentUser?.uid || localStorage.getItem('googleUid') || null;
     }
     
-    async syncUserWithBackend(user) {
+    async syncUserWithBackend(user, retryCount = 0) {
         if (!user) return;
-        
+        const MAX_RETRIES = 3;
+
         try {
-            console.log('🔄 Sincronizando com backend...');
-            
+            console.log('🔄 Sincronizando com backend...' + (retryCount > 0 ? ` (tentativa ${retryCount + 1})` : ''));
+
             const response = await fetch('/api/auth-google.php', {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
@@ -209,7 +247,7 @@ class AuthManager {
                     referral_code: this.getStoredReferralCode()
                 })
             });
-            
+
             // Verificar Content-Type
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
@@ -217,21 +255,21 @@ class AuthManager {
                 console.error('❌ Resposta não é JSON:', text.substring(0, 200));
                 throw new Error('Backend retornou resposta inválida');
             }
-            
+
             const result = await response.json();
-            
+
             if (result.success) {
                 console.log('✅ Usuário sincronizado com backend');
-                
+
                 // Salvar session token
                 if (result.session_token) {
                     localStorage.setItem('sessionToken', result.session_token);
-                    
+
                     if (window.gameState) {
                         window.gameState.sessionToken = result.session_token;
                     }
                 }
-                
+
                 // Salvar dados do usuário (usando apenas colunas que existem)
                 if (result.user) {
                     const userData = {
@@ -243,20 +281,20 @@ class AuthManager {
                         total_played: result.user.total_played,
                         total_earned_brl: result.user.total_earned_brl
                     };
-                    
+
                     localStorage.setItem('userData', JSON.stringify(userData));
-                    
+
                     if (window.gameState) {
                         window.gameState.userData = userData;
                         window.gameState.balance_brl = userData.balance_brl || 0;
                     }
                 }
-                
+
                 // Limpar referral code do localStorage após registro bem-sucedido
                 if (result.is_new_user || result.referral_registered) {
                     this.clearStoredReferralCode();
                 }
-                
+
             } else {
                 console.warn('⚠️ Aviso do backend:', result.error);
 
@@ -267,6 +305,13 @@ class AuthManager {
             }
         } catch (error) {
             console.error('❌ Erro ao sincronizar com backend:', error);
+            if (retryCount < MAX_RETRIES) {
+                const delay = 2000 * (retryCount + 1);
+                console.log(`🔄 Retry sync em ${delay / 1000}s...`);
+                setTimeout(() => this.syncUserWithBackend(user, retryCount + 1), delay);
+            } else {
+                console.error('❌ Falha ao sincronizar após todas as tentativas');
+            }
         }
     }
     
