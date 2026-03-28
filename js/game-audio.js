@@ -9,6 +9,42 @@ let backgroundMusic = null;
 let audioAttempts = 0;
 const MAX_AUDIO_ATTEMPTS = 3;
 
+// Pool de áudio reutilizável para evitar criação de objetos a cada som
+const audioPool = {};
+const AUDIO_POOL_SIZE = 6;
+
+function getPooledAudio(filename, volume) {
+    const key = filename;
+    if (!audioPool[key]) {
+        audioPool[key] = [];
+        for (let i = 0; i < AUDIO_POOL_SIZE; i++) {
+            const audio = new Audio('sounds/' + filename);
+            audio.preload = 'auto';
+            audio._poolIndex = 0;
+            audioPool[key].push(audio);
+        }
+    }
+
+    const pool = audioPool[key];
+    // Encontrar um áudio que não está tocando, ou reutilizar o mais antigo
+    for (let i = 0; i < pool.length; i++) {
+        const audio = pool[i];
+        if (audio.paused || audio.ended) {
+            audio.volume = volume;
+            audio.currentTime = 0;
+            return audio;
+        }
+    }
+
+    // Todos ocupados: reutilizar o primeiro (round-robin)
+    const idx = pool[0]._poolIndex % pool.length;
+    pool[0]._poolIndex++;
+    const audio = pool[idx];
+    audio.volume = volume;
+    audio.currentTime = 0;
+    return audio;
+}
+
 function unlockAudio() {
     if (isAudioUnlocked || audioAttempts >= MAX_AUDIO_ATTEMPTS) return;
     
@@ -63,10 +99,9 @@ function tryAlternativeAudioUnlock() {
 
 function playSound(filename, volume = 1) {
     if (!isAudioUnlocked || !gameState.audioEnabled) return;
-    
+
     try {
-        const audio = new Audio('sounds/' + filename);
-        audio.volume = volume;
+        const audio = getPooledAudio(filename, volume);
         audio.play().catch(() => {});
     } catch (e) {}
 }
@@ -123,6 +158,7 @@ window.backgroundMusic = backgroundMusic;
 window.unlockAudio = unlockAudio;
 window.tryAlternativeAudioUnlock = tryAlternativeAudioUnlock;
 window.playSound = playSound;
+window.getPooledAudio = getPooledAudio;
 window.playBackgroundMusic = playBackgroundMusic;
 window.stopBackgroundMusic = stopBackgroundMusic;
 window.toggleAudio = toggleAudio;

@@ -237,6 +237,12 @@ function ensureZettpayTable($pdo) {
     static $checked = false;
     if ($checked) return;
 
+    $flagFile = sys_get_temp_dir() . '/unobix_table_zettpay.flag';
+    if (file_exists($flagFile) && (time() - filemtime($flagFile)) < 3600) {
+        $checked = true;
+        return;
+    }
+
     try {
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS zettpay_transactions (
@@ -288,6 +294,7 @@ function ensureZettpayTable($pdo) {
             error_log("ZettPay: Erro ao alterar tabela withdrawals: " . $e->getMessage());
         }
 
+        @touch($flagFile);
         $checked = true;
     } catch (Exception $e) {
         error_log("ZettPay: Erro ao criar tabela: " . $e->getMessage());

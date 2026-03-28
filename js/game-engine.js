@@ -157,11 +157,7 @@ function fireBullet() {
     });
     
     if (typeof isAudioUnlocked !== 'undefined' && isAudioUnlocked && gameState.audioEnabled) {
-        try {
-            const laserSound = new Audio('sounds/laser.mp3');
-            laserSound.volume = 0.4;
-            laserSound.play().catch(() => {});
-        } catch (e) {}
+        if (typeof playSound === 'function') playSound('laser.mp3', 0.4);
     }
 }
 
