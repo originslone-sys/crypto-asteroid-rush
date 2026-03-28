@@ -77,6 +77,46 @@ async function actualStartGame() {
             return;
         }
 
+        // Sessão travada — oferecer opção de abandonar
+        if (error.errorCode === 'ACTIVE_SESSION_EXISTS' && error.canForce) {
+            let shouldForce = false;
+            if (typeof gameConfirm === 'function') {
+                shouldForce = await gameConfirm(
+                    'Sua partida anterior travou. Deseja abandonar e iniciar uma nova?',
+                    'PARTIDA TRAVADA'
+                );
+            } else {
+                shouldForce = confirm('Sua partida anterior travou. Deseja abandonar e iniciar uma nova?');
+            }
+
+            if (shouldForce) {
+                try {
+                    const googleUid = getGoogleUidFromSources();
+                    const retryResult = await SessionManager.startSession(googleUid, true);
+                    if (retryResult && retryResult.success) {
+                        console.log('✅ Sessão forçada criada:', retryResult.session_id);
+
+                        if (typeof missionStats !== 'undefined') {
+                            missionStats.totalMissions = retryResult.mission_number;
+                            localStorage.setItem('totalMissions', missionStats.totalMissions.toString());
+                            if (retryResult.is_hard_mode !== undefined) {
+                                missionStats.isHardMode = retryResult.is_hard_mode;
+                            }
+                        }
+
+                        // Continuar com início do jogo (chamar a parte de reset/start)
+                        _proceedWithGameStart();
+                        return;
+                    }
+                } catch (retryError) {
+                    console.error('❌ Falha ao forçar sessão:', retryError);
+                }
+            }
+
+            if (typeof showModal === 'function') showModal('gameMenuModal');
+            return;
+        }
+
         if (typeof gameAlert === 'function') {
             await gameAlert('Falha ao iniciar missao: ' + error.message, 'error', 'ERRO');
         } else {
@@ -89,13 +129,21 @@ async function actualStartGame() {
         return;
     }
     
+    _proceedWithGameStart();
+}
+
+/**
+ * Inicializar estado do jogo e começar partida
+ * Chamado após sessão criada com sucesso (normal ou force)
+ */
+function _proceedWithGameStart() {
     // Resetar stats da missão
     if (typeof missionStats !== 'undefined') {
         missionStats.rareCount = 0;
         missionStats.epicCount = 0;
         missionStats.legendaryCount = 0;
     }
-    
+
     // Criar asteroides iniciais
     if (typeof gameState !== 'undefined') {
         gameState.asteroids = [];
@@ -233,6 +281,7 @@ function showMissionStartInfo() {
 // Exportar funções
 window.startGameWithLoading = startGameWithLoading;
 window.actualStartGame = actualStartGame;
+window._proceedWithGameStart = _proceedWithGameStart;
 window.resetLivesDisplay = resetLivesDisplay;
 window.showMissionStartInfo = showMissionStartInfo;
 window.getGoogleUidFromSources = getGoogleUidFromSources;

@@ -38,22 +38,25 @@ const SessionManager = {
     /**
      * Iniciar nova sessão de jogo
      */
-    async startSession(googleUidParam = null) {
-        console.log('🎮 Iniciando nova sessão...');
-        
+    async startSession(googleUidParam = null, forceStart = false) {
+        console.log('🎮 Iniciando nova sessão...', forceStart ? '(force)' : '');
+
         const googleUid = googleUidParam || this.getGoogleUid();
-        
+
         if (!googleUid) {
             throw new Error('Usuário não autenticado. Faça login novamente.');
         }
-        
+
         console.log('🔑 Usando Google UID:', googleUid.substring(0, 15) + '...');
-        
+
         try {
+            const body = { google_uid: googleUid };
+            if (forceStart) body.force_start = true;
+
             const response = await fetch('api/game-start.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ google_uid: googleUid })
+                body: JSON.stringify(body)
             });
             
             if (!response.ok) {
@@ -111,10 +114,14 @@ const SessionManager = {
                 }
 
                 if (result.error_code === 'ACTIVE_SESSION_EXISTS') {
-                    throw new Error(
+                    const err = new Error(
                         'Você já tem uma partida em andamento! ' +
                         'Finalize a partida atual antes de iniciar outra.'
                     );
+                    err.errorCode = 'ACTIVE_SESSION_EXISTS';
+                    err.canForce = !!result.can_force;
+                    err.elapsedSeconds = result.elapsed_seconds || 0;
+                    throw err;
                 }
 
                 if (result.wait_seconds) {
