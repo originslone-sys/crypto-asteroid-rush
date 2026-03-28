@@ -505,19 +505,26 @@ async function logout() {
 // DASHBOARD
 // ============================================
 
-async function loadDashboardData() {
-    const user = window.authManager?.currentUser;
-    if (!user) return;
+async function loadDashboardData(retryCount = 0) {
+    const MAX_RETRIES = 3;
+    const uid = window.authManager?.currentUser?.uid || localStorage.getItem('googleUid');
+    if (!uid) {
+        if (retryCount < MAX_RETRIES) {
+            console.log(`⏳ Auth não pronta, retry dashboard ${retryCount + 1}/${MAX_RETRIES}...`);
+            setTimeout(() => loadDashboardData(retryCount + 1), 1000 * (retryCount + 1));
+        }
+        return;
+    }
 
     try {
         const response = await fetch('/api/balance.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ google_uid: user.uid })
+            body: JSON.stringify({ google_uid: uid })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             userStats = {
                 balance_brl: parseFloat(data.balance_brl) || 0,
@@ -529,26 +536,30 @@ async function loadDashboardData() {
             // Set premium flag for ads-manager (window + localStorage for cross-page)
             window._userIsPremium = !!data.is_premium;
             localStorage.setItem('userIsPremium', data.is_premium ? '1' : '0');
-            
+
             // Atualizar UI
             const el = (id) => document.getElementById(id);
-            
+
             if (el('statBalance')) el('statBalance').textContent = formatBRL(userStats.balance_brl);
             if (el('statEarned')) el('statEarned').textContent = formatBRL(userStats.total_earned_brl);
             if (el('statGames')) el('statGames').textContent = userStats.games_played;
         }
-        
+
         // Carregar atividade recente
         loadRecentActivity();
-        
+
     } catch (error) {
         console.error('Erro ao carregar dashboard:', error);
+        if (retryCount < MAX_RETRIES) {
+            console.log(`🔄 Retry dashboard ${retryCount + 1}/${MAX_RETRIES}...`);
+            setTimeout(() => loadDashboardData(retryCount + 1), 2000 * (retryCount + 1));
+        }
     }
 }
 
 async function loadRecentActivity() {
-    const user = window.authManager?.currentUser;
-    if (!user) return;
+    const uid = window.authManager?.currentUser?.uid || localStorage.getItem('googleUid');
+    if (!uid) return;
 
     const container = document.getElementById('activityList');
     if (!container) return;
@@ -557,8 +568,8 @@ async function loadRecentActivity() {
         const response = await fetch('/api/transactions.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                google_uid: user.uid,
+            body: JSON.stringify({
+                google_uid: uid,
                 limit: 5
             })
         });
@@ -649,19 +660,26 @@ function getActivityTitle(type) {
 // CARTEIRA
 // ============================================
 
-async function loadWalletData() {
-    const user = window.authManager?.currentUser;
-    if (!user) return;
+async function loadWalletData(retryCount = 0) {
+    const MAX_RETRIES = 3;
+    const uid = window.authManager?.currentUser?.uid || localStorage.getItem('googleUid');
+    if (!uid) {
+        if (retryCount < MAX_RETRIES) {
+            console.log(`⏳ Auth não pronta, retry wallet ${retryCount + 1}/${MAX_RETRIES}...`);
+            setTimeout(() => loadWalletData(retryCount + 1), 1000 * (retryCount + 1));
+        }
+        return;
+    }
 
     try {
         const response = await fetch('/api/balance.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ google_uid: user.uid })
+            body: JSON.stringify({ google_uid: uid })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             const el = (id) => document.getElementById(id);
 
@@ -674,18 +692,22 @@ async function loadWalletData() {
             if (el('walletWithdrawn')) el('walletWithdrawn').textContent = formatBRL(data.total_withdrawn_brl);
             if (el('walletPending')) el('walletPending').textContent = formatBRL(data.pending_withdrawal_brl || 0);
         }
-        
+
         // Carregar histórico
         loadTransactionHistory();
-        
+
     } catch (error) {
         console.error('Erro ao carregar carteira:', error);
+        if (retryCount < MAX_RETRIES) {
+            console.log(`🔄 Retry wallet ${retryCount + 1}/${MAX_RETRIES}...`);
+            setTimeout(() => loadWalletData(retryCount + 1), 2000 * (retryCount + 1));
+        }
     }
 }
 
 async function loadTransactionHistory() {
-    const user = window.authManager?.currentUser;
-    if (!user) return;
+    const uid = window.authManager?.currentUser?.uid || localStorage.getItem('googleUid');
+    if (!uid) return;
 
     const container = document.getElementById('transactionHistory');
     if (!container) return;
@@ -694,8 +716,8 @@ async function loadTransactionHistory() {
         const response = await fetch('/api/transactions.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                google_uid: user.uid,
+            body: JSON.stringify({
+                google_uid: uid,
                 limit: 20
             })
         });
@@ -813,23 +835,32 @@ async function requestWithdraw() {
 // AFILIADOS
 // ============================================
 
-async function loadAffiliateData() {
-    const user = window.authManager?.currentUser;
-    if (!user) return;
+async function loadAffiliateData(retryCount = 0) {
+    const MAX_RETRIES = 3;
+    const uid = window.authManager?.currentUser?.uid || localStorage.getItem('googleUid');
+    if (!uid) {
+        if (retryCount < MAX_RETRIES) {
+            setTimeout(() => loadAffiliateData(retryCount + 1), 1000 * (retryCount + 1));
+        }
+        return;
+    }
 
     try {
         const res = await fetch('/api/referral-info.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ google_uid: user.uid })
+            body: JSON.stringify({ google_uid: uid })
         });
         const data = await res.json();
-        
+
         if (data.success) {
             updateAffiliateUI(data);
         }
     } catch (error) {
         console.error('Erro ao carregar afiliados:', error);
+        if (retryCount < MAX_RETRIES) {
+            setTimeout(() => loadAffiliateData(retryCount + 1), 2000 * (retryCount + 1));
+        }
     }
 }
 
