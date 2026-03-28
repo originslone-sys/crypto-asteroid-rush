@@ -97,8 +97,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 window._mainUiShown = false;
             }
         } else {
-            window._mainUiShown = false;
-            onUserLoggedOut();
+            // Só mostrar tela de login se não tem cache (logout real)
+            const hasCachedAuth = localStorage.getItem('googleUid');
+            if (!hasCachedAuth) {
+                window._mainUiShown = false;
+                onUserLoggedOut();
+            }
         }
     });
 });

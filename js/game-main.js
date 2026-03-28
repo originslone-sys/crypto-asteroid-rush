@@ -466,8 +466,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             _handlePostAuthNavigation();
         } else {
-            // Not logged in, show connect modal
-            if (!window._uiAlreadyShown) {
+            // Not logged in — só mostrar tela de login se não tem cache
+            const hasCachedAuth = localStorage.getItem('googleUid');
+            if (!window._uiAlreadyShown && !hasCachedAuth) {
                 showModal('connectModal');
             }
         }

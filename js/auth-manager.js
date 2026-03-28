@@ -55,16 +55,16 @@ class AuthManager {
     handleAuthStateChange(user) {
         const previousUser = this.currentUser;
         this.currentUser = user;
-        
+
         if (user) {
             console.log('✅ Usuário autenticado:', user.displayName || user.email);
-            
+
             // Salvar no localStorage
             localStorage.setItem('googleUid', user.uid);
             localStorage.setItem('userDisplayName', user.displayName || '');
             localStorage.setItem('userEmail', user.email || '');
             localStorage.setItem('userPhotoURL', user.photoURL || '');
-            
+
             // Atualizar gameState
             if (typeof gameState !== 'undefined' && gameState !== null) {
                 gameState.user = user;
@@ -76,29 +76,39 @@ class AuthManager {
                 window.gameState.googleUid = user.uid;
                 window.gameState.isConnected = true;
             }
-            
+
             // Sincronizar com backend (apenas se é novo login)
             if (!previousUser) {
                 this.syncUserWithBackend(user);
             }
         } else {
-            console.log('👋 Usuário deslogado');
-            
-            localStorage.removeItem('googleUid');
-            localStorage.removeItem('userDisplayName');
-            localStorage.removeItem('userEmail');
-            localStorage.removeItem('userPhotoURL');
-            localStorage.removeItem('sessionToken');
-            localStorage.removeItem('userData');
-            
-            if (typeof gameState !== 'undefined' && gameState !== null) {
-                gameState.user = null;
-                gameState.googleUid = null;
-                gameState.isConnected = false;
-                gameState.sessionToken = null;
+            // Só limpar dados se era um logout real (havia user antes).
+            // Firebase dispara onAuthStateChanged(null) como estado intermediário
+            // enquanto resolve o auth do IndexedDB — não é logout real.
+            if (previousUser) {
+                console.log('👋 Usuário deslogado');
+
+                localStorage.removeItem('googleUid');
+                localStorage.removeItem('userDisplayName');
+                localStorage.removeItem('userEmail');
+                localStorage.removeItem('userPhotoURL');
+                localStorage.removeItem('sessionToken');
+                localStorage.removeItem('userData');
+                localStorage.removeItem('userIsPremium');
+
+                if (typeof gameState !== 'undefined' && gameState !== null) {
+                    gameState.user = null;
+                    gameState.googleUid = null;
+                    gameState.isConnected = false;
+                    gameState.sessionToken = null;
+                }
+            } else {
+                // Estado intermediário do Firebase — ignorar, manter cache
+                console.log('⏳ Auth pendente (estado intermediário), mantendo cache');
+                return; // Não disparar evento com null
             }
         }
-        
+
         this.dispatchAuthEvent(user);
     }
     
