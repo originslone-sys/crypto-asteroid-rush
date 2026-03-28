@@ -77,11 +77,16 @@ try {
     $indexDefs = [
         ['game_sessions', 'idx_gs_uid_status', '(google_uid, status)'],
         ['game_sessions', 'idx_gs_uid',        '(google_uid)'],
+        ['game_sessions', 'idx_gs_id_token',   '(id, session_token)'],
+        ['game_sessions', 'idx_gs_status',     '(status)'],
         ['users',         'idx_users_google_uid', '(google_uid)'],
         ['referrals',     'idx_ref_referred_status', '(referred_google_uid, status)'],
         ['referrals',     'idx_ref_referrer', '(referrer_google_uid)'],
         ['transactions',  'idx_tx_created_at', '(created_at)'],
         ['transactions',  'idx_tx_type_status', '(type, status)'],
+        ['withdrawals',   'idx_wd_user_status', '(user_id, status)'],
+        ['withdrawals',   'idx_wd_status',      '(status)'],
+        ['withdrawals',   'idx_wd_status_processed', '(status, processed_at)'],
     ];
     foreach ($indexDefs as [$table, $name, $cols]) {
         if (!tableExists($pdo, $table)) continue;
