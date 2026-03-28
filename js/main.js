@@ -70,11 +70,34 @@ document.addEventListener('DOMContentLoaded', () => {
     captureReferralCode();
     setupEventListeners();
     
-    // Aguardar autenticação
+    // Carregamento instantâneo: se já logou antes, mostrar UI imediatamente
+    const cachedUid = localStorage.getItem('googleUid');
+    if (cachedUid && cachedUid.length > 10) {
+        const cachedUser = {
+            uid: cachedUid,
+            displayName: localStorage.getItem('userDisplayName') || '',
+            email: localStorage.getItem('userEmail') || '',
+            photoURL: localStorage.getItem('userPhotoURL') || ''
+        };
+        hideConnectOverlay();
+        updateUserUI(cachedUser);
+        // Carregar dados da página imediatamente (sem esperar Firebase)
+        onUserLoggedIn(cachedUser);
+        window._mainUiShown = true;
+    }
+
+    // Aguardar autenticação real do Firebase
     document.addEventListener('authStateChanged', (e) => {
         if (e.detail.user) {
-            onUserLoggedIn(e.detail.user);
+            if (!window._mainUiShown) {
+                onUserLoggedIn(e.detail.user);
+            } else {
+                // Atualizar com dados reais do Firebase (foto, nome atualizado)
+                updateUserUI(e.detail.user);
+                window._mainUiShown = false;
+            }
         } else {
+            window._mainUiShown = false;
             onUserLoggedOut();
         }
     });
