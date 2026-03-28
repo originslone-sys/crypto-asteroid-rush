@@ -46,10 +46,11 @@ try {
     
     // Buscar sessão e usuário
     $stmt = $pdo->prepare("
-        SELECT gs.*, u.id as user_id, u.balance_brl as user_balance, u.is_banned
+        SELECT gs.*, u.id as user_id, u.balance_brl as user_balance, u.is_banned,
+               u.is_premium, u.premium_expires_at
         FROM game_sessions gs
         LEFT JOIN users u ON u.google_uid = gs.google_uid
-        WHERE gs.id = ? 
+        WHERE gs.id = ?
         AND gs.session_token = ?
         LIMIT 1
     ");
@@ -175,19 +176,10 @@ try {
     // 6. VERIFICAR CAPTCHA (se necessário)
     // ============================================
     
-    // Premium users skip CAPTCHA
+    // Premium users skip CAPTCHA (dados já carregados na query principal)
     $userIsPremium = false;
-    if ($session['user_id']) {
-        try {
-            $premStmt = $pdo->prepare("SELECT is_premium, premium_expires_at FROM users WHERE id = ?");
-            $premStmt->execute([$session['user_id']]);
-            $premData = $premStmt->fetch();
-            if ($premData && !empty($premData['is_premium']) && !empty($premData['premium_expires_at']) && strtotime($premData['premium_expires_at']) > time()) {
-                $userIsPremium = true;
-            }
-        } catch (Exception $e) {
-            // Column may not exist yet, ignore
-        }
+    if (!empty($session['is_premium']) && !empty($session['premium_expires_at']) && strtotime($session['premium_expires_at']) > time()) {
+        $userIsPremium = true;
     }
 
     if ($isVictory && $finalEarnings > 0 && CAPTCHA_REQUIRED_ON_VICTORY && !$userIsPremium) {
