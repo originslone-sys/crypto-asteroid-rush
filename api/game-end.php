@@ -47,7 +47,7 @@ try {
     // Buscar sessão e usuário
     $stmt = $pdo->prepare("
         SELECT gs.*, u.id as user_id, u.balance_brl as user_balance, u.is_banned,
-               u.is_premium, u.premium_expires_at
+               u.is_premium as user_is_premium, u.premium_expires_at as user_premium_expires
         FROM game_sessions gs
         LEFT JOIN users u ON u.google_uid = gs.google_uid
         WHERE gs.id = ?
@@ -176,9 +176,9 @@ try {
     // 6. VERIFICAR CAPTCHA (se necessário)
     // ============================================
     
-    // Premium users skip CAPTCHA (dados já carregados na query principal)
+    // Premium users skip CAPTCHA (dados já carregados na query principal com alias)
     $userIsPremium = false;
-    if (!empty($session['is_premium']) && !empty($session['premium_expires_at']) && strtotime($session['premium_expires_at']) > time()) {
+    if (!empty($session['user_is_premium']) && !empty($session['user_premium_expires']) && strtotime($session['user_premium_expires']) > time()) {
         $userIsPremium = true;
     }
 
