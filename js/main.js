@@ -756,8 +756,8 @@ async function requestWithdraw() {
     const paymentMethod = document.querySelector('.payment-method.selected')?.dataset?.method || 'pix';
     const paymentDetails = document.getElementById('paymentDetails')?.value?.trim();
     
-    if (!amount || amount < 5) {
-        showNotification('Valor mínimo: R$ 5,00', 'warning');
+    if (!amount || amount < 7) {
+        showNotification('Valor mínimo: R$ 7,00', 'warning');
         return;
     }
     
@@ -787,7 +787,7 @@ async function requestWithdraw() {
         const data = await response.json();
         
         if (data.success) {
-            showNotification('✅ Saque solicitado! Processamento em até 24h', 'success');
+            showNotification('✅ Saque solicitado! Acompanhe na fila de saques', 'success');
             document.getElementById('withdrawAmount').value = '';
             document.getElementById('paymentDetails').value = '';
             loadWalletData();

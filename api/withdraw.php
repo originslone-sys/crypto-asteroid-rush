@@ -147,7 +147,7 @@ try {
         'payment_method' => $paymentMethod,
         'new_balance' => round($newBalance, 6),
         'status' => 'pending',
-        'estimated_processing' => 'Saques são processados em até 24 horas'
+        'estimated_processing' => 'Acompanhe o processamento em tempo real na fila de saques'
     ]);
 
 } catch (Throwable $e) {
