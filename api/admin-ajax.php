@@ -25,6 +25,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // AUTENTICAÇÃO — verificar sessão admin
 // ===============================================================
 session_start();
+// Restaurar sessão via cookie se perdida (Cloud Run stateless)
+if (!isset($_SESSION['admin']) || $_SESSION['admin'] !== true) {
+    require_once __DIR__ . '/../admin/includes/admin-auth.php';
+    adminRestoreSession();
+}
 if (!isset($_SESSION['admin']) || $_SESSION['admin'] !== true) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'Não autorizado. Faça login no painel admin.']);

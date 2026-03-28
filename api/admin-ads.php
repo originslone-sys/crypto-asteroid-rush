@@ -34,6 +34,11 @@ require_once __DIR__ . '/config.php';
 
 // Verificar autenticação admin
 session_start();
+// Restaurar sessão via cookie se perdida (Cloud Run stateless)
+if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
+    require_once __DIR__ . '/../admin/includes/admin-auth.php';
+    adminRestoreSession();
+}
 $isAdmin = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
 
 // Para requisições GET/POST

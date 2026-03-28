@@ -26,6 +26,11 @@ if (!empty($cronToken) && $token === $cronToken) {
 
 if (!$isAuthorized) {
     session_start();
+    // Restaurar sessão via cookie se perdida (Cloud Run stateless)
+    if (!isset($_SESSION['admin'])) {
+        require_once __DIR__ . '/../admin/includes/admin-auth.php';
+        adminRestoreSession();
+    }
     if (isset($_SESSION['admin'])) {
         $isAuthorized = true;
     }

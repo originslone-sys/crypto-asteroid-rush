@@ -24,12 +24,19 @@ $ADMIN_INDEX_URL = $ADMIN_BASE_URL . '/index.php';
 define('ADMIN_USER', 'admin');
 define('ADMIN_PASS', 'admin123');
 
+// Auth persistente via cookie (resolve perda de sessão no Cloud Run)
+require_once __DIR__ . '/includes/admin-auth.php';
+
 // Logout
 if (isset($_GET['logout'])) {
+    adminClearAuthCookie();
     session_destroy();
     header('Location: ' . $ADMIN_INDEX_URL);
     exit;
 }
+
+// Restaurar sessão a partir do cookie se necessário
+adminRestoreSession();
 
 // ============================================
 // LOGIN
@@ -45,6 +52,7 @@ if (!isset($_SESSION['admin'])) {
             $_SESSION['admin'] = true;
             $_SESSION['admin_name'] = $username;
             $_SESSION['admin_logged_in'] = true;
+            adminSetAuthCookie($username);
             header('Location: ' . $ADMIN_INDEX_URL);
             exit;
         } else {
