@@ -200,12 +200,12 @@ try {
         'initial_lives' => INITIAL_LIVES,
         'credits' => $remainingCredits,
         'credits_per_game' => CREDITS_PER_GAME,
-        // Limites para o cliente saber (baseado no modo)
+        // Limites para o cliente saber
         'limits' => [
             'max_asteroids' => MAX_ASTEROIDS_PER_GAME,
-            'max_legendary' => $isHardMode ? MAX_LEGENDARY_HARD : MAX_LEGENDARY_NORMAL,
-            'max_epic' => $isHardMode ? MAX_EPIC_HARD : MAX_EPIC_NORMAL,
-            'max_rare' => $isHardMode ? MAX_RARE_HARD : MAX_RARE_NORMAL
+            'max_legendary' => MAX_LEGENDARY_PER_GAME,
+            'max_epic' => MAX_EPIC_PER_GAME,
+            'max_rare' => MAX_RARE_PER_GAME
         ]
     ]);
     

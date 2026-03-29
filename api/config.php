@@ -83,33 +83,22 @@ if (!defined('REWARD_COMMON')) {
 // LIMITES DE SEGURANÇA - ANTI-CHEAT
 // ============================================
 if (!defined('EARNINGS_ALERT_BRL')) {
-    // Limites de ganhos por modo (baseados no máximo realista)
-    define('EARNINGS_ALERT_BRL', 1.00);               // Alerta se > R$1.00
-    define('EARNINGS_BLOCK_NORMAL_BRL', 3.20);        // Cap modo normal R$3.20
-    define('EARNINGS_BLOCK_HARD_BRL', 1.99);          // Cap modo hard R$1.99
-    define('EARNINGS_BLOCK_BRL', 3.20);               // Fallback geral (modo normal)
-
-    // Limites absolutos por partida - MODO NORMAL (20% das missões)
+    // Limites de ganhos (ajustados para rewards: rare=0.02, epic=0.05, legendary=0.20)
+    define('EARNINGS_ALERT_BRL', 1.50);     // Alerta se > R$1.50 (jogo muito bom)
+    define('EARNINGS_SUSPECT_BRL', 2.50);   // Suspeito se > R$2.50 (quase impossível)
+    define('EARNINGS_BLOCK_BRL', 3.60);     // Bloqueia se > R$3.60 (máximo teórico)
+    
+    // Limites absolutos por partida
     define('MAX_ASTEROIDS_PER_GAME', 400);
-    define('MAX_LEGENDARY_NORMAL', 6);
-    define('MAX_EPIC_NORMAL', 15);
-    define('MAX_RARE_NORMAL', 45);
-
-    // Limites absolutos por partida - MODO HARD (80% das missões)
-    define('MAX_LEGENDARY_HARD', 2);
-    define('MAX_EPIC_HARD', 5);
-    define('MAX_RARE_HARD', 18);
-
-    // Aliases para compatibilidade (usados no calculateServerEarnings)
-    define('MAX_LEGENDARY_PER_GAME', 6);
-    define('MAX_EPIC_PER_GAME', 15);
-    define('MAX_RARE_PER_GAME', 45);
-
+    define('MAX_LEGENDARY_PER_GAME', 5);
+    define('MAX_EPIC_PER_GAME', 20);
+    define('MAX_RARE_PER_GAME', 80);
+    
     // Proporções máximas (anti-cheat)
     define('MAX_LEGENDARY_PERCENT', 0.02);  // Máximo 2% lendários
-    define('MAX_EPIC_PERCENT', 0.06);       // Máximo 6% épicos
-    define('MAX_RARE_PERCENT', 0.20);       // Máximo 20% raros
-
+    define('MAX_EPIC_PERCENT', 0.08);       // Máximo 8% épicos
+    define('MAX_RARE_PERCENT', 0.25);       // Máximo 25% raros
+    
     // Velocidade de jogo
     define('MAX_ASTEROIDS_PER_SECOND', 3);
     define('MIN_GAME_DURATION_SECONDS', 120); // Mínimo 2 minutos para ser válido
@@ -462,112 +451,92 @@ if (!function_exists('findPlayerById')) {
 if (!function_exists('validateGameStats')) {
     /**
      * Valida estatísticas do jogo para detectar trapaças
-     * Usa limites diferentes para modo normal vs hard
      * @param array $stats [common, rare, epic, legendary]
      * @param int $gameDuration Duração em segundos
      * @param bool $isHardMode Se estava em hard mode
-     * @return array [valid, warnings, errors, should_block]
+     * @return array [valid, warnings, errors]
      */
     function validateGameStats($stats, $gameDuration, $isHardMode = false) {
         $result = [
             'valid' => true,
             'warnings' => [],
             'errors' => [],
-            'flags' => [],
-            'should_block' => false
+            'flags' => []
         ];
-
+        
         $common = (int)($stats['common'] ?? 0);
         $rare = (int)($stats['rare'] ?? 0);
         $epic = (int)($stats['epic'] ?? 0);
         $legendary = (int)($stats['legendary'] ?? 0);
         $total = $common + $rare + $epic + $legendary;
-
-        // Limites baseados no modo
-        $maxLegendary = $isHardMode ? MAX_LEGENDARY_HARD : MAX_LEGENDARY_NORMAL;
-        $maxEpic = $isHardMode ? MAX_EPIC_HARD : MAX_EPIC_NORMAL;
-        $maxRare = $isHardMode ? MAX_RARE_HARD : MAX_RARE_NORMAL;
-        $mode = $isHardMode ? 'HARD' : 'NORMAL';
-
-        // 1. Verificar limites absolutos por modo — BLOQUEIA
-        if ($legendary > $maxLegendary) {
-            $result['errors'][] = "Lendários excede máximo ($mode): $legendary > $maxLegendary";
+        
+        // 1. Verificar limites absolutos
+        if ($legendary > MAX_LEGENDARY_PER_GAME) {
+            $result['errors'][] = "Lendários excede máximo: $legendary > " . MAX_LEGENDARY_PER_GAME;
             $result['flags'][] = 'LEGENDARY_OVERFLOW';
             $result['valid'] = false;
-            $result['should_block'] = true;
         }
-
-        if ($epic > $maxEpic) {
-            $result['errors'][] = "Épicos excede máximo ($mode): $epic > $maxEpic";
+        
+        if ($epic > MAX_EPIC_PER_GAME) {
+            $result['errors'][] = "Épicos excede máximo: $epic > " . MAX_EPIC_PER_GAME;
             $result['flags'][] = 'EPIC_OVERFLOW';
             $result['valid'] = false;
-            $result['should_block'] = true;
         }
-
-        if ($rare > $maxRare) {
-            $result['errors'][] = "Raros excede máximo ($mode): $rare > $maxRare";
+        
+        if ($rare > MAX_RARE_PER_GAME) {
+            $result['errors'][] = "Raros excede máximo: $rare > " . MAX_RARE_PER_GAME;
             $result['flags'][] = 'RARE_OVERFLOW';
             $result['valid'] = false;
-            $result['should_block'] = true;
         }
-
+        
         if ($total > MAX_ASTEROIDS_PER_GAME) {
             $result['errors'][] = "Total de asteroides excede máximo: $total > " . MAX_ASTEROIDS_PER_GAME;
             $result['flags'][] = 'TOTAL_OVERFLOW';
             $result['valid'] = false;
-            $result['should_block'] = true;
         }
-
-        // 2. Verificar proporções — BLOQUEIA
+        
+        // 2. Verificar proporções (só se tiver asteroides suficientes)
         if ($total >= 50) {
             $legendaryPercent = $legendary / $total;
             $epicPercent = $epic / $total;
             $rarePercent = $rare / $total;
-
+            
             if ($legendaryPercent > MAX_LEGENDARY_PERCENT) {
-                $result['errors'][] = sprintf("Proporção de lendários impossível: %.1f%% > %.1f%%",
+                $result['warnings'][] = sprintf("Proporção de lendários alta: %.1f%% > %.1f%%", 
                     $legendaryPercent * 100, MAX_LEGENDARY_PERCENT * 100);
                 $result['flags'][] = 'HIGH_LEGENDARY_RATIO';
-                $result['valid'] = false;
-                $result['should_block'] = true;
             }
-
+            
             if ($epicPercent > MAX_EPIC_PERCENT) {
-                $result['errors'][] = sprintf("Proporção de épicos impossível: %.1f%% > %.1f%%",
+                $result['warnings'][] = sprintf("Proporção de épicos alta: %.1f%% > %.1f%%", 
                     $epicPercent * 100, MAX_EPIC_PERCENT * 100);
                 $result['flags'][] = 'HIGH_EPIC_RATIO';
-                $result['valid'] = false;
-                $result['should_block'] = true;
             }
-
+            
             if ($rarePercent > MAX_RARE_PERCENT) {
-                $result['warnings'][] = sprintf("Proporção de raros alta: %.1f%% > %.1f%%",
+                $result['warnings'][] = sprintf("Proporção de raros alta: %.1f%% > %.1f%%", 
                     $rarePercent * 100, MAX_RARE_PERCENT * 100);
                 $result['flags'][] = 'HIGH_RARE_RATIO';
             }
         }
-
-        // 3. Verificar velocidade de destruição — BLOQUEIA
+        
+        // 3. Verificar velocidade de destruição
         if ($gameDuration > 0) {
             $asteroidsPerSecond = $total / $gameDuration;
             if ($asteroidsPerSecond > MAX_ASTEROIDS_PER_SECOND) {
-                $result['errors'][] = sprintf("Velocidade impossível: %.1f/s > %d/s",
+                $result['warnings'][] = sprintf("Velocidade suspeita: %.1f/s > %d/s", 
                     $asteroidsPerSecond, MAX_ASTEROIDS_PER_SECOND);
                 $result['flags'][] = 'HIGH_SPEED';
-                $result['valid'] = false;
-                $result['should_block'] = true;
             }
         }
-
-        // 4. Verificar duração mínima — BLOQUEIA
+        
+        // 4. Verificar duração mínima
         if ($gameDuration < MIN_GAME_DURATION_SECONDS && $total > 20) {
-            $result['errors'][] = sprintf("Jogo muito curto: %ds < %ds",
+            $result['warnings'][] = sprintf("Jogo muito curto: %ds < %ds", 
                 $gameDuration, MIN_GAME_DURATION_SECONDS);
             $result['flags'][] = 'SHORT_GAME';
-            $result['valid'] = false;
-            $result['should_block'] = true;
         }
-
+        
         return $result;
     }
 }
@@ -576,22 +545,17 @@ if (!function_exists('calculateServerEarnings')) {
     /**
      * Calcula ganhos no servidor baseado nos contadores
      * Esta é a fonte da verdade - não confia no cliente
-     * Usa limites por modo de jogo
      */
-    function calculateServerEarnings($stats, $isHardMode = false) {
+    function calculateServerEarnings($stats) {
         $rare = (int)($stats['rare'] ?? 0);
         $epic = (int)($stats['epic'] ?? 0);
         $legendary = (int)($stats['legendary'] ?? 0);
-
-        // Aplicar limites por modo
-        $maxLegendary = $isHardMode ? MAX_LEGENDARY_HARD : MAX_LEGENDARY_NORMAL;
-        $maxEpic = $isHardMode ? MAX_EPIC_HARD : MAX_EPIC_NORMAL;
-        $maxRare = $isHardMode ? MAX_RARE_HARD : MAX_RARE_NORMAL;
-
-        $rare = min($rare, $maxRare);
-        $epic = min($epic, $maxEpic);
-        $legendary = min($legendary, $maxLegendary);
-
+        
+        // Aplicar limites de segurança
+        $rare = min($rare, MAX_RARE_PER_GAME);
+        $epic = min($epic, MAX_EPIC_PER_GAME);
+        $legendary = min($legendary, MAX_LEGENDARY_PER_GAME);
+        
         return ($rare * REWARD_RARE) + ($epic * REWARD_EPIC) + ($legendary * REWARD_LEGENDARY);
     }
 }
