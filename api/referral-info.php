@@ -112,49 +112,25 @@ try {
     $referralsList = [];
 
     if ($referralsExists) {
-        // Total de indicados
+        // Estatísticas consolidadas em uma única query
         $stmt = $pdo->prepare("
-            SELECT COUNT(*) FROM referrals
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'qualified' THEN 1 ELSE 0 END) as qualified,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                COALESCE(SUM(CASE WHEN status = 'qualified' THEN commission_brl ELSE 0 END), 0) as available_commission,
+                COALESCE(SUM(CASE WHEN status = 'claimed' THEN commission_brl ELSE 0 END), 0) as claimed_commission
+            FROM referrals
             WHERE referrer_google_uid = ?
         ");
         $stmt->execute([$googleUid]);
-        $totalReferred = (int)$stmt->fetchColumn();
+        $stats = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Qualificados (disponível para resgate)
-        $stmt = $pdo->prepare("
-            SELECT COUNT(*) FROM referrals
-            WHERE referrer_google_uid = ?
-              AND status = 'qualified'
-        ");
-        $stmt->execute([$googleUid]);
-        $qualifiedReferred = (int)$stmt->fetchColumn();
-
-        // Pendentes (indicado ainda jogando)
-        $stmt = $pdo->prepare("
-            SELECT COUNT(*) FROM referrals
-            WHERE referrer_google_uid = ?
-              AND status = 'pending'
-        ");
-        $stmt->execute([$googleUid]);
-        $pendingReferred = (int)$stmt->fetchColumn();
-
-        // Comissão disponível para resgate
-        $stmt = $pdo->prepare("
-            SELECT COALESCE(SUM(commission_brl), 0) FROM referrals
-            WHERE referrer_google_uid = ?
-              AND status = 'qualified'
-        ");
-        $stmt->execute([$googleUid]);
-        $availableCommission = (float)$stmt->fetchColumn();
-
-        // Comissão já resgatada
-        $stmt = $pdo->prepare("
-            SELECT COALESCE(SUM(commission_brl), 0) FROM referrals
-            WHERE referrer_google_uid = ?
-              AND status = 'claimed'
-        ");
-        $stmt->execute([$googleUid]);
-        $claimedCommission = (float)$stmt->fetchColumn();
+        $totalReferred = (int)$stats['total'];
+        $qualifiedReferred = (int)$stats['qualified'];
+        $pendingReferred = (int)$stats['pending'];
+        $availableCommission = (float)$stats['available_commission'];
+        $claimedCommission = (float)$stats['claimed_commission'];
 
         // ============================================
         // 3. LISTA DE INDICADOS (com dados do usuário)

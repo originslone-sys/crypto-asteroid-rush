@@ -50,33 +50,7 @@ class RateLimiter {
     }
     
     private function ensureTableExists() {
-        static $checked = false;
-        if ($checked) return;
-
-        $flagFile = sys_get_temp_dir() . '/unobix_table_rate_limits.flag';
-        if (file_exists($flagFile) && (time() - filemtime($flagFile)) < 3600) {
-            $checked = true;
-            return;
-        }
-
-        $this->pdo->exec("
-            CREATE TABLE IF NOT EXISTS rate_limits (
-                id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                ip_address VARCHAR(45) NOT NULL,
-                google_uid VARCHAR(128) DEFAULT NULL,
-                wallet_address VARCHAR(42) DEFAULT NULL,
-                action_type VARCHAR(30) NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_ip (ip_address),
-                INDEX idx_google_uid (google_uid),
-                INDEX idx_wallet (wallet_address),
-                INDEX idx_action (action_type),
-                INDEX idx_created (created_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        ");
-
-        @touch($flagFile);
-        $checked = true;
+        // Tabela criada via migrate.php no deploy
     }
     
     /**
@@ -233,25 +207,7 @@ class RateLimiter {
      * Verificar se IP está na blacklist
      */
     public function checkIPBlacklist() {
-        static $tableChecked = false;
-        if (!$tableChecked) {
-            $flagFile = sys_get_temp_dir() . '/unobix_table_ip_blacklist.flag';
-            if (!file_exists($flagFile) || (time() - filemtime($flagFile)) >= 3600) {
-                $this->pdo->exec("
-                    CREATE TABLE IF NOT EXISTS ip_blacklist (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        ip_address VARCHAR(45) NOT NULL UNIQUE,
-                        reason VARCHAR(255) DEFAULT NULL,
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        expires_at DATETIME DEFAULT NULL,
-                        INDEX idx_ip (ip_address),
-                        INDEX idx_expires (expires_at)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-                ");
-                @touch($flagFile);
-            }
-            $tableChecked = true;
-        }
+        // Tabela ip_blacklist criada via migrate.php no deploy
 
         $stmt = $this->pdo->prepare("
             SELECT reason FROM ip_blacklist

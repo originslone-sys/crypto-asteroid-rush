@@ -234,71 +234,7 @@ function zettpayLookupCashout($externalId) {
  * @param PDO $pdo
  */
 function ensureZettpayTable($pdo) {
-    static $checked = false;
-    if ($checked) return;
-
-    $flagFile = sys_get_temp_dir() . '/unobix_table_zettpay.flag';
-    if (file_exists($flagFile) && (time() - filemtime($flagFile)) < 3600) {
-        $checked = true;
-        return;
-    }
-
-    try {
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS zettpay_transactions (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT NOT NULL,
-                external_id VARCHAR(100) NOT NULL UNIQUE,
-                zettpay_id VARCHAR(100) DEFAULT NULL,
-                type ENUM('deposit', 'cashout') NOT NULL,
-                amount_brl DECIMAL(15,2) NOT NULL,
-                fee_brl DECIMAL(15,2) DEFAULT 0,
-                status VARCHAR(30) NOT NULL DEFAULT 'pending',
-                pix_key VARCHAR(255) DEFAULT NULL,
-                pix_key_type VARCHAR(20) DEFAULT NULL,
-                qr_code TEXT DEFAULT NULL,
-                pix_copy_paste TEXT DEFAULT NULL,
-                expires_at DATETIME DEFAULT NULL,
-                webhook_payload JSON DEFAULT NULL,
-                withdrawal_id INT DEFAULT NULL,
-                error_message TEXT DEFAULT NULL,
-                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                confirmed_at DATETIME DEFAULT NULL,
-                updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_user_id (user_id),
-                INDEX idx_status (status),
-                INDEX idx_type_status (type, status),
-                INDEX idx_withdrawal_id (withdrawal_id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        ");
-
-        // Garantir que tabela transactions aceite os tipos necessários (converter ENUM para VARCHAR se necessário)
-        try {
-            $colInfo = $pdo->query("SHOW COLUMNS FROM transactions WHERE Field = 'type'")->fetch();
-            if ($colInfo && stripos($colInfo['Type'], 'enum') !== false) {
-                $pdo->exec("ALTER TABLE transactions MODIFY COLUMN type VARCHAR(30) NOT NULL");
-            }
-        } catch (Exception $e) {
-            // tabela transactions pode não existir ainda
-        }
-
-        // Adicionar colunas na tabela withdrawals para integração ZettPay
-        try {
-            $cols = $pdo->query("SHOW COLUMNS FROM withdrawals LIKE 'zettpay_external_id'")->fetch();
-            if (!$cols) {
-                $pdo->exec("ALTER TABLE withdrawals ADD COLUMN zettpay_external_id VARCHAR(100) DEFAULT NULL");
-                $pdo->exec("ALTER TABLE withdrawals ADD COLUMN zettpay_status VARCHAR(30) DEFAULT NULL");
-                $pdo->exec("ALTER TABLE withdrawals ADD INDEX idx_zettpay_ext_id (zettpay_external_id)");
-            }
-        } catch (Exception $e) {
-            error_log("ZettPay: Erro ao alterar tabela withdrawals: " . $e->getMessage());
-        }
-
-        @touch($flagFile);
-        $checked = true;
-    } catch (Exception $e) {
-        error_log("ZettPay: Erro ao criar tabela: " . $e->getMessage());
-    }
+    // Tabelas e colunas criadas via migrate.php no deploy
 }
 
 /**

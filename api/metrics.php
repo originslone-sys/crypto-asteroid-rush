@@ -42,29 +42,7 @@ if (!function_exists('metricsRecord')) {
             $pdo = getDatabaseConnection();
             if (!$pdo) return;
 
-            // Criar tabela se não existir (com cache via flag file)
-            static $tableChecked = false;
-            if (!$tableChecked) {
-                $flagFile = sys_get_temp_dir() . '/unobix_table_metrics.flag';
-                if (!file_exists($flagFile) || (time() - filemtime($flagFile)) >= 3600) {
-                    $pdo->exec("
-                        CREATE TABLE IF NOT EXISTS api_metrics (
-                            id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                            endpoint VARCHAR(50) NOT NULL,
-                            method VARCHAR(10) NOT NULL DEFAULT 'GET',
-                            response_time_ms DECIMAL(10,2) NOT NULL,
-                            status_code SMALLINT NOT NULL DEFAULT 200,
-                            ip_address VARCHAR(45) DEFAULT NULL,
-                            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                            INDEX idx_endpoint (endpoint),
-                            INDEX idx_created (created_at),
-                            INDEX idx_endpoint_created (endpoint, created_at)
-                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-                    ");
-                    @touch($flagFile);
-                }
-                $tableChecked = true;
-            }
+            // Tabela api_metrics criada via migrate.php no deploy
 
             $stmt = $pdo->prepare("
                 INSERT INTO api_metrics (endpoint, method, response_time_ms, status_code, ip_address, created_at)

@@ -29,30 +29,8 @@ try {
 
     $isSuccess = !empty($captchaResult['success']);
 
-    // Registrar tentativa no log
+    // Registrar tentativa no log (tabela criada via migrate.php)
     try {
-        $flagFile = sys_get_temp_dir() . '/unobix_table_captcha_log.flag';
-        if (!file_exists($flagFile) || (time() - filemtime($flagFile)) >= 3600) {
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS captcha_log (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    session_id INT DEFAULT NULL,
-                    google_uid VARCHAR(128) DEFAULT NULL,
-                    wallet_address VARCHAR(64) DEFAULT NULL,
-                    captcha_type VARCHAR(20) DEFAULT 'recaptcha_v2',
-                    is_success TINYINT(1) DEFAULT 0,
-                    response_token VARCHAR(100) DEFAULT NULL,
-                    ip_address VARCHAR(45) DEFAULT NULL,
-                    user_agent VARCHAR(500) DEFAULT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_session (session_id),
-                    INDEX idx_uid (google_uid),
-                    INDEX idx_created (created_at)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-            ");
-            @touch($flagFile);
-        }
-
         $stmt = $pdo->prepare("
             INSERT INTO captcha_log
             (session_id, google_uid, captcha_type, is_success, response_token, ip_address, user_agent)

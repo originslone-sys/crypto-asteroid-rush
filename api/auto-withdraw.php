@@ -289,8 +289,6 @@ foreach ($pendingWithdrawals as $withdrawal) {
             }
         }
 
-        usleep(500000);
-
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
 
