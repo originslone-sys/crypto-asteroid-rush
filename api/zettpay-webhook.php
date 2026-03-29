@@ -167,7 +167,17 @@ function processDeposit($pdo, $data, $rawBody) {
                     secureLog("PREMIUM_PURCHASE_ALREADY_ACTIVE | external_id: {$externalId}");
                 } else {
                     $durationDays = (int)($premiumSub['duration_days'] ?: 30);
-                    $expiresAt = date('Y-m-d H:i:s', strtotime("+{$durationDays} days"));
+
+                    // Renovação: somar dias ao vencimento atual se premium ainda ativo
+                    $currentExpires = $user['premium_expires_at'] ?? null;
+                    if (!empty($user['is_premium']) && $currentExpires && strtotime($currentExpires) > time()) {
+                        // Somar a partir do vencimento atual
+                        $expiresAt = date('Y-m-d H:i:s', strtotime($currentExpires . " +{$durationDays} days"));
+                        secureLog("PREMIUM_RENEWAL | Somando {$durationDays}d ao vencimento atual {$currentExpires}");
+                    } else {
+                        // Nova ativação: contar a partir de agora
+                        $expiresAt = date('Y-m-d H:i:s', strtotime("+{$durationDays} days"));
+                    }
 
                     // Activate premium on user
                     $pdo->prepare("UPDATE users SET is_premium = 1, premium_expires_at = ?, updated_at = NOW() WHERE id = ?")

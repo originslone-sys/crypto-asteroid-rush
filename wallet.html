@@ -1350,17 +1350,28 @@ function updatePremiumUI(isPremium, expiresAt) {
 
     if (isPremium && expiresAt) {
         activeCard.style.display = 'block';
-        buyCard.style.display = 'none';
 
         const expDate = new Date(expiresAt);
         const now = new Date();
         const diffDays = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
         const formatted = expDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         document.getElementById('premiumExpiresText').textContent = formatted + ' (' + diffDays + ' dias restantes)';
+
+        // Mostrar botão de renovação antecipada
+        buyCard.style.display = 'block';
+        loadPremiumPrice();
+        const buyBtn = document.getElementById('premiumBuyBtn');
+        if (buyBtn) {
+            buyBtn.innerHTML = '<i class="fas fa-crown"></i> Renovar Premium (+30 dias)';
+        }
     } else {
         activeCard.style.display = 'none';
         buyCard.style.display = 'block';
         loadPremiumPrice();
+        const buyBtn = document.getElementById('premiumBuyBtn');
+        if (buyBtn) {
+            buyBtn.innerHTML = '<i class="fas fa-crown"></i> Assinar Premium';
+        }
     }
 }
 
@@ -1440,7 +1451,7 @@ function startPremiumPolling(googleUid, externalId) {
     if (premiumPollingInterval) clearInterval(premiumPollingInterval);
 
     let attempts = 0;
-    const maxAttempts = 180;
+    const maxAttempts = 75; // 15 minutos (12s * 75)
 
     premiumPollingInterval = setInterval(async () => {
         attempts++;
@@ -1470,6 +1481,7 @@ function startPremiumPolling(googleUid, externalId) {
                 document.getElementById('premiumSuccessArea').style.display = 'block';
 
                 window._userIsPremium = true;
+                localStorage.setItem('userIsPremium', '1');
                 loadWalletData();
                 loadTransactionHistory();
 
@@ -1487,7 +1499,7 @@ function startPremiumPolling(googleUid, externalId) {
         } catch (error) {
             console.error('Erro no polling premium:', error);
         }
-    }, 5000);
+    }, 12000);
 }
 
 function copyPremiumPixCode() {

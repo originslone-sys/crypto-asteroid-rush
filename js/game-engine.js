@@ -389,7 +389,10 @@ async function endGame() {
             if (result && result.success) {
                 // Verificar se precisa de CAPTCHA
                 if (result.captcha_required) {
-                    // CAPTCHA necessário - será tratado pela UI
+                    // CAPTCHA necessário - se frontend pensava que era premium, forçar exibição
+                    if (typeof CaptchaManager !== 'undefined' && typeof CaptchaManager.forceShow === 'function') {
+                        CaptchaManager.forceShow();
+                    }
                     serverEarnings = result.pending_earnings || gameState.earnings;
                 } else {
                     serverEarnings = parseFloat(result.final_earnings) || gameState.earnings;
