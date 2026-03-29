@@ -86,7 +86,7 @@ if (!defined('EARNINGS_ALERT_BRL')) {
     // Limites de ganhos por modo (baseados no máximo realista)
     define('EARNINGS_ALERT_BRL', 1.00);               // Alerta se > R$1.00
     define('EARNINGS_BLOCK_NORMAL_BRL', 3.20);        // Cap modo normal R$3.20
-    define('EARNINGS_BLOCK_HARD_BRL', 1.19);          // Cap modo hard R$1.19
+    define('EARNINGS_BLOCK_HARD_BRL', 1.99);          // Cap modo hard R$1.99
     define('EARNINGS_BLOCK_BRL', 3.20);               // Fallback geral (modo normal)
 
     // Limites absolutos por partida - MODO NORMAL (20% das missões)
