@@ -90,9 +90,9 @@ if (!defined('EARNINGS_ALERT_BRL')) {
     
     // Limites absolutos por partida
     define('MAX_ASTEROIDS_PER_GAME', 500);
-    define('MAX_LEGENDARY_PER_GAME', 4);
-    define('MAX_EPIC_PER_GAME', 15);
-    define('MAX_RARE_PER_GAME', 60);
+    define('MAX_LEGENDARY_PER_GAME', 5);
+    define('MAX_EPIC_PER_GAME', 20);
+    define('MAX_RARE_PER_GAME', 70);
     
     // Proporções máximas (anti-cheat)
     define('MAX_LEGENDARY_PERCENT', 0.02);  // Máximo 2% lendários
