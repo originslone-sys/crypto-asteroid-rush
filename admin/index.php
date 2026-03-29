@@ -19,10 +19,10 @@ $ADMIN_BASE_URL  = $__scriptDir;
 $ADMIN_INDEX_URL = $ADMIN_BASE_URL . '/index.php';
 
 // ============================================
-// CREDENCIAIS DO ADMIN — altere aqui diretamente
+// CREDENCIAIS DO ADMIN — lê da variável de ambiente
 // ============================================
-define('ADMIN_USER', 'admin');
-define('ADMIN_PASS', 'admin123');
+define('ADMIN_USER', getenv('ADMIN_USER') ?: 'admin');
+define('ADMIN_PASS', getenv('ADMIN_PASSWORD') ?: 'DEFINA_ADMIN_PASSWORD_NO_CLOUD_RUN');
 
 // Auth persistente via cookie (resolve perda de sessão no Cloud Run)
 require_once __DIR__ . '/includes/admin-auth.php';
@@ -43,20 +43,44 @@ adminRestoreSession();
 // ============================================
 if (!isset($_SESSION['admin'])) {
     $error = '';
-    
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $username = $_POST['username'] ?? '';
-        $password = $_POST['password'] ?? '';
-        
-        if ($username === ADMIN_USER && $password === ADMIN_PASS) {
-            $_SESSION['admin'] = true;
-            $_SESSION['admin_name'] = $username;
-            $_SESSION['admin_logged_in'] = true;
-            adminSetAuthCookie($username);
-            header('Location: ' . $ADMIN_INDEX_URL);
-            exit;
+        // Rate limit: máximo 5 tentativas por IP a cada 15 minutos
+        $loginIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        if (strpos($loginIp, ',') !== false) $loginIp = trim(explode(',', $loginIp)[0]);
+        $loginLockFile = sys_get_temp_dir() . '/unobix_login_' . md5($loginIp) . '.json';
+        $loginAttempts = [];
+        if (file_exists($loginLockFile)) {
+            $loginAttempts = json_decode(file_get_contents($loginLockFile), true) ?: [];
+            // Remover tentativas com mais de 15 minutos
+            $loginAttempts = array_filter($loginAttempts, fn($t) => $t > time() - 900);
+        }
+
+        if (count($loginAttempts) >= 5) {
+            $error = 'Muitas tentativas. Aguarde 15 minutos.';
         } else {
-            $error = 'Credenciais inválidas!';
+            $username = $_POST['username'] ?? '';
+            $password = $_POST['password'] ?? '';
+
+            // Comparação segura contra timing attacks
+            $userMatch = hash_equals(ADMIN_USER, $username);
+            $passMatch = hash_equals(ADMIN_PASS, $password);
+
+            if ($userMatch && $passMatch) {
+                // Login OK — limpar tentativas
+                @unlink($loginLockFile);
+                $_SESSION['admin'] = true;
+                $_SESSION['admin_name'] = $username;
+                $_SESSION['admin_logged_in'] = true;
+                adminSetAuthCookie($username);
+                header('Location: ' . $ADMIN_INDEX_URL);
+                exit;
+            } else {
+                // Registrar tentativa falha
+                $loginAttempts[] = time();
+                @file_put_contents($loginLockFile, json_encode(array_values($loginAttempts)));
+                $error = 'Credenciais inválidas!';
+            }
         }
     }
     
