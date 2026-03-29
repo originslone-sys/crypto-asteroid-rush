@@ -190,6 +190,132 @@
             margin-bottom: 10px;
         }
 
+        /* Chaves PIX Salvas */
+        .saved-pix-section {
+            margin-bottom: 15px;
+        }
+        .saved-pix-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .saved-pix-header label {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        .saved-pix-count {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+        .saved-pix-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .saved-pix-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .saved-pix-item:hover {
+            border-color: var(--primary);
+            background: rgba(0, 240, 255, 0.05);
+        }
+        .saved-pix-item.active {
+            border-color: var(--primary);
+            background: rgba(0, 240, 255, 0.1);
+        }
+        .saved-pix-item .pix-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(0, 240, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        .saved-pix-item .pix-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .saved-pix-item .pix-label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+        .saved-pix-item .pix-value {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            font-family: 'Exo 2', sans-serif;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .saved-pix-item .pix-type-badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--primary);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .saved-pix-item .pix-delete {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: rgba(255, 51, 102, 0.1);
+            border: none;
+            color: var(--danger, #ff3366);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+        .saved-pix-item .pix-delete:hover {
+            background: rgba(255, 51, 102, 0.25);
+        }
+        .save-pix-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            cursor: pointer;
+        }
+        .save-pix-toggle input[type="checkbox"] {
+            accent-color: var(--primary);
+        }
+        .use-new-key-btn {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 6px 14px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-dim);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .use-new-key-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
         /* Histórico de Transações */
         .transactions-section {
             background: var(--card-bg);
@@ -690,6 +816,18 @@
     <section class="withdraw-section">
         <h3><i class="fas fa-paper-plane"></i> Solicitar Saque via PIX</h3>
 
+        <!-- Chaves PIX Salvas -->
+        <div class="saved-pix-section" id="savedPixSection" style="display: none;">
+            <div class="saved-pix-header">
+                <label><i class="fas fa-key"></i> Chaves PIX Salvas</label>
+                <span class="saved-pix-count" id="savedPixCount"></span>
+            </div>
+            <div class="saved-pix-list" id="savedPixList"></div>
+            <button type="button" class="use-new-key-btn" id="useNewKeyBtn" onclick="toggleNewPixKey()">
+                <i class="fas fa-plus"></i> Usar outra chave
+            </button>
+        </div>
+
         <div class="withdraw-form">
             <div class="form-group">
                 <label>Valor (R$)</label>
@@ -713,6 +851,9 @@
             <div class="pix-type-detected" id="pixTypeDetected" style="display: none;">
                 <i class="fas fa-check-circle"></i> <span id="pixTypeDetectedText"></span>
             </div>
+            <label class="save-pix-toggle" id="savePixToggle" style="display: none;">
+                <input type="checkbox" id="savePixCheckbox"> Salvar esta chave PIX para próximos saques
+            </label>
             <button class="btn btn-primary withdraw-btn" id="withdrawBtn" onclick="requestWithdraw()">
                 <i class="fas fa-paper-plane"></i> Solicitar Saque
             </button>
@@ -766,6 +907,9 @@
 
 <script>
 let selectedPaymentMethod = 'pix';
+let savedPixKeys = [];
+let selectedSavedKeyId = null;
+let showingNewKeyInput = false;
 
 // Formatar valores em BRL (2 casas decimais)
 function formatBRL(value) {
@@ -877,7 +1021,215 @@ async function loadTransactionHistory() {
     }
 }
 
-// Solicitar saque
+// ============================================
+// Chaves PIX Salvas
+// ============================================
+
+async function loadSavedPixKeys() {
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    try {
+        const response = await fetch('api/saved-pix-keys.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid, action: 'list' })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            savedPixKeys = data.keys || [];
+            renderSavedPixKeys();
+        }
+    } catch (error) {
+        console.error('Erro ao carregar chaves PIX salvas:', error);
+    }
+}
+
+function renderSavedPixKeys() {
+    const section = document.getElementById('savedPixSection');
+    const list = document.getElementById('savedPixList');
+    const countEl = document.getElementById('savedPixCount');
+    const detailsGroup = document.getElementById('paymentDetailsGroup');
+    const saveToggle = document.getElementById('savePixToggle');
+
+    if (savedPixKeys.length === 0) {
+        section.style.display = 'none';
+        detailsGroup.classList.add('visible');
+        showingNewKeyInput = true;
+        return;
+    }
+
+    section.style.display = 'block';
+    countEl.textContent = savedPixKeys.length + '/3';
+
+    const typeIcons = {
+        cpf: 'fa-id-card', cnpj: 'fa-building', email: 'fa-envelope',
+        phone: 'fa-phone', evp: 'fa-random'
+    };
+    const typeLabels = {
+        cpf: 'CPF', cnpj: 'CNPJ', email: 'E-mail',
+        phone: 'Telefone', evp: 'Aleatória'
+    };
+
+    function maskPixKey(key, type) {
+        if (type === 'cpf' && key.length >= 11) {
+            const d = key.replace(/\D/g, '');
+            return d.substring(0, 3) + '.***.***-' + d.substring(d.length - 2);
+        }
+        if (type === 'email') {
+            const parts = key.split('@');
+            if (parts.length === 2) {
+                const name = parts[0];
+                return name.substring(0, 2) + '***@' + parts[1];
+            }
+        }
+        if (type === 'phone') {
+            const d = key.replace(/\D/g, '');
+            return '(**) *****-' + d.substring(d.length - 4);
+        }
+        if (key.length > 12) {
+            return key.substring(0, 8) + '...' + key.substring(key.length - 4);
+        }
+        return key;
+    }
+
+    function escHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    list.innerHTML = savedPixKeys.map(k => `
+        <div class="saved-pix-item ${selectedSavedKeyId == k.id ? 'active' : ''}" onclick="selectSavedKey(${parseInt(k.id)})">
+            <div class="pix-icon"><i class="fas ${typeIcons[k.pix_key_type] || 'fa-key'}"></i></div>
+            <div class="pix-info">
+                ${k.label ? '<div class="pix-label">' + escHtml(k.label) + '</div>' : ''}
+                <div class="pix-value">${escHtml(maskPixKey(k.pix_key, k.pix_key_type))}</div>
+            </div>
+            <span class="pix-type-badge">${escHtml(typeLabels[k.pix_key_type] || k.pix_key_type)}</span>
+            <button class="pix-delete" onclick="event.stopPropagation(); deleteSavedKey(${parseInt(k.id)})" title="Remover chave">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </div>
+    `).join('');
+
+    // Se tem chave salva, esconder input manual por padrão
+    if (!showingNewKeyInput) {
+        detailsGroup.classList.remove('visible');
+        detailsGroup.removeAttribute('style');
+        saveToggle.style.display = 'none';
+        document.getElementById('pixTypeSelector').style.display = 'none';
+        document.getElementById('pixTypeDetected').style.display = 'none';
+    }
+}
+
+function selectSavedKey(id) {
+    selectedSavedKeyId = (selectedSavedKeyId === id) ? null : id;
+
+    const detailsGroup = document.getElementById('paymentDetailsGroup');
+    const saveToggle = document.getElementById('savePixToggle');
+
+    if (selectedSavedKeyId) {
+        // Chave salva selecionada: esconder input manual
+        showingNewKeyInput = false;
+        detailsGroup.classList.remove('visible');
+        detailsGroup.removeAttribute('style');
+        saveToggle.style.display = 'none';
+        document.getElementById('pixTypeSelector').style.display = 'none';
+        document.getElementById('pixTypeDetected').style.display = 'none';
+        document.getElementById('paymentDetails').value = '';
+        selectedPixKeyType = '';
+    } else {
+        // Nenhuma chave selecionada: mostrar input manual
+        showingNewKeyInput = true;
+        detailsGroup.classList.add('visible');
+        detailsGroup.removeAttribute('style');
+    }
+
+    renderSavedPixKeys();
+}
+
+function toggleNewPixKey() {
+    showingNewKeyInput = !showingNewKeyInput;
+    selectedSavedKeyId = null;
+
+    const detailsGroup = document.getElementById('paymentDetailsGroup');
+    const btn = document.getElementById('useNewKeyBtn');
+    const saveToggle = document.getElementById('savePixToggle');
+
+    if (showingNewKeyInput) {
+        detailsGroup.classList.add('visible');
+        detailsGroup.removeAttribute('style');
+        btn.innerHTML = '<i class="fas fa-list"></i> Usar chave salva';
+        // Mostrar opção de salvar se ainda tem espaço
+        if (savedPixKeys.length < 3) {
+            saveToggle.style.display = 'flex';
+        }
+    } else {
+        detailsGroup.classList.remove('visible');
+        detailsGroup.removeAttribute('style');
+        saveToggle.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-plus"></i> Usar outra chave';
+        document.getElementById('paymentDetails').value = '';
+        selectedPixKeyType = '';
+        document.getElementById('pixTypeSelector').style.display = 'none';
+        document.getElementById('pixTypeDetected').style.display = 'none';
+    }
+
+    renderSavedPixKeys();
+}
+
+async function deleteSavedKey(id) {
+    if (!confirm('Remover esta chave PIX salva?')) return;
+
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    try {
+        const response = await fetch('api/saved-pix-keys.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid, action: 'delete', key_id: id })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            if (selectedSavedKeyId === id) selectedSavedKeyId = null;
+            await loadSavedPixKeys();
+        } else {
+            showWarning(data.error || 'Erro ao remover chave');
+        }
+    } catch (error) {
+        showWarning('Erro de conexão');
+    }
+}
+
+async function saveCurrentPixKey(pixKey, pixKeyType) {
+    const user = window.authManager?.currentUser;
+    if (!user || !pixKey || !pixKeyType) return;
+
+    try {
+        const response = await fetch('api/saved-pix-keys.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                google_uid: user.uid,
+                action: 'save',
+                pix_key: pixKey,
+                pix_key_type: pixKeyType
+            })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            await loadSavedPixKeys();
+        }
+    } catch (error) {
+        console.error('Erro ao salvar chave PIX:', error);
+    }
+}
+
 // ============================================
 // Detecção de tipo de chave PIX
 // ============================================
@@ -893,64 +1245,46 @@ function checkPixKeyType() {
     selectedPixKeyType = '';
     selector.style.display = 'none';
     detected.style.display = 'none';
+    document.getElementById('savePixToggle').style.display = 'none';
 
     if (!input) return;
 
-    // Email
-    if (input.includes('@') && input.includes('.')) {
-        selectedPixKeyType = 'email';
-        detectedText.textContent = 'Tipo detectado: E-mail';
+    function setDetected(type, label) {
+        selectedPixKeyType = type;
+        detectedText.textContent = 'Tipo detectado: ' + label;
         detected.style.display = 'block';
-        return;
+        if (savedPixKeys.length < 3) {
+            document.getElementById('savePixToggle').style.display = 'flex';
+        }
     }
+
+    // Email
+    if (input.includes('@') && input.includes('.')) { setDetected('email', 'E-mail'); return; }
 
     // Chave aleatória (UUID)
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input)) {
-        selectedPixKeyType = 'evp';
-        detectedText.textContent = 'Tipo detectado: Chave aleatória';
-        detected.style.display = 'block';
-        return;
-    }
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input)) { setDetected('evp', 'Chave aleatória'); return; }
 
     // CNPJ (14 dígitos)
-    if (digits.length === 14) {
-        selectedPixKeyType = 'cnpj';
-        detectedText.textContent = 'Tipo detectado: CNPJ';
-        detected.style.display = 'block';
-        return;
-    }
+    if (digits.length === 14) { setDetected('cnpj', 'CNPJ'); return; }
 
     // 10 dígitos = telefone fixo
-    if (digits.length === 10) {
-        selectedPixKeyType = 'phone';
-        detectedText.textContent = 'Tipo detectado: Telefone';
-        detected.style.display = 'block';
-        return;
-    }
+    if (digits.length === 10) { setDetected('phone', 'Telefone'); return; }
 
     // 13 dígitos (com +55) = telefone
-    if (digits.length === 13 && digits.startsWith('55')) {
-        selectedPixKeyType = 'phone';
-        detectedText.textContent = 'Tipo detectado: Telefone';
-        detected.style.display = 'block';
-        return;
-    }
+    if (digits.length === 13 && digits.startsWith('55')) { setDetected('phone', 'Telefone'); return; }
 
     // 11 dígitos = ambíguo (CPF ou celular) - perguntar ao usuário
     if (digits.length === 11) {
         selector.style.display = 'block';
-        // Limpar seleção anterior
         document.querySelectorAll('.pix-type-btn').forEach(b => b.classList.remove('active'));
+        if (savedPixKeys.length < 3) {
+            document.getElementById('savePixToggle').style.display = 'flex';
+        }
         return;
     }
 
     // 12 dígitos (55 + DDD + 8 dígitos fixo)
-    if (digits.length === 12 && digits.startsWith('55')) {
-        selectedPixKeyType = 'phone';
-        detectedText.textContent = 'Tipo detectado: Telefone';
-        detected.style.display = 'block';
-        return;
-    }
+    if (digits.length === 12 && digits.startsWith('55')) { setDetected('phone', 'Telefone'); return; }
 }
 
 function selectPixType(type) {
@@ -967,27 +1301,44 @@ async function requestWithdraw() {
     }
 
     const amount = parseFloat(document.getElementById('withdrawAmount').value);
-    let paymentDetails = document.getElementById('paymentDetails').value.trim();
+    let paymentDetails = '';
+    let pixKeyType = '';
+    let shouldSaveKey = false;
 
     if (!amount || amount < 7) {
         showWarning('O valor mínimo para saque é R$ 7,00');
         return;
     }
 
-    if (!paymentDetails) {
-        showWarning('Preencha os dados de pagamento');
-        return;
-    }
+    // Usar chave salva ou input manual
+    if (selectedSavedKeyId) {
+        const savedKey = savedPixKeys.find(k => parseInt(k.id) === selectedSavedKeyId);
+        if (!savedKey) {
+            showWarning('Selecione uma chave PIX válida');
+            return;
+        }
+        paymentDetails = savedKey.pix_key;
+        pixKeyType = savedKey.pix_key_type;
+    } else {
+        paymentDetails = document.getElementById('paymentDetails').value.trim();
+        pixKeyType = selectedPixKeyType;
+        shouldSaveKey = document.getElementById('savePixCheckbox').checked;
 
-    // Verificar se precisa selecionar tipo (11 dígitos)
-    const digits = paymentDetails.replace(/\D/g, '');
-    if (digits.length === 11 && !selectedPixKeyType) {
-        showWarning('Selecione se a chave é CPF ou Telefone');
-        return;
+        if (!paymentDetails) {
+            showWarning('Preencha a chave PIX ou selecione uma chave salva');
+            return;
+        }
+
+        // Verificar se precisa selecionar tipo (11 dígitos)
+        const digits = paymentDetails.replace(/\D/g, '');
+        if (digits.length === 11 && !pixKeyType) {
+            showWarning('Selecione se a chave é CPF ou Telefone');
+            return;
+        }
     }
 
     // Adicionar +55 para telefone se não tiver
-    if (selectedPixKeyType === 'phone') {
+    if (pixKeyType === 'phone') {
         const phoneDigits = paymentDetails.replace(/\D/g, '');
         if (!phoneDigits.startsWith('55')) {
             paymentDetails = '+55' + phoneDigits;
@@ -1012,21 +1363,31 @@ async function requestWithdraw() {
                 amount_brl: amount,
                 payment_method: selectedPaymentMethod,
                 payment_details: paymentDetails,
-                pix_key_type: selectedPixKeyType
+                pix_key_type: pixKeyType
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
-            alert('✅ Saque solicitado com sucesso!\n\nAcompanhe o processamento em tempo real na fila de saques.');
+            // Salvar chave se checkbox marcado
+            if (shouldSaveKey && !selectedSavedKeyId) {
+                await saveCurrentPixKey(paymentDetails, pixKeyType);
+            }
+
+            alert('Saque solicitado com sucesso!\n\nAcompanhe o processamento em tempo real na fila de saques.');
             document.getElementById('withdrawAmount').value = '';
             document.getElementById('paymentDetails').value = '';
             selectedPixKeyType = '';
+            selectedSavedKeyId = null;
+            showingNewKeyInput = false;
+            document.getElementById('savePixCheckbox').checked = false;
+            document.getElementById('savePixToggle').style.display = 'none';
             document.getElementById('pixTypeSelector').style.display = 'none';
             document.getElementById('pixTypeDetected').style.display = 'none';
             loadWalletData();
             loadTransactionHistory();
+            loadSavedPixKeys();
         } else {
             showWarning(data.error || 'Erro ao solicitar saque');
         }
@@ -1530,6 +1891,7 @@ document.addEventListener('authStateChanged', (e) => {
         loadCreditsBalance();
         loadCreditPackages();
         loadTransactionHistory();
+        loadSavedPixKeys();
         selectPaymentMethod('pix'); // Default
     } else {
         document.getElementById('connectOverlay').classList.add('active');
@@ -1543,6 +1905,7 @@ if (window.authManager?.currentUser) {
     loadCreditsBalance();
     loadCreditPackages();
     loadTransactionHistory();
+    loadSavedPixKeys();
     selectPaymentMethod('pix'); // Default
 }
 

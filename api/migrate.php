@@ -253,6 +253,22 @@ try {
     $results['migrations'][] = 'premium_subscriptions';
     output("  [OK] premium_subscriptions");
 
+    // saved_pix_keys (chaves PIX salvas do usuário)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS saved_pix_keys (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            pix_key VARCHAR(255) NOT NULL,
+            pix_key_type VARCHAR(20) NOT NULL,
+            label VARCHAR(50) DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user_id (user_id),
+            CONSTRAINT fk_saved_pix_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'saved_pix_keys';
+    output("  [OK] saved_pix_keys");
+
     // ============================================
     // COLUNAS EXTRAS EM TABELAS EXISTENTES
     // ============================================
