@@ -5,7 +5,7 @@
 // ============================================
 
 define('ADMIN_AUTH_COOKIE', 'unobix_admin_token');
-define('ADMIN_AUTH_SECRET', getenv('ADMIN_AUTH_SECRET') ?: 'unobix_adm_s3cr3t_k3y_2024!hmac');
+define('ADMIN_AUTH_SECRET', getenv('ADMIN_AUTH_SECRET') ?: 'unobix_adm_v2_k9x7m2p4w8!hmac2026');
 define('ADMIN_AUTH_EXPIRY', 86400 * 1); // 1 dia (reduzido de 7 para segurança)
 
 /**
