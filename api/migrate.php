@@ -175,6 +175,26 @@ try {
     $results['migrations'][] = 'ranking_cache';
     output("  [OK] ranking_cache");
 
+    // admin_login_log (histórico de login do admin)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS admin_login_log (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(50) NOT NULL,
+            success TINYINT(1) NOT NULL DEFAULT 0,
+            ip_address VARCHAR(45) NOT NULL,
+            user_agent VARCHAR(500) DEFAULT NULL,
+            city VARCHAR(100) DEFAULT NULL,
+            region VARCHAR(100) DEFAULT NULL,
+            country VARCHAR(50) DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_created (created_at),
+            INDEX idx_ip (ip_address),
+            INDEX idx_success (success)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'admin_login_log';
+    output("  [OK] admin_login_log");
+
     // credit_packages
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS credit_packages (

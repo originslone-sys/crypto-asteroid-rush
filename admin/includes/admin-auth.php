@@ -97,3 +97,64 @@ function adminRestoreSession(): bool {
 
     return true;
 }
+
+/**
+ * Registra tentativa de login no banco (sucesso ou falha)
+ * Busca localização do IP via API gratuita
+ */
+function adminLogLogin(string $username, bool $success, string $ip): void {
+    try {
+        // Buscar geolocalização do IP (API gratuita, sem chave)
+        $city = null;
+        $region = null;
+        $country = null;
+
+        $geoContext = stream_context_create(['http' => ['timeout' => 3, 'ignore_errors' => true]]);
+        $geoResponse = @file_get_contents("http://ip-api.com/json/{$ip}?fields=city,regionName,country&lang=pt-BR", false, $geoContext);
+        if ($geoResponse) {
+            $geo = json_decode($geoResponse, true);
+            if (!empty($geo['city'])) {
+                $city = $geo['city'];
+                $region = $geo['regionName'] ?? null;
+                $country = $geo['country'] ?? null;
+            }
+        }
+
+        require_once __DIR__ . '/../../api/config.php';
+        $pdo = getDatabaseConnection();
+
+        // Criar tabela se não existir (fallback para primeiro uso)
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS admin_login_log (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(50) NOT NULL,
+                success TINYINT(1) NOT NULL DEFAULT 0,
+                ip_address VARCHAR(45) NOT NULL,
+                user_agent VARCHAR(500) DEFAULT NULL,
+                city VARCHAR(100) DEFAULT NULL,
+                region VARCHAR(100) DEFAULT NULL,
+                country VARCHAR(50) DEFAULT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_created (created_at),
+                INDEX idx_ip (ip_address),
+                INDEX idx_success (success)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $stmt = $pdo->prepare("
+            INSERT INTO admin_login_log (username, success, ip_address, user_agent, city, region, country)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            substr($username, 0, 50),
+            $success ? 1 : 0,
+            $ip,
+            substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500),
+            $city,
+            $region,
+            $country
+        ]);
+    } catch (Exception $e) {
+        error_log("adminLogLogin error: " . $e->getMessage());
+    }
+}

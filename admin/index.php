@@ -73,12 +73,14 @@ if (!isset($_SESSION['admin'])) {
                 $_SESSION['admin_name'] = $username;
                 $_SESSION['admin_logged_in'] = true;
                 adminSetAuthCookie($username);
+                adminLogLogin($username, true, $loginIp);
                 header('Location: ' . $ADMIN_INDEX_URL);
                 exit;
             } else {
                 // Registrar tentativa falha
                 $loginAttempts[] = time();
                 @file_put_contents($loginLockFile, json_encode(array_values($loginAttempts)));
+                adminLogLogin($username, false, $loginIp);
                 $error = 'Credenciais inválidas!';
             }
         }
