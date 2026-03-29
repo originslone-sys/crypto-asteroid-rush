@@ -1,9 +1,10 @@
 <?php
 // ============================================
 // UNOBIX - ZettPay Webhook Receiver
-// api/zettpay-webhook.php v1.0
+// api/zettpay-webhook.php v2.0
 // Recebe notificações de depósitos e saques
-// CRÍTICO: Nunca credita sem validação de assinatura
+// SEGURANÇA: Verifica na API ZettPay antes de creditar
+// SEGURANÇA: Anti-replay com tabela webhook_log
 // ============================================
 
 require_once __DIR__ . "/config.php";
@@ -31,7 +32,7 @@ if (empty($rawBody)) {
 }
 
 // ============================================
-// 3. PARSEAR PAYLOAD
+// 2. PARSEAR PAYLOAD
 // ============================================
 $payload = json_decode($rawBody, true);
 
@@ -59,17 +60,36 @@ if (empty($externalId)) {
 }
 
 // ============================================
-// 4. CONECTAR AO BANCO
+// 3. CONECTAR AO BANCO
 // ============================================
 try {
     $pdo = getDatabaseConnection();
     if (!$pdo) throw new Exception("Falha na conexão com o banco");
     ensureZettpayTable($pdo);
+    ensureWebhookLogTable($pdo);
 } catch (Exception $e) {
     secureLog("ZETTPAY_WEBHOOK_DB_ERROR | " . $e->getMessage());
     http_response_code(500);
     echo json_encode(['error' => 'Database error']);
     exit;
+}
+
+// ============================================
+// 4. ANTI-REPLAY: Verificar se já processamos este webhook
+// ============================================
+$webhookFingerprint = md5($rawBody);
+try {
+    $stmt = $pdo->prepare("INSERT IGNORE INTO webhook_log (fingerprint, external_id, event, created_at) VALUES (?, ?, ?, NOW())");
+    $stmt->execute([$webhookFingerprint, $externalId, $event]);
+    if ($stmt->rowCount() === 0) {
+        // Já processamos este webhook exato antes
+        secureLog("ZETTPAY_WEBHOOK_REPLAY_BLOCKED | external_id: {$externalId} | fingerprint: {$webhookFingerprint}");
+        echo json_encode(['received' => true]);
+        exit;
+    }
+} catch (Exception $e) {
+    // Se falhar o anti-replay, continuar mas logar
+    secureLog("ZETTPAY_WEBHOOK_REPLAY_CHECK_ERROR | " . $e->getMessage());
 }
 
 // ============================================
@@ -91,6 +111,39 @@ try {
     secureLog("ZETTPAY_WEBHOOK_PROCESS_ERROR | external_id: {$externalId} | " . $e->getMessage());
     http_response_code(500);
     echo json_encode(['error' => 'Processing error']);
+}
+
+// ============================================
+// TABELA ANTI-REPLAY
+// ============================================
+function ensureWebhookLogTable($pdo) {
+    static $checked = false;
+    if ($checked) return;
+
+    $flagFile = sys_get_temp_dir() . '/unobix_table_webhook_log.flag';
+    if (file_exists($flagFile) && (time() - filemtime($flagFile)) < 3600) {
+        $checked = true;
+        return;
+    }
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS webhook_log (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                fingerprint VARCHAR(32) NOT NULL,
+                external_id VARCHAR(100) NOT NULL,
+                event VARCHAR(50) NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY idx_fingerprint (fingerprint),
+                INDEX idx_external_id (external_id),
+                INDEX idx_created_at (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        @touch($flagFile);
+        $checked = true;
+    } catch (Exception $e) {
+        error_log("webhook_log table creation error: " . $e->getMessage());
+    }
 }
 
 // ============================================
@@ -120,6 +173,37 @@ function processDeposit($pdo, $data, $rawBody) {
 
     // Status de sucesso: PAID, APPROVED ou COMPLETED
     if ($status === 'PAID' || $status === 'COMPLETED' || $status === 'APPROVED') {
+
+        // ============================================
+        // VERIFICAÇÃO DUPLA: Consultar API ZettPay para confirmar
+        // Nunca confiar apenas no webhook - sempre verificar na fonte
+        // ============================================
+        $apiResult = zettpayLookupDeposit($externalId);
+
+        if (!$apiResult['success'] || empty($apiResult['data'])) {
+            secureLog("ZETTPAY_WEBHOOK_VERIFY_FAILED | external_id: {$externalId} | Não foi possível verificar na API ZettPay | http: " . ($apiResult['http_code'] ?? 0));
+            return;
+        }
+
+        $apiData = $apiResult['data'];
+        // Normalizar: resposta pode vir em $apiData diretamente ou em $apiData['data']
+        if (isset($apiData['data']) && is_array($apiData['data'])) {
+            $apiData = $apiData['data'];
+        }
+
+        $verifiedStatus = strtoupper($apiData['status'] ?? '');
+
+        // Se a API ZettPay NÃO confirma o pagamento, BLOQUEAR
+        if (!in_array($verifiedStatus, ['PAID', 'COMPLETED', 'APPROVED'])) {
+            secureLog("ZETTPAY_WEBHOOK_VERIFY_MISMATCH | external_id: {$externalId} | webhook_status: {$status} | api_status: {$verifiedStatus} | BLOQUEADO - webhook forjado?");
+            return;
+        }
+
+        // Usar zettpay_id da API verificada (mais confiável que o webhook)
+        $verifiedZettpayId = $apiData['provider_transaction_id'] ?? $apiData['id'] ?? $zettpayId;
+
+        secureLog("ZETTPAY_WEBHOOK_VERIFIED | external_id: {$externalId} | api_status: {$verifiedStatus} | Pagamento confirmado na API");
+
         $pdo->beginTransaction();
 
         try {
@@ -224,7 +308,7 @@ function processDeposit($pdo, $data, $rawBody) {
                 $stmt->execute([$depositAmount, $depositAmount, $user['id']]);
             }
 
-            // Atualizar transação ZettPay
+            // Atualizar transação ZettPay (usar ID verificado da API)
             $stmt = $pdo->prepare("
                 UPDATE zettpay_transactions
                 SET status = 'confirmed',
@@ -233,7 +317,7 @@ function processDeposit($pdo, $data, $rawBody) {
                     confirmed_at = NOW()
                 WHERE id = ?
             ");
-            $stmt->execute([$zettpayId, $rawBody, $tx['id']]);
+            $stmt->execute([$verifiedZettpayId, $rawBody, $tx['id']]);
 
             // Atualizar transação no histórico
             $stmt = $pdo->prepare("
@@ -316,6 +400,28 @@ function processCashout($pdo, $data, $rawBody) {
 
     // Status de sucesso: APPROVED ou COMPLETED
     if ($status === 'APPROVED' || $status === 'COMPLETED') {
+
+        // VERIFICAÇÃO DUPLA: Consultar API ZettPay para saques
+        $apiResult = zettpayLookupCashout($externalId);
+
+        if (!$apiResult['success'] || empty($apiResult['data'])) {
+            secureLog("ZETTPAY_WEBHOOK_CASHOUT_VERIFY_FAILED | external_id: {$externalId} | http: " . ($apiResult['http_code'] ?? 0));
+            return;
+        }
+
+        $apiData = $apiResult['data'];
+        if (isset($apiData['data']) && is_array($apiData['data'])) {
+            $apiData = $apiData['data'];
+        }
+
+        $verifiedStatus = strtoupper($apiData['status'] ?? '');
+        if (!in_array($verifiedStatus, ['APPROVED', 'COMPLETED'])) {
+            secureLog("ZETTPAY_WEBHOOK_CASHOUT_VERIFY_MISMATCH | external_id: {$externalId} | webhook_status: {$status} | api_status: {$verifiedStatus} | BLOQUEADO");
+            return;
+        }
+
+        $verifiedZettpayId = $apiData['provider_transaction_id'] ?? $apiData['id'] ?? $zettpayId;
+
         $pdo->beginTransaction();
 
         try {
@@ -338,7 +444,7 @@ function processCashout($pdo, $data, $rawBody) {
                     confirmed_at = NOW()
                 WHERE id = ?
             ");
-            $stmt->execute([$zettpayId, $rawBody, $tx['id']]);
+            $stmt->execute([$verifiedZettpayId, $rawBody, $tx['id']]);
 
             // Atualizar withdrawal
             if ($withdrawalId) {
