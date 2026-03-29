@@ -58,7 +58,7 @@ if (!defined('GAME_DURATION')) {
     define('GAME_TOLERANCE', 90);           // 90 segundos tolerância para resolver CAPTCHA
     define('CAPTCHA_RESEND_TOLERANCE', 60); // Tolerância extra para reenvio com CAPTCHA (ads + verificação)
     define('INITIAL_LIVES', 6);
-    define('HARD_MODE_PERCENTAGE', 80);
+    define('HARD_MODE_PERCENTAGE', 90);
 }
 
 // ============================================
@@ -89,10 +89,10 @@ if (!defined('EARNINGS_ALERT_BRL')) {
     define('EARNINGS_BLOCK_BRL', 3.60);     // Bloqueia se > R$3.60 (máximo teórico)
     
     // Limites absolutos por partida
-    define('MAX_ASTEROIDS_PER_GAME', 400);
-    define('MAX_LEGENDARY_PER_GAME', 5);
-    define('MAX_EPIC_PER_GAME', 20);
-    define('MAX_RARE_PER_GAME', 80);
+    define('MAX_ASTEROIDS_PER_GAME', 500);
+    define('MAX_LEGENDARY_PER_GAME', 4);
+    define('MAX_EPIC_PER_GAME', 15);
+    define('MAX_RARE_PER_GAME', 60);
     
     // Proporções máximas (anti-cheat)
     define('MAX_LEGENDARY_PERCENT', 0.02);  // Máximo 2% lendários
