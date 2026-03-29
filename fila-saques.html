@@ -260,7 +260,154 @@
     <div class="refresh-bar">
         <span class="refresh-dot"></span>
         <span>Atualiza automaticamente a cada 30 segundos</span>
+        <button id="btnSecurityInfo" style="
+            background: rgba(0, 255, 255, 0.08);
+            border: 1px solid rgba(0, 255, 255, 0.25);
+            color: var(--cyan);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            cursor: pointer;
+            margin-left: 12px;
+            font-family: 'Exo 2', sans-serif;
+            transition: all 0.3s;
+        " onmouseover="this.style.background='rgba(0,255,255,0.15)'" onmouseout="this.style.background='rgba(0,255,255,0.08)'">
+            <i class="fas fa-shield-alt"></i> Como funciona a análise de segurança?
+        </button>
     </div>
+
+    <!-- Modal de Análise de Segurança -->
+    <div id="securityModal" style="
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+    ">
+        <div style="
+            background: linear-gradient(135deg, #0a0a1a 0%, #0f1628 100%);
+            border: 1px solid rgba(0, 255, 255, 0.15);
+            border-radius: 16px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 32px;
+            position: relative;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.08);
+        ">
+            <button onclick="document.getElementById('securityModal').style.display='none'" style="
+                position: absolute; top: 16px; right: 16px;
+                background: none; border: none; color: #666; font-size: 1.5rem; cursor: pointer;
+            ">&times;</button>
+
+            <h2 style="color: #00ffff; font-family: 'Orbitron', sans-serif; font-size: 1.1rem; margin-bottom: 20px;">
+                <i class="fas fa-shield-alt"></i> Sistema de Análise de Segurança
+            </h2>
+
+            <p style="color: #8899aa; font-size: 0.85rem; line-height: 1.6; margin-bottom: 20px;">
+                Todos os saques passam por uma análise automática de segurança antes de serem processados. Esse sistema protege sua conta e garante a integridade da plataforma.
+            </p>
+
+            <div style="display: grid; gap: 16px;">
+                <!-- Sessões -->
+                <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; border-left: 3px solid #00ffff;">
+                    <h3 style="color: #fff; font-size: 0.85rem; margin-bottom: 8px;"><i class="fas fa-gamepad" style="color: #00ffff;"></i> Sessões de Jogo</h3>
+                    <ul style="color: #8899aa; font-size: 0.78rem; line-height: 1.8; padding-left: 18px; margin: 0;">
+                        <li>Verifica sessões marcadas pelo sistema antifraude</li>
+                        <li>Analisa sessões com ganhos acima do limite anti-cheat</li>
+                        <li>Detecta muitas sessões em curto período impossível (bot)</li>
+                    </ul>
+                </div>
+
+                <!-- Ganhos -->
+                <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; border-left: 3px solid #2ed573;">
+                    <h3 style="color: #fff; font-size: 0.85rem; margin-bottom: 8px;"><i class="fas fa-coins" style="color: #2ed573;"></i> Análise de Ganhos</h3>
+                    <ul style="color: #8899aa; font-size: 0.78rem; line-height: 1.8; padding-left: 18px; margin: 0;">
+                        <li>Verifica se os ganhos nas últimas 24h são anormalmente altos</li>
+                        <li>Compara média de ganho por partida com o padrão da plataforma</li>
+                        <li>Analisa origem do saldo (partidas, comissões, depósitos)</li>
+                    </ul>
+                </div>
+
+                <!-- Créditos -->
+                <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; border-left: 3px solid #ffa502;">
+                    <h3 style="color: #fff; font-size: 0.85rem; margin-bottom: 8px;"><i class="fas fa-credit-card" style="color: #ffa502;"></i> Verificação de Créditos</h3>
+                    <ul style="color: #8899aa; font-size: 0.78rem; line-height: 1.8; padding-left: 18px; margin: 0;">
+                        <li>Verifica compras de créditos sem pagamento confirmado no gateway</li>
+                        <li>Detecta padrão de compra de créditos seguida de saque sem jogar</li>
+                    </ul>
+                </div>
+
+                <!-- Comissões -->
+                <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; border-left: 3px solid #a55eea;">
+                    <h3 style="color: #fff; font-size: 0.85rem; margin-bottom: 8px;"><i class="fas fa-users" style="color: #a55eea;"></i> Comissões de Afiliados</h3>
+                    <ul style="color: #8899aa; font-size: 0.78rem; line-height: 1.8; padding-left: 18px; margin: 0;">
+                        <li>Verifica se indicados são contas reais que jogam ativamente</li>
+                        <li>Detecta auto-referral (indicados com mesmo IP do indicador)</li>
+                        <li>Analisa comissões resgatadas de indicados suspeitos</li>
+                    </ul>
+                </div>
+
+                <!-- Padrão de Saque -->
+                <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; border-left: 3px solid #ff4757;">
+                    <h3 style="color: #fff; font-size: 0.85rem; margin-bottom: 8px;"><i class="fas fa-exchange-alt" style="color: #ff4757;"></i> Padrão de Saque</h3>
+                    <ul style="color: #8899aa; font-size: 0.78rem; line-height: 1.8; padding-left: 18px; margin: 0;">
+                        <li>Frequência de saques (muitos saques pequenos em sequência)</li>
+                        <li>Saques imediatos após cada partida</li>
+                        <li>Histórico de saques rejeitados anteriormente</li>
+                    </ul>
+                </div>
+
+                <!-- Conta -->
+                <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; border-left: 3px solid #eccc68;">
+                    <h3 style="color: #fff; font-size: 0.85rem; margin-bottom: 8px;"><i class="fas fa-user-shield" style="color: #eccc68;"></i> Análise da Conta</h3>
+                    <ul style="color: #8899aa; font-size: 0.78rem; line-height: 1.8; padding-left: 18px; margin: 0;">
+                        <li>Idade da conta (contas novas com valores improváveis)</li>
+                        <li>Detecção de múltiplas contas automatizadas (bots)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Score -->
+            <div style="margin-top: 20px; background: rgba(0,255,255,0.05); border-radius: 10px; padding: 16px; border: 1px solid rgba(0,255,255,0.1);">
+                <h3 style="color: #00ffff; font-size: 0.85rem; margin-bottom: 10px;"><i class="fas fa-tachometer-alt"></i> Score de Risco</h3>
+                <p style="color: #8899aa; font-size: 0.78rem; line-height: 1.6; margin-bottom: 12px;">
+                    Cada verificação gera uma pontuação automática. O tempo de processamento depende do score:
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center;">
+                    <div style="background: rgba(46,213,115,0.1); border-radius: 8px; padding: 10px; border: 1px solid rgba(46,213,115,0.2);">
+                        <div style="color: #2ed573; font-weight: 700; font-size: 0.85rem;">Baixo</div>
+                        <div style="color: #8899aa; font-size: 0.7rem; margin-top: 4px;">Processamento mais rápido</div>
+                    </div>
+                    <div style="background: rgba(255,165,2,0.1); border-radius: 8px; padding: 10px; border: 1px solid rgba(255,165,2,0.2);">
+                        <div style="color: #ffa502; font-weight: 700; font-size: 0.85rem;">Médio</div>
+                        <div style="color: #8899aa; font-size: 0.7rem; margin-top: 4px;">Análise mais detalhada</div>
+                    </div>
+                    <div style="background: rgba(255,71,87,0.1); border-radius: 8px; padding: 10px; border: 1px solid rgba(255,71,87,0.2);">
+                        <div style="color: #ff4757; font-weight: 700; font-size: 0.85rem;">Alto</div>
+                        <div style="color: #8899aa; font-size: 0.7rem; margin-top: 4px;">Revisão manual</div>
+                    </div>
+                </div>
+            </div>
+
+            <p style="color: #556677; font-size: 0.72rem; margin-top: 16px; text-align: center;">
+                Este sistema garante a segurança de todos os jogadores e a integridade da plataforma.
+            </p>
+        </div>
+    </div>
+
+    <script>
+    document.getElementById('btnSecurityInfo').addEventListener('click', function() {
+        document.getElementById('securityModal').style.display = 'flex';
+    });
+    document.getElementById('securityModal').addEventListener('click', function(e) {
+        if (e.target === this) this.style.display = 'none';
+    });
+    </script>
 
     <!-- Filtros -->
     <div class="filter-bar">
