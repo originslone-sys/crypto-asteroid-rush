@@ -89,12 +89,15 @@ try {
             // Sanitizar label
             $label = $label ? substr($label, 0, 50) : null;
 
-            // Verificar limite de 3 chaves
-            $countStmt = $pdo->prepare("SELECT COUNT(*) FROM saved_pix_keys WHERE user_id = ?");
+            // Verificar limite de 3 e duplicata atomicamente com lock
+            $pdo->beginTransaction();
+
+            $countStmt = $pdo->prepare("SELECT COUNT(*) FROM saved_pix_keys WHERE user_id = ? FOR UPDATE");
             $countStmt->execute([$userId]);
             $total = (int)$countStmt->fetchColumn();
 
             if ($total >= 3) {
+                $pdo->rollBack();
                 echo json_encode(['success' => false, 'error' => 'Limite de 3 chaves PIX atingido. Remova uma chave antes de adicionar outra.']);
                 exit;
             }
@@ -103,12 +106,14 @@ try {
             $dup = $pdo->prepare("SELECT id FROM saved_pix_keys WHERE user_id = ? AND pix_key = ?");
             $dup->execute([$userId, $pixKey]);
             if ($dup->fetch()) {
+                $pdo->rollBack();
                 echo json_encode(['success' => false, 'error' => 'Esta chave PIX já está salva']);
                 exit;
             }
 
             $stmt = $pdo->prepare("INSERT INTO saved_pix_keys (user_id, pix_key, pix_key_type, label) VALUES (?, ?, ?, ?)");
             $stmt->execute([$userId, $pixKey, $pixKeyType, $label]);
+            $pdo->commit();
 
             echo json_encode(['success' => true, 'message' => 'Chave PIX salva com sucesso', 'id' => (int)$pdo->lastInsertId()]);
             break;

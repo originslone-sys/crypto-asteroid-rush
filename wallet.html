@@ -1094,15 +1094,21 @@ function renderSavedPixKeys() {
         return key;
     }
 
+    function escHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
     list.innerHTML = savedPixKeys.map(k => `
-        <div class="saved-pix-item ${selectedSavedKeyId === k.id ? 'active' : ''}" onclick="selectSavedKey(${k.id})">
+        <div class="saved-pix-item ${selectedSavedKeyId == k.id ? 'active' : ''}" onclick="selectSavedKey(${parseInt(k.id)})">
             <div class="pix-icon"><i class="fas ${typeIcons[k.pix_key_type] || 'fa-key'}"></i></div>
             <div class="pix-info">
-                ${k.label ? '<div class="pix-label">' + k.label + '</div>' : ''}
-                <div class="pix-value">${maskPixKey(k.pix_key, k.pix_key_type)}</div>
+                ${k.label ? '<div class="pix-label">' + escHtml(k.label) + '</div>' : ''}
+                <div class="pix-value">${escHtml(maskPixKey(k.pix_key, k.pix_key_type))}</div>
             </div>
-            <span class="pix-type-badge">${typeLabels[k.pix_key_type] || k.pix_key_type}</span>
-            <button class="pix-delete" onclick="event.stopPropagation(); deleteSavedKey(${k.id})" title="Remover chave">
+            <span class="pix-type-badge">${escHtml(typeLabels[k.pix_key_type] || k.pix_key_type)}</span>
+            <button class="pix-delete" onclick="event.stopPropagation(); deleteSavedKey(${parseInt(k.id)})" title="Remover chave">
                 <i class="fas fa-trash-alt"></i>
             </button>
         </div>
@@ -1111,7 +1117,7 @@ function renderSavedPixKeys() {
     // Se tem chave salva, esconder input manual por padrão
     if (!showingNewKeyInput) {
         detailsGroup.classList.remove('visible');
-        detailsGroup.style.display = 'none';
+        detailsGroup.removeAttribute('style');
         saveToggle.style.display = 'none';
         document.getElementById('pixTypeSelector').style.display = 'none';
         document.getElementById('pixTypeDetected').style.display = 'none';
@@ -1120,19 +1126,25 @@ function renderSavedPixKeys() {
 
 function selectSavedKey(id) {
     selectedSavedKeyId = (selectedSavedKeyId === id) ? null : id;
-    showingNewKeyInput = false;
 
-    // Esconder input manual quando seleciona chave salva
     const detailsGroup = document.getElementById('paymentDetailsGroup');
     const saveToggle = document.getElementById('savePixToggle');
+
     if (selectedSavedKeyId) {
-        detailsGroup.style.display = 'none';
+        // Chave salva selecionada: esconder input manual
+        showingNewKeyInput = false;
         detailsGroup.classList.remove('visible');
+        detailsGroup.removeAttribute('style');
         saveToggle.style.display = 'none';
         document.getElementById('pixTypeSelector').style.display = 'none';
         document.getElementById('pixTypeDetected').style.display = 'none';
         document.getElementById('paymentDetails').value = '';
         selectedPixKeyType = '';
+    } else {
+        // Nenhuma chave selecionada: mostrar input manual
+        showingNewKeyInput = true;
+        detailsGroup.classList.add('visible');
+        detailsGroup.removeAttribute('style');
     }
 
     renderSavedPixKeys();
@@ -1147,16 +1159,16 @@ function toggleNewPixKey() {
     const saveToggle = document.getElementById('savePixToggle');
 
     if (showingNewKeyInput) {
-        detailsGroup.style.display = 'block';
         detailsGroup.classList.add('visible');
+        detailsGroup.removeAttribute('style');
         btn.innerHTML = '<i class="fas fa-list"></i> Usar chave salva';
         // Mostrar opção de salvar se ainda tem espaço
         if (savedPixKeys.length < 3) {
             saveToggle.style.display = 'flex';
         }
     } else {
-        detailsGroup.style.display = 'none';
         detailsGroup.classList.remove('visible');
+        detailsGroup.removeAttribute('style');
         saveToggle.style.display = 'none';
         btn.innerHTML = '<i class="fas fa-plus"></i> Usar outra chave';
         document.getElementById('paymentDetails').value = '';
@@ -1193,12 +1205,9 @@ async function deleteSavedKey(id) {
     }
 }
 
-async function saveCurrentPixKey() {
+async function saveCurrentPixKey(pixKey, pixKeyType) {
     const user = window.authManager?.currentUser;
-    if (!user) return;
-
-    const pixKey = document.getElementById('paymentDetails').value.trim();
-    if (!pixKey || !selectedPixKeyType) return;
+    if (!user || !pixKey || !pixKeyType) return;
 
     try {
         const response = await fetch('api/saved-pix-keys.php', {
@@ -1208,7 +1217,7 @@ async function saveCurrentPixKey() {
                 google_uid: user.uid,
                 action: 'save',
                 pix_key: pixKey,
-                pix_key_type: selectedPixKeyType
+                pix_key_type: pixKeyType
             })
         });
         const data = await response.json();
@@ -1303,7 +1312,7 @@ async function requestWithdraw() {
 
     // Usar chave salva ou input manual
     if (selectedSavedKeyId) {
-        const savedKey = savedPixKeys.find(k => k.id === selectedSavedKeyId);
+        const savedKey = savedPixKeys.find(k => parseInt(k.id) === selectedSavedKeyId);
         if (!savedKey) {
             showWarning('Selecione uma chave PIX válida');
             return;
@@ -1363,7 +1372,7 @@ async function requestWithdraw() {
         if (data.success) {
             // Salvar chave se checkbox marcado
             if (shouldSaveKey && !selectedSavedKeyId) {
-                await saveCurrentPixKey();
+                await saveCurrentPixKey(paymentDetails, pixKeyType);
             }
 
             alert('Saque solicitado com sucesso!\n\nAcompanhe o processamento em tempo real na fila de saques.');
