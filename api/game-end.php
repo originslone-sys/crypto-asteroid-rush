@@ -133,31 +133,26 @@ try {
     // ============================================
     // 4. VALIDAÇÃO ANTI-CHEAT
     // ============================================
-
-    $isHardMode = (bool)$session['is_hard_mode'];
-    $validation = validateGameStats($finalStats, $gameDuration, $isHardMode);
+    
+    $validation = validateGameStats($finalStats, $gameDuration, (bool)$session['is_hard_mode']);
 
     $isFlagged = false;
     $flagReason = null;
 
-    // Stats impossíveis → BLOQUEIA ganhos
-    if ($validation['should_block']) {
-        $isFlagged = true;
-        $flagReason = implode('; ', $validation['errors']);
-        secureLog("🚨 CHEAT_BLOCKED | Session: $sessionId | UID: {$session['google_uid']} | Mode: " . ($isHardMode ? 'HARD' : 'NORMAL') . " | Flags: " . implode(', ', $validation['flags']) . " | Errors: $flagReason");
-    } elseif (!$validation['valid']) {
-        secureLog("⚠️ STATS_SUSPECT | Session: $sessionId | Errors: " . implode('; ', $validation['errors']));
+    // Logs de validação (apenas informativo, não bloqueia)
+    if (!$validation['valid']) {
+        secureLog("⚠️ STATS_OVERFLOW | Session: $sessionId | Errors: " . implode('; ', $validation['errors']));
     }
     if (!empty($validation['warnings'])) {
         secureLog("⚠️ SUSPICIOUS | Session: $sessionId | Warnings: " . implode('; ', $validation['warnings']));
     }
-
+    
     // ============================================
     // 5. CALCULAR GANHOS NO SERVIDOR
     // ============================================
-
+    
     $isVictory = $victory && $livesRemaining > 0;
-
+    
     // Se foi flagged como trapaça, não credita
     if ($isFlagged) {
         $finalEarnings = 0;
@@ -166,18 +161,18 @@ try {
         // Perdeu - não ganha nada
         $finalEarnings = 0;
     } else {
-        // Calcular ganhos baseado nas estatísticas validadas (com limites por modo)
-        $finalEarnings = calculateServerEarnings($finalStats, $isHardMode);
+        // Calcular ganhos baseado nas estatísticas validadas
+        $finalEarnings = calculateServerEarnings($finalStats);
     }
-
-    // Verificar limite de ganhos por modo — CORTA no cap (não zera)
-    // Stats impossíveis já foram bloqueados acima (R$0). Aqui é só jogador com sorte.
-    $earningsCap = $isHardMode ? EARNINGS_BLOCK_HARD_BRL : EARNINGS_BLOCK_NORMAL_BRL;
-    if ($finalEarnings > $earningsCap) {
-        secureLog("⚠️ EARNINGS_CAPPED | Session: $sessionId | Original: R$$finalEarnings → Cap: R$$earningsCap | Mode: " . ($isHardMode ? 'HARD' : 'NORMAL'));
-        $finalEarnings = $earningsCap;
+    
+    // Verificar limites de ganhos
+    if ($finalEarnings > EARNINGS_BLOCK_BRL) {
+        secureLog("🚨 EARNINGS_BLOCKED | Session: $sessionId | Earnings: $finalEarnings");
+        $isFlagged = true;
+        $flagReason = "Ganhos excedem limite: R$$finalEarnings > R$" . EARNINGS_BLOCK_BRL;
+        $finalEarnings = 0;
     } elseif ($finalEarnings > EARNINGS_ALERT_BRL) {
-        secureLog("⚠️ HIGH_EARNINGS | Session: $sessionId | Earnings: R$$finalEarnings | Mode: " . ($isHardMode ? 'HARD' : 'NORMAL'));
+        secureLog("⚠️ HIGH_EARNINGS | Session: $sessionId | Earnings: $finalEarnings");
     }
     
     // ============================================
