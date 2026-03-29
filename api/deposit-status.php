@@ -177,7 +177,14 @@ function confirmDeposit($pdo, $tx, $user, $zettpayId, $rawPayload) {
 
             if ($premiumSub['status'] !== 'active') {
                 $durationDays = (int)($premiumSub['duration_days'] ?: 30);
-                $expiresAt = date('Y-m-d H:i:s', strtotime("+{$durationDays} days"));
+
+                // Renovação: somar dias ao vencimento atual se premium ainda ativo
+                $currentExpires = $lockedUser['premium_expires_at'] ?? null;
+                if (!empty($lockedUser['is_premium']) && $currentExpires && strtotime($currentExpires) > time()) {
+                    $expiresAt = date('Y-m-d H:i:s', strtotime($currentExpires . " +{$durationDays} days"));
+                } else {
+                    $expiresAt = date('Y-m-d H:i:s', strtotime("+{$durationDays} days"));
+                }
 
                 $pdo->prepare("UPDATE users SET is_premium = 1, premium_expires_at = ?, updated_at = NOW() WHERE id = ?")
                     ->execute([$expiresAt, $lockedUser['id']]);

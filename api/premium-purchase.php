@@ -71,12 +71,9 @@ try {
                 exit;
             }
 
-            // Check if already premium
+            // Premium ativo: permitir renovação antecipada (dias serão somados ao vencimento atual)
             $isPremium = !empty($user['is_premium']) && !empty($user['premium_expires_at']) && strtotime($user['premium_expires_at']) > time();
-            if ($isPremium) {
-                echo json_encode(['success' => false, 'error' => 'Você já possui Premium ativo até ' . date('d/m/Y H:i', strtotime($user['premium_expires_at']))]);
-                exit;
-            }
+            $isRenewal = $isPremium;
 
             // Load price from settings
             $priceStmt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'premium_price_brl'");

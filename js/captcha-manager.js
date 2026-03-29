@@ -120,15 +120,10 @@ const CaptchaManager = {
                         this.enableClaimButton();
 
                     } else if (result && result.captcha_required) {
-                        // Token expirou no Google — resetar e pedir novo CAPTCHA
-                        console.warn('⚠️ Token CAPTCHA expirou, pedindo novo...');
+                        // Token expirou no Google ou premium expirou — resetar e pedir novo CAPTCHA
+                        console.warn('⚠️ CAPTCHA necessário novamente, resetando...');
+                        this.forceShow();
                         this.showStatus('⚠️ Verificação expirou. Complete novamente.', 'error');
-                        this.isVerified = false;
-                        this.lastToken = null;
-                        if (this.widgetId !== null && typeof grecaptcha !== 'undefined') {
-                            try { grecaptcha.reset(this.widgetId); } catch (e) {}
-                        }
-                        this.disableClaimButton();
 
                     } else if (result && result.error) {
                         console.error('❌ Erro ao creditar:', result.error);
@@ -261,6 +256,26 @@ const CaptchaManager = {
             } catch (e) {}
         }
         return null;
+    },
+
+    /**
+     * Forçar exibição do CAPTCHA (quando backend exige mas frontend pensava ser premium)
+     * Atualiza status premium local e inicializa o widget
+     */
+    forceShow() {
+        console.log('🛡️ Forçando exibição do CAPTCHA (premium expirou no backend)');
+
+        // Atualizar status premium local
+        window._userIsPremium = false;
+        localStorage.setItem('userIsPremium', '0');
+
+        // Mostrar container
+        const captchaContainer = document.getElementById('captchaContainer');
+        if (captchaContainer) captchaContainer.style.display = '';
+
+        // Resetar e inicializar
+        this.reset();
+        setTimeout(() => this.init(), 300);
     },
 
     /**
