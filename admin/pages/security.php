@@ -48,7 +48,24 @@ try {
     try {
         $alerts24h = $pdo->query("SELECT COUNT(*) FROM suspicious_activity WHERE created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)")->fetchColumn();
     } catch (Exception $e) {}
-    
+
+    // Histórico de login do admin
+    $loginLogs = [];
+    $failedLogins24h = 0;
+    try {
+        $loginLogs = $pdo->query("
+            SELECT * FROM admin_login_log
+            ORDER BY created_at DESC LIMIT 50
+        ")->fetchAll();
+
+        $failedLogins24h = (int)$pdo->query("
+            SELECT COUNT(*) FROM admin_login_log
+            WHERE success = 0 AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        ")->fetchColumn();
+    } catch (Exception $e) {
+        // Tabela pode não existir ainda
+    }
+
 } catch (Exception $e) {
     $error = $e->getMessage();
 }
@@ -78,6 +95,11 @@ try {
             <div class="icon primary"><i class="fas fa-bell"></i></div>
             <div class="value"><?php echo $alerts24h; ?></div>
             <div class="label">Alertas (24h)</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon <?php echo $failedLogins24h > 0 ? 'danger' : 'success'; ?>"><i class="fas fa-sign-in-alt"></i></div>
+            <div class="value"><?php echo $failedLogins24h; ?></div>
+            <div class="label">Login Falhos (24h)</div>
         </div>
     </div>
     
@@ -170,6 +192,79 @@ try {
                         </td>
                         <td><code><?php echo htmlspecialchars($log['ip_address'] ?? '-'); ?></code></td>
                         <td><?php echo date('d/m H:i:s', strtotime($log['created_at'])); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- Histórico de Login Admin -->
+    <div class="panel" style="margin-top: 30px;">
+        <div class="panel-header">
+            <h3 class="panel-title"><i class="fas fa-sign-in-alt"></i> Histórico de Login Admin</h3>
+        </div>
+        <div class="panel-body">
+            <?php if (empty($loginLogs)): ?>
+                <div class="empty-state"><i class="fas fa-inbox"></i><p>Nenhum registro de login</p></div>
+            <?php else: ?>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Usuário</th>
+                            <th>IP</th>
+                            <th>Localização</th>
+                            <th>Navegador</th>
+                            <th>Data/Hora</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($loginLogs as $log): ?>
+                    <tr style="<?php echo !$log['success'] ? 'background: rgba(255,71,87,0.08);' : ''; ?>">
+                        <td>
+                            <?php if ($log['success']): ?>
+                                <span class="badge badge-success" style="background: #2ed573; color: #000;">OK</span>
+                            <?php else: ?>
+                                <span class="badge badge-danger">FALHA</span>
+                            <?php endif; ?>
+                        </td>
+                        <td><code><?php echo htmlspecialchars($log['username']); ?></code></td>
+                        <td><code><?php echo htmlspecialchars($log['ip_address']); ?></code></td>
+                        <td>
+                            <?php
+                            $location = array_filter([
+                                $log['city'] ?? '',
+                                $log['region'] ?? '',
+                                $log['country'] ?? ''
+                            ]);
+                            echo $location ? htmlspecialchars(implode(', ', $location)) : '<span style="color: var(--text-dim);">—</span>';
+                            ?>
+                        </td>
+                        <td>
+                            <?php
+                            $ua = $log['user_agent'] ?? '';
+                            $browser = 'Desconhecido';
+                            if (stripos($ua, 'Chrome') !== false && stripos($ua, 'Edg') !== false) $browser = 'Edge';
+                            elseif (stripos($ua, 'Chrome') !== false) $browser = 'Chrome';
+                            elseif (stripos($ua, 'Firefox') !== false) $browser = 'Firefox';
+                            elseif (stripos($ua, 'Safari') !== false) $browser = 'Safari';
+                            elseif (stripos($ua, 'Opera') !== false || stripos($ua, 'OPR') !== false) $browser = 'Opera';
+
+                            $os = 'Desconhecido';
+                            if (stripos($ua, 'Windows') !== false) $os = 'Windows';
+                            elseif (stripos($ua, 'Mac') !== false) $os = 'macOS';
+                            elseif (stripos($ua, 'Linux') !== false) $os = 'Linux';
+                            elseif (stripos($ua, 'Android') !== false) $os = 'Android';
+                            elseif (stripos($ua, 'iPhone') !== false || stripos($ua, 'iPad') !== false) $os = 'iOS';
+
+                            echo htmlspecialchars("{$browser} / {$os}");
+                            ?>
+                        </td>
+                        <td><?php echo date('d/m/Y H:i:s', strtotime($log['created_at'])); ?></td>
                     </tr>
                     <?php endforeach; ?>
                     </tbody>
