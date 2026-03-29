@@ -17,6 +17,21 @@ $pdo = null;
 try {
     $pdo = getDbConnection();
 
+    // Criar tabela de cache se não existir (1x, depois fica em cache estático)
+    static $cacheTableChecked = false;
+    if (!$cacheTableChecked) {
+        try {
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS ranking_cache (
+                    cache_key VARCHAR(50) NOT NULL PRIMARY KEY,
+                    cache_value MEDIUMTEXT NOT NULL,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+        } catch (Exception $e) { /* já existe */ }
+        $cacheTableChecked = true;
+    }
+
     // Tentar ler do cache
     $cacheStmt = $pdo->prepare("
         SELECT cache_value, updated_at FROM ranking_cache
