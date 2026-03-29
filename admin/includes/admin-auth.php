@@ -6,7 +6,7 @@
 
 define('ADMIN_AUTH_COOKIE', 'unobix_admin_token');
 define('ADMIN_AUTH_SECRET', getenv('ADMIN_AUTH_SECRET') ?: 'unobix_adm_s3cr3t_k3y_2024!hmac');
-define('ADMIN_AUTH_EXPIRY', 86400 * 7); // 7 dias
+define('ADMIN_AUTH_EXPIRY', 86400 * 1); // 1 dia (reduzido de 7 para segurança)
 
 /**
  * Gera token HMAC assinado para o cookie admin
