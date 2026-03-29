@@ -25,21 +25,7 @@ try {
     $pdo = getDatabaseConnection();
     if (!$pdo) throw new Exception("Erro ao conectar ao banco");
 
-    // Garantir índice composto (1x por hora via flag)
-    $flagFile = sys_get_temp_dir() . '/unobix_idx_transactions.flag';
-    if (!file_exists($flagFile) || (time() - filemtime($flagFile)) >= 3600) {
-        try {
-            $pdo->exec("ALTER TABLE transactions ADD INDEX idx_uid_created (google_uid, created_at DESC)");
-        } catch (Exception $e) {
-            // Índice já existe
-        }
-        try {
-            $pdo->exec("ALTER TABLE transactions ADD INDEX idx_uid_type_created (google_uid, type, created_at DESC)");
-        } catch (Exception $e) {
-            // Índice já existe
-        }
-        @touch($flagFile);
-    }
+    // Índices criados via migrate.php no deploy
 
     // Tipos válidos
     $validTypes = ['game_reward', 'stake', 'unstake', 'withdraw', 'withdraw_reject', 'referral_commission', 'deposit', 'admin_adjust', 'credit_purchase'];

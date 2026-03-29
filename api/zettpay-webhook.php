@@ -113,37 +113,9 @@ try {
     echo json_encode(['error' => 'Processing error']);
 }
 
-// ============================================
-// TABELA ANTI-REPLAY
-// ============================================
+// Tabela webhook_log criada via migrate.php no deploy
 function ensureWebhookLogTable($pdo) {
-    static $checked = false;
-    if ($checked) return;
-
-    $flagFile = sys_get_temp_dir() . '/unobix_table_webhook_log.flag';
-    if (file_exists($flagFile) && (time() - filemtime($flagFile)) < 3600) {
-        $checked = true;
-        return;
-    }
-
-    try {
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS webhook_log (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                fingerprint VARCHAR(32) NOT NULL,
-                external_id VARCHAR(100) NOT NULL,
-                event VARCHAR(50) NOT NULL,
-                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE KEY idx_fingerprint (fingerprint),
-                INDEX idx_external_id (external_id),
-                INDEX idx_created_at (created_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        ");
-        @touch($flagFile);
-        $checked = true;
-    } catch (Exception $e) {
-        error_log("webhook_log table creation error: " . $e->getMessage());
-    }
+    // Migrado para migrate.php
 }
 
 // ============================================

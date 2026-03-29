@@ -12,29 +12,33 @@ header('Access-Control-Allow-Origin: *');
 require_once __DIR__ . '/config.php';
 
 // Cache: ranking muda pouco, cachear por 60 segundos
-$cacheFile = sys_get_temp_dir() . '/unobix_weekly_ranking.json';
-if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 60) {
-    echo file_get_contents($cacheFile);
-    exit;
-}
-
+// Usa banco para cache compartilhado entre instâncias Cloud Run
+$pdo = null;
 try {
     $pdo = getDbConnection();
+
+    // Tentar ler do cache
+    $cacheStmt = $pdo->prepare("
+        SELECT cache_value, updated_at FROM ranking_cache
+        WHERE cache_key = 'weekly_ranking' AND updated_at > DATE_SUB(NOW(), INTERVAL 60 SECOND)
+        LIMIT 1
+    ");
+    $cacheStmt->execute();
+    $cached = $cacheStmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($cached) {
+        echo $cached['cache_value'];
+        exit;
+    }
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'error' => 'Erro de conexão']);
-    exit;
+    // Se cache falhar, continua para gerar o ranking
+    if (!$pdo) {
+        echo json_encode(['success' => false, 'error' => 'Erro de conexão']);
+        exit;
+    }
 }
 
-// Garantir índice composto (1x por hora via flag)
-$flagFile = sys_get_temp_dir() . '/unobix_idx_ranking.flag';
-if (!file_exists($flagFile) || (time() - filemtime($flagFile)) >= 3600) {
-    try {
-        $pdo->exec("ALTER TABLE game_sessions ADD INDEX idx_ranking (status, started_at, google_uid, asteroids_destroyed)");
-    } catch (Exception $e) {
-        // Índice já existe
-    }
-    @touch($flagFile);
-}
+// Índice idx_ranking criado via migrate.php no deploy
 
 // Calcular período da semana atual
 $now = new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
@@ -88,13 +92,25 @@ foreach ($ranking as &$row) {
 }
 unset($row);
 
-// Buscar vencedores da semana anterior (cachear separadamente por 10 min)
-$prevCacheFile = sys_get_temp_dir() . '/unobix_prev_ranking.json';
+// Buscar vencedores da semana anterior (cache 10 min no banco)
 $previousWinners = [];
 
-if (file_exists($prevCacheFile) && (time() - filemtime($prevCacheFile)) < 600) {
-    $previousWinners = json_decode(file_get_contents($prevCacheFile), true) ?: [];
-} else {
+$prevCached = false;
+try {
+    $prevStmt = $pdo->prepare("
+        SELECT cache_value FROM ranking_cache
+        WHERE cache_key = 'prev_ranking' AND updated_at > DATE_SUB(NOW(), INTERVAL 600 SECOND)
+        LIMIT 1
+    ");
+    $prevStmt->execute();
+    $prevCache = $prevStmt->fetch(PDO::FETCH_ASSOC);
+    if ($prevCache) {
+        $previousWinners = json_decode($prevCache['cache_value'], true) ?: [];
+        $prevCached = true;
+    }
+} catch (Exception $e) { /* continua sem cache */ }
+
+if (!$prevCached) {
     $prevWeekStart = clone $weekStart;
     $prevWeekStart->modify('-7 days');
     $prevWeekEnd = clone $weekEnd;
@@ -127,7 +143,12 @@ if (file_exists($prevCacheFile) && (time() - filemtime($prevCacheFile)) < 600) {
     }
     unset($row);
 
-    @file_put_contents($prevCacheFile, json_encode($previousWinners));
+    try {
+        $pdo->prepare("
+            INSERT INTO ranking_cache (cache_key, cache_value, updated_at) VALUES ('prev_ranking', ?, NOW())
+            ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), updated_at = NOW()
+        ")->execute([json_encode($previousWinners)]);
+    } catch (Exception $e) { /* cache fail is ok */ }
 }
 
 $prizes = [100, 50, 30, 20, 10];
@@ -143,7 +164,12 @@ $response = json_encode([
     'prizes' => $prizes
 ]);
 
-// Salvar cache
-@file_put_contents($cacheFile, $response);
+// Salvar cache no banco (compartilhado entre instâncias)
+try {
+    $pdo->prepare("
+        INSERT INTO ranking_cache (cache_key, cache_value, updated_at) VALUES ('weekly_ranking', ?, NOW())
+        ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), updated_at = NOW()
+    ")->execute([$response]);
+} catch (Exception $e) { /* cache fail is ok */ }
 
 echo $response;

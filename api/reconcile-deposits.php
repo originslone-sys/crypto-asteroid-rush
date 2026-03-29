@@ -145,9 +145,8 @@ foreach ($pendingDeposits as $tx) {
         secureLog("RECONCILE_ERROR | external_id: {$externalId} | " . $e->getMessage());
     }
 
-    // Pequena pausa entre chamadas para não sobrecarregar a API
-    usleep(300000); // 300ms
 }
+
 
 $results['success'] = true;
 
