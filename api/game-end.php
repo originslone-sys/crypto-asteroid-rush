@@ -170,13 +170,12 @@ try {
         $finalEarnings = calculateServerEarnings($finalStats, $isHardMode);
     }
 
-    // Verificar limite de ganhos por modo
-    $earningsBlockLimit = $isHardMode ? EARNINGS_BLOCK_HARD_BRL : EARNINGS_BLOCK_NORMAL_BRL;
-    if ($finalEarnings > $earningsBlockLimit) {
-        secureLog("🚨 EARNINGS_BLOCKED | Session: $sessionId | Earnings: R$$finalEarnings > R$$earningsBlockLimit | Mode: " . ($isHardMode ? 'HARD' : 'NORMAL'));
-        $isFlagged = true;
-        $flagReason = "Ganhos excedem limite ($earningsBlockLimit): R$$finalEarnings";
-        $finalEarnings = 0;
+    // Verificar limite de ganhos por modo — CORTA no cap (não zera)
+    // Stats impossíveis já foram bloqueados acima (R$0). Aqui é só jogador com sorte.
+    $earningsCap = $isHardMode ? EARNINGS_BLOCK_HARD_BRL : EARNINGS_BLOCK_NORMAL_BRL;
+    if ($finalEarnings > $earningsCap) {
+        secureLog("⚠️ EARNINGS_CAPPED | Session: $sessionId | Original: R$$finalEarnings → Cap: R$$earningsCap | Mode: " . ($isHardMode ? 'HARD' : 'NORMAL'));
+        $finalEarnings = $earningsCap;
     } elseif ($finalEarnings > EARNINGS_ALERT_BRL) {
         secureLog("⚠️ HIGH_EARNINGS | Session: $sessionId | Earnings: R$$finalEarnings | Mode: " . ($isHardMode ? 'HARD' : 'NORMAL'));
     }
