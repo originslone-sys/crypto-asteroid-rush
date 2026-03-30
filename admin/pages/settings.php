@@ -559,19 +559,19 @@ try {
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
                                     <div>
                                         <label style="font-size: 0.7rem; color: #888;">Common %</label>
-                                        <input type="number" name="mode_normal_spawn_common" class="form-control" value="<?php echo $settings['mode_normal_spawn_common'] ?? 90; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                        <input type="number" name="mode_normal_spawn_common" class="form-control" value="<?php echo $settings['mode_normal_spawn_common'] ?? 90; ?>" min="0" max="100" step="0.1" style="font-size: 0.85rem;">
                                     </div>
                                     <div>
                                         <label style="font-size: 0.7rem; color: #3498db;">Rare %</label>
-                                        <input type="number" name="mode_normal_spawn_rare" class="form-control" value="<?php echo $settings['mode_normal_spawn_rare'] ?? 7; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                        <input type="number" name="mode_normal_spawn_rare" class="form-control" value="<?php echo $settings['mode_normal_spawn_rare'] ?? 7; ?>" min="0" max="100" step="0.1" style="font-size: 0.85rem;">
                                     </div>
                                     <div>
                                         <label style="font-size: 0.7rem; color: #9b59b6;">Epic %</label>
-                                        <input type="number" name="mode_normal_spawn_epic" class="form-control" value="<?php echo $settings['mode_normal_spawn_epic'] ?? 2; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                        <input type="number" name="mode_normal_spawn_epic" class="form-control" value="<?php echo $settings['mode_normal_spawn_epic'] ?? 2; ?>" min="0" max="100" step="0.1" style="font-size: 0.85rem;">
                                     </div>
                                     <div>
                                         <label style="font-size: 0.7rem; color: #f1c40f;">Legendary %</label>
-                                        <input type="number" name="mode_normal_spawn_legendary" class="form-control" value="<?php echo $settings['mode_normal_spawn_legendary'] ?? 1; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                        <input type="number" name="mode_normal_spawn_legendary" class="form-control" value="<?php echo $settings['mode_normal_spawn_legendary'] ?? 1; ?>" min="0" max="100" step="0.1" style="font-size: 0.85rem;">
                                     </div>
                                 </div>
                             </div>
@@ -606,19 +606,19 @@ try {
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
                                     <div>
                                         <label style="font-size: 0.7rem; color: #888;">Common %</label>
-                                        <input type="number" name="mode_hard_spawn_common" class="form-control" value="<?php echo $settings['mode_hard_spawn_common'] ?? 80; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                        <input type="number" name="mode_hard_spawn_common" class="form-control" value="<?php echo $settings['mode_hard_spawn_common'] ?? 80; ?>" min="0" max="100" step="0.1" style="font-size: 0.85rem;">
                                     </div>
                                     <div>
                                         <label style="font-size: 0.7rem; color: #3498db;">Rare %</label>
-                                        <input type="number" name="mode_hard_spawn_rare" class="form-control" value="<?php echo $settings['mode_hard_spawn_rare'] ?? 15; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                        <input type="number" name="mode_hard_spawn_rare" class="form-control" value="<?php echo $settings['mode_hard_spawn_rare'] ?? 15; ?>" min="0" max="100" step="0.1" style="font-size: 0.85rem;">
                                     </div>
                                     <div>
                                         <label style="font-size: 0.7rem; color: #9b59b6;">Epic %</label>
-                                        <input type="number" name="mode_hard_spawn_epic" class="form-control" value="<?php echo $settings['mode_hard_spawn_epic'] ?? 4; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                        <input type="number" name="mode_hard_spawn_epic" class="form-control" value="<?php echo $settings['mode_hard_spawn_epic'] ?? 4; ?>" min="0" max="100" step="0.1" style="font-size: 0.85rem;">
                                     </div>
                                     <div>
                                         <label style="font-size: 0.7rem; color: #f1c40f;">Legendary %</label>
-                                        <input type="number" name="mode_hard_spawn_legendary" class="form-control" value="<?php echo $settings['mode_hard_spawn_legendary'] ?? 1; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                        <input type="number" name="mode_hard_spawn_legendary" class="form-control" value="<?php echo $settings['mode_hard_spawn_legendary'] ?? 1; ?>" min="0" max="100" step="0.1" style="font-size: 0.85rem;">
                                     </div>
                                 </div>
                             </div>
@@ -653,19 +653,19 @@ try {
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
                                     <div>
                                         <label style="font-size: 0.7rem; color: #888;">Common %</label>
-                                        <input type="number" name="mode_extreme_spawn_common" class="form-control" value="<?php echo $settings['mode_extreme_spawn_common'] ?? 70; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                        <input type="number" name="mode_extreme_spawn_common" class="form-control" value="<?php echo $settings['mode_extreme_spawn_common'] ?? 70; ?>" min="0" max="100" step="0.1" style="font-size: 0.85rem;">
                                     </div>
                                     <div>
                                         <label style="font-size: 0.7rem; color: #3498db;">Rare %</label>
-                                        <input type="number" name="mode_extreme_spawn_rare" class="form-control" value="<?php echo $settings['mode_extreme_spawn_rare'] ?? 20; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                        <input type="number" name="mode_extreme_spawn_rare" class="form-control" value="<?php echo $settings['mode_extreme_spawn_rare'] ?? 20; ?>" min="0" max="100" step="0.1" style="font-size: 0.85rem;">
                                     </div>
                                     <div>
                                         <label style="font-size: 0.7rem; color: #9b59b6;">Epic %</label>
-                                        <input type="number" name="mode_extreme_spawn_epic" class="form-control" value="<?php echo $settings['mode_extreme_spawn_epic'] ?? 8; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                        <input type="number" name="mode_extreme_spawn_epic" class="form-control" value="<?php echo $settings['mode_extreme_spawn_epic'] ?? 8; ?>" min="0" max="100" step="0.1" style="font-size: 0.85rem;">
                                     </div>
                                     <div>
                                         <label style="font-size: 0.7rem; color: #f1c40f;">Legendary %</label>
-                                        <input type="number" name="mode_extreme_spawn_legendary" class="form-control" value="<?php echo $settings['mode_extreme_spawn_legendary'] ?? 2; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                        <input type="number" name="mode_extreme_spawn_legendary" class="form-control" value="<?php echo $settings['mode_extreme_spawn_legendary'] ?? 2; ?>" min="0" max="100" step="0.1" style="font-size: 0.85rem;">
                                     </div>
                                 </div>
                             </div>

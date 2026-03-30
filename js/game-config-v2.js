@@ -8,7 +8,7 @@ const CONFIG = {
     // ============================================
     // CONFIGURAÇÕES BASE DO JOGO
     // ============================================
-    GAME_DURATION: 60,           // 60 segundos
+    GAME_DURATION: 180,          // 3 minutos (todos os modos)
     INITIAL_ASTEROIDS: 4,
     INITIAL_LIVES: 3,            // v2: 3 vidas para todos
     INVINCIBILITY_FRAMES: 60,

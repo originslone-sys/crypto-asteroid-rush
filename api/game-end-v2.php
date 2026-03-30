@@ -10,7 +10,7 @@ require_once __DIR__ . "/config.php";
 
 // v2: Duração do jogo (override do config global)
 if (!defined('GAME_DURATION_V2')) {
-    define('GAME_DURATION_V2', 60);
+    define('GAME_DURATION_V2', 180); // 3 minutos
 }
 
 setCorsHeaders();
