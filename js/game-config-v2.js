@@ -82,6 +82,50 @@ const CONFIG = {
 };
 
 // ============================================
+// CARREGAR CONFIGS DINÂMICAS DO ADMIN
+// ============================================
+
+/**
+ * Busca configurações de modos do servidor (admin panel)
+ * Sobrescreve os defaults hardcoded acima
+ */
+async function loadModesFromServer() {
+    try {
+        const resp = await fetch('api/game-modes-config.php');
+        const data = await resp.json();
+        if (!data.success || !data.modes) return;
+
+        const modeMap = { normal: 'normal', hard: 'hard', extreme: 'extreme' };
+        for (const [key, serverCfg] of Object.entries(data.modes)) {
+            if (key === 'training') {
+                // Training enabled/disabled
+                CONFIG._trainingEnabled = serverCfg.enabled !== false;
+                continue;
+            }
+            if (!CONFIG.MODES[key]) continue;
+
+            const mode = CONFIG.MODES[key];
+            if (serverCfg.enabled === false) {
+                mode._disabled = true;
+            } else {
+                mode._disabled = false;
+            }
+            if (serverCfg.credits != null) mode.credits = serverCfg.credits;
+            if (serverCfg.speed_multiplier != null) mode.speed_multiplier = serverCfg.speed_multiplier;
+            if (serverCfg.max_asteroids != null) mode.max_asteroids = serverCfg.max_asteroids;
+            if (serverCfg.spawn_interval != null) mode.spawn_interval = serverCfg.spawn_interval;
+        }
+
+        console.log('✅ Configs de modos carregadas do servidor');
+    } catch (e) {
+        console.warn('⚠️ Falha ao carregar configs do servidor, usando defaults', e);
+    }
+}
+
+// Carregar ao iniciar (não bloqueia - aplica quando pronto)
+window._modesConfigReady = loadModesFromServer();
+
+// ============================================
 // ESTADO DO MODO SELECIONADO
 // ============================================
 let selectedGameMode = null;   // 'normal', 'hard', 'extreme', 'training'

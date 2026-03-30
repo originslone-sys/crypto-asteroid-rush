@@ -208,7 +208,8 @@ async function fetchAndDisplayCredits(googleUid) {
                 creditsEl.textContent = credits;
             }
 
-            // Disable mode buttons if not enough credits (training is always free)
+            // Aguardar configs do admin antes de atualizar botões
+            if (window._modesConfigReady) await window._modesConfigReady;
             updateModeButtonStates(credits);
         }
     } catch (err) {
@@ -216,25 +217,57 @@ async function fetchAndDisplayCredits(googleUid) {
     }
 }
 
-// Enable/disable mode buttons based on credits
+// Enable/disable mode buttons based on credits and admin settings
 function updateModeButtonStates(credits) {
-    const modeNormalBtn = document.getElementById('modeNormalBtn');
-    const modeHardBtn = document.getElementById('modeHardBtn');
-    const modeExtremeBtn = document.getElementById('modeExtremeBtn');
-    // Training is always available
-    const modeBtns = [modeNormalBtn, modeHardBtn, modeExtremeBtn];
+    const modeMap = {
+        modeNormalBtn: 'normal',
+        modeHardBtn: 'hard',
+        modeExtremeBtn: 'extreme'
+    };
 
-    modeBtns.forEach(btn => {
-        if (!btn) return;
+    for (const [btnId, modeKey] of Object.entries(modeMap)) {
+        const btn = document.getElementById(btnId);
+        if (!btn) continue;
+
+        const modeCfg = CONFIG.MODES[modeKey];
+
+        // Atualizar data-cost dinâmico do admin
+        if (modeCfg) {
+            btn.dataset.cost = modeCfg.credits;
+            // Atualizar texto do custo no botão se houver span
+            const costSpan = btn.querySelector('.mode-cost');
+            if (costSpan) costSpan.textContent = modeCfg.credits + ' crédito' + (modeCfg.credits > 1 ? 's' : '');
+        }
+
+        // Modo desabilitado pelo admin
+        if (modeCfg && modeCfg._disabled) {
+            btn.disabled = true;
+            btn.title = 'Modo desativado';
+            btn.style.opacity = '0.4';
+            continue;
+        }
+
+        // Créditos insuficientes
         const cost = parseInt(btn.dataset.cost || '0', 10);
         if (cost > 0 && credits < cost) {
             btn.disabled = true;
             btn.title = 'Créditos insuficientes';
+            btn.style.opacity = '';
         } else {
             btn.disabled = false;
             btn.title = '';
+            btn.style.opacity = '';
         }
-    });
+    }
+
+    // Training button
+    const trainingBtn = document.getElementById('modeTrainingBtn');
+    if (trainingBtn) {
+        const trainingDisabled = CONFIG._trainingEnabled === false;
+        trainingBtn.disabled = trainingDisabled;
+        trainingBtn.style.opacity = trainingDisabled ? '0.4' : '';
+        trainingBtn.title = trainingDisabled ? 'Modo desativado' : '';
+    }
 }
 
 // Validate login and ship selection before starting
