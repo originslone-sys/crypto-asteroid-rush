@@ -58,7 +58,7 @@ if (!defined('GAME_DURATION')) {
     define('GAME_TOLERANCE', 90);           // 90 segundos tolerância para resolver CAPTCHA
     define('CAPTCHA_RESEND_TOLERANCE', 60); // Tolerância extra para reenvio com CAPTCHA (ads + verificação)
     define('INITIAL_LIVES', 3);             // v2: 3 vidas para todos os modos
-    define('HARD_MODE_PERCENTAGE', 80);     // Legacy: mantido para game.html original
+    define('HARD_MODE_PERCENTAGE', 90);     // Legacy: mantido para game.html original
 
     // v2: Configuração de modos de jogo
     define('GAME_MODES', [
@@ -109,6 +109,7 @@ if (!defined('EARNINGS_ALERT_BRL')) {
     define('MAX_EPIC_PERCENT', 1.0);
     define('MAX_RARE_PERCENT', 1.0);
 
+
     // Velocidade de jogo
     define('MAX_ASTEROIDS_PER_SECOND', 999);
     define('MIN_GAME_DURATION_SECONDS', 60);
@@ -118,8 +119,9 @@ if (!defined('EARNINGS_ALERT_BRL')) {
 // SAQUES
 // ============================================
 if (!defined('MIN_WITHDRAW_BRL')) {
-    define('MIN_WITHDRAW_BRL', 7.00);
+    define('MIN_WITHDRAW_BRL', 20.00);
     define('WITHDRAW_METHODS', ['pix']);
+    define('WITHDRAW_COOLDOWN_HOURS', 24); // 1 saque por dia
 }
 
 // ============================================
@@ -188,8 +190,19 @@ if (!function_exists('getDatabaseConnection')) {
 }
 
 if (!function_exists('getDBConnection')) {
-    function getDBConnection() { 
-        return getDatabaseConnection(); 
+    function getDBConnection() {
+        return getDatabaseConnection();
+    }
+}
+
+// ============================================
+// GARANTIR ÍNDICES CRÍTICOS (migrado para migrate.php)
+// ============================================
+
+if (!function_exists('ensureCriticalIndexes')) {
+    function ensureCriticalIndexes($pdo) {
+        // Índices agora são criados via migrate.php no deploy
+        // Esta função é mantida para compatibilidade mas não faz mais DDL
     }
 }
 
@@ -633,6 +646,20 @@ if (!function_exists('getUserIdentifier')) {
 // ============================================
 // FORMATAR VALORES
 // ============================================
+
+// Carregar sistema de métricas (auto-registra shutdown function)
+if (!defined('METRICS_LOADED')) {
+    define('METRICS_LOADED', true);
+    require_once __DIR__ . '/metrics.php';
+}
+
+// Garantir índices críticos (1x por hora, após primeira conexão)
+register_shutdown_function(function() {
+    try {
+        $pdo = getDatabaseConnection();
+        if ($pdo) ensureCriticalIndexes($pdo);
+    } catch (Exception $e) {}
+});
 
 if (!function_exists('formatBRL')) {
     function formatBRL($value) {

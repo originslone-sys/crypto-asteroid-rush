@@ -25,19 +25,7 @@ try {
     $pdo = getDatabaseConnection();
     if (!$pdo) throw new Exception("Erro ao conectar ao banco");
 
-    // Verificar se tabela existe
-    $tableExists = $pdo->query("SHOW TABLES LIKE 'transactions'")->fetch();
-    if (!$tableExists) {
-        echo json_encode([
-            'success' => true,
-            'transactions' => [],
-            'total' => 0,
-            'limit' => $limit,
-            'offset' => $offset,
-            'has_more' => false
-        ]);
-        exit;
-    }
+    // Índices criados via migrate.php no deploy
 
     // Tipos válidos
     $validTypes = ['game_reward', 'stake', 'unstake', 'withdraw', 'withdraw_reject', 'referral_commission', 'deposit', 'admin_adjust', 'credit_purchase'];
@@ -52,13 +40,8 @@ try {
 
     $whereClause = implode(' AND ', $where);
 
-    // Total
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM transactions WHERE {$whereClause}");
-    $stmt->execute($params);
-    $total = (int)$stmt->fetchColumn();
-
-    // Buscar
-    $params[] = $limit;
+    // Buscar registros (limit + 1 para saber se tem mais, evita COUNT(*) separado)
+    $params[] = $limit + 1;
     $params[] = $offset;
 
     $stmt = $pdo->prepare("
@@ -70,6 +53,15 @@ try {
     ");
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
+
+    // Verificar se tem mais registros
+    $hasMore = count($rows) > $limit;
+    if ($hasMore) {
+        array_pop($rows); // remover o registro extra
+    }
+
+    // Total estimado (só calcular se necessário, ex: primeira página)
+    $total = $offset + count($rows) + ($hasMore ? 1 : 0);
 
     // Tipos de crédito/débito
     $creditTypes = ['game_reward', 'referral_commission', 'unstake', 'deposit', 'withdraw_reject', 'admin_adjust'];
@@ -103,7 +95,7 @@ try {
         'total' => $total,
         'limit' => $limit,
         'offset' => $offset,
-        'has_more' => ($offset + $limit) < $total
+        'has_more' => $hasMore
     ]);
 
 } catch (Throwable $e) {

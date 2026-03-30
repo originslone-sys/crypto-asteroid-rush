@@ -130,6 +130,16 @@ try {
         <div class="nav-section">
             <div class="nav-section-title">Sistema</div>
 
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=metrics" class="nav-item <?php echo $currentPage === 'metrics' ? 'active' : ''; ?>">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Metricas</span>
+            </a>
+
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=suspect-analysis" class="nav-item <?php echo $currentPage === 'suspect-analysis' ? 'active' : ''; ?>">
+                <i class="fas fa-robot"></i>
+                <span>Análise de Suspeitas</span>
+            </a>
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=security" class="nav-item <?php echo $currentPage === 'security' ? 'active' : ''; ?>">
                 <i class="fas fa-shield-alt"></i>
                 <span>Segurança</span>

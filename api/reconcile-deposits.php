@@ -14,17 +14,17 @@
 require_once __DIR__ . "/config.php";
 require_once __DIR__ . "/zettpay-client.php";
 
-// Pode ser chamado via admin (POST), cron HTTP (GET com token) ou CLI
+// Pode ser chamado via cron HTTP (GET/POST com token) ou CLI
 $isCli = php_sapi_name() === 'cli';
 
 if (!$isCli) {
     header('Content-Type: application/json; charset=utf-8');
 
-    // Proteger endpoint: aceitar apenas com token válido ou via POST do admin
+    // Proteger endpoint: SEMPRE exigir token válido (GET ou POST)
     $token = $_GET['token'] ?? $_SERVER['HTTP_X_CRON_TOKEN'] ?? '';
-    $isAdminPost = $_SERVER['REQUEST_METHOD'] === 'POST';
 
-    if (!$isAdminPost && $token !== RECONCILE_CRON_TOKEN) {
+    if ($token !== RECONCILE_CRON_TOKEN) {
+        secureLog("RECONCILE_FORBIDDEN | ip: " . getClientIP() . " | method: " . $_SERVER['REQUEST_METHOD'] . " | token_provided: " . (!empty($token) ? 'yes' : 'no'));
         http_response_code(403);
         echo json_encode(['error' => 'Forbidden']);
         exit;
@@ -145,9 +145,8 @@ foreach ($pendingDeposits as $tx) {
         secureLog("RECONCILE_ERROR | external_id: {$externalId} | " . $e->getMessage());
     }
 
-    // Pequena pausa entre chamadas para não sobrecarregar a API
-    usleep(300000); // 300ms
 }
+
 
 $results['success'] = true;
 
@@ -238,7 +237,14 @@ function confirmPendingDeposit($pdo, $tx, $zettpayId, $rawPayload) {
 
             if ($premiumSub['status'] !== 'active') {
                 $durationDays = (int)($premiumSub['duration_days'] ?: 30);
-                $expiresAt = date('Y-m-d H:i:s', strtotime("+{$durationDays} days"));
+
+                // Renovação: somar dias ao vencimento atual se premium ainda ativo
+                $currentExpires = $user['premium_expires_at'] ?? null;
+                if (!empty($user['is_premium']) && $currentExpires && strtotime($currentExpires) > time()) {
+                    $expiresAt = date('Y-m-d H:i:s', strtotime($currentExpires . " +{$durationDays} days"));
+                } else {
+                    $expiresAt = date('Y-m-d H:i:s', strtotime("+{$durationDays} days"));
+                }
 
                 $pdo->prepare("UPDATE users SET is_premium = 1, premium_expires_at = ?, updated_at = NOW() WHERE id = ?")
                     ->execute([$expiresAt, $user['id']]);

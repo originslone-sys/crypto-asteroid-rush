@@ -690,6 +690,47 @@ try {
         // -------------------------------------------------------
         // ADICIONAR CRÉDITOS MANUALMENTE A UM JOGADOR
         // -------------------------------------------------------
+        case "bulk_distribute":
+            $type = trim($input['type'] ?? '');
+            $amount = floatval($input['amount'] ?? 0);
+            $reason = trim($input['reason'] ?? 'Distribuição em massa pelo admin');
+
+            if (!in_array($type, ['credits', 'balance'])) throw new Exception("Tipo inválido. Use 'credits' ou 'balance'.");
+            if ($amount <= 0) throw new Exception("Quantidade deve ser maior que 0.");
+
+            $pdo->beginTransaction();
+
+            if ($type === 'credits') {
+                $creditsInt = intval($amount);
+                if ($creditsInt <= 0) throw new Exception("Créditos devem ser um número inteiro maior que 0.");
+
+                $stmt = $pdo->prepare("UPDATE users SET credits = credits + ?");
+                $stmt->execute([$creditsInt]);
+                $affected = $stmt->rowCount();
+
+                $pdo->prepare("INSERT INTO transactions (google_uid, type, amount_brl, description, status, created_at)
+                    SELECT google_uid, 'admin_adjust', 0, ?, 'completed', NOW() FROM users")
+                    ->execute(["Distribuição em massa: +{$creditsInt} crédito(s) - {$reason}"]);
+
+                $pdo->commit();
+                $response = ["success" => true, "message" => "{$creditsInt} crédito(s) adicionado(s) para {$affected} jogadores."];
+            } else {
+                if ($amount > 100) throw new Exception("Limite de R\$ 100,00 por distribuição de saldo. Ajuste o valor.");
+
+                $stmt = $pdo->prepare("UPDATE users SET balance_brl = balance_brl + ?");
+                $stmt->execute([$amount]);
+                $affected = $stmt->rowCount();
+
+                $formatted = number_format($amount, 2, ',', '.');
+                $pdo->prepare("INSERT INTO transactions (google_uid, type, amount_brl, description, status, created_at)
+                    SELECT google_uid, 'admin_adjust', ?, ?, 'completed', NOW() FROM users")
+                    ->execute([$amount, "Distribuição em massa: +R\$ {$formatted} bônus - {$reason}"]);
+
+                $pdo->commit();
+                $response = ["success" => true, "message" => "R\$ {$formatted} adicionado(s) para {$affected} jogadores."];
+            }
+            break;
+
         case "add_credits":
             $targetUid = trim($input['google_uid'] ?? '');
             $creditsToAdd = intval($input['credits'] ?? 0);

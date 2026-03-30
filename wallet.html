@@ -190,14 +190,140 @@
             margin-bottom: 10px;
         }
 
-        /* Histórico de Transações */
+        /* Chaves PIX Salvas */
+        .saved-pix-section {
+            margin-bottom: 15px;
+        }
+        .saved-pix-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .saved-pix-header label {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        .saved-pix-count {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+        .saved-pix-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .saved-pix-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .saved-pix-item:hover {
+            border-color: var(--primary);
+            background: rgba(0, 240, 255, 0.05);
+        }
+        .saved-pix-item.active {
+            border-color: var(--primary);
+            background: rgba(0, 240, 255, 0.1);
+        }
+        .saved-pix-item .pix-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(0, 240, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        .saved-pix-item .pix-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .saved-pix-item .pix-label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+        .saved-pix-item .pix-value {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            font-family: 'Exo 2', sans-serif;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .saved-pix-item .pix-type-badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--primary);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .saved-pix-item .pix-delete {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: rgba(255, 51, 102, 0.1);
+            border: none;
+            color: var(--danger, #ff3366);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+        .saved-pix-item .pix-delete:hover {
+            background: rgba(255, 51, 102, 0.25);
+        }
+        .save-pix-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            cursor: pointer;
+        }
+        .save-pix-toggle input[type="checkbox"] {
+            accent-color: var(--primary);
+        }
+        .use-new-key-btn {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 6px 14px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-dim);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .use-new-key-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Histórico de Saques */
         .transactions-section {
             background: var(--card-bg);
             border-radius: 15px;
             padding: 25px;
             border: 1px solid var(--border-color);
         }
-        
+
         .transactions-section h3 {
             color: var(--primary);
             font-family: 'Orbitron', sans-serif;
@@ -207,101 +333,68 @@
             align-items: center;
             gap: 10px;
         }
-        
-        .transaction-item {
+
+        .wh-item {
             display: flex;
             align-items: center;
-            gap: 15px;
-            padding: 15px;
+            gap: 12px;
+            padding: 14px;
             background: rgba(0, 0, 0, 0.2);
             border-radius: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             border: 1px solid transparent;
             transition: all 0.3s;
         }
-        
-        .transaction-item:hover {
+        .wh-item:hover {
             border-color: var(--border-color);
             background: rgba(0, 0, 0, 0.3);
         }
-        
-        .transaction-item:last-child {
-            margin-bottom: 0;
+        .wh-item:last-child { margin-bottom: 0; }
+
+        .wh-icon {
+            width: 42px; height: 42px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; flex-shrink: 0;
         }
-        
-        .tx-icon {
-            width: 45px;
-            height: 45px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            background: rgba(0, 240, 255, 0.1);
-            flex-shrink: 0;
-        }
-        
-        .tx-icon.positive {
-            background: rgba(0, 255, 136, 0.15);
-            color: var(--success);
-        }
-        
-        .tx-icon.negative {
-            background: rgba(255, 51, 102, 0.15);
-            color: var(--danger);
-        }
-        
-        .tx-info {
-            flex: 1;
-            min-width: 0;
-        }
-        
-        .tx-type {
-            font-weight: 600;
-            margin-bottom: 3px;
-            color: #fff;
-        }
-        
-        .tx-desc {
-            font-size: 0.8rem;
-            color: var(--text-dim);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .tx-amount {
+        .wh-icon.completed { background: rgba(0, 255, 136, 0.15); color: var(--success); }
+        .wh-icon.pending { background: rgba(255, 170, 0, 0.15); color: var(--warning); }
+        .wh-icon.processing { background: rgba(0, 150, 255, 0.15); color: #0096ff; }
+        .wh-icon.rejected, .wh-icon.failed { background: rgba(255, 51, 102, 0.15); color: var(--danger); }
+
+        .wh-info { flex: 1; min-width: 0; }
+        .wh-id { font-weight: 600; color: #fff; font-size: 0.9rem; margin-bottom: 2px; }
+        .wh-key { font-size: 0.75rem; color: var(--text-dim); }
+        .wh-reason { font-size: 0.7rem; color: var(--danger); margin-top: 2px; }
+
+        .wh-amount {
             font-family: 'Orbitron', sans-serif;
-            font-weight: 700;
-            font-size: 1rem;
-            text-align: right;
-            min-width: 100px;
+            font-weight: 700; font-size: 0.95rem;
+            color: var(--success); white-space: nowrap;
         }
-        
-        .tx-amount.positive { color: var(--success); }
-        .tx-amount.negative { color: var(--danger); }
-        
-        .tx-meta {
-            text-align: right;
-            min-width: 100px;
+
+        .wh-meta { text-align: right; flex-shrink: 0; min-width: 90px; }
+        .wh-date { font-size: 0.7rem; color: var(--text-dim); margin-bottom: 3px; }
+        .wh-status {
+            font-size: 0.65rem; padding: 3px 8px; border-radius: 4px; display: inline-block; font-weight: 600;
         }
-        
-        .tx-date {
-            font-size: 0.75rem;
-            color: var(--text-dim);
-            margin-bottom: 3px;
+        .wh-status.completed { background: rgba(0, 255, 136, 0.15); color: var(--success); }
+        .wh-status.pending { background: rgba(255, 170, 0, 0.15); color: var(--warning); }
+        .wh-status.processing { background: rgba(0, 150, 255, 0.15); color: #0096ff; }
+        .wh-status.rejected, .wh-status.failed { background: rgba(255, 51, 102, 0.15); color: var(--danger); }
+
+        .wh-pagination {
+            display: flex; align-items: center; justify-content: center;
+            gap: 12px; margin-top: 16px; padding-top: 14px;
+            border-top: 1px solid var(--border-color);
         }
-        
-        .tx-status {
-            font-size: 0.7rem;
-            padding: 3px 8px;
-            border-radius: 4px;
-            display: inline-block;
+        .wh-page-info { font-size: 0.8rem; color: var(--text-dim); }
+        .btn-page {
+            padding: 8px 14px; border-radius: 8px; font-size: 0.8rem;
+            border: 1px solid var(--border-color); background: transparent;
+            color: var(--text-dim); cursor: pointer; transition: all 0.3s;
         }
-        
-        .tx-status.completed { background: rgba(0, 255, 136, 0.15); color: var(--success); }
-        .tx-status.pending { background: rgba(255, 170, 0, 0.15); color: var(--warning); }
-        .tx-status.failed, .tx-status.rejected { background: rgba(255, 51, 102, 0.15); color: var(--danger); }
+        .btn-page:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+        .btn-page:disabled { opacity: 0.4; cursor: not-allowed; }
         
         /* Estado vazio */
         .empty-state {
@@ -690,10 +783,22 @@
     <section class="withdraw-section">
         <h3><i class="fas fa-paper-plane"></i> Solicitar Saque via PIX</h3>
 
+        <!-- Chaves PIX Salvas -->
+        <div class="saved-pix-section" id="savedPixSection" style="display: none;">
+            <div class="saved-pix-header">
+                <label><i class="fas fa-key"></i> Chaves PIX Salvas</label>
+                <span class="saved-pix-count" id="savedPixCount"></span>
+            </div>
+            <div class="saved-pix-list" id="savedPixList"></div>
+            <button type="button" class="use-new-key-btn" id="useNewKeyBtn" onclick="toggleNewPixKey()">
+                <i class="fas fa-plus"></i> Usar outra chave
+            </button>
+        </div>
+
         <div class="withdraw-form">
             <div class="form-group">
                 <label>Valor (R$)</label>
-                <input type="number" class="withdraw-input" id="withdrawAmount" placeholder="0,00" step="0.01" min="7.00">
+                <input type="number" class="withdraw-input" id="withdrawAmount" placeholder="0,00" step="0.01" min="20.00">
             </div>
             <div class="form-group visible" id="paymentDetailsGroup">
                 <label id="paymentDetailsLabel">Chave PIX</label>
@@ -713,6 +818,9 @@
             <div class="pix-type-detected" id="pixTypeDetected" style="display: none;">
                 <i class="fas fa-check-circle"></i> <span id="pixTypeDetectedText"></span>
             </div>
+            <label class="save-pix-toggle" id="savePixToggle" style="display: none;">
+                <input type="checkbox" id="savePixCheckbox"> Salvar esta chave PIX para próximos saques
+            </label>
             <button class="btn btn-primary withdraw-btn" id="withdrawBtn" onclick="requestWithdraw()">
                 <i class="fas fa-paper-plane"></i> Solicitar Saque
             </button>
@@ -720,7 +828,7 @@
         
         <div class="withdraw-info">
             <i class="fas fa-info-circle"></i>
-            <span>Mínimo: R$ 7,00 • Sem taxas • <a href="fila-saques.html" style="color:var(--primary);text-decoration:underline;">Acompanhe em tempo real</a></span>
+            <span>Mínimo: R$ 20,00 • 1 saque por dia • Sem taxas • <a href="fila-saques.html" style="color:var(--primary);text-decoration:underline;">Acompanhe em tempo real</a></span>
         </div>
         
         <div class="withdraw-info warning" id="withdrawWarning" style="display: none;">
@@ -729,14 +837,23 @@
         </div>
     </section>
     
-    <!-- Histórico de Transações -->
+    <!-- Histórico de Saques -->
     <section class="transactions-section">
-        <h3><i class="fas fa-history"></i> Histórico de Transações</h3>
-        <div id="transactionHistory">
+        <h3><i class="fas fa-money-bill-wave"></i> Histórico de Saques</h3>
+        <div id="withdrawalHistory">
             <div class="empty-state">
                 <i class="fas fa-spinner fa-spin"></i>
-                <p>Carregando transações...</p>
+                <p>Carregando saques...</p>
             </div>
+        </div>
+        <div id="whPagination" class="wh-pagination" style="display:none;">
+            <button id="whPrevBtn" class="btn-page" onclick="loadWithdrawalHistory(whCurrentOffset - whPageSize)" disabled>
+                <i class="fas fa-chevron-left"></i> Anterior
+            </button>
+            <span id="whPageInfo" class="wh-page-info"></span>
+            <button id="whNextBtn" class="btn-page" onclick="loadWithdrawalHistory(whCurrentOffset + whPageSize)">
+                Próxima <i class="fas fa-chevron-right"></i>
+            </button>
         </div>
     </section>
     
@@ -766,6 +883,9 @@
 
 <script>
 let selectedPaymentMethod = 'pix';
+let savedPixKeys = [];
+let selectedSavedKeyId = null;
+let showingNewKeyInput = false;
 
 // Formatar valores em BRL (2 casas decimais)
 function formatBRL(value) {
@@ -817,67 +937,301 @@ async function loadWalletData() {
     }
 }
 
-// Carregar histórico de transações
-async function loadTransactionHistory() {
+// Histórico de Saques com paginação
+const whPageSize = 10;
+let whCurrentOffset = 0;
+
+async function loadWithdrawalHistory(offset) {
+    if (typeof offset === 'number') whCurrentOffset = Math.max(offset, 0);
     const user = window.authManager?.currentUser;
     if (!user) return;
 
-    try {
-        const sessionToken = localStorage.getItem('sessionToken');
+    const container = document.getElementById('withdrawalHistory');
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Carregando saques...</p></div>';
 
-        const response = await fetch('api/transactions.php', {
+    try {
+        const response = await fetch('api/withdrawal-history.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 google_uid: user.uid,
-                session_token: sessionToken,
-                limit: 20
+                limit: whPageSize,
+                offset: whCurrentOffset
             })
         });
-        
+
         const data = await response.json();
-        const container = document.getElementById('transactionHistory');
-        
-        if (data.success && data.transactions?.length > 0) {
-            container.innerHTML = data.transactions.map(tx => {
-                const positiveTypes = ['game_earning', 'game_reward', 'stake_reward', 'referral_bonus', 'referral_commission', 'unstake', 'deposit', 'withdraw_reject'];
-                const isPositive = positiveTypes.includes(tx.type);
-                const iconClass = isPositive ? 'positive' : 'negative';
-                const amountClass = isPositive ? 'positive' : 'negative';
-                
+        const pagination = document.getElementById('whPagination');
+
+        if (data.success && data.withdrawals?.length > 0) {
+            const statusIcons = {
+                completed: 'check-circle', pending: 'clock',
+                processing: 'spinner fa-spin', rejected: 'times-circle', failed: 'exclamation-circle'
+            };
+
+            container.innerHTML = data.withdrawals.map(w => {
+                const icon = statusIcons[w.status] || 'circle';
+                const keyInfo = w.pix_key ? `<div class="wh-key"><i class="fas fa-key"></i> ${escWh(w.pix_key)}</div>` : '';
+                const reason = w.reject_reason ? `<div class="wh-reason"><i class="fas fa-info-circle"></i> ${escWh(w.reject_reason)}</div>` : '';
+                const dateStr = formatDateWh(w.created_at);
+                const processedStr = w.processed_at ? formatDateWh(w.processed_at) : '';
+
                 return `
-                    <div class="transaction-item">
-                        <div class="tx-icon ${iconClass}">
-                            <i class="fas fa-${getTransactionIcon(tx.type)}"></i>
+                    <div class="wh-item">
+                        <div class="wh-icon ${w.status}">
+                            <i class="fas fa-${icon}"></i>
                         </div>
-                        <div class="tx-info">
-                            <div class="tx-type">${getTransactionTitle(tx.type)}</div>
-                            <div class="tx-desc">${tx.description || ''}</div>
+                        <div class="wh-info">
+                            <div class="wh-id">Saque #${w.id}</div>
+                            ${keyInfo}
+                            ${reason}
                         </div>
-                        <div class="tx-amount ${amountClass}">
-                            ${isPositive ? '+' : ''}${formatBRL(tx.amount_brl)}
-                        </div>
-                        <div class="tx-meta">
-                            <div class="tx-date">${formatDate(tx.created_at)}</div>
-                            <span class="tx-status ${tx.status}">${getStatusText(tx.status)}</span>
+                        <div class="wh-amount">${formatBRL(w.amount_brl)}</div>
+                        <div class="wh-meta">
+                            <div class="wh-date">${dateStr}</div>
+                            ${processedStr && w.status === 'completed' ? '<div class="wh-date" style="color:var(--success);">' + processedStr + '</div>' : ''}
+                            <span class="wh-status ${w.status}">${escWh(w.status_label)}</span>
                         </div>
                     </div>
                 `;
             }).join('');
+
+            // Paginação
+            pagination.style.display = 'flex';
+            document.getElementById('whPrevBtn').disabled = whCurrentOffset === 0;
+            document.getElementById('whNextBtn').disabled = !data.has_more;
+            const page = Math.floor(whCurrentOffset / whPageSize) + 1;
+            document.getElementById('whPageInfo').textContent = 'Página ' + page;
         } else {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-inbox"></i>
-                    <p>Nenhuma transação ainda. Jogue para começar a ganhar!</p>
-                </div>
-            `;
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-money-bill-wave" style="opacity:0.3;"></i><p>Nenhum saque solicitado ainda.</p></div>';
+            pagination.style.display = 'none';
         }
     } catch (error) {
-        console.error('Erro ao carregar transações:', error);
+        console.error('Erro ao carregar histórico de saques:', error);
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao carregar histórico</p></div>';
     }
 }
 
-// Solicitar saque
+function escWh(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function formatDateWh(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+// ============================================
+// Chaves PIX Salvas
+// ============================================
+
+async function loadSavedPixKeys() {
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    try {
+        const response = await fetch('api/saved-pix-keys.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid, action: 'list' })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            savedPixKeys = data.keys || [];
+            renderSavedPixKeys();
+        }
+    } catch (error) {
+        console.error('Erro ao carregar chaves PIX salvas:', error);
+    }
+}
+
+function renderSavedPixKeys() {
+    const section = document.getElementById('savedPixSection');
+    const list = document.getElementById('savedPixList');
+    const countEl = document.getElementById('savedPixCount');
+    const detailsGroup = document.getElementById('paymentDetailsGroup');
+    const saveToggle = document.getElementById('savePixToggle');
+
+    if (savedPixKeys.length === 0) {
+        section.style.display = 'none';
+        detailsGroup.classList.add('visible');
+        showingNewKeyInput = true;
+        return;
+    }
+
+    section.style.display = 'block';
+    countEl.textContent = savedPixKeys.length + '/3';
+
+    const typeIcons = {
+        cpf: 'fa-id-card', cnpj: 'fa-building', email: 'fa-envelope',
+        phone: 'fa-phone', evp: 'fa-random'
+    };
+    const typeLabels = {
+        cpf: 'CPF', cnpj: 'CNPJ', email: 'E-mail',
+        phone: 'Telefone', evp: 'Aleatória'
+    };
+
+    function maskPixKey(key, type) {
+        if (type === 'cpf' && key.length >= 11) {
+            const d = key.replace(/\D/g, '');
+            return d.substring(0, 3) + '.***.***-' + d.substring(d.length - 2);
+        }
+        if (type === 'email') {
+            const parts = key.split('@');
+            if (parts.length === 2) {
+                const name = parts[0];
+                return name.substring(0, 2) + '***@' + parts[1];
+            }
+        }
+        if (type === 'phone') {
+            const d = key.replace(/\D/g, '');
+            return '(**) *****-' + d.substring(d.length - 4);
+        }
+        if (key.length > 12) {
+            return key.substring(0, 8) + '...' + key.substring(key.length - 4);
+        }
+        return key;
+    }
+
+    function escHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    list.innerHTML = savedPixKeys.map(k => `
+        <div class="saved-pix-item ${selectedSavedKeyId == k.id ? 'active' : ''}" onclick="selectSavedKey(${parseInt(k.id)})">
+            <div class="pix-icon"><i class="fas ${typeIcons[k.pix_key_type] || 'fa-key'}"></i></div>
+            <div class="pix-info">
+                ${k.label ? '<div class="pix-label">' + escHtml(k.label) + '</div>' : ''}
+                <div class="pix-value">${escHtml(maskPixKey(k.pix_key, k.pix_key_type))}</div>
+            </div>
+            <span class="pix-type-badge">${escHtml(typeLabels[k.pix_key_type] || k.pix_key_type)}</span>
+            <button class="pix-delete" onclick="event.stopPropagation(); deleteSavedKey(${parseInt(k.id)})" title="Remover chave">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </div>
+    `).join('');
+
+    // Se tem chave salva, esconder input manual por padrão
+    if (!showingNewKeyInput) {
+        detailsGroup.classList.remove('visible');
+        detailsGroup.removeAttribute('style');
+        saveToggle.style.display = 'none';
+        document.getElementById('pixTypeSelector').style.display = 'none';
+        document.getElementById('pixTypeDetected').style.display = 'none';
+    }
+}
+
+function selectSavedKey(id) {
+    selectedSavedKeyId = (selectedSavedKeyId === id) ? null : id;
+
+    const detailsGroup = document.getElementById('paymentDetailsGroup');
+    const saveToggle = document.getElementById('savePixToggle');
+
+    if (selectedSavedKeyId) {
+        // Chave salva selecionada: esconder input manual
+        showingNewKeyInput = false;
+        detailsGroup.classList.remove('visible');
+        detailsGroup.removeAttribute('style');
+        saveToggle.style.display = 'none';
+        document.getElementById('pixTypeSelector').style.display = 'none';
+        document.getElementById('pixTypeDetected').style.display = 'none';
+        document.getElementById('paymentDetails').value = '';
+        selectedPixKeyType = '';
+    } else {
+        // Nenhuma chave selecionada: mostrar input manual
+        showingNewKeyInput = true;
+        detailsGroup.classList.add('visible');
+        detailsGroup.removeAttribute('style');
+    }
+
+    renderSavedPixKeys();
+}
+
+function toggleNewPixKey() {
+    showingNewKeyInput = !showingNewKeyInput;
+    selectedSavedKeyId = null;
+
+    const detailsGroup = document.getElementById('paymentDetailsGroup');
+    const btn = document.getElementById('useNewKeyBtn');
+    const saveToggle = document.getElementById('savePixToggle');
+
+    if (showingNewKeyInput) {
+        detailsGroup.classList.add('visible');
+        detailsGroup.removeAttribute('style');
+        btn.innerHTML = '<i class="fas fa-list"></i> Usar chave salva';
+        // Mostrar opção de salvar se ainda tem espaço
+        if (savedPixKeys.length < 3) {
+            saveToggle.style.display = 'flex';
+        }
+    } else {
+        detailsGroup.classList.remove('visible');
+        detailsGroup.removeAttribute('style');
+        saveToggle.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-plus"></i> Usar outra chave';
+        document.getElementById('paymentDetails').value = '';
+        selectedPixKeyType = '';
+        document.getElementById('pixTypeSelector').style.display = 'none';
+        document.getElementById('pixTypeDetected').style.display = 'none';
+    }
+
+    renderSavedPixKeys();
+}
+
+async function deleteSavedKey(id) {
+    if (!confirm('Remover esta chave PIX salva?')) return;
+
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    try {
+        const response = await fetch('api/saved-pix-keys.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid, action: 'delete', key_id: id })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            if (selectedSavedKeyId === id) selectedSavedKeyId = null;
+            await loadSavedPixKeys();
+        } else {
+            showWarning(data.error || 'Erro ao remover chave');
+        }
+    } catch (error) {
+        showWarning('Erro de conexão');
+    }
+}
+
+async function saveCurrentPixKey(pixKey, pixKeyType) {
+    const user = window.authManager?.currentUser;
+    if (!user || !pixKey || !pixKeyType) return;
+
+    try {
+        const response = await fetch('api/saved-pix-keys.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                google_uid: user.uid,
+                action: 'save',
+                pix_key: pixKey,
+                pix_key_type: pixKeyType
+            })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            await loadSavedPixKeys();
+        }
+    } catch (error) {
+        console.error('Erro ao salvar chave PIX:', error);
+    }
+}
+
 // ============================================
 // Detecção de tipo de chave PIX
 // ============================================
@@ -893,64 +1247,46 @@ function checkPixKeyType() {
     selectedPixKeyType = '';
     selector.style.display = 'none';
     detected.style.display = 'none';
+    document.getElementById('savePixToggle').style.display = 'none';
 
     if (!input) return;
 
-    // Email
-    if (input.includes('@') && input.includes('.')) {
-        selectedPixKeyType = 'email';
-        detectedText.textContent = 'Tipo detectado: E-mail';
+    function setDetected(type, label) {
+        selectedPixKeyType = type;
+        detectedText.textContent = 'Tipo detectado: ' + label;
         detected.style.display = 'block';
-        return;
+        if (savedPixKeys.length < 3) {
+            document.getElementById('savePixToggle').style.display = 'flex';
+        }
     }
+
+    // Email
+    if (input.includes('@') && input.includes('.')) { setDetected('email', 'E-mail'); return; }
 
     // Chave aleatória (UUID)
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input)) {
-        selectedPixKeyType = 'evp';
-        detectedText.textContent = 'Tipo detectado: Chave aleatória';
-        detected.style.display = 'block';
-        return;
-    }
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input)) { setDetected('evp', 'Chave aleatória'); return; }
 
     // CNPJ (14 dígitos)
-    if (digits.length === 14) {
-        selectedPixKeyType = 'cnpj';
-        detectedText.textContent = 'Tipo detectado: CNPJ';
-        detected.style.display = 'block';
-        return;
-    }
+    if (digits.length === 14) { setDetected('cnpj', 'CNPJ'); return; }
 
     // 10 dígitos = telefone fixo
-    if (digits.length === 10) {
-        selectedPixKeyType = 'phone';
-        detectedText.textContent = 'Tipo detectado: Telefone';
-        detected.style.display = 'block';
-        return;
-    }
+    if (digits.length === 10) { setDetected('phone', 'Telefone'); return; }
 
     // 13 dígitos (com +55) = telefone
-    if (digits.length === 13 && digits.startsWith('55')) {
-        selectedPixKeyType = 'phone';
-        detectedText.textContent = 'Tipo detectado: Telefone';
-        detected.style.display = 'block';
-        return;
-    }
+    if (digits.length === 13 && digits.startsWith('55')) { setDetected('phone', 'Telefone'); return; }
 
     // 11 dígitos = ambíguo (CPF ou celular) - perguntar ao usuário
     if (digits.length === 11) {
         selector.style.display = 'block';
-        // Limpar seleção anterior
         document.querySelectorAll('.pix-type-btn').forEach(b => b.classList.remove('active'));
+        if (savedPixKeys.length < 3) {
+            document.getElementById('savePixToggle').style.display = 'flex';
+        }
         return;
     }
 
     // 12 dígitos (55 + DDD + 8 dígitos fixo)
-    if (digits.length === 12 && digits.startsWith('55')) {
-        selectedPixKeyType = 'phone';
-        detectedText.textContent = 'Tipo detectado: Telefone';
-        detected.style.display = 'block';
-        return;
-    }
+    if (digits.length === 12 && digits.startsWith('55')) { setDetected('phone', 'Telefone'); return; }
 }
 
 function selectPixType(type) {
@@ -967,27 +1303,44 @@ async function requestWithdraw() {
     }
 
     const amount = parseFloat(document.getElementById('withdrawAmount').value);
-    let paymentDetails = document.getElementById('paymentDetails').value.trim();
+    let paymentDetails = '';
+    let pixKeyType = '';
+    let shouldSaveKey = false;
 
-    if (!amount || amount < 7) {
-        showWarning('O valor mínimo para saque é R$ 7,00');
+    if (!amount || amount < 20) {
+        showWarning('O valor mínimo para saque é R$ 20,00');
         return;
     }
 
-    if (!paymentDetails) {
-        showWarning('Preencha os dados de pagamento');
-        return;
-    }
+    // Usar chave salva ou input manual
+    if (selectedSavedKeyId) {
+        const savedKey = savedPixKeys.find(k => parseInt(k.id) === selectedSavedKeyId);
+        if (!savedKey) {
+            showWarning('Selecione uma chave PIX válida');
+            return;
+        }
+        paymentDetails = savedKey.pix_key;
+        pixKeyType = savedKey.pix_key_type;
+    } else {
+        paymentDetails = document.getElementById('paymentDetails').value.trim();
+        pixKeyType = selectedPixKeyType;
+        shouldSaveKey = document.getElementById('savePixCheckbox').checked;
 
-    // Verificar se precisa selecionar tipo (11 dígitos)
-    const digits = paymentDetails.replace(/\D/g, '');
-    if (digits.length === 11 && !selectedPixKeyType) {
-        showWarning('Selecione se a chave é CPF ou Telefone');
-        return;
+        if (!paymentDetails) {
+            showWarning('Preencha a chave PIX ou selecione uma chave salva');
+            return;
+        }
+
+        // Verificar se precisa selecionar tipo (11 dígitos)
+        const digits = paymentDetails.replace(/\D/g, '');
+        if (digits.length === 11 && !pixKeyType) {
+            showWarning('Selecione se a chave é CPF ou Telefone');
+            return;
+        }
     }
 
     // Adicionar +55 para telefone se não tiver
-    if (selectedPixKeyType === 'phone') {
+    if (pixKeyType === 'phone') {
         const phoneDigits = paymentDetails.replace(/\D/g, '');
         if (!phoneDigits.startsWith('55')) {
             paymentDetails = '+55' + phoneDigits;
@@ -1012,23 +1365,33 @@ async function requestWithdraw() {
                 amount_brl: amount,
                 payment_method: selectedPaymentMethod,
                 payment_details: paymentDetails,
-                pix_key_type: selectedPixKeyType
+                pix_key_type: pixKeyType
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
-            alert('✅ Saque solicitado com sucesso!\n\nAcompanhe o processamento em tempo real na fila de saques.');
+            // Salvar chave se checkbox marcado
+            if (shouldSaveKey && !selectedSavedKeyId) {
+                await saveCurrentPixKey(paymentDetails, pixKeyType);
+            }
+
+            alert('Saque solicitado com sucesso!\n\nAcompanhe o processamento em tempo real na fila de saques.');
             document.getElementById('withdrawAmount').value = '';
             document.getElementById('paymentDetails').value = '';
             selectedPixKeyType = '';
+            selectedSavedKeyId = null;
+            showingNewKeyInput = false;
+            document.getElementById('savePixCheckbox').checked = false;
+            document.getElementById('savePixToggle').style.display = 'none';
             document.getElementById('pixTypeSelector').style.display = 'none';
             document.getElementById('pixTypeDetected').style.display = 'none';
             loadWalletData();
-            loadTransactionHistory();
+            loadWithdrawalHistory(0);
+            loadSavedPixKeys();
         } else {
-            showWarning(data.error || 'Erro ao solicitar saque');
+            showWarning(data.error || 'Erro ao solicitar saque', data.next_withdraw_at ? 10000 : 5000);
         }
     } catch (error) {
         console.error('Erro:', error);
@@ -1039,78 +1402,11 @@ async function requestWithdraw() {
     }
 }
 
-function showWarning(message) {
+function showWarning(message, duration) {
     const warning = document.getElementById('withdrawWarning');
     document.getElementById('withdrawWarningText').textContent = message;
     warning.style.display = 'flex';
-    setTimeout(() => { warning.style.display = 'none'; }, 5000);
-}
-
-function getTransactionIcon(type) {
-    const icons = {
-        'game_earning': 'gamepad',
-        'game_reward': 'gamepad',
-        'stake_reward': 'chart-line',
-        'referral_bonus': 'users',
-        'referral_commission': 'users',
-        'withdrawal': 'arrow-up',
-        'withdraw': 'arrow-up',
-        'withdrawal_approved': 'check-circle',
-        'withdrawal_rejected': 'times-circle',
-        'withdraw_reject': 'times-circle',
-        'stake': 'lock',
-        'unstake': 'unlock',
-        'deposit': 'arrow-down',
-        'premium_purchase': 'crown',
-        'credit_purchase': 'ticket-alt'
-    };
-    return icons[type] || 'circle';
-}
-
-function getTransactionTitle(type) {
-    const titles = {
-        'game_earning': 'Ganhos da Missao',
-        'game_reward': 'Recompensa de Missao',
-        'stake_reward': 'Rendimento Staking',
-        'referral_bonus': 'Bonus de Indicacao',
-        'referral_commission': 'Comissao de Indicacao',
-        'withdrawal': 'Saque Solicitado',
-        'withdraw': 'Saque Solicitado',
-        'withdrawal_approved': 'Saque Aprovado',
-        'withdrawal_rejected': 'Saque Rejeitado',
-        'withdraw_reject': 'Saque Rejeitado (Estorno)',
-        'stake': 'Stake Realizado',
-        'unstake': 'Unstake Realizado',
-        'deposit': 'Deposito PIX',
-        'premium_purchase': 'Assinatura Premium',
-        'credit_purchase': 'Compra de Creditos'
-    };
-    return titles[type] || type;
-}
-
-function getStatusText(status) {
-    const texts = {
-        'completed': 'Concluido',
-        'pending': 'Pendente',
-        'approved': 'Aprovado',
-        'rejected': 'Rejeitado',
-        'failed': 'Falhou',
-        'processing': 'Processando',
-        'success': 'Sucesso',
-        'expired': 'Expirado'
-    };
-    return texts[status] || status;
-}
-
-function formatDate(dateStr) {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    setTimeout(() => { warning.style.display = 'none'; }, duration || 5000);
 }
 
 // ============================================
@@ -1284,7 +1580,7 @@ function startDepositPolling(googleUid, externalId) {
                 // Recarregar dados
                 loadWalletData();
                 loadCreditsBalance();
-                loadTransactionHistory();
+                loadWithdrawalHistory(0);
 
                 // Esconder sucesso e mostrar pacotes depois de 8 segundos
                 setTimeout(() => {
@@ -1350,17 +1646,28 @@ function updatePremiumUI(isPremium, expiresAt) {
 
     if (isPremium && expiresAt) {
         activeCard.style.display = 'block';
-        buyCard.style.display = 'none';
 
         const expDate = new Date(expiresAt);
         const now = new Date();
         const diffDays = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
         const formatted = expDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         document.getElementById('premiumExpiresText').textContent = formatted + ' (' + diffDays + ' dias restantes)';
+
+        // Mostrar botão de renovação antecipada
+        buyCard.style.display = 'block';
+        loadPremiumPrice();
+        const buyBtn = document.getElementById('premiumBuyBtn');
+        if (buyBtn) {
+            buyBtn.innerHTML = '<i class="fas fa-crown"></i> Renovar Premium (+30 dias)';
+        }
     } else {
         activeCard.style.display = 'none';
         buyCard.style.display = 'block';
         loadPremiumPrice();
+        const buyBtn = document.getElementById('premiumBuyBtn');
+        if (buyBtn) {
+            buyBtn.innerHTML = '<i class="fas fa-crown"></i> Assinar Premium';
+        }
     }
 }
 
@@ -1440,7 +1747,7 @@ function startPremiumPolling(googleUid, externalId) {
     if (premiumPollingInterval) clearInterval(premiumPollingInterval);
 
     let attempts = 0;
-    const maxAttempts = 180;
+    const maxAttempts = 75; // 15 minutos (12s * 75)
 
     premiumPollingInterval = setInterval(async () => {
         attempts++;
@@ -1470,8 +1777,9 @@ function startPremiumPolling(googleUid, externalId) {
                 document.getElementById('premiumSuccessArea').style.display = 'block';
 
                 window._userIsPremium = true;
+                localStorage.setItem('userIsPremium', '1');
                 loadWalletData();
-                loadTransactionHistory();
+                loadWithdrawalHistory(0);
 
                 setTimeout(() => {
                     document.getElementById('premiumSuccessArea').style.display = 'none';
@@ -1487,7 +1795,7 @@ function startPremiumPolling(googleUid, externalId) {
         } catch (error) {
             console.error('Erro no polling premium:', error);
         }
-    }, 5000);
+    }, 12000);
 }
 
 function copyPremiumPixCode() {
@@ -1517,7 +1825,8 @@ document.addEventListener('authStateChanged', (e) => {
         loadWalletData();
         loadCreditsBalance();
         loadCreditPackages();
-        loadTransactionHistory();
+        loadWithdrawalHistory(0);
+        loadSavedPixKeys();
         selectPaymentMethod('pix'); // Default
     } else {
         document.getElementById('connectOverlay').classList.add('active');
@@ -1530,7 +1839,8 @@ if (window.authManager?.currentUser) {
     loadWalletData();
     loadCreditsBalance();
     loadCreditPackages();
-    loadTransactionHistory();
+    loadWithdrawalHistory(0);
+    loadSavedPixKeys();
     selectPaymentMethod('pix'); // Default
 }
 

@@ -3,6 +3,7 @@
  * API Ranking Semanal - Top 50 destruidores de asteroides
  * Endpoint público (sem autenticação)
  * Período: Segunda 00:00 até Domingo 22:00 (America/Sao_Paulo)
+ * v2.0 - Cache em arquivo + índice otimizado
  */
 
 header('Content-Type: application/json');
@@ -10,29 +11,61 @@ header('Access-Control-Allow-Origin: *');
 
 require_once __DIR__ . '/config.php';
 
+// Cache: ranking muda pouco, cachear por 60 segundos
+// Usa banco para cache compartilhado entre instâncias Cloud Run
+$pdo = null;
 try {
     $pdo = getDbConnection();
+
+    // Criar tabela de cache se não existir (1x, depois fica em cache estático)
+    static $cacheTableChecked = false;
+    if (!$cacheTableChecked) {
+        try {
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS ranking_cache (
+                    cache_key VARCHAR(50) NOT NULL PRIMARY KEY,
+                    cache_value MEDIUMTEXT NOT NULL,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+        } catch (Exception $e) { /* já existe */ }
+        $cacheTableChecked = true;
+    }
+
+    // Tentar ler do cache
+    $cacheStmt = $pdo->prepare("
+        SELECT cache_value, updated_at FROM ranking_cache
+        WHERE cache_key = 'weekly_ranking' AND updated_at > DATE_SUB(NOW(), INTERVAL 60 SECOND)
+        LIMIT 1
+    ");
+    $cacheStmt->execute();
+    $cached = $cacheStmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($cached) {
+        echo $cached['cache_value'];
+        exit;
+    }
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'error' => 'Erro de conexão']);
-    exit;
+    // Se cache falhar, continua para gerar o ranking
+    if (!$pdo) {
+        echo json_encode(['success' => false, 'error' => 'Erro de conexão']);
+        exit;
+    }
 }
 
-// Calcular período da semana atual
-// Segunda 00:00 até Domingo 22:00 (America/Sao_Paulo)
-$now = new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
-$dayOfWeek = (int)$now->format('N'); // 1=segunda, 7=domingo
+// Índice idx_ranking criado via migrate.php no deploy
 
-// Início: segunda-feira 00:00 desta semana
+// Calcular período da semana atual
+$now = new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
+
 $weekStart = clone $now;
 $weekStart->modify('monday this week');
 $weekStart->setTime(0, 0, 0);
 
-// Fim: domingo 22:00 desta semana
 $weekEnd = clone $now;
 $weekEnd->modify('sunday this week');
 $weekEnd->setTime(22, 0, 0);
 
-// Se já passou domingo 22h, o desafio encerrou
 $challengeActive = $now < $weekEnd;
 
 // Buscar top 50 da semana
@@ -63,7 +96,6 @@ $stmt->execute([
 
 $ranking = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Extrair apenas primeiro nome para privacidade
 foreach ($ranking as &$row) {
     $row['display_name'] = trim($row['display_name'] ?? '') ?: 'Jogador';
     $row['total_asteroids'] = (int)$row['total_asteroids'];
@@ -75,42 +107,68 @@ foreach ($ranking as &$row) {
 }
 unset($row);
 
-// Buscar vencedores da semana anterior (se o desafio atual já começou)
-$prevWeekStart = clone $weekStart;
-$prevWeekStart->modify('-7 days');
-$prevWeekEnd = clone $weekEnd;
-$prevWeekEnd->modify('-7 days');
+// Buscar vencedores da semana anterior (cache 10 min no banco)
+$previousWinners = [];
 
-$stmtPrev = $pdo->prepare("
-    SELECT
-        u.display_name,
-        SUM(gs.asteroids_destroyed) as total_asteroids
-    FROM game_sessions gs
-    INNER JOIN users u ON gs.google_uid = u.google_uid
-    WHERE gs.status = 'completed'
-      AND gs.started_at >= ?
-      AND gs.started_at <= ?
-    GROUP BY gs.google_uid
-    HAVING total_asteroids > 0
-    ORDER BY total_asteroids DESC
-    LIMIT 5
-");
+$prevCached = false;
+try {
+    $prevStmt = $pdo->prepare("
+        SELECT cache_value FROM ranking_cache
+        WHERE cache_key = 'prev_ranking' AND updated_at > DATE_SUB(NOW(), INTERVAL 600 SECOND)
+        LIMIT 1
+    ");
+    $prevStmt->execute();
+    $prevCache = $prevStmt->fetch(PDO::FETCH_ASSOC);
+    if ($prevCache) {
+        $previousWinners = json_decode($prevCache['cache_value'], true) ?: [];
+        $prevCached = true;
+    }
+} catch (Exception $e) { /* continua sem cache */ }
 
-$stmtPrev->execute([
-    $prevWeekStart->format('Y-m-d H:i:s'),
-    $prevWeekEnd->format('Y-m-d H:i:s')
-]);
+if (!$prevCached) {
+    $prevWeekStart = clone $weekStart;
+    $prevWeekStart->modify('-7 days');
+    $prevWeekEnd = clone $weekEnd;
+    $prevWeekEnd->modify('-7 days');
 
-$previousWinners = $stmtPrev->fetchAll(PDO::FETCH_ASSOC);
-foreach ($previousWinners as &$row) {
-    $row['display_name'] = trim($row['display_name'] ?? '') ?: 'Jogador';
-    $row['total_asteroids'] = (int)$row['total_asteroids'];
+    $stmtPrev = $pdo->prepare("
+        SELECT
+            u.display_name,
+            SUM(gs.asteroids_destroyed) as total_asteroids
+        FROM game_sessions gs
+        INNER JOIN users u ON gs.google_uid = u.google_uid
+        WHERE gs.status = 'completed'
+          AND gs.started_at >= ?
+          AND gs.started_at <= ?
+        GROUP BY gs.google_uid
+        HAVING total_asteroids > 0
+        ORDER BY total_asteroids DESC
+        LIMIT 5
+    ");
+
+    $stmtPrev->execute([
+        $prevWeekStart->format('Y-m-d H:i:s'),
+        $prevWeekEnd->format('Y-m-d H:i:s')
+    ]);
+
+    $previousWinners = $stmtPrev->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($previousWinners as &$row) {
+        $row['display_name'] = trim($row['display_name'] ?? '') ?: 'Jogador';
+        $row['total_asteroids'] = (int)$row['total_asteroids'];
+    }
+    unset($row);
+
+    try {
+        $pdo->prepare("
+            INSERT INTO ranking_cache (cache_key, cache_value, updated_at) VALUES ('prev_ranking', ?, NOW())
+            ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), updated_at = NOW()
+        ")->execute([json_encode($previousWinners)]);
+    } catch (Exception $e) { /* cache fail is ok */ }
 }
-unset($row);
 
 $prizes = [100, 50, 30, 20, 10];
 
-echo json_encode([
+$response = json_encode([
     'success' => true,
     'challenge_active' => $challengeActive,
     'week_start' => $weekStart->format('Y-m-d H:i:s'),
@@ -120,3 +178,13 @@ echo json_encode([
     'previous_winners' => $previousWinners,
     'prizes' => $prizes
 ]);
+
+// Salvar cache no banco (compartilhado entre instâncias)
+try {
+    $pdo->prepare("
+        INSERT INTO ranking_cache (cache_key, cache_value, updated_at) VALUES ('weekly_ranking', ?, NOW())
+        ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), updated_at = NOW()
+    ")->execute([$response]);
+} catch (Exception $e) { /* cache fail is ok */ }
+
+echo $response;

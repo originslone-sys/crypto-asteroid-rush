@@ -58,7 +58,27 @@ try {
     }
 
     // Se ainda está pending, consultar API ZettPay para verificar se já foi pago
+    // Rate limit: no máximo 1 consulta à API por depósito a cada 10s
     if ($tx['status'] === 'pending') {
+        $pollCacheFile = sys_get_temp_dir() . '/unobix_poll_' . md5($externalId) . '.flag';
+        if (file_exists($pollCacheFile) && (time() - filemtime($pollCacheFile)) < 10) {
+            // Retornar status local sem consultar API
+            echo json_encode([
+                'success' => true,
+                'external_id' => $tx['external_id'],
+                'status' => $tx['status'],
+                'amount_brl' => (float)$tx['amount_brl'],
+                'created_at' => $tx['created_at'],
+                'confirmed_at' => $tx['confirmed_at'] ?? null,
+                'expires_at' => $tx['expires_at'],
+                'is_confirmed' => false,
+                'is_expired' => false,
+                'is_failed' => false
+            ]);
+            exit;
+        }
+        @touch($pollCacheFile);
+
         $apiResult = zettpayLookupDeposit($externalId);
 
         if ($apiResult['success'] && !empty($apiResult['data'])) {
@@ -157,7 +177,14 @@ function confirmDeposit($pdo, $tx, $user, $zettpayId, $rawPayload) {
 
             if ($premiumSub['status'] !== 'active') {
                 $durationDays = (int)($premiumSub['duration_days'] ?: 30);
-                $expiresAt = date('Y-m-d H:i:s', strtotime("+{$durationDays} days"));
+
+                // Renovação: somar dias ao vencimento atual se premium ainda ativo
+                $currentExpires = $lockedUser['premium_expires_at'] ?? null;
+                if (!empty($lockedUser['is_premium']) && $currentExpires && strtotime($currentExpires) > time()) {
+                    $expiresAt = date('Y-m-d H:i:s', strtotime($currentExpires . " +{$durationDays} days"));
+                } else {
+                    $expiresAt = date('Y-m-d H:i:s', strtotime("+{$durationDays} days"));
+                }
 
                 $pdo->prepare("UPDATE users SET is_premium = 1, premium_expires_at = ?, updated_at = NOW() WHERE id = ?")
                     ->execute([$expiresAt, $lockedUser['id']]);
