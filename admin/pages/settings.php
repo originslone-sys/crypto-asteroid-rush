@@ -548,7 +548,7 @@ try {
                             </div>
                             <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Max Asteroides</label>
-                                <input type="number" name="mode_normal_max_asteroids" class="form-control" value="<?php echo $settings['mode_normal_max_asteroids'] ?? 14; ?>" min="5" max="50">
+                                <input type="number" name="mode_normal_max_asteroids" class="form-control" value="<?php echo $settings['mode_normal_max_asteroids'] ?? 14; ?>" min="5" max="200">
                             </div>
                             <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Spawn Interval (ms)</label>
@@ -595,7 +595,7 @@ try {
                             </div>
                             <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Max Asteroides</label>
-                                <input type="number" name="mode_hard_max_asteroids" class="form-control" value="<?php echo $settings['mode_hard_max_asteroids'] ?? 18; ?>" min="5" max="50">
+                                <input type="number" name="mode_hard_max_asteroids" class="form-control" value="<?php echo $settings['mode_hard_max_asteroids'] ?? 18; ?>" min="5" max="200">
                             </div>
                             <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Spawn Interval (ms)</label>
@@ -642,7 +642,7 @@ try {
                             </div>
                             <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Max Asteroides</label>
-                                <input type="number" name="mode_extreme_max_asteroids" class="form-control" value="<?php echo $settings['mode_extreme_max_asteroids'] ?? 22; ?>" min="5" max="50">
+                                <input type="number" name="mode_extreme_max_asteroids" class="form-control" value="<?php echo $settings['mode_extreme_max_asteroids'] ?? 22; ?>" min="5" max="200">
                             </div>
                             <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Spawn Interval (ms)</label>
