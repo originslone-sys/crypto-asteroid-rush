@@ -375,7 +375,9 @@
                 sessionStorage.setItem('loadingComplete', 'true');
 
                 setTimeout(() => {
-                    window.location.href = 'game.html?start=true';
+                    // v2: se veio do game-v2, redirecionar de volta para game-v2
+                    const isV2 = sessionStorage.getItem('gameVersion') === 'v2';
+                    window.location.href = isV2 ? 'game-v2.html?start=true' : 'game.html?start=true';
                 }, 300);
             }
         }, 100);

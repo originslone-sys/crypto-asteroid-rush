@@ -310,6 +310,7 @@ async function startGameSession() {
     }
 
     // Store selected mode in sessionStorage so pregame.html can pass it along
+    sessionStorage.setItem('gameVersion', 'v2');
     sessionStorage.setItem('selectedGameMode', window.selectedGameMode || 'normal');
     sessionStorage.setItem('isTrainingMode', window.isTrainingMode ? 'true' : 'false');
     if (window.trainingSubMode) {
@@ -716,7 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (showResults && postgameComplete) {
             sessionStorage.removeItem('postgameComplete');
-            window.history.replaceState({}, '', 'game.html');
+            window.history.replaceState({}, '', 'game-v2.html');
 
             try {
                 const pgData = JSON.parse(sessionStorage.getItem('postgameData') || '{}');
@@ -746,8 +747,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else if (shouldStart && loadingComplete) {
             sessionStorage.removeItem('loadingComplete');
-            window.history.replaceState({}, '', 'game.html');
-            console.log('🎮 Auto-starting game');
+            window.history.replaceState({}, '', 'game-v2.html');
+
+            // Restaurar modo selecionado do sessionStorage (perdido no redirect)
+            const savedMode = sessionStorage.getItem('selectedGameMode') || 'normal';
+            const savedTraining = sessionStorage.getItem('isTrainingMode') === 'true';
+            const savedSubMode = sessionStorage.getItem('trainingSubMode');
+            window.selectedGameMode = savedMode;
+            window.isTrainingMode = savedTraining;
+            if (savedSubMode) window.trainingSubMode = savedSubMode;
+            console.log('🎮 Auto-starting game [mode:', savedMode, ']');
+
             setTimeout(() => {
                 if (typeof startGameWithLoading === 'function') {
                     startGameWithLoading();
