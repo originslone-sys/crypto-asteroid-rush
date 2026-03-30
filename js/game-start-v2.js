@@ -25,6 +25,9 @@ function startGameWithLoading() {
  * v2: Uses window.selectedGameMode and window.isTrainingMode
  */
 async function actualStartGame() {
+    // Aguardar configs do admin antes de iniciar
+    if (window._modesConfigReady) await window._modesConfigReady;
+
     const missionNum = (typeof missionStats !== 'undefined' ? missionStats.totalMissions : 0) + 1;
     const selectedGameMode = window.selectedGameMode || 'normal';
     const isTraining = !!window.isTrainingMode;
