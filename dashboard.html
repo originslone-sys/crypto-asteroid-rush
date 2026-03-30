@@ -105,13 +105,24 @@
         </div>
     </section>
     
-    <!-- Atividade Recente -->
+    <!-- Histórico de Transações -->
     <section class="mb-30">
-        <h2 class="section-title"><i class="fas fa-history"></i> Atividade Recente</h2>
-        <div class="activity-list" id="activityList">
-            <div class="empty-state">
-                <i class="fas fa-spinner fa-spin"></i>
-                <p>Carregando...</p>
+        <h2 class="section-title"><i class="fas fa-history"></i> Histórico de Transações</h2>
+        <div class="transactions-wrapper">
+            <div id="transactionHistory">
+                <div class="empty-state">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Carregando...</p>
+                </div>
+            </div>
+            <div id="txPagination" class="tx-pagination" style="display:none;">
+                <button id="txPrevBtn" class="btn btn-outline btn-sm" onclick="loadTransactionHistory(txCurrentOffset - txPageSize)" disabled>
+                    <i class="fas fa-chevron-left"></i> Anterior
+                </button>
+                <span id="txPageInfo" class="tx-page-info"></span>
+                <button id="txNextBtn" class="btn btn-outline btn-sm" onclick="loadTransactionHistory(txCurrentOffset + txPageSize)">
+                    Próxima <i class="fas fa-chevron-right"></i>
+                </button>
             </div>
         </div>
     </section>
@@ -134,6 +145,56 @@
 </div>
 
 <style>
+/* Transações */
+.transactions-wrapper {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+}
+.transaction-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    border: 1px solid transparent;
+    transition: all 0.3s;
+}
+.transaction-item:hover {
+    border-color: var(--border-color);
+    background: rgba(0, 0, 0, 0.3);
+}
+.transaction-item:last-child { margin-bottom: 0; }
+.tx-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; background: rgba(0, 240, 255, 0.1); flex-shrink: 0;
+}
+.tx-icon.positive { background: rgba(0, 255, 136, 0.15); color: var(--success); }
+.tx-icon.negative { background: rgba(255, 51, 102, 0.15); color: var(--danger); }
+.tx-info { flex: 1; min-width: 0; }
+.tx-type { font-weight: 600; margin-bottom: 2px; color: #fff; font-size: 0.9rem; }
+.tx-desc { font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-amount { font-family: 'Orbitron', sans-serif; font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+.tx-amount.positive { color: var(--success); }
+.tx-amount.negative { color: var(--danger); }
+.tx-meta { text-align: right; flex-shrink: 0; }
+.tx-date { font-size: 0.7rem; color: var(--text-dim); }
+.tx-status { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; }
+.tx-status.completed, .tx-status.success { background: rgba(5,255,161,0.15); color: var(--success); }
+.tx-status.pending { background: rgba(255,170,0,0.15); color: var(--warning); }
+.tx-status.processing { background: rgba(0,150,255,0.15); color: #0096ff; }
+.tx-status.rejected, .tx-status.failed { background: rgba(255,51,102,0.15); color: var(--danger); }
+.tx-pagination {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; margin-top: 16px; padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+.tx-page-info { font-size: 0.8rem; color: var(--text-dim); }
+
 /* Estilo para o card de Afiliados */
 .action-card.affiliate {
     background: linear-gradient(135deg, rgba(146, 254, 157, 0.1), rgba(0, 240, 255, 0.05));
@@ -256,84 +317,113 @@ async function loadDashboardData() {
     }
 }
 
-// Carregar atividade recente
-async function loadRecentActivity() {
+// Histórico de Transações com paginação
+const txPageSize = 10;
+let txCurrentOffset = 0;
+let txHasMore = false;
+
+async function loadTransactionHistory(offset) {
+    if (typeof offset === 'number') txCurrentOffset = Math.max(offset, 0);
     const user = window.authManager?.currentUser;
     if (!user) return;
+
+    const container = document.getElementById('transactionHistory');
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Carregando...</p></div>';
 
     try {
         const response = await fetch('/api/transactions.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 google_uid: user.uid,
-                limit: 5
+                limit: txPageSize,
+                offset: txCurrentOffset
             })
         });
-        
+
         const data = await response.json();
-        const container = document.getElementById('activityList');
-        
+        txHasMore = data.has_more || false;
+
         if (data.success && data.transactions?.length > 0) {
-            container.innerHTML = data.transactions.map(tx => `
-                <div class="activity-item">
-                    <div class="activity-icon ${tx.type.includes('earn') ? 'positive' : ''}">
-                        <i class="fas fa-${getActivityIcon(tx.type)}"></i>
+            container.innerHTML = data.transactions.map(tx => {
+                const positiveTypes = ['game_earning', 'game_reward', 'stake_reward', 'referral_bonus', 'referral_commission', 'unstake', 'deposit', 'withdraw_reject'];
+                const isPositive = positiveTypes.includes(tx.type);
+                return `
+                    <div class="transaction-item">
+                        <div class="tx-icon ${isPositive ? 'positive' : 'negative'}">
+                            <i class="fas fa-${getTransactionIcon(tx.type)}"></i>
+                        </div>
+                        <div class="tx-info">
+                            <div class="tx-type">${getTransactionTitle(tx.type)}</div>
+                            <div class="tx-desc">${escHtml(tx.description || '')}</div>
+                        </div>
+                        <div class="tx-amount ${isPositive ? 'positive' : 'negative'}">
+                            ${isPositive ? '+' : ''}${formatBRL(tx.amount_brl)}
+                        </div>
+                        <div class="tx-meta">
+                            <div class="tx-date">${formatDate(tx.created_at)}</div>
+                            <span class="tx-status ${tx.status}">${getStatusText(tx.status)}</span>
+                        </div>
                     </div>
-                    <div class="activity-info">
-                        <div class="activity-title">${getActivityTitle(tx.type)}</div>
-                        <div class="activity-desc">${tx.description || ''}</div>
-                    </div>
-                    <div class="activity-amount ${parseFloat(tx.amount_brl) > 0 ? 'positive' : ''}">
-                        ${formatBRL(tx.amount_brl)}
-                    </div>
-                    <div class="activity-date">${formatDate(tx.created_at)}</div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
+
+            // Paginação
+            const pagination = document.getElementById('txPagination');
+            pagination.style.display = 'flex';
+            document.getElementById('txPrevBtn').disabled = txCurrentOffset === 0;
+            document.getElementById('txNextBtn').disabled = !txHasMore;
+            const page = Math.floor(txCurrentOffset / txPageSize) + 1;
+            document.getElementById('txPageInfo').textContent = 'Página ' + page;
         } else {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-inbox"></i>
-                    <p>Nenhuma atividade ainda. Jogue para começar a ganhar!</p>
-                </div>
-            `;
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>Nenhuma transação ainda. Jogue para começar a ganhar!</p></div>';
+            document.getElementById('txPagination').style.display = 'none';
         }
     } catch (error) {
-        console.error('Erro ao carregar atividade:', error);
-        document.getElementById('activityList').innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>Erro ao carregar atividade</p>
-            </div>
-        `;
+        console.error('Erro ao carregar transações:', error);
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao carregar transações</p></div>';
     }
 }
 
-function getActivityIcon(type) {
+function escHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function getTransactionIcon(type) {
     const icons = {
-        'game_earning': 'gamepad',
-        'stake_reward': 'chart-line',
-        'referral_bonus': 'users',
-        'withdrawal': 'arrow-up',
-        'withdrawal_rejected': 'times-circle',
-        'stake': 'lock',
-        'unstake': 'unlock'
+        'game_earning': 'gamepad', 'game_reward': 'gamepad', 'stake_reward': 'chart-line',
+        'referral_bonus': 'users', 'referral_commission': 'users',
+        'withdrawal': 'arrow-up', 'withdraw': 'arrow-up',
+        'withdrawal_approved': 'check-circle', 'withdrawal_rejected': 'times-circle',
+        'withdraw_reject': 'times-circle', 'stake': 'lock', 'unstake': 'unlock',
+        'deposit': 'arrow-down', 'premium_purchase': 'crown', 'credit_purchase': 'ticket-alt'
     };
     return icons[type] || 'circle';
 }
 
-function getActivityTitle(type) {
+function getTransactionTitle(type) {
     const titles = {
-        'game_earning': 'Ganhos da Missão',
-        'stake_reward': 'Rendimento Staking',
-        'referral_bonus': 'Bônus de Indicação',
-        'withdrawal': 'Saque Solicitado',
-        'withdrawal_approved': 'Saque Aprovado',
-        'withdrawal_rejected': 'Saque Rejeitado',
-        'stake': 'Stake Realizado',
-        'unstake': 'Unstake Realizado'
+        'game_earning': 'Ganhos da Missão', 'game_reward': 'Recompensa de Missão',
+        'stake_reward': 'Rendimento Staking', 'referral_bonus': 'Bônus de Indicação',
+        'referral_commission': 'Comissão de Indicação', 'withdrawal': 'Saque Solicitado',
+        'withdraw': 'Saque Solicitado', 'withdrawal_approved': 'Saque Aprovado',
+        'withdrawal_rejected': 'Saque Rejeitado', 'withdraw_reject': 'Saque Rejeitado (Estorno)',
+        'stake': 'Stake Realizado', 'unstake': 'Unstake Realizado',
+        'deposit': 'Depósito PIX', 'premium_purchase': 'Assinatura Premium',
+        'credit_purchase': 'Compra de Créditos'
     };
     return titles[type] || type;
+}
+
+function getStatusText(status) {
+    const texts = {
+        'completed': 'Concluído', 'pending': 'Pendente', 'approved': 'Aprovado',
+        'rejected': 'Rejeitado', 'failed': 'Falhou', 'processing': 'Processando',
+        'success': 'Sucesso', 'expired': 'Expirado'
+    };
+    return texts[status] || status;
 }
 
 function formatDate(dateStr) {
@@ -380,7 +470,7 @@ document.addEventListener('authStateChanged', (e) => {
     if (e.detail.user) {
         document.getElementById('connectOverlay').classList.remove('active');
         loadDashboardData();
-        loadRecentActivity();
+        loadTransactionHistory(0);
     } else {
         document.getElementById('connectOverlay').classList.add('active');
     }
