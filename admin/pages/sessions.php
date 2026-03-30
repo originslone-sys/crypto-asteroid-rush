@@ -95,26 +95,56 @@ try {
         FROM game_sessions
     ")->fetch();
 
-    // Estatísticas por modo por período (completadas x abandonadas)
+    // Estatísticas por modo por período (completadas x abandonadas + earnings)
     $modePerPeriod = $pdo->query("
         SELECT
             game_mode,
             SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) AND status = 'completed' THEN 1 ELSE 0 END) as completed_1h,
             SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) AND status = 'abandoned' THEN 1 ELSE 0 END) as abandoned_1h,
             SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 1 ELSE 0 END) as total_1h,
+            COALESCE(AVG(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) AND status = 'completed' THEN earnings_brl END), 0) as avg_earn_1h,
+            COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN earnings_brl ELSE 0 END), 0) as total_earn_1h,
             SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) AND status = 'completed' THEN 1 ELSE 0 END) as completed_24h,
             SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) AND status = 'abandoned' THEN 1 ELSE 0 END) as abandoned_24h,
             SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 1 ELSE 0 END) as total_24h,
+            COALESCE(AVG(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) AND status = 'completed' THEN earnings_brl END), 0) as avg_earn_24h,
+            COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN earnings_brl ELSE 0 END), 0) as total_earn_24h,
             SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND status = 'completed' THEN 1 ELSE 0 END) as completed_7d,
             SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND status = 'abandoned' THEN 1 ELSE 0 END) as abandoned_7d,
             SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) as total_7d,
+            COALESCE(AVG(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND status = 'completed' THEN earnings_brl END), 0) as avg_earn_7d,
+            COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN earnings_brl ELSE 0 END), 0) as total_earn_7d,
             SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND status = 'completed' THEN 1 ELSE 0 END) as completed_30d,
             SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND status = 'abandoned' THEN 1 ELSE 0 END) as abandoned_30d,
-            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as total_30d
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as total_30d,
+            COALESCE(AVG(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND status = 'completed' THEN earnings_brl END), 0) as avg_earn_30d,
+            COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN earnings_brl ELSE 0 END), 0) as total_earn_30d
         FROM game_sessions
         WHERE game_mode IN ('normal', 'hard', 'extreme')
         GROUP BY game_mode
     ")->fetchAll(PDO::FETCH_UNIQUE|PDO::FETCH_ASSOC);
+
+    // Custo em créditos por modo (ler do banco, fallback hardcoded)
+    $modeCreditCosts = ['normal' => 1, 'hard' => 2, 'extreme' => 3];
+    foreach (['normal', 'hard', 'extreme'] as $m) {
+        $stmtCc = $pdo->prepare("SELECT setting_value FROM game_settings WHERE setting_key = ?");
+        $stmtCc->execute(["mode_{$m}_credits"]);
+        $row = $stmtCc->fetch();
+        if ($row && is_numeric($row['setting_value'])) {
+            $modeCreditCosts[$m] = max(1, (int)$row['setting_value']);
+        }
+    }
+
+    // Preço médio do crédito (baseado nos pacotes ativos)
+    $avgCreditPrice = 0.50; // fallback
+    $stmtAvgPrice = $pdo->query("
+        SELECT SUM(price_brl) / SUM(credits + COALESCE(bonus_credits, 0)) as avg_price
+        FROM credit_packages WHERE is_active = 1
+    ");
+    $avgRow = $stmtAvgPrice->fetch();
+    if ($avgRow && $avgRow['avg_price'] > 0) {
+        $avgCreditPrice = round((float)$avgRow['avg_price'], 2);
+    }
 
     // Calcular porcentagens
     function calcPercent($part, $total) {
@@ -216,6 +246,7 @@ try {
     <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 18px; margin-bottom: 20px;">
         <div style="font-family: 'Orbitron', monospace; font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 16px;">
             <i class="fas fa-chart-bar" style="margin-right: 6px; color: #9b59b6;"></i> Sessões por Modo — Completadas vs Abandonadas
+            <span style="font-size: 0.65rem; font-weight: 400; color: rgba(255,255,255,0.3); margin-left: 8px;">(Preço médio crédito: <?php echo formatBRL($avgCreditPrice); ?>)</span>
         </div>
         <?php
         $modePeriods = [
@@ -244,10 +275,19 @@ try {
                     $pctC = calcPercent($mCompleted, $mTotal);
                     $pctA = calcPercent($mAbandoned, $mTotal);
                 ?>
-                <div style="margin-bottom: 10px;">
+                <?php
+                    $avgEarn = (float)($mData["avg_earn_{$sf}"] ?? 0);
+                    $totalEarn = (float)($mData["total_earn_{$sf}"] ?? 0);
+                    $creditCost = $modeCreditCosts[$mKey] ?? 1;
+                    $receita = $mTotal * $creditCost * $avgCreditPrice;
+                    $lucro = $receita - $totalEarn;
+                    $lucroColor = $lucro >= 0 ? '#00d68f' : '#e74c3c';
+                    $lucroIcon = $lucro >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                ?>
+                <div style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.04);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                         <span style="font-size: 0.8rem; font-weight: 700; color: <?php echo $mInfo['color']; ?>;">
-                            <?php echo $mInfo['name']; ?>
+                            <?php echo $mInfo['name']; ?> <span style="font-size: 0.65rem; color: rgba(255,255,255,0.3);">(<?php echo $creditCost; ?> cred)</span>
                         </span>
                         <span style="font-size: 0.7rem; color: rgba(255,255,255,0.4);">
                             <?php echo $mTotal; ?> total
@@ -257,9 +297,15 @@ try {
                         <div style="width: <?php echo $pctC; ?>%; background: #00d68f;" title="Completadas"></div>
                         <div style="width: <?php echo $pctA; ?>%; background: #95a5a6;" title="Abandonadas"></div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.7rem;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.7rem; margin-bottom: 6px;">
                         <span style="color: #00d68f;"><i class="fas fa-check" style="margin-right: 2px;"></i><?php echo $mCompleted; ?> (<?php echo $pctC; ?>%)</span>
                         <span style="color: #95a5a6;"><i class="fas fa-times" style="margin-right: 2px;"></i><?php echo $mAbandoned; ?> (<?php echo $pctA; ?>%)</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 0.68rem;">
+                        <div style="color: rgba(255,255,255,0.5);">Média/vitória: <span style="color: #4da6ff; font-weight: 600;"><?php echo formatBRL($avgEarn); ?></span></div>
+                        <div style="color: rgba(255,255,255,0.5);">Total pago: <span style="color: #f39c12; font-weight: 600;"><?php echo formatBRL($totalEarn); ?></span></div>
+                        <div style="color: rgba(255,255,255,0.5);">Receita est.: <span style="color: #fff; font-weight: 600;"><?php echo formatBRL($receita); ?></span></div>
+                        <div style="color: rgba(255,255,255,0.5);">Lucro: <span style="color: <?php echo $lucroColor; ?>; font-weight: 700;"><i class="fas <?php echo $lucroIcon; ?>" style="font-size: 0.6rem;"></i> <?php echo formatBRL(abs($lucro)); ?></span></div>
                     </div>
                 </div>
                 <?php endforeach; ?>
