@@ -172,6 +172,40 @@ try {
         </div>
     </div>
 
+    <!-- Distribuição em Massa -->
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title"><i class="fas fa-gift"></i> Distribuir para Todos os Jogadores</h3>
+        </div>
+        <div class="panel-body">
+            <p style="color: var(--text-dim); margin-bottom: 15px;">
+                Adicione créditos ou saldo de bônus para <strong>todos os usuários</strong> de uma vez.
+            </p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                <div class="form-group" style="width: 160px;">
+                    <label class="form-label">Tipo</label>
+                    <select id="bulkType" class="form-control" onchange="updateBulkLabel()">
+                        <option value="credits">Créditos</option>
+                        <option value="balance">Saldo (R$)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="width: 140px;">
+                    <label class="form-label" id="bulkAmountLabel">Créditos</label>
+                    <input type="number" id="bulkAmount" class="form-control" min="1" step="any" value="5">
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 200px;">
+                    <label class="form-label">Motivo</label>
+                    <input type="text" id="bulkReason" class="form-control" placeholder="Ex: Bonus de evento, compensacao por manutencao">
+                </div>
+                <button onclick="bulkDistribute()" class="btn btn-warning">
+                    <i class="fas fa-paper-plane"></i> Distribuir
+                </button>
+            </div>
+            <div id="bulkResult" style="display: none; margin-top: 15px; padding: 12px; border-radius: 8px; background: rgba(5,255,161,0.1); border: 1px solid rgba(5,255,161,0.3);">
+            </div>
+        </div>
+    </div>
+
     <!-- Adicionar Créditos Manualmente -->
     <div class="panel">
         <div class="panel-header">
@@ -389,5 +423,65 @@ async function addCreditsManually() {
 
 function closeModal(id) {
     document.getElementById(id).classList.remove('active');
+}
+
+function updateBulkLabel() {
+    const type = document.getElementById('bulkType').value;
+    const label = document.getElementById('bulkAmountLabel');
+    const input = document.getElementById('bulkAmount');
+    if (type === 'credits') {
+        label.textContent = 'Créditos';
+        input.step = '1';
+        input.min = '1';
+        input.value = '5';
+    } else {
+        label.textContent = 'Valor (R$)';
+        input.step = '0.01';
+        input.min = '0.01';
+        input.value = '1.00';
+    }
+}
+
+async function bulkDistribute() {
+    const type = document.getElementById('bulkType').value;
+    const amount = parseFloat(document.getElementById('bulkAmount').value);
+    const reason = document.getElementById('bulkReason').value.trim() || 'Distribuição em massa pelo admin';
+
+    if (!amount || amount <= 0) { showToast('Quantidade inválida', 'error'); return; }
+
+    const label = type === 'credits' ? amount + ' crédito(s)' : 'R$ ' + amount.toFixed(2);
+    if (!confirm('Tem certeza que deseja distribuir ' + label + ' para TODOS os jogadores?\n\nEssa ação não pode ser desfeita.')) return;
+
+    const resultDiv = document.getElementById('bulkResult');
+    resultDiv.style.display = 'block';
+    resultDiv.style.background = 'rgba(0,240,255,0.1)';
+    resultDiv.style.borderColor = 'rgba(0,240,255,0.3)';
+    resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando distribuição...';
+
+    try {
+        const response = await adminAjax({
+            action: 'bulk_distribute',
+            type: type,
+            amount: amount,
+            reason: reason
+        });
+        if (response.success) {
+            resultDiv.style.background = 'rgba(5,255,161,0.1)';
+            resultDiv.style.borderColor = 'rgba(5,255,161,0.3)';
+            resultDiv.innerHTML = '<i class="fas fa-check-circle" style="color: var(--success);"></i> ' + response.message;
+            showToast(response.message, 'success');
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            resultDiv.style.background = 'rgba(255,42,109,0.1)';
+            resultDiv.style.borderColor = 'rgba(255,42,109,0.3)';
+            resultDiv.innerHTML = '<i class="fas fa-times-circle" style="color: var(--danger);"></i> ' + (response.error || response.message);
+            showToast(response.error || response.message, 'error');
+        }
+    } catch (e) {
+        resultDiv.style.background = 'rgba(255,42,109,0.1)';
+        resultDiv.style.borderColor = 'rgba(255,42,109,0.3)';
+        resultDiv.innerHTML = '<i class="fas fa-times-circle" style="color: var(--danger);"></i> Erro: ' + e.message;
+        showToast('Erro: ' + e.message, 'error');
+    }
 }
 </script>
