@@ -57,8 +57,18 @@ if (!defined('GAME_DURATION')) {
     define('GAME_DURATION', 180);           // 3 minutos
     define('GAME_TOLERANCE', 90);           // 90 segundos tolerância para resolver CAPTCHA
     define('CAPTCHA_RESEND_TOLERANCE', 60); // Tolerância extra para reenvio com CAPTCHA (ads + verificação)
-    define('INITIAL_LIVES', 6);
-    define('HARD_MODE_PERCENTAGE', 80);
+    define('INITIAL_LIVES', 3);             // v2: 3 vidas para todos os modos
+    define('HARD_MODE_PERCENTAGE', 80);     // Legacy: mantido para game.html original
+
+    // v2: Configuração de modos de jogo
+    define('GAME_MODES', [
+        'normal'  => ['credits' => 1, 'label' => 'Normal'],
+        'hard'    => ['credits' => 2, 'label' => 'Difícil'],
+        'extreme' => ['credits' => 3, 'label' => 'Extreme'],
+    ]);
+
+    // v2: Modos válidos (incluindo treino para validação)
+    define('VALID_GAME_MODES', ['normal', 'hard', 'extreme', 'training']);
 }
 
 // ============================================
@@ -83,25 +93,25 @@ if (!defined('REWARD_COMMON')) {
 // LIMITES DE SEGURANÇA - ANTI-CHEAT
 // ============================================
 if (!defined('EARNINGS_ALERT_BRL')) {
-    // Limites de ganhos (ajustados para rewards: rare=0.02, epic=0.05, legendary=0.20)
-    define('EARNINGS_ALERT_BRL', 1.50);     // Alerta se > R$1.50 (jogo muito bom)
-    define('EARNINGS_SUSPECT_BRL', 2.50);   // Suspeito se > R$2.50 (quase impossível)
-    define('EARNINGS_BLOCK_BRL', 3.60);     // Bloqueia se > R$3.60 (máximo teórico)
-    
-    // Limites absolutos por partida
-    define('MAX_ASTEROIDS_PER_GAME', 400);
-    define('MAX_LEGENDARY_PER_GAME', 5);
-    define('MAX_EPIC_PER_GAME', 20);
-    define('MAX_RARE_PER_GAME', 80);
-    
-    // Proporções máximas (anti-cheat)
-    define('MAX_LEGENDARY_PERCENT', 0.02);  // Máximo 2% lendários
-    define('MAX_EPIC_PERCENT', 0.08);       // Máximo 8% épicos
-    define('MAX_RARE_PERCENT', 0.25);       // Máximo 25% raros
-    
+    // v2: Apenas alerta de earnings (sem bloqueio)
+    define('EARNINGS_ALERT_BRL', 10.00);    // Alerta no admin se > R$10.00
+    define('EARNINGS_SUSPECT_BRL', 999.00); // Desativado
+    define('EARNINGS_BLOCK_BRL', 999.00);   // Desativado
+
+    // Limites absolutos por partida (permissivos - sem anti-cheat rígido)
+    define('MAX_ASTEROIDS_PER_GAME', 9999);
+    define('MAX_LEGENDARY_PER_GAME', 9999);
+    define('MAX_EPIC_PER_GAME', 9999);
+    define('MAX_RARE_PER_GAME', 9999);
+
+    // Proporções máximas (desativadas)
+    define('MAX_LEGENDARY_PERCENT', 1.0);
+    define('MAX_EPIC_PERCENT', 1.0);
+    define('MAX_RARE_PERCENT', 1.0);
+
     // Velocidade de jogo
-    define('MAX_ASTEROIDS_PER_SECOND', 3);
-    define('MIN_GAME_DURATION_SECONDS', 120); // Mínimo 2 minutos para ser válido
+    define('MAX_ASTEROIDS_PER_SECOND', 999);
+    define('MIN_GAME_DURATION_SECONDS', 60);
 }
 
 // ============================================
@@ -298,6 +308,25 @@ if (!function_exists('getRewardByType')) {
 if (!function_exists('isHardModeMission')) {
     function isHardModeMission() {
         return mt_rand(1, 100) <= HARD_MODE_PERCENTAGE;
+    }
+}
+
+if (!function_exists('getGameModeCredits')) {
+    /**
+     * v2: Retorna custo em créditos para um modo de jogo
+     */
+    function getGameModeCredits($mode) {
+        $modes = GAME_MODES;
+        return $modes[$mode]['credits'] ?? 1;
+    }
+}
+
+if (!function_exists('isValidGameMode')) {
+    /**
+     * v2: Valida se o modo de jogo é válido
+     */
+    function isValidGameMode($mode) {
+        return in_array($mode, VALID_GAME_MODES);
     }
 }
 
