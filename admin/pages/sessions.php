@@ -60,6 +60,13 @@ try {
     // Estatísticas por período (24h, 7d, 30d)
     $periodStats = $pdo->query("
         SELECT
+            -- Última hora
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 1 ELSE 0 END) as total_1h,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) AND status = 'completed' THEN 1 ELSE 0 END) as completed_1h,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) AND status = 'abandoned' THEN 1 ELSE 0 END) as abandoned_1h,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) AND status = 'flagged' THEN 1 ELSE 0 END) as flagged_1h,
+            COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN earnings_brl ELSE 0 END), 0) as earnings_1h,
+            COALESCE(AVG(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) AND status = 'completed' THEN earnings_brl END), 0) as avg_earnings_1h,
             -- 24 horas
             SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 1 ELSE 0 END) as total_24h,
             SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) AND status = 'completed' THEN 1 ELSE 0 END) as completed_24h,
@@ -135,6 +142,7 @@ try {
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 20px;">
         <?php
         $periods = [
+            ['label' => 'Última hora', 'suffix' => '1h', 'color' => '#e74c3c'],
             ['label' => 'Últimas 24h', 'suffix' => '24h', 'color' => '#4da6ff'],
             ['label' => 'Últimos 7 dias', 'suffix' => '7d', 'color' => '#00d68f'],
             ['label' => 'Últimos 30 dias', 'suffix' => '30d', 'color' => '#f39c12'],
