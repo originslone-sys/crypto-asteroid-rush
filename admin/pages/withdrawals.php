@@ -6,6 +6,7 @@
 
 $pageTitle = 'Saques';
 $statusFilter = $_GET['status'] ?? 'pending';
+$searchQuery = trim($_GET['q'] ?? '');
 
 // Processar ações
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -36,20 +37,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 try {
     $sql = "SELECT w.*, u.display_name, u.email, u.balance_brl, u.total_played, u.is_banned
-            FROM withdrawals w 
+            FROM withdrawals w
             LEFT JOIN users u ON w.user_id = u.id";
-    
+
+    $conditions = [];
+    $params = [];
+
     if ($statusFilter !== 'all') {
-        $sql .= " WHERE w.status = :status";
+        $conditions[] = "w.status = :status";
+        $params['status'] = $statusFilter;
+    }
+
+    if ($searchQuery !== '') {
+        // Pesquisa por ID exato, nome, email ou dados PIX
+        if (ctype_digit($searchQuery)) {
+            $conditions[] = "w.id = :search_id";
+            $params['search_id'] = (int)$searchQuery;
+        } else {
+            $conditions[] = "(u.display_name LIKE :search OR u.email LIKE :search2 OR w.admin_notes LIKE :search3)";
+            $searchLike = '%' . $searchQuery . '%';
+            $params['search'] = $searchLike;
+            $params['search2'] = $searchLike;
+            $params['search3'] = $searchLike;
+        }
+    }
+
+    if (!empty($conditions)) {
+        $sql .= " WHERE " . implode(" AND ", $conditions);
     }
     $sql .= " ORDER BY w.created_at DESC LIMIT 500";
-    
+
     $stmt = $pdo->prepare($sql);
-    if ($statusFilter !== 'all') {
-        $stmt->execute(['status' => $statusFilter]);
-    } else {
-        $stmt->execute();
-    }
+    $stmt->execute($params);
     $withdrawals = $stmt->fetchAll();
     
     $stats = $pdo->query("
@@ -130,7 +149,29 @@ try {
         </div>
     </div>
     
-    <div class="panel">
+    <div class="panel" style="margin-bottom: 0; border-bottom: none; border-radius: 15px 15px 0 0;">
+        <div class="panel-body" style="padding: 16px 20px;">
+            <form method="GET" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <input type="hidden" name="page" value="withdrawals">
+                <input type="hidden" name="status" value="<?php echo htmlspecialchars($statusFilter); ?>">
+                <div style="flex: 1; min-width: 200px; position: relative;">
+                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-dim);"></i>
+                    <input type="text" name="q" value="<?php echo htmlspecialchars($searchQuery); ?>" class="form-control" placeholder="Pesquisar por nome, e-mail ou ID do saque..." style="padding-left: 36px;">
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i> Buscar</button>
+                <?php if ($searchQuery !== ''): ?>
+                    <a href="?page=withdrawals&status=<?php echo htmlspecialchars($statusFilter); ?>" class="btn btn-outline btn-sm"><i class="fas fa-times"></i> Limpar</a>
+                <?php endif; ?>
+            </form>
+            <?php if ($searchQuery !== ''): ?>
+                <div style="margin-top: 10px; font-size: 0.85rem; color: var(--text-dim);">
+                    <i class="fas fa-filter"></i> Resultados para "<strong style="color: var(--primary);"><?php echo htmlspecialchars($searchQuery); ?></strong>" — <?php echo count($withdrawals); ?> encontrado(s)
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="panel" style="border-radius: 0 0 15px 15px;">
         <div class="panel-header">
             <h3 class="panel-title"><i class="fas fa-list"></i> Solicitações</h3>
         </div>
