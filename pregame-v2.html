@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>UNOBIX | PREPARANDO MISSÃO</title>
-    
+
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&family=Audiowide&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Game Styles (mantém identidade visual) -->
     <link rel="stylesheet" href="css/game.css?v=2.0">
-    
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
         body {
             background: #0a0a1a;
             color: #e0e0ff;
@@ -25,24 +25,24 @@
             justify-content: center;
             overflow: hidden;
         }
-        
+
         /* Fundo animado com estrelas */
         .stars-bg {
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
             z-index: 0;
-            background: 
+            background:
                 radial-gradient(ellipse at 20% 50%, rgba(10, 80, 200, 0.08) 0%, transparent 60%),
                 radial-gradient(ellipse at 80% 30%, rgba(100, 0, 200, 0.06) 0%, transparent 50%),
                 #0a0a1a;
         }
-        
+
         .stars-bg::before, .stars-bg::after {
             content: '';
             position: absolute;
             width: 100%; height: 100%;
-            background-image: 
+            background-image:
                 radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.6), transparent),
                 radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.4), transparent),
                 radial-gradient(1.5px 1.5px at 50% 10%, rgba(200,220,255,0.7), transparent),
@@ -54,18 +54,18 @@
                 radial-gradient(1px 1px at 85% 65%, rgba(220,220,255,0.4), transparent);
             animation: twinkle 4s ease-in-out infinite alternate;
         }
-        
+
         .stars-bg::after {
             animation-delay: -2s;
             opacity: 0.7;
             transform: scale(1.1);
         }
-        
+
         @keyframes twinkle {
             0% { opacity: 0.6; }
             100% { opacity: 1; }
         }
-        
+
         .pregame-wrapper {
             position: relative;
             z-index: 1;
@@ -73,13 +73,13 @@
             max-width: 500px;
             text-align: center;
         }
-        
+
         /* Header */
         .pg-header {
             font-family: 'Orbitron', monospace;
             margin-bottom: 24px;
         }
-        
+
         .pg-header .icon {
             font-size: 2.2rem;
             color: #4da6ff;
@@ -87,12 +87,12 @@
             text-shadow: 0 0 20px rgba(77, 166, 255, 0.5);
             animation: pulse-icon 2s ease-in-out infinite;
         }
-        
+
         @keyframes pulse-icon {
             0%, 100% { transform: scale(1); opacity: 0.9; }
             50% { transform: scale(1.08); opacity: 1; }
         }
-        
+
         .pg-header h1 {
             font-size: 1.3rem;
             font-weight: 700;
@@ -100,7 +100,7 @@
             color: #fff;
             text-shadow: 0 0 15px rgba(77, 166, 255, 0.3);
         }
-        
+
         /* Container de Anúncio */
         .ad-area {
             background: rgba(255,255,255,0.03);
@@ -114,7 +114,7 @@
             overflow: hidden;
             position: relative;
         }
-        
+
         .ad-area .ad-fallback {
             color: rgba(255,255,255,0.15);
             font-size: 0.85rem;
@@ -123,9 +123,9 @@
             align-items: center;
             gap: 8px;
         }
-        
+
         .ad-area .ad-fallback i { font-size: 2rem; }
-        
+
         .ad-area .ad-label {
             position: absolute;
             top: 8px;
@@ -136,12 +136,12 @@
             text-transform: uppercase;
             font-family: 'Rajdhani', sans-serif;
         }
-        
+
         /* Barra de progresso */
         .progress-section {
             margin-bottom: 20px;
         }
-        
+
         .progress-bar-track {
             width: 100%;
             height: 6px;
@@ -150,7 +150,7 @@
             overflow: hidden;
             margin-bottom: 10px;
         }
-        
+
         .progress-bar-fill {
             height: 100%;
             width: 0%;
@@ -159,26 +159,26 @@
             transition: width 0.15s linear;
             box-shadow: 0 0 8px rgba(77, 166, 255, 0.4);
         }
-        
+
         .progress-info {
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .progress-status {
             font-size: 0.85rem;
             color: rgba(255,255,255,0.5);
             font-weight: 500;
         }
-        
+
         .progress-percent {
             font-family: 'Orbitron', monospace;
             font-size: 0.8rem;
             color: #4da6ff;
             font-weight: 600;
         }
-        
+
         /* Dica */
         .tip-section {
             display: flex;
@@ -193,13 +193,13 @@
             line-height: 1.4;
             text-align: left;
         }
-        
+
         .tip-section i {
             color: rgba(255, 200, 0, 0.5);
             font-size: 1rem;
             flex-shrink: 0;
         }
-        
+
         /* Container de ad slot renderizado */
         .ad-area .ad-slot-content {
             width: 100%;
@@ -219,7 +219,7 @@
         <div class="icon"><i class="fas fa-satellite-dish"></i></div>
         <h1>BRIEFING DA MISSÃO</h1>
     </div>
-    
+
     <!-- Área de Anúncio -->
     <div id="adContainer" class="ad-area">
         <div class="ad-fallback">
@@ -228,7 +228,7 @@
         </div>
         <span class="ad-label">Publicidade</span>
     </div>
-    
+
     <!-- Barra de Progresso -->
     <div class="progress-section">
         <div class="progress-bar-track">
@@ -239,7 +239,7 @@
             <span id="percentText" class="progress-percent">0%</span>
         </div>
     </div>
-    
+
     <!-- Dica -->
     <div class="tip-section">
         <i class="fas fa-lightbulb"></i>
@@ -270,7 +270,7 @@
         'Evite colisões para manter suas vidas intactas!',
         'Use a carteira para acompanhar seus ganhos!',
     ];
-    
+
     const statuses = [
         'Carregando recursos...',
         'Inicializando motores...',
@@ -279,13 +279,13 @@
         'Preparando missão...',
         'Pronto para lançamento!'
     ];
-    
+
     const progressBar = document.getElementById('progressBar');
     const statusText = document.getElementById('statusText');
     const percentText = document.getElementById('percentText');
     const tipText = document.getElementById('tipText');
     const adContainer = document.getElementById('adContainer');
-    
+
     let adsReady = false;
     let currentSlot = null;
 
@@ -293,9 +293,7 @@
     const isPremium = localStorage.getItem('userIsPremium') === '1';
 
     // Carregar 1 ÚNICO slot por sessão (rodízio sequencial via localStorage)
-    // Cada sessão mostra o próximo slot da fila, sem conflito entre scripts
     async function loadAd() {
-        // Premium: não carregar anúncios
         if (isPremium) return;
 
         try {
@@ -304,25 +302,21 @@
 
             if (!AdsManager.isEnabled?.()) return;
 
-            // Pegar próximo slot (rodízio por TODOS os slots pregame)
             currentSlot = AdsManager.getNextSlot?.('pregame');
             if (!currentSlot) return;
 
             adsReady = true;
 
-            // Injetar scripts globais APENAS deste slot (não de todos)
             if (typeof AdsManager.injectSlotScripts === 'function') {
                 await AdsManager.injectSlotScripts(currentSlot);
             }
 
-            // Renderizar conteúdo visual (se houver — slots global-only retornam '')
             const html = AdsManager.getSlotHTML?.(currentSlot) || '';
             if (html) {
                 adContainer.innerHTML = html;
                 if (typeof AdsManager.executeScripts === 'function') {
                     AdsManager.executeScripts(adContainer);
                 }
-                // Manter label
                 const label = document.createElement('span');
                 label.className = 'ad-label';
                 label.textContent = 'Publicidade';
@@ -335,18 +329,16 @@
         }
     }
 
-    // Duração: duration_seconds do slot atual, ou config global
     function getDuration() {
-        if (isPremium) return 2; // Premium: loading rápido sem anúncio
+        if (isPremium) return 2;
         if (adsReady && currentSlot) {
             const slotDuration = parseInt(currentSlot.duration_seconds);
             if (slotDuration > 0) return slotDuration;
             return AdsManager.getConfig?.()?.pregame_total_duration || 10;
         }
-        return 3; // Sem ads = loading rápido
+        return 3;
     }
 
-    // Rodar loading
     async function startLoading() {
         await loadAd();
 
@@ -375,13 +367,12 @@
                 sessionStorage.setItem('loadingComplete', 'true');
 
                 setTimeout(() => {
-                    window.location.href = 'game.html?start=true';
+                    window.location.href = 'game-v2.html?start=true';
                 }, 300);
             }
         }, 100);
     }
 
-    // Iniciar quando DOM pronto
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', startLoading);
     } else {

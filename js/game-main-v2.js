@@ -309,8 +309,7 @@ async function startGameSession() {
         return;
     }
 
-    // Store selected mode in sessionStorage so pregame.html can pass it along
-    sessionStorage.setItem('gameVersion', 'v2');
+    // Store selected mode in sessionStorage so pregame-v2.html can pass it along
     sessionStorage.setItem('selectedGameMode', window.selectedGameMode || 'normal');
     sessionStorage.setItem('isTrainingMode', window.isTrainingMode ? 'true' : 'false');
     if (window.trainingSubMode) {
@@ -318,8 +317,8 @@ async function startGameSession() {
     }
 
     try {
-        // Redirect to pregame loading page
-        window.location.href = 'pregame.html';
+        // Redirect to pregame loading page (v2)
+        window.location.href = 'pregame-v2.html';
 
     } catch (error) {
         console.error('Erro:', error);

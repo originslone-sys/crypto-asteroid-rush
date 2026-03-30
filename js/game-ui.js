@@ -425,7 +425,8 @@ function showEndGameResults(stats, serverEarnings = null, serverBalance = null) 
     }
 
     // Redirecionar para página de loading pós-jogo com anúncios
-    window.location.href = 'postgame.html';
+    const isV2 = window.location.pathname.includes('game-v2');
+    window.location.href = isV2 ? 'postgame-v2.html' : 'postgame.html';
 }
 
 /**
