@@ -110,8 +110,27 @@ try {
         exit;
     }
 
-    // Credit cost based on game mode
+    // Credit cost based on game mode (ler do banco se disponível, senão fallback hardcoded)
     $creditsCost = getGameModeCredits($gameMode);
+    $dbCredits = $pdo->prepare("SELECT setting_value FROM game_settings WHERE setting_key = ?");
+    $dbCredits->execute(["mode_{$gameMode}_credits"]);
+    $dbCreditsRow = $dbCredits->fetch();
+    if ($dbCreditsRow && is_numeric($dbCreditsRow['setting_value'])) {
+        $creditsCost = max(1, (int)$dbCreditsRow['setting_value']);
+    }
+
+    // Verificar se o modo está habilitado no admin
+    $dbEnabled = $pdo->prepare("SELECT setting_value FROM game_settings WHERE setting_key = ?");
+    $dbEnabled->execute(["mode_{$gameMode}_enabled"]);
+    $dbEnabledRow = $dbEnabled->fetch();
+    if ($dbEnabledRow && $dbEnabledRow['setting_value'] === 'false') {
+        echo json_encode([
+            'success' => false,
+            'error' => 'O modo ' . $gameMode . ' está desativado no momento.',
+            'error_code' => 'MODE_DISABLED'
+        ]);
+        exit;
+    }
 
     // Verificar creditos do usuario
     $userCredits = (int)($user['credits'] ?? 0);
