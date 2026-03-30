@@ -27,6 +27,11 @@ try {
         $params[] = "%$search%";
         $params[] = "%$search%";
     }
+    $modeFilter = $_GET['mode'] ?? 'all';
+    if ($modeFilter !== 'all' && in_array($modeFilter, ['normal', 'hard', 'extreme'])) {
+        $filterSql .= " AND gs.game_mode = ?";
+        $params[] = $modeFilter;
+    }
 
     // Contagem
     $stmtCount = $pdo->prepare("SELECT COUNT(*) " . $baseSql . $filterSql);
@@ -51,6 +56,42 @@ try {
             COALESCE(SUM(asteroids_destroyed), 0) as total_asteroids
         FROM game_sessions WHERE DATE(created_at) = CURDATE()
     ")->fetch();
+
+    // Estatísticas por período (24h, 7d, 30d)
+    $periodStats = $pdo->query("
+        SELECT
+            -- 24 horas
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 1 ELSE 0 END) as total_24h,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) AND status = 'completed' THEN 1 ELSE 0 END) as completed_24h,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) AND status = 'abandoned' THEN 1 ELSE 0 END) as abandoned_24h,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) AND status = 'flagged' THEN 1 ELSE 0 END) as flagged_24h,
+            COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN earnings_brl ELSE 0 END), 0) as earnings_24h,
+            COALESCE(AVG(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) AND status = 'completed' THEN earnings_brl END), 0) as avg_earnings_24h,
+            -- 7 dias
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) as total_7d,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND status = 'completed' THEN 1 ELSE 0 END) as completed_7d,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND status = 'abandoned' THEN 1 ELSE 0 END) as abandoned_7d,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND status = 'flagged' THEN 1 ELSE 0 END) as flagged_7d,
+            COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN earnings_brl ELSE 0 END), 0) as earnings_7d,
+            COALESCE(AVG(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND status = 'completed' THEN earnings_brl END), 0) as avg_earnings_7d,
+            -- 30 dias
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as total_30d,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND status = 'completed' THEN 1 ELSE 0 END) as completed_30d,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND status = 'abandoned' THEN 1 ELSE 0 END) as abandoned_30d,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND status = 'flagged' THEN 1 ELSE 0 END) as flagged_30d,
+            COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN earnings_brl ELSE 0 END), 0) as earnings_30d,
+            COALESCE(AVG(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND status = 'completed' THEN earnings_brl END), 0) as avg_earnings_30d,
+            -- Modos (7 dias)
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND game_mode = 'normal' THEN 1 ELSE 0 END) as mode_normal_7d,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND game_mode = 'hard' THEN 1 ELSE 0 END) as mode_hard_7d,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND game_mode = 'extreme' THEN 1 ELSE 0 END) as mode_extreme_7d
+        FROM game_sessions
+    ")->fetch();
+
+    // Calcular porcentagens
+    function calcPercent($part, $total) {
+        return $total > 0 ? round(($part / $total) * 100, 1) : 0;
+    }
 } catch (Exception $e) {
     $error = $e->getMessage();
 }
@@ -90,16 +131,111 @@ try {
         </div>
     </div>
 
+    <!-- Cards informativos por período -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 20px;">
+        <?php
+        $periods = [
+            ['label' => 'Últimas 24h', 'suffix' => '24h', 'color' => '#4da6ff'],
+            ['label' => 'Últimos 7 dias', 'suffix' => '7d', 'color' => '#00d68f'],
+            ['label' => 'Últimos 30 dias', 'suffix' => '30d', 'color' => '#f39c12'],
+        ];
+        foreach ($periods as $p):
+            $s = $p['suffix'];
+            $total = (int)($periodStats["total_{$s}"] ?? 0);
+            $completed = (int)($periodStats["completed_{$s}"] ?? 0);
+            $abandoned = (int)($periodStats["abandoned_{$s}"] ?? 0);
+            $flagged = (int)($periodStats["flagged_{$s}"] ?? 0);
+            $earnings = (float)($periodStats["earnings_{$s}"] ?? 0);
+            $avgEarnings = (float)($periodStats["avg_earnings_{$s}"] ?? 0);
+            $pctCompleted = calcPercent($completed, $total);
+            $pctAbandoned = calcPercent($abandoned, $total);
+            $pctFlagged = calcPercent($flagged, $total);
+        ?>
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 18px; border-left: 3px solid <?php echo $p['color']; ?>;">
+            <div style="font-family: 'Orbitron', monospace; font-size: 0.85rem; font-weight: 700; color: <?php echo $p['color']; ?>; margin-bottom: 14px;">
+                <?php echo $p['label']; ?>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+                <div>
+                    <div style="font-size: 1.4rem; font-weight: 700; color: #fff;"><?php echo number_format($total); ?></div>
+                    <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px;">Total sessões</div>
+                </div>
+                <div>
+                    <div style="font-size: 1.4rem; font-weight: 700; color: #00d68f;"><?php echo formatBRL($earnings); ?></div>
+                    <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px;">Earnings pagos</div>
+                </div>
+            </div>
+            <!-- Barra visual -->
+            <div style="height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; display: flex; margin-bottom: 10px;">
+                <div style="width: <?php echo $pctCompleted; ?>%; background: #00d68f;" title="Completadas <?php echo $pctCompleted; ?>%"></div>
+                <div style="width: <?php echo $pctAbandoned; ?>%; background: #95a5a6;" title="Abandonadas <?php echo $pctAbandoned; ?>%"></div>
+                <div style="width: <?php echo $pctFlagged; ?>%; background: #e74c3c;" title="Flagged <?php echo $pctFlagged; ?>%"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
+                <span style="color: #00d68f;"><i class="fas fa-check" style="margin-right: 3px;"></i> <?php echo $pctCompleted; ?>% completadas</span>
+                <span style="color: #95a5a6;"><i class="fas fa-times" style="margin-right: 3px;"></i> <?php echo $pctAbandoned; ?>% abandonadas</span>
+                <span style="color: #e74c3c;"><i class="fas fa-flag" style="margin-right: 3px;"></i> <?php echo $pctFlagged; ?>% flagged</span>
+            </div>
+            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 0.75rem; color: rgba(255,255,255,0.4);">
+                Média por sessão: <span style="color: #fff;"><?php echo formatBRL($avgEarnings); ?></span>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
+    <!-- Distribuição por modo (7 dias) -->
+    <?php
+    $modeTotal = (int)($periodStats['total_7d'] ?? 0);
+    $modeNormal = (int)($periodStats['mode_normal_7d'] ?? 0);
+    $modeHard = (int)($periodStats['mode_hard_7d'] ?? 0);
+    $modeExtreme = (int)($periodStats['mode_extreme_7d'] ?? 0);
+    ?>
+    <?php if ($modeTotal > 0): ?>
+    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+        <div style="font-family: 'Orbitron', monospace; font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 14px;">
+            <i class="fas fa-chart-pie" style="margin-right: 6px; color: #4da6ff;"></i> Distribuição por Modo (7 dias)
+        </div>
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 12px; height: 12px; border-radius: 3px; background: #2ecc71;"></div>
+                <span style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">Normal: <strong style="color: #fff;"><?php echo number_format($modeNormal); ?></strong> (<?php echo calcPercent($modeNormal, $modeTotal); ?>%)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 12px; height: 12px; border-radius: 3px; background: #f39c12;"></div>
+                <span style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">Difícil: <strong style="color: #fff;"><?php echo number_format($modeHard); ?></strong> (<?php echo calcPercent($modeHard, $modeTotal); ?>%)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 12px; height: 12px; border-radius: 3px; background: #e74c3c;"></div>
+                <span style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">Extreme: <strong style="color: #fff;"><?php echo number_format($modeExtreme); ?></strong> (<?php echo calcPercent($modeExtreme, $modeTotal); ?>%)</span>
+            </div>
+        </div>
+        <!-- Barra visual modos -->
+        <div style="height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; display: flex; margin-top: 12px;">
+            <div style="width: <?php echo calcPercent($modeNormal, $modeTotal); ?>%; background: #2ecc71;"></div>
+            <div style="width: <?php echo calcPercent($modeHard, $modeTotal); ?>%; background: #f39c12;"></div>
+            <div style="width: <?php echo calcPercent($modeExtreme, $modeTotal); ?>%; background: #e74c3c;"></div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <div class="panel">
         <div class="panel-body">
             <form method="GET" class="filters">
                 <input type="hidden" name="page" value="sessions">
                 <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Buscar jogador..." class="form-control" style="width: 200px;">
                 <select name="filter" class="form-control">
-                    <option value="all">Todos</option>
+                    <option value="all">Todos Status</option>
                     <option value="completed" <?php echo $filter === 'completed' ? 'selected' : ''; ?>>Completadas</option>
+                    <option value="abandoned" <?php echo $filter === 'abandoned' ? 'selected' : ''; ?>>Abandonadas</option>
                     <option value="flagged" <?php echo $filter === 'flagged' ? 'selected' : ''; ?>>Flagged</option>
                     <option value="active" <?php echo $filter === 'active' ? 'selected' : ''; ?>>Ativas</option>
+                </select>
+                <?php $modeFilter = $_GET['mode'] ?? 'all'; ?>
+                <select name="mode" class="form-control">
+                    <option value="all">Todos Modos</option>
+                    <option value="normal" <?php echo $modeFilter === 'normal' ? 'selected' : ''; ?>>Normal</option>
+                    <option value="hard" <?php echo $modeFilter === 'hard' ? 'selected' : ''; ?>>Difícil</option>
+                    <option value="extreme" <?php echo $modeFilter === 'extreme' ? 'selected' : ''; ?>>Extreme</option>
                 </select>
                 <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i></button>
             </form>
@@ -123,7 +259,14 @@ try {
                         <td>
                             <?php echo htmlspecialchars($s['display_name'] ?? 'Usuário'); ?>
                             <?php if ($s['is_banned']): ?><span class="badge badge-danger">BAN</span><?php endif; ?>
-                            <?php if ($s['is_hard_mode']): ?><span class="badge badge-warning">HARD</span><?php endif; ?>
+                            <?php
+                                $gm = $s['game_mode'] ?? ($s['is_hard_mode'] ? 'hard' : 'normal');
+                                $modeColors = ['normal' => '#2ecc71', 'hard' => '#f39c12', 'extreme' => '#e74c3c'];
+                                $modeLabels = ['normal' => 'NORMAL', 'hard' => 'DIFÍCIL', 'extreme' => 'EXTREME'];
+                                $mc = $modeColors[$gm] ?? '#95a5a6';
+                                $ml = $modeLabels[$gm] ?? strtoupper($gm);
+                            ?>
+                            <span style="background: <?php echo $mc; ?>22; color: <?php echo $mc; ?>; padding: 1px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 700;"><?php echo $ml; ?></span>
                         </td>
                         <td>#<?php echo $s['mission_number']; ?></td>
                         <td><?php echo $s['asteroids_destroyed']; ?> <small style="color: var(--warning);">(<?php echo $s['rare_asteroids']; ?>R/<?php echo $s['epic_asteroids']; ?>E)</small></td>
