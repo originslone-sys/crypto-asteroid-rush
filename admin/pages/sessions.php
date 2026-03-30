@@ -302,10 +302,10 @@ try {
                         <span style="color: #95a5a6;"><i class="fas fa-times" style="margin-right: 2px;"></i><?php echo $mAbandoned; ?> (<?php echo $pctA; ?>%)</span>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 0.68rem;">
-                        <div style="color: rgba(255,255,255,0.5);">Média/vitória: <span style="color: #4da6ff; font-weight: 600;"><?php echo formatBRL($avgEarn); ?></span></div>
-                        <div style="color: rgba(255,255,255,0.5);">Total pago: <span style="color: #f39c12; font-weight: 600;"><?php echo formatBRL($totalEarn); ?></span></div>
-                        <div style="color: rgba(255,255,255,0.5);">Receita est.: <span style="color: #fff; font-weight: 600;"><?php echo formatBRL($receita); ?></span></div>
-                        <div style="color: rgba(255,255,255,0.5);">Lucro: <span style="color: <?php echo $lucroColor; ?>; font-weight: 700;"><i class="fas <?php echo $lucroIcon; ?>" style="font-size: 0.6rem;"></i> <?php echo formatBRL(abs($lucro)); ?></span></div>
+                        <div style="color: rgba(255,255,255,0.5);"><i class="fas fa-trophy" style="width: 12px; color: #4da6ff;"></i> Média/vitória: <span style="color: #4da6ff; font-weight: 600;"><?php echo formatBRL($avgEarn); ?></span></div>
+                        <div style="color: rgba(255,255,255,0.5);"><i class="fas fa-hand-holding-usd" style="width: 12px; color: #e74c3c;"></i> Pago aos jogadores: <span style="color: #e74c3c; font-weight: 600;"><?php echo formatBRL($totalEarn); ?></span></div>
+                        <div style="color: rgba(255,255,255,0.5);"><i class="fas fa-coins" style="width: 12px; color: #00d68f;"></i> Receita (créditos): <span style="color: #00d68f; font-weight: 600;"><?php echo formatBRL($receita); ?></span></div>
+                        <div style="color: rgba(255,255,255,0.5);"><i class="fas fa-balance-scale" style="width: 12px; color: <?php echo $lucroColor; ?>;"></i> Saldo: <span style="color: <?php echo $lucroColor; ?>; font-weight: 700;"><?php echo $lucro >= 0 ? '+' : '-'; ?><?php echo formatBRL(abs($lucro)); ?></span></div>
                     </div>
                 </div>
                 <?php endforeach; ?>
