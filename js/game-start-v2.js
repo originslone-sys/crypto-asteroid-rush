@@ -28,6 +28,15 @@ async function actualStartGame() {
     // Aguardar configs do admin antes de iniciar
     if (window._modesConfigReady) await window._modesConfigReady;
 
+    const modeConfig = getCurrentModeConfig();
+    console.log('🎯 Configs do modo carregadas:', JSON.stringify({
+        mode: window.selectedGameMode || 'normal',
+        speed: modeConfig.speed_multiplier,
+        max_asteroids: modeConfig.max_asteroids,
+        spawn_interval: modeConfig.spawn_interval,
+        spawn_rates: modeConfig.spawn_rates
+    }));
+
     const missionNum = (typeof missionStats !== 'undefined' ? missionStats.totalMissions : 0) + 1;
     const selectedGameMode = window.selectedGameMode || 'normal';
     const isTraining = !!window.isTrainingMode;

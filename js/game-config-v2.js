@@ -219,7 +219,7 @@ let gameState = {
  * Obter configuração do modo atual
  */
 function getCurrentModeConfig() {
-    const mode = isTrainingMode ? (trainingSubMode || 'normal') : (selectedGameMode || 'normal');
+    const mode = window.isTrainingMode ? (window.trainingSubMode || 'normal') : (window.selectedGameMode || 'normal');
     return CONFIG.MODES[mode] || CONFIG.MODES.normal;
 }
 
