@@ -316,14 +316,14 @@
             color: var(--primary);
         }
 
-        /* Histórico de Transações */
+        /* Histórico de Saques */
         .transactions-section {
             background: var(--card-bg);
             border-radius: 15px;
             padding: 25px;
             border: 1px solid var(--border-color);
         }
-        
+
         .transactions-section h3 {
             color: var(--primary);
             font-family: 'Orbitron', sans-serif;
@@ -333,101 +333,68 @@
             align-items: center;
             gap: 10px;
         }
-        
-        .transaction-item {
+
+        .wh-item {
             display: flex;
             align-items: center;
-            gap: 15px;
-            padding: 15px;
+            gap: 12px;
+            padding: 14px;
             background: rgba(0, 0, 0, 0.2);
             border-radius: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             border: 1px solid transparent;
             transition: all 0.3s;
         }
-        
-        .transaction-item:hover {
+        .wh-item:hover {
             border-color: var(--border-color);
             background: rgba(0, 0, 0, 0.3);
         }
-        
-        .transaction-item:last-child {
-            margin-bottom: 0;
+        .wh-item:last-child { margin-bottom: 0; }
+
+        .wh-icon {
+            width: 42px; height: 42px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; flex-shrink: 0;
         }
-        
-        .tx-icon {
-            width: 45px;
-            height: 45px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            background: rgba(0, 240, 255, 0.1);
-            flex-shrink: 0;
-        }
-        
-        .tx-icon.positive {
-            background: rgba(0, 255, 136, 0.15);
-            color: var(--success);
-        }
-        
-        .tx-icon.negative {
-            background: rgba(255, 51, 102, 0.15);
-            color: var(--danger);
-        }
-        
-        .tx-info {
-            flex: 1;
-            min-width: 0;
-        }
-        
-        .tx-type {
-            font-weight: 600;
-            margin-bottom: 3px;
-            color: #fff;
-        }
-        
-        .tx-desc {
-            font-size: 0.8rem;
-            color: var(--text-dim);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .tx-amount {
+        .wh-icon.completed { background: rgba(0, 255, 136, 0.15); color: var(--success); }
+        .wh-icon.pending { background: rgba(255, 170, 0, 0.15); color: var(--warning); }
+        .wh-icon.processing { background: rgba(0, 150, 255, 0.15); color: #0096ff; }
+        .wh-icon.rejected, .wh-icon.failed { background: rgba(255, 51, 102, 0.15); color: var(--danger); }
+
+        .wh-info { flex: 1; min-width: 0; }
+        .wh-id { font-weight: 600; color: #fff; font-size: 0.9rem; margin-bottom: 2px; }
+        .wh-key { font-size: 0.75rem; color: var(--text-dim); }
+        .wh-reason { font-size: 0.7rem; color: var(--danger); margin-top: 2px; }
+
+        .wh-amount {
             font-family: 'Orbitron', sans-serif;
-            font-weight: 700;
-            font-size: 1rem;
-            text-align: right;
-            min-width: 100px;
+            font-weight: 700; font-size: 0.95rem;
+            color: var(--success); white-space: nowrap;
         }
-        
-        .tx-amount.positive { color: var(--success); }
-        .tx-amount.negative { color: var(--danger); }
-        
-        .tx-meta {
-            text-align: right;
-            min-width: 100px;
+
+        .wh-meta { text-align: right; flex-shrink: 0; min-width: 90px; }
+        .wh-date { font-size: 0.7rem; color: var(--text-dim); margin-bottom: 3px; }
+        .wh-status {
+            font-size: 0.65rem; padding: 3px 8px; border-radius: 4px; display: inline-block; font-weight: 600;
         }
-        
-        .tx-date {
-            font-size: 0.75rem;
-            color: var(--text-dim);
-            margin-bottom: 3px;
+        .wh-status.completed { background: rgba(0, 255, 136, 0.15); color: var(--success); }
+        .wh-status.pending { background: rgba(255, 170, 0, 0.15); color: var(--warning); }
+        .wh-status.processing { background: rgba(0, 150, 255, 0.15); color: #0096ff; }
+        .wh-status.rejected, .wh-status.failed { background: rgba(255, 51, 102, 0.15); color: var(--danger); }
+
+        .wh-pagination {
+            display: flex; align-items: center; justify-content: center;
+            gap: 12px; margin-top: 16px; padding-top: 14px;
+            border-top: 1px solid var(--border-color);
         }
-        
-        .tx-status {
-            font-size: 0.7rem;
-            padding: 3px 8px;
-            border-radius: 4px;
-            display: inline-block;
+        .wh-page-info { font-size: 0.8rem; color: var(--text-dim); }
+        .btn-page {
+            padding: 8px 14px; border-radius: 8px; font-size: 0.8rem;
+            border: 1px solid var(--border-color); background: transparent;
+            color: var(--text-dim); cursor: pointer; transition: all 0.3s;
         }
-        
-        .tx-status.completed { background: rgba(0, 255, 136, 0.15); color: var(--success); }
-        .tx-status.pending { background: rgba(255, 170, 0, 0.15); color: var(--warning); }
-        .tx-status.failed, .tx-status.rejected { background: rgba(255, 51, 102, 0.15); color: var(--danger); }
+        .btn-page:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+        .btn-page:disabled { opacity: 0.4; cursor: not-allowed; }
         
         /* Estado vazio */
         .empty-state {
@@ -870,14 +837,23 @@
         </div>
     </section>
     
-    <!-- Histórico de Transações -->
+    <!-- Histórico de Saques -->
     <section class="transactions-section">
-        <h3><i class="fas fa-history"></i> Histórico de Transações</h3>
-        <div id="transactionHistory">
+        <h3><i class="fas fa-money-bill-wave"></i> Histórico de Saques</h3>
+        <div id="withdrawalHistory">
             <div class="empty-state">
                 <i class="fas fa-spinner fa-spin"></i>
-                <p>Carregando transações...</p>
+                <p>Carregando saques...</p>
             </div>
+        </div>
+        <div id="whPagination" class="wh-pagination" style="display:none;">
+            <button id="whPrevBtn" class="btn-page" onclick="loadWithdrawalHistory(whCurrentOffset - whPageSize)" disabled>
+                <i class="fas fa-chevron-left"></i> Anterior
+            </button>
+            <span id="whPageInfo" class="wh-page-info"></span>
+            <button id="whNextBtn" class="btn-page" onclick="loadWithdrawalHistory(whCurrentOffset + whPageSize)">
+                Próxima <i class="fas fa-chevron-right"></i>
+            </button>
         </div>
     </section>
     
@@ -961,64 +937,90 @@ async function loadWalletData() {
     }
 }
 
-// Carregar histórico de transações
-async function loadTransactionHistory() {
+// Histórico de Saques com paginação
+const whPageSize = 10;
+let whCurrentOffset = 0;
+
+async function loadWithdrawalHistory(offset) {
+    if (typeof offset === 'number') whCurrentOffset = Math.max(offset, 0);
     const user = window.authManager?.currentUser;
     if (!user) return;
 
-    try {
-        const sessionToken = localStorage.getItem('sessionToken');
+    const container = document.getElementById('withdrawalHistory');
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Carregando saques...</p></div>';
 
-        const response = await fetch('api/transactions.php', {
+    try {
+        const response = await fetch('api/withdrawal-history.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 google_uid: user.uid,
-                session_token: sessionToken,
-                limit: 20
+                limit: whPageSize,
+                offset: whCurrentOffset
             })
         });
-        
+
         const data = await response.json();
-        const container = document.getElementById('transactionHistory');
-        
-        if (data.success && data.transactions?.length > 0) {
-            container.innerHTML = data.transactions.map(tx => {
-                const positiveTypes = ['game_earning', 'game_reward', 'stake_reward', 'referral_bonus', 'referral_commission', 'unstake', 'deposit', 'withdraw_reject'];
-                const isPositive = positiveTypes.includes(tx.type);
-                const iconClass = isPositive ? 'positive' : 'negative';
-                const amountClass = isPositive ? 'positive' : 'negative';
-                
+        const pagination = document.getElementById('whPagination');
+
+        if (data.success && data.withdrawals?.length > 0) {
+            const statusIcons = {
+                completed: 'check-circle', pending: 'clock',
+                processing: 'spinner fa-spin', rejected: 'times-circle', failed: 'exclamation-circle'
+            };
+
+            container.innerHTML = data.withdrawals.map(w => {
+                const icon = statusIcons[w.status] || 'circle';
+                const keyInfo = w.pix_key ? `<div class="wh-key"><i class="fas fa-key"></i> ${escWh(w.pix_key)}</div>` : '';
+                const reason = w.reject_reason ? `<div class="wh-reason"><i class="fas fa-info-circle"></i> ${escWh(w.reject_reason)}</div>` : '';
+                const dateStr = formatDateWh(w.created_at);
+                const processedStr = w.processed_at ? formatDateWh(w.processed_at) : '';
+
                 return `
-                    <div class="transaction-item">
-                        <div class="tx-icon ${iconClass}">
-                            <i class="fas fa-${getTransactionIcon(tx.type)}"></i>
+                    <div class="wh-item">
+                        <div class="wh-icon ${w.status}">
+                            <i class="fas fa-${icon}"></i>
                         </div>
-                        <div class="tx-info">
-                            <div class="tx-type">${getTransactionTitle(tx.type)}</div>
-                            <div class="tx-desc">${tx.description || ''}</div>
+                        <div class="wh-info">
+                            <div class="wh-id">Saque #${w.id}</div>
+                            ${keyInfo}
+                            ${reason}
                         </div>
-                        <div class="tx-amount ${amountClass}">
-                            ${isPositive ? '+' : ''}${formatBRL(tx.amount_brl)}
-                        </div>
-                        <div class="tx-meta">
-                            <div class="tx-date">${formatDate(tx.created_at)}</div>
-                            <span class="tx-status ${tx.status}">${getStatusText(tx.status)}</span>
+                        <div class="wh-amount">${formatBRL(w.amount_brl)}</div>
+                        <div class="wh-meta">
+                            <div class="wh-date">${dateStr}</div>
+                            ${processedStr && w.status === 'completed' ? '<div class="wh-date" style="color:var(--success);">' + processedStr + '</div>' : ''}
+                            <span class="wh-status ${w.status}">${escWh(w.status_label)}</span>
                         </div>
                     </div>
                 `;
             }).join('');
+
+            // Paginação
+            pagination.style.display = 'flex';
+            document.getElementById('whPrevBtn').disabled = whCurrentOffset === 0;
+            document.getElementById('whNextBtn').disabled = !data.has_more;
+            const page = Math.floor(whCurrentOffset / whPageSize) + 1;
+            document.getElementById('whPageInfo').textContent = 'Página ' + page;
         } else {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-inbox"></i>
-                    <p>Nenhuma transação ainda. Jogue para começar a ganhar!</p>
-                </div>
-            `;
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-money-bill-wave" style="opacity:0.3;"></i><p>Nenhum saque solicitado ainda.</p></div>';
+            pagination.style.display = 'none';
         }
     } catch (error) {
-        console.error('Erro ao carregar transações:', error);
+        console.error('Erro ao carregar histórico de saques:', error);
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao carregar histórico</p></div>';
     }
+}
+
+function escWh(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function formatDateWh(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 // ============================================
@@ -1386,7 +1388,7 @@ async function requestWithdraw() {
             document.getElementById('pixTypeSelector').style.display = 'none';
             document.getElementById('pixTypeDetected').style.display = 'none';
             loadWalletData();
-            loadTransactionHistory();
+            loadWithdrawalHistory(0);
             loadSavedPixKeys();
         } else {
             showWarning(data.error || 'Erro ao solicitar saque');
@@ -1405,73 +1407,6 @@ function showWarning(message) {
     document.getElementById('withdrawWarningText').textContent = message;
     warning.style.display = 'flex';
     setTimeout(() => { warning.style.display = 'none'; }, 5000);
-}
-
-function getTransactionIcon(type) {
-    const icons = {
-        'game_earning': 'gamepad',
-        'game_reward': 'gamepad',
-        'stake_reward': 'chart-line',
-        'referral_bonus': 'users',
-        'referral_commission': 'users',
-        'withdrawal': 'arrow-up',
-        'withdraw': 'arrow-up',
-        'withdrawal_approved': 'check-circle',
-        'withdrawal_rejected': 'times-circle',
-        'withdraw_reject': 'times-circle',
-        'stake': 'lock',
-        'unstake': 'unlock',
-        'deposit': 'arrow-down',
-        'premium_purchase': 'crown',
-        'credit_purchase': 'ticket-alt'
-    };
-    return icons[type] || 'circle';
-}
-
-function getTransactionTitle(type) {
-    const titles = {
-        'game_earning': 'Ganhos da Missao',
-        'game_reward': 'Recompensa de Missao',
-        'stake_reward': 'Rendimento Staking',
-        'referral_bonus': 'Bonus de Indicacao',
-        'referral_commission': 'Comissao de Indicacao',
-        'withdrawal': 'Saque Solicitado',
-        'withdraw': 'Saque Solicitado',
-        'withdrawal_approved': 'Saque Aprovado',
-        'withdrawal_rejected': 'Saque Rejeitado',
-        'withdraw_reject': 'Saque Rejeitado (Estorno)',
-        'stake': 'Stake Realizado',
-        'unstake': 'Unstake Realizado',
-        'deposit': 'Deposito PIX',
-        'premium_purchase': 'Assinatura Premium',
-        'credit_purchase': 'Compra de Creditos'
-    };
-    return titles[type] || type;
-}
-
-function getStatusText(status) {
-    const texts = {
-        'completed': 'Concluido',
-        'pending': 'Pendente',
-        'approved': 'Aprovado',
-        'rejected': 'Rejeitado',
-        'failed': 'Falhou',
-        'processing': 'Processando',
-        'success': 'Sucesso',
-        'expired': 'Expirado'
-    };
-    return texts[status] || status;
-}
-
-function formatDate(dateStr) {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
 }
 
 // ============================================
@@ -1645,7 +1580,7 @@ function startDepositPolling(googleUid, externalId) {
                 // Recarregar dados
                 loadWalletData();
                 loadCreditsBalance();
-                loadTransactionHistory();
+                loadWithdrawalHistory(0);
 
                 // Esconder sucesso e mostrar pacotes depois de 8 segundos
                 setTimeout(() => {
@@ -1844,7 +1779,7 @@ function startPremiumPolling(googleUid, externalId) {
                 window._userIsPremium = true;
                 localStorage.setItem('userIsPremium', '1');
                 loadWalletData();
-                loadTransactionHistory();
+                loadWithdrawalHistory(0);
 
                 setTimeout(() => {
                     document.getElementById('premiumSuccessArea').style.display = 'none';
@@ -1890,7 +1825,7 @@ document.addEventListener('authStateChanged', (e) => {
         loadWalletData();
         loadCreditsBalance();
         loadCreditPackages();
-        loadTransactionHistory();
+        loadWithdrawalHistory(0);
         loadSavedPixKeys();
         selectPaymentMethod('pix'); // Default
     } else {
@@ -1904,7 +1839,7 @@ if (window.authManager?.currentUser) {
     loadWalletData();
     loadCreditsBalance();
     loadCreditPackages();
-    loadTransactionHistory();
+    loadWithdrawalHistory(0);
     loadSavedPixKeys();
     selectPaymentMethod('pix'); // Default
 }
