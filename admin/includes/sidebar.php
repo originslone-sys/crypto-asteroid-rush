@@ -135,6 +135,11 @@ try {
                 <span>Metricas</span>
             </a>
 
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=suspect-analysis" class="nav-item <?php echo $currentPage === 'suspect-analysis' ? 'active' : ''; ?>">
+                <i class="fas fa-robot"></i>
+                <span>Análise de Suspeitas</span>
+            </a>
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=security" class="nav-item <?php echo $currentPage === 'security' ? 'active' : ''; ?>">
                 <i class="fas fa-shield-alt"></i>
                 <span>Segurança</span>

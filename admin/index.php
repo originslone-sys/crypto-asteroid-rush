@@ -184,7 +184,8 @@ $allowedPages = [
     'whatsapp',
     'support',
     'premium',
-    'metrics'
+    'metrics',
+    'suspect-analysis'
 ];
 
 if (!in_array($page, $allowedPages)) {
