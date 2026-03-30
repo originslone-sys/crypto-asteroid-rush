@@ -8,6 +8,11 @@
 
 require_once __DIR__ . "/config.php";
 
+// v2: Duração do jogo (override do config global)
+if (!defined('GAME_DURATION_V2')) {
+    define('GAME_DURATION_V2', 60);
+}
+
 setCorsHeaders();
 
 $input = getRequestInput();
@@ -120,7 +125,7 @@ try {
 
     // Verificar se não passou muito tempo
     // Reenvio com captcha_token recebe tolerância extra (tempo de ads postgame + CAPTCHA)
-    $maxAllowed = GAME_DURATION + GAME_TOLERANCE;
+    $maxAllowed = GAME_DURATION_V2 + GAME_TOLERANCE;
     if (!empty($captchaToken)) {
         $maxAllowed += defined('CAPTCHA_RESEND_TOLERANCE') ? CAPTCHA_RESEND_TOLERANCE : 60;
     }
@@ -230,7 +235,7 @@ try {
             $finalStats['rare'],
             $finalStats['epic'],
             $finalStats['legendary'],
-            min($gameDuration, GAME_DURATION), // Cap duration at game time
+            min($gameDuration, GAME_DURATION_V2), // Cap duration at game time
             $sessionId
         ]);
 
@@ -342,7 +347,7 @@ try {
         'mission_number' => (int)$session['mission_number'],
         'game_mode' => $gameMode,
         'is_hard_mode' => (bool)$session['is_hard_mode'],
-        'game_duration' => min($gameDuration, GAME_DURATION)
+        'game_duration' => min($gameDuration, GAME_DURATION_V2)
     ];
 
     echo json_encode($response);
