@@ -327,6 +327,88 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Banner de vencedores quando desafio encerra */
+        .winners-banner {
+            display: none;
+            text-align: center;
+            padding: 24px 20px;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.12), rgba(255, 140, 0, 0.06), rgba(255, 215, 0, 0.12));
+            border: 2px solid rgba(255, 215, 0, 0.4);
+            border-radius: 16px;
+            animation: bannerGlow 3s ease-in-out infinite;
+        }
+
+        .winners-banner.visible { display: block; }
+
+        .winners-banner h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            color: #FFD700;
+            margin-bottom: 6px;
+        }
+
+        .winners-banner p {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        @keyframes bannerGlow {
+            0%, 100% { border-color: rgba(255, 215, 0, 0.4); box-shadow: 0 0 15px rgba(255, 215, 0, 0.05); }
+            50% { border-color: rgba(255, 215, 0, 0.7); box-shadow: 0 0 25px rgba(255, 215, 0, 0.15); }
+        }
+
+        /* Linhas de destaque dos vencedores */
+        tr.winner-1 {
+            background: linear-gradient(90deg, rgba(255, 215, 0, 0.15), rgba(255, 215, 0, 0.05), transparent) !important;
+            border-left: 3px solid #FFD700;
+            animation: rowPulse1 3s ease-in-out infinite;
+        }
+        tr.winner-1 .player-name { color: #FFD700; font-size: 1rem; }
+        tr.winner-1 .asteroids-cell { color: #FFD700; font-size: 1.1rem; }
+        tr.winner-1 .rank-cell { font-size: 1.3rem; }
+
+        tr.winner-2 {
+            background: linear-gradient(90deg, rgba(192, 192, 192, 0.12), rgba(192, 192, 192, 0.04), transparent) !important;
+            border-left: 3px solid #C0C0C0;
+        }
+        tr.winner-2 .player-name { color: #e0e0e0; }
+        tr.winner-2 .asteroids-cell { color: #C0C0C0; font-size: 1.05rem; }
+
+        tr.winner-3 {
+            background: linear-gradient(90deg, rgba(205, 127, 50, 0.12), rgba(205, 127, 50, 0.04), transparent) !important;
+            border-left: 3px solid #CD7F32;
+        }
+        tr.winner-3 .player-name { color: #e0a86e; }
+        tr.winner-3 .asteroids-cell { color: #CD7F32; font-size: 1.02rem; }
+
+        tr.winner-4, tr.winner-5 {
+            background: linear-gradient(90deg, rgba(0, 229, 204, 0.08), transparent) !important;
+            border-left: 3px solid rgba(0, 229, 204, 0.4);
+        }
+        tr.winner-4 .player-name, tr.winner-5 .player-name { color: var(--primary); }
+
+        /* Premio ao lado do nome quando encerrado */
+        .winner-credits {
+            display: inline-block;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 6px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        tr.winner-1 .winner-credits { background: rgba(255, 215, 0, 0.2); color: #FFD700; }
+        tr.winner-2 .winner-credits { background: rgba(192, 192, 192, 0.2); color: #C0C0C0; }
+        tr.winner-3 .winner-credits { background: rgba(205, 127, 50, 0.2); color: #CD7F32; }
+        tr.winner-4 .winner-credits, tr.winner-5 .winner-credits { background: rgba(0, 229, 204, 0.15); color: var(--primary); }
+
+        @keyframes rowPulse1 {
+            0%, 100% { background: linear-gradient(90deg, rgba(255, 215, 0, 0.15), rgba(255, 215, 0, 0.05), transparent); }
+            50% { background: linear-gradient(90deg, rgba(255, 215, 0, 0.22), rgba(255, 215, 0, 0.08), transparent); }
+        }
+
         /* Responsivo */
         @media (max-width: 768px) {
             .ranking-header h1 { font-size: 1.4rem; }
@@ -421,6 +503,11 @@
             <div class="winners-list" id="previousWinnersList"></div>
         </div>
 
+        <div class="winners-banner" id="winnersBanner">
+            <h2><i class="fas fa-trophy"></i> DESAFIO ENCERRADO <i class="fas fa-trophy"></i></h2>
+            <p>Os vencedores abaixo receberam seus cr&eacute;ditos! Novo desafio em breve.</p>
+        </div>
+
         <div class="ranking-table-wrapper">
             <table class="ranking-table">
                 <thead>
@@ -475,8 +562,9 @@
             loaded = true;
 
             renderTimer(data);
-            renderRanking(data.ranking);
+            renderRanking(data.ranking, data.challenge_active, data.prizes);
             renderPreviousWinners(data.previous_winners, data.prizes);
+            renderWinnersBanner(data.challenge_active);
             startCountdown(data.week_end, data.server_time, data.challenge_active);
         } catch (e) {
             if (!loaded) {
@@ -533,9 +621,10 @@
         }
     }
 
-    function renderRanking(ranking) {
+    function renderRanking(ranking, challengeActive, prizes) {
         const tbody = document.getElementById('rankingBody');
         const emptyEl = document.getElementById('emptyRanking');
+        const ended = !challengeActive;
 
         if (!ranking || ranking.length === 0) {
             tbody.innerHTML = '';
@@ -548,6 +637,8 @@
             const pos = i + 1;
             var rankClass = '';
             var rankContent = '';
+            var winnerClass = '';
+            var creditsBadge = '';
 
             if (pos === 1) { rankClass = 'rank-1'; rankContent = '<i class="fas fa-crown rank-icon"></i>'; }
             else if (pos === 2) { rankClass = 'rank-2'; rankContent = '<i class="fas fa-medal rank-icon"></i>'; }
@@ -555,9 +646,19 @@
             else if (pos <= 5) { rankClass = 'rank-top5'; rankContent = pos; }
             else { rankContent = pos; }
 
-            return '<tr class="' + rankClass + '">' +
+            // Destaque especial quando desafio encerrado
+            if (ended && pos <= 5) {
+                winnerClass = ' winner-' + pos;
+                var prize = prizes[pos - 1] || 0;
+                creditsBadge = '<span class="winner-credits">+' + prize + ' cr\u00e9d.</span>';
+                if (pos === 1) {
+                    rankContent = '<i class="fas fa-trophy rank-icon"></i>';
+                }
+            }
+
+            return '<tr class="' + rankClass + winnerClass + '">' +
                 '<td class="rank-cell">' + rankContent + '</td>' +
-                '<td class="player-name">' + escapeHtml(player.display_name) + '</td>' +
+                '<td class="player-name">' + escapeHtml(player.display_name) + creditsBadge + '</td>' +
                 '<td class="asteroids-cell">' + player.total_asteroids.toLocaleString('pt-BR') + '</td>' +
                 '<td class="hide-mobile"><div class="asteroid-breakdown">' +
                     (player.total_common > 0 ? '<span class="asteroid-tag tag-common">' + player.total_common + ' comuns</span>' : '') +
@@ -568,6 +669,15 @@
                 '<td class="missions-cell hide-mobile">' + player.total_missions + '</td>' +
             '</tr>';
         }).join('');
+    }
+
+    function renderWinnersBanner(challengeActive) {
+        var banner = document.getElementById('winnersBanner');
+        if (!challengeActive) {
+            banner.classList.add('visible');
+        } else {
+            banner.classList.remove('visible');
+        }
     }
 
     function renderPreviousWinners(winners, prizes) {
