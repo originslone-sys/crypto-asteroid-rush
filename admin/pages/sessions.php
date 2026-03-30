@@ -95,6 +95,27 @@ try {
         FROM game_sessions
     ")->fetch();
 
+    // Estatísticas por modo por período (completadas x abandonadas)
+    $modePerPeriod = $pdo->query("
+        SELECT
+            game_mode,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) AND status = 'completed' THEN 1 ELSE 0 END) as completed_1h,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) AND status = 'abandoned' THEN 1 ELSE 0 END) as abandoned_1h,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 1 ELSE 0 END) as total_1h,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) AND status = 'completed' THEN 1 ELSE 0 END) as completed_24h,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) AND status = 'abandoned' THEN 1 ELSE 0 END) as abandoned_24h,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 1 ELSE 0 END) as total_24h,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND status = 'completed' THEN 1 ELSE 0 END) as completed_7d,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND status = 'abandoned' THEN 1 ELSE 0 END) as abandoned_7d,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) as total_7d,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND status = 'completed' THEN 1 ELSE 0 END) as completed_30d,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND status = 'abandoned' THEN 1 ELSE 0 END) as abandoned_30d,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as total_30d
+        FROM game_sessions
+        WHERE game_mode IN ('normal', 'hard', 'extreme')
+        GROUP BY game_mode
+    ")->fetchAll(PDO::FETCH_UNIQUE|PDO::FETCH_ASSOC);
+
     // Calcular porcentagens
     function calcPercent($part, $total) {
         return $total > 0 ? round(($part / $total) * 100, 1) : 0;
@@ -189,6 +210,62 @@ try {
             </div>
         </div>
         <?php endforeach; ?>
+    </div>
+
+    <!-- Completadas x Abandonadas por Modo por Período -->
+    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+        <div style="font-family: 'Orbitron', monospace; font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 16px;">
+            <i class="fas fa-chart-bar" style="margin-right: 6px; color: #9b59b6;"></i> Sessões por Modo — Completadas vs Abandonadas
+        </div>
+        <?php
+        $modePeriods = [
+            ['label' => 'Última hora', 'suffix' => '1h'],
+            ['label' => 'Últimas 24h', 'suffix' => '24h'],
+            ['label' => 'Últimos 7 dias', 'suffix' => '7d'],
+            ['label' => 'Últimos 30 dias', 'suffix' => '30d'],
+        ];
+        $modesList = [
+            'normal'  => ['name' => 'Normal',  'color' => '#2ecc71'],
+            'hard'    => ['name' => 'Difícil', 'color' => '#f39c12'],
+            'extreme' => ['name' => 'Extreme', 'color' => '#e74c3c'],
+        ];
+        ?>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+        <?php foreach ($modePeriods as $mp): $sf = $mp['suffix']; ?>
+            <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 14px;">
+                <div style="font-size: 0.8rem; font-weight: 700; color: rgba(255,255,255,0.6); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">
+                    <?php echo $mp['label']; ?>
+                </div>
+                <?php foreach ($modesList as $mKey => $mInfo):
+                    $mData = $modePerPeriod[$mKey] ?? [];
+                    $mCompleted = (int)($mData["completed_{$sf}"] ?? 0);
+                    $mAbandoned = (int)($mData["abandoned_{$sf}"] ?? 0);
+                    $mTotal = (int)($mData["total_{$sf}"] ?? 0);
+                    $pctC = calcPercent($mCompleted, $mTotal);
+                    $pctA = calcPercent($mAbandoned, $mTotal);
+                ?>
+                <div style="margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="font-size: 0.8rem; font-weight: 700; color: <?php echo $mInfo['color']; ?>;">
+                            <?php echo $mInfo['name']; ?>
+                        </span>
+                        <span style="font-size: 0.7rem; color: rgba(255,255,255,0.4);">
+                            <?php echo $mTotal; ?> total
+                        </span>
+                    </div>
+                    <div style="height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; display: flex; margin-bottom: 4px;">
+                        <div style="width: <?php echo $pctC; ?>%; background: #00d68f;" title="Completadas"></div>
+                        <div style="width: <?php echo $pctA; ?>%; background: #95a5a6;" title="Abandonadas"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.7rem;">
+                        <span style="color: #00d68f;"><i class="fas fa-check" style="margin-right: 2px;"></i><?php echo $mCompleted; ?> (<?php echo $pctC; ?>%)</span>
+                        <span style="color: #95a5a6;"><i class="fas fa-times" style="margin-right: 2px;"></i><?php echo $mAbandoned; ?> (<?php echo $pctA; ?>%)</span>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endforeach; ?>
+        </div>
     </div>
 
     <!-- Distribuição por modo (7 dias) -->
