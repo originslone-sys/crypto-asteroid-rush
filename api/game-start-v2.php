@@ -7,6 +7,11 @@
 
 require_once __DIR__ . "/config.php";
 
+// v2: Duração do jogo (override do config global)
+if (!defined('GAME_DURATION_V2')) {
+    define('GAME_DURATION_V2', 60); // 60 segundos
+}
+
 setCorsHeaders();
 
 $input = getRequestInput();
@@ -95,7 +100,7 @@ try {
             'is_hard_mode' => false,
             'game_mode' => 'training',
             'credits_cost' => 0,
-            'game_duration' => GAME_DURATION,
+            'game_duration' => GAME_DURATION_V2,
             'initial_lives' => INITIAL_LIVES,
             'credits' => (int)($user['credits'] ?? 0),
             'credits_per_game' => 0,
@@ -160,10 +165,10 @@ try {
 
     if ($activeSession) {
         $elapsed = (int)$activeSession['elapsed'];
-        $maxSessionTime = GAME_DURATION + GAME_TOLERANCE + (defined('CAPTCHA_RESEND_TOLERANCE') ? CAPTCHA_RESEND_TOLERANCE : 60);
+        $maxSessionTime = GAME_DURATION_V2 + GAME_TOLERANCE + (defined('CAPTCHA_RESEND_TOLERANCE') ? CAPTCHA_RESEND_TOLERANCE : 60);
 
         // Auto-expirar se: sessao ultrapassou tempo maximo OU jogo ja acabou (>180s) e usuario pediu force_start
-        $shouldExpire = ($elapsed >= $maxSessionTime) || ($forceStart && $elapsed > GAME_DURATION);
+        $shouldExpire = ($elapsed >= $maxSessionTime) || ($forceStart && $elapsed > GAME_DURATION_V2);
 
         if ($shouldExpire) {
             // Sessao expirada/travada - auto-expirar
@@ -181,7 +186,7 @@ try {
                 'error_code' => 'ACTIVE_SESSION_EXISTS',
                 'active_session_id' => (int)$activeSession['id'],
                 'elapsed_seconds' => $elapsed,
-                'can_force' => $elapsed > GAME_DURATION
+                'can_force' => $elapsed > GAME_DURATION_V2
             ]);
             exit;
         }
@@ -283,7 +288,7 @@ try {
         'is_hard_mode' => $isHardMode,
         'game_mode' => $gameMode,
         'credits_cost' => $creditsCost,
-        'game_duration' => GAME_DURATION,
+        'game_duration' => GAME_DURATION_V2,
         'initial_lives' => INITIAL_LIVES,
         'credits' => $remainingCredits,
         'credits_per_game' => $creditsCost,
