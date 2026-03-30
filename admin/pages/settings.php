@@ -97,16 +97,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'mode_normal_speed' => (float)($_POST['mode_normal_speed'] ?? 1.3),
                     'mode_normal_max_asteroids' => max(5, (int)($_POST['mode_normal_max_asteroids'] ?? 14)),
                     'mode_normal_spawn_interval' => max(50, (int)($_POST['mode_normal_spawn_interval'] ?? 400)),
+                    'mode_normal_spawn_common' => max(0, min(100, (float)($_POST['mode_normal_spawn_common'] ?? 90))),
+                    'mode_normal_spawn_rare' => max(0, min(100, (float)($_POST['mode_normal_spawn_rare'] ?? 7))),
+                    'mode_normal_spawn_epic' => max(0, min(100, (float)($_POST['mode_normal_spawn_epic'] ?? 2))),
+                    'mode_normal_spawn_legendary' => max(0, min(100, (float)($_POST['mode_normal_spawn_legendary'] ?? 1))),
                     'mode_hard_enabled' => isset($_POST['mode_hard_enabled']) ? 'true' : 'false',
                     'mode_hard_credits' => max(1, (int)($_POST['mode_hard_credits'] ?? 2)),
                     'mode_hard_speed' => (float)($_POST['mode_hard_speed'] ?? 1.7),
                     'mode_hard_max_asteroids' => max(5, (int)($_POST['mode_hard_max_asteroids'] ?? 18)),
                     'mode_hard_spawn_interval' => max(50, (int)($_POST['mode_hard_spawn_interval'] ?? 200)),
+                    'mode_hard_spawn_common' => max(0, min(100, (float)($_POST['mode_hard_spawn_common'] ?? 80))),
+                    'mode_hard_spawn_rare' => max(0, min(100, (float)($_POST['mode_hard_spawn_rare'] ?? 15))),
+                    'mode_hard_spawn_epic' => max(0, min(100, (float)($_POST['mode_hard_spawn_epic'] ?? 4))),
+                    'mode_hard_spawn_legendary' => max(0, min(100, (float)($_POST['mode_hard_spawn_legendary'] ?? 1))),
                     'mode_extreme_enabled' => isset($_POST['mode_extreme_enabled']) ? 'true' : 'false',
                     'mode_extreme_credits' => max(1, (int)($_POST['mode_extreme_credits'] ?? 3)),
                     'mode_extreme_speed' => (float)($_POST['mode_extreme_speed'] ?? 2.4),
                     'mode_extreme_max_asteroids' => max(5, (int)($_POST['mode_extreme_max_asteroids'] ?? 22)),
                     'mode_extreme_spawn_interval' => max(50, (int)($_POST['mode_extreme_spawn_interval'] ?? 100)),
+                    'mode_extreme_spawn_common' => max(0, min(100, (float)($_POST['mode_extreme_spawn_common'] ?? 70))),
+                    'mode_extreme_spawn_rare' => max(0, min(100, (float)($_POST['mode_extreme_spawn_rare'] ?? 20))),
+                    'mode_extreme_spawn_epic' => max(0, min(100, (float)($_POST['mode_extreme_spawn_epic'] ?? 8))),
+                    'mode_extreme_spawn_legendary' => max(0, min(100, (float)($_POST['mode_extreme_spawn_legendary'] ?? 2))),
                     'mode_training_enabled' => isset($_POST['mode_training_enabled']) ? 'true' : 'false',
                 ];
 
@@ -538,9 +550,30 @@ try {
                                 <label class="form-label" style="font-size: 0.8rem;">Max Asteroides</label>
                                 <input type="number" name="mode_normal_max_asteroids" class="form-control" value="<?php echo $settings['mode_normal_max_asteroids'] ?? 14; ?>" min="5" max="50">
                             </div>
-                            <div class="form-group" style="margin-bottom: 0;">
+                            <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Spawn Interval (ms)</label>
                                 <input type="number" name="mode_normal_spawn_interval" class="form-control" value="<?php echo $settings['mode_normal_spawn_interval'] ?? 400; ?>" min="50" max="2000" step="50">
+                            </div>
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(46,204,113,0.2);">
+                                <label class="form-label" style="font-size: 0.8rem; color: #2ecc71;">Spawn Rates (%)</label>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                                    <div>
+                                        <label style="font-size: 0.7rem; color: #888;">Common %</label>
+                                        <input type="number" name="mode_normal_spawn_common" class="form-control" value="<?php echo $settings['mode_normal_spawn_common'] ?? 90; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.7rem; color: #3498db;">Rare %</label>
+                                        <input type="number" name="mode_normal_spawn_rare" class="form-control" value="<?php echo $settings['mode_normal_spawn_rare'] ?? 7; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.7rem; color: #9b59b6;">Epic %</label>
+                                        <input type="number" name="mode_normal_spawn_epic" class="form-control" value="<?php echo $settings['mode_normal_spawn_epic'] ?? 2; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.7rem; color: #f1c40f;">Legendary %</label>
+                                        <input type="number" name="mode_normal_spawn_legendary" class="form-control" value="<?php echo $settings['mode_normal_spawn_legendary'] ?? 1; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -564,9 +597,30 @@ try {
                                 <label class="form-label" style="font-size: 0.8rem;">Max Asteroides</label>
                                 <input type="number" name="mode_hard_max_asteroids" class="form-control" value="<?php echo $settings['mode_hard_max_asteroids'] ?? 18; ?>" min="5" max="50">
                             </div>
-                            <div class="form-group" style="margin-bottom: 0;">
+                            <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Spawn Interval (ms)</label>
                                 <input type="number" name="mode_hard_spawn_interval" class="form-control" value="<?php echo $settings['mode_hard_spawn_interval'] ?? 200; ?>" min="50" max="2000" step="50">
+                            </div>
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(243,156,18,0.2);">
+                                <label class="form-label" style="font-size: 0.8rem; color: #f39c12;">Spawn Rates (%)</label>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                                    <div>
+                                        <label style="font-size: 0.7rem; color: #888;">Common %</label>
+                                        <input type="number" name="mode_hard_spawn_common" class="form-control" value="<?php echo $settings['mode_hard_spawn_common'] ?? 80; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.7rem; color: #3498db;">Rare %</label>
+                                        <input type="number" name="mode_hard_spawn_rare" class="form-control" value="<?php echo $settings['mode_hard_spawn_rare'] ?? 15; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.7rem; color: #9b59b6;">Epic %</label>
+                                        <input type="number" name="mode_hard_spawn_epic" class="form-control" value="<?php echo $settings['mode_hard_spawn_epic'] ?? 4; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.7rem; color: #f1c40f;">Legendary %</label>
+                                        <input type="number" name="mode_hard_spawn_legendary" class="form-control" value="<?php echo $settings['mode_hard_spawn_legendary'] ?? 1; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -590,9 +644,30 @@ try {
                                 <label class="form-label" style="font-size: 0.8rem;">Max Asteroides</label>
                                 <input type="number" name="mode_extreme_max_asteroids" class="form-control" value="<?php echo $settings['mode_extreme_max_asteroids'] ?? 22; ?>" min="5" max="50">
                             </div>
-                            <div class="form-group" style="margin-bottom: 0;">
+                            <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Spawn Interval (ms)</label>
                                 <input type="number" name="mode_extreme_spawn_interval" class="form-control" value="<?php echo $settings['mode_extreme_spawn_interval'] ?? 100; ?>" min="50" max="2000" step="50">
+                            </div>
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(231,76,60,0.2);">
+                                <label class="form-label" style="font-size: 0.8rem; color: #e74c3c;">Spawn Rates (%)</label>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                                    <div>
+                                        <label style="font-size: 0.7rem; color: #888;">Common %</label>
+                                        <input type="number" name="mode_extreme_spawn_common" class="form-control" value="<?php echo $settings['mode_extreme_spawn_common'] ?? 70; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.7rem; color: #3498db;">Rare %</label>
+                                        <input type="number" name="mode_extreme_spawn_rare" class="form-control" value="<?php echo $settings['mode_extreme_spawn_rare'] ?? 20; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.7rem; color: #9b59b6;">Epic %</label>
+                                        <input type="number" name="mode_extreme_spawn_epic" class="form-control" value="<?php echo $settings['mode_extreme_spawn_epic'] ?? 8; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.7rem; color: #f1c40f;">Legendary %</label>
+                                        <input type="number" name="mode_extreme_spawn_legendary" class="form-control" value="<?php echo $settings['mode_extreme_spawn_legendary'] ?? 2; ?>" min="0" max="100" step="0.5" style="font-size: 0.85rem;">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

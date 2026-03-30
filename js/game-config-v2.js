@@ -114,6 +114,14 @@ async function loadModesFromServer() {
             if (serverCfg.speed_multiplier != null) mode.speed_multiplier = serverCfg.speed_multiplier;
             if (serverCfg.max_asteroids != null) mode.max_asteroids = serverCfg.max_asteroids;
             if (serverCfg.spawn_interval != null) mode.spawn_interval = serverCfg.spawn_interval;
+            if (serverCfg.spawn_rates) {
+                mode.spawn_rates = {
+                    COMMON: serverCfg.spawn_rates.COMMON,
+                    RARE: serverCfg.spawn_rates.RARE,
+                    EPIC: serverCfg.spawn_rates.EPIC,
+                    LEGENDARY: serverCfg.spawn_rates.LEGENDARY
+                };
+            }
         }
 
         console.log('✅ Configs de modos carregadas do servidor');
