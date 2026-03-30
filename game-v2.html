@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UNOBIX | MISSÃO ESPACIAL</title>
+    <meta name="description" content="Destrua asteroides e ganhe R$ de verdade! Jogo espacial gratuito.">
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&family=Audiowide&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google reCAPTCHA v2 -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
+    <!-- Game Styles -->
+    <link rel="stylesheet" href="css/game.css?v=3.0">
+    <style>
+        /* ============================================
+           SELEÇÃO DE MODO - Estilos v2
+           ============================================ */
+        .mode-selection {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .mode-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            background: rgba(255,255,255,0.03);
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Orbitron', sans-serif;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mode-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        .mode-btn:active {
+            transform: translateY(0);
+        }
+
+        .mode-btn .mode-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+        }
+
+        .mode-btn .mode-name {
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .mode-btn .mode-desc {
+            font-size: 0.65rem;
+            opacity: 0.6;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 400;
+        }
+
+        .mode-btn .mode-cost {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            white-space: nowrap;
+        }
+
+        /* Normal */
+        .mode-btn.mode-normal {
+            border-color: rgba(46, 204, 113, 0.4);
+        }
+        .mode-btn.mode-normal:hover {
+            background: rgba(46, 204, 113, 0.1);
+            border-color: rgba(46, 204, 113, 0.7);
+        }
+        .mode-btn.mode-normal .mode-name { color: #2ecc71; }
+        .mode-btn.mode-normal .mode-cost { background: rgba(46, 204, 113, 0.2); color: #2ecc71; }
+
+        /* Difícil */
+        .mode-btn.mode-hard {
+            border-color: rgba(243, 156, 18, 0.4);
+        }
+        .mode-btn.mode-hard:hover {
+            background: rgba(243, 156, 18, 0.1);
+            border-color: rgba(243, 156, 18, 0.7);
+        }
+        .mode-btn.mode-hard .mode-name { color: #f39c12; }
+        .mode-btn.mode-hard .mode-cost { background: rgba(243, 156, 18, 0.2); color: #f39c12; }
+
+        /* Extreme */
+        .mode-btn.mode-extreme {
+            border-color: rgba(231, 76, 60, 0.4);
+        }
+        .mode-btn.mode-extreme:hover {
+            background: rgba(231, 76, 60, 0.1);
+            border-color: rgba(231, 76, 60, 0.7);
+        }
+        .mode-btn.mode-extreme .mode-name { color: #e74c3c; }
+        .mode-btn.mode-extreme .mode-cost { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+
+        /* Treino */
+        .mode-btn.mode-training {
+            border-color: rgba(149, 165, 166, 0.3);
+            border-style: dashed;
+        }
+        .mode-btn.mode-training:hover {
+            background: rgba(149, 165, 166, 0.08);
+            border-color: rgba(149, 165, 166, 0.5);
+        }
+        .mode-btn.mode-training .mode-name { color: #95a5a6; }
+        .mode-btn.mode-training .mode-cost { background: rgba(149, 165, 166, 0.15); color: #95a5a6; }
+
+        .mode-btn.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        /* Popup de Treino */
+        .training-popup {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+        .training-popup.active { display: flex; }
+
+        .training-popup-content {
+            background: #1a1a2e;
+            border: 1px solid rgba(149,165,166,0.3);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 360px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .training-popup-content h3 {
+            font-family: 'Orbitron', sans-serif;
+            color: #95a5a6;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+
+        .training-popup-content p {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.8rem;
+            margin-bottom: 20px;
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        .training-modes {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .training-mode-btn {
+            padding: 12px 16px;
+            border: 1px solid rgba(149,165,166,0.3);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.03);
+            color: #fff;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        .training-mode-btn:hover {
+            background: rgba(149,165,166,0.15);
+            border-color: rgba(149,165,166,0.5);
+        }
+
+        .training-close-btn {
+            padding: 10px 24px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: transparent;
+            color: rgba(255,255,255,0.5);
+            cursor: pointer;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.9rem;
+        }
+        .training-close-btn:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        /* Badge modo ativo */
+        .game-mode-badge {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 10;
+        }
+        .game-mode-badge.mode-normal { background: rgba(46,204,113,0.2); color: #2ecc71; display: flex; }
+        .game-mode-badge.mode-hard { background: rgba(243,156,18,0.2); color: #f39c12; display: flex; }
+        .game-mode-badge.mode-extreme { background: rgba(231,76,60,0.2); color: #e74c3c; display: flex; }
+        .game-mode-badge.mode-training { background: rgba(149,165,166,0.2); color: #95a5a6; display: flex; }
+
+        /* Credits display no menu */
+        .credits-display {
+            text-align: center;
+            margin: 8px 0;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+        }
+        .credits-display strong {
+            color: #f1c40f;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Tela de Carregamento Inicial -->
+<div id="loadingScreen">
+    <div class="loading-content">
+        <div class="loading-logo">
+            <img src="img/logo-unobix.png" alt="Unobix">
+        </div>
+        <div class="loading-title">UNOBIX</div>
+        <div class="loading-spinner"></div>
+        <div class="loading-text">INICIALIZANDO SISTEMAS...</div>
+    </div>
+</div>
+
+<!-- Tela Pré-Jogo (para anúncios) -->
+<div id="preGameScreen" class="modal-overlay">
+    <div class="pregame-container">
+        <div class="pregame-header">
+            <i class="fas fa-satellite-dish"></i>
+            <span>BRIEFING DA MISSÃO</span>
+        </div>
+
+        <!-- Container de Anúncio -->
+        <div id="adContainer" class="ad-container">
+            <div class="ad-placeholder">
+                <i class="fas fa-ad"></i>
+                <span>Espaço para Anúncio</span>
+            </div>
+            <div class="ad-timer" id="adTimer">5s</div>
+        </div>
+
+        <div class="pregame-loading">
+            <div class="loading-bar-container">
+                <div id="loadingBar" class="loading-bar"></div>
+            </div>
+            <div id="loadingPercent" class="loading-percent">0%</div>
+            <div id="loadingStatus" class="loading-status">Carregando recursos...</div>
+        </div>
+
+        <div class="pregame-tips">
+            <i class="fas fa-lightbulb"></i>
+            <span id="gameTip">DICA: Destrua asteroides raros para ganhar mais R$!</span>
+        </div>
+    </div>
+</div>
+
+<!-- Container do Jogo -->
+<div id="gameContainer">
+
+    <!-- Badge do Modo (exibido durante jogo) -->
+    <div id="gameModeBadge" class="game-mode-badge"></div>
+
+    <!-- Header do Jogo -->
+    <div id="gameHeader">
+        <div class="header-content">
+            <div class="game-title">UNOBIX</div>
+            <div class="game-subtitle">MISSÃO ESPACIAL • GANHE R$</div>
+        </div>
+    </div>
+
+    <!-- Stats do Jogo -->
+    <div id="gameStats">
+        <div class="stats-container">
+            <div class="stat-item">
+                <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                <div class="stat-content">
+                    <div class="stat-label">TEMPO</div>
+                    <div id="countdown" class="stat-value">180</div>
+                </div>
+            </div>
+            <div class="stat-item lives-stat">
+                <div class="stat-icon"><i class="fas fa-heart"></i></div>
+                <div class="stat-content">
+                    <div class="stat-label">VIDAS</div>
+                    <div id="lives" class="stat-value lives-display">
+                        <span class="life active"></span>
+                        <span class="life active"></span>
+                        <span class="life active"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-icon"><i class="fas fa-crosshairs"></i></div>
+                <div class="stat-content">
+                    <div class="stat-label">DESTRUÍDOS</div>
+                    <div id="score" class="stat-value">0</div>
+                </div>
+            </div>
+            <div class="stat-item earnings-stat">
+                <div class="stat-icon"><i class="fas fa-coins"></i></div>
+                <div class="stat-content">
+                    <div class="stat-label">GANHOS</div>
+                    <div id="earned" class="stat-value">R$ 0,00</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Canvas do Jogo -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Controles Mobile -->
+    <div id="mobileControls">
+        <div class="control-left">
+            <div class="control-btn" id="leftBtn" data-direction="left">
+                <i class="fas fa-chevron-left"></i>
+            </div>
+            <div class="control-btn" id="rightBtn" data-direction="right">
+                <i class="fas fa-chevron-right"></i>
+            </div>
+        </div>
+        <div class="control-right">
+            <div class="control-btn fire-btn" id="fireBtn">
+                <i class="fas fa-bolt"></i>
+                <span>FOGO</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toggle de Áudio -->
+    <div id="audioToggle">
+        <i id="audioIcon" class="fas fa-volume-up"></i>
+    </div>
+</div>
+
+<!-- Modal: Login com Google -->
+<div id="connectModal" class="modal-overlay active">
+    <div class="modal-container connect-modal">
+        <div class="modal-glow"></div>
+        <div class="modal-header">
+            <div class="modal-icon">
+                <i class="fas fa-rocket"></i>
+            </div>
+            <div class="modal-title">BEM-VINDO COMANDANTE</div>
+            <div class="modal-subtitle">
+                Entre com sua conta Google para iniciar sua missão de destruição
+                de asteroides e ganhar R$ de verdade!
+            </div>
+        </div>
+        <div class="btn-group">
+            <button id="connectBtn" class="btn btn-primary btn-glow btn-large">
+                <i class="fab fa-google"></i>
+                <span>Entrar com Google</span>
+            </button>
+        </div>
+        <div class="modal-footer">
+            <i class="fas fa-info-circle"></i>
+            <span>Escolha seu modo de jogo e teste suas habilidades!</span>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Menu do Jogo (Seleção de Modo) -->
+<div id="gameMenuModal" class="modal-overlay">
+    <div class="modal-container menu-modal">
+        <div class="modal-glow"></div>
+        <div class="modal-header">
+            <div class="modal-icon">
+                <i class="fas fa-satellite"></i>
+            </div>
+            <div class="modal-title">CONTROLE DA MISSÃO</div>
+            <div class="modal-subtitle">
+                Escolha seu modo de jogo. Modos mais difíceis custam mais créditos,
+                mas têm mais chances de meteoros valiosos!
+            </div>
+        </div>
+
+        <!-- Info do Usuário -->
+        <div class="user-info" id="connectedUserInfo">
+            <img id="userPhoto" src="" alt="">
+            <span id="userName">Usuário</span>
+        </div>
+
+        <!-- Créditos -->
+        <div class="credits-display">
+            <i class="fas fa-ticket-alt"></i> Créditos: <strong id="userCreditsDisplay">0</strong>
+        </div>
+
+        <!-- Seletor de Nave -->
+        <div id="shipSelectorContainer">
+            <div class="section-title">
+                <i class="fas fa-space-shuttle"></i>
+                <span>SELECIONE SUA NAVE</span>
+            </div>
+            <div id="shipSelection" class="ship-grid">
+                <!-- Naves geradas dinamicamente -->
+            </div>
+            <div id="selectedShipInfo" class="selected-ship-info">
+                <span class="ship-name">Selecione uma nave para a missão</span>
+            </div>
+        </div>
+
+        <!-- Seleção de Modo -->
+        <div class="section-title" style="margin-top: 16px;">
+            <i class="fas fa-layer-group"></i>
+            <span>ESCOLHA O MODO</span>
+        </div>
+
+        <div class="mode-selection">
+            <button class="mode-btn mode-normal" id="modeNormalBtn" data-mode="normal" data-cost="1">
+                <div class="mode-info">
+                    <span class="mode-name"><i class="fas fa-shield-alt"></i> NORMAL</span>
+                    <span class="mode-desc">Velocidade 1.3x • 14 asteroides • Spawn 400ms</span>
+                </div>
+                <span class="mode-cost"><i class="fas fa-ticket-alt"></i> 1 Crédito</span>
+            </button>
+
+            <button class="mode-btn mode-hard" id="modeHardBtn" data-mode="hard" data-cost="2">
+                <div class="mode-info">
+                    <span class="mode-name"><i class="fas fa-fire"></i> DIFÍCIL</span>
+                    <span class="mode-desc">Velocidade 1.7x • 18 asteroides • Spawn 200ms</span>
+                </div>
+                <span class="mode-cost"><i class="fas fa-ticket-alt"></i> 2 Créditos</span>
+            </button>
+
+            <button class="mode-btn mode-extreme" id="modeExtremeBtn" data-mode="extreme" data-cost="3">
+                <div class="mode-info">
+                    <span class="mode-name"><i class="fas fa-skull-crossbones"></i> EXTREME</span>
+                    <span class="mode-desc">Velocidade 2.4x • 22 asteroides • Spawn 100ms</span>
+                </div>
+                <span class="mode-cost"><i class="fas fa-ticket-alt"></i> 3 Créditos</span>
+            </button>
+
+            <button class="mode-btn mode-training" id="modeTrainingBtn" data-mode="training">
+                <div class="mode-info">
+                    <span class="mode-name"><i class="fas fa-graduation-cap"></i> TREINO</span>
+                    <span class="mode-desc">Sem custo • Sem ganhos • Apenas prática</span>
+                </div>
+                <span class="mode-cost"><i class="fas fa-star"></i> Grátis</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Popup de Treino - Seleção de modo de treino -->
+<div id="trainingPopup" class="training-popup">
+    <div class="training-popup-content">
+        <h3><i class="fas fa-graduation-cap"></i> MODO TREINO</h3>
+        <p>Escolha qual dificuldade deseja praticar. Sem custo, sem ganhos.</p>
+        <div class="training-modes">
+            <button class="training-mode-btn" data-training-mode="normal">
+                <i class="fas fa-shield-alt" style="color:#2ecc71"></i> Treino Normal
+            </button>
+            <button class="training-mode-btn" data-training-mode="hard">
+                <i class="fas fa-fire" style="color:#f39c12"></i> Treino Difícil
+            </button>
+            <button class="training-mode-btn" data-training-mode="extreme">
+                <i class="fas fa-skull-crossbones" style="color:#e74c3c"></i> Treino Extreme
+            </button>
+        </div>
+        <button class="training-close-btn" id="trainingCloseBtn">Cancelar</button>
+    </div>
+</div>
+
+<!-- Modal: Fim de Jogo (Vitória) -->
+<div id="endGameModal" class="modal-overlay">
+    <div class="modal-container end-modal">
+        <div class="modal-glow"></div>
+        <div id="endGameHeader" class="modal-header compact">
+            <div class="modal-icon success">
+                <i class="fas fa-trophy"></i>
+            </div>
+            <div id="endGameTitle" class="modal-title">MISSÃO COMPLETA!</div>
+        </div>
+
+        <!-- Resultados compactos -->
+        <div class="result-stats compact">
+            <div class="result-item">
+                <div class="result-icon"><i class="fas fa-crosshairs"></i></div>
+                <div class="result-content">
+                    <div class="result-label">Destruídos</div>
+                    <div id="finalScore" class="result-value">0</div>
+                </div>
+            </div>
+            <div class="result-item highlight">
+                <div class="result-icon"><i class="fas fa-coins"></i></div>
+                <div class="result-content">
+                    <div class="result-label">Ganhos</div>
+                    <div id="finalReward" class="result-value">R$ 0,00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CAPTCHA -->
+        <div id="captchaContainer" class="captcha-container">
+            <div id="captchaWidget"></div>
+            <div id="captchaStatus" class="captcha-status"></div>
+        </div>
+
+        <div class="btn-group">
+            <button id="claimRewardBtn" class="btn btn-primary btn-glow" disabled>
+                <i class="fas fa-check"></i>
+                <span>RESGATAR GANHOS</span>
+            </button>
+            <button id="playAgainBtn" class="btn btn-secondary" style="display: none;">
+                <i class="fas fa-redo"></i>
+                <span>NOVA MISSÃO</span>
+            </button>
+            <button id="walletBtn" class="btn btn-secondary" style="display: none;">
+                <i class="fas fa-wallet"></i>
+                <span>VER CARTEIRA</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Game Over (Perdeu todas as vidas) -->
+<div id="gameOverModal" class="modal-overlay">
+    <div class="modal-container gameover-modal">
+        <div class="modal-glow danger"></div>
+        <div class="modal-header">
+            <div class="modal-icon danger">
+                <i class="fas fa-skull-crossbones"></i>
+            </div>
+            <div class="modal-title danger">MISSÃO FALHOU</div>
+            <div class="modal-subtitle">
+                Sua nave foi destruída! Você perdeu todas as vidas e ganhos.
+            </div>
+        </div>
+
+        <div class="gameover-stats">
+            <div class="stat-lost">
+                <i class="fas fa-times-circle"></i>
+                <span>Ganhos Perdidos: <strong id="lostEarnings">R$ 0,00</strong></span>
+            </div>
+        </div>
+
+        <!-- Container de Anúncio no Game Over -->
+        <div id="gameoverAdContainer" class="ad-container" style="margin: 15px 0; min-height: 0;"></div>
+
+        <div class="btn-group">
+            <button id="retryBtn" class="btn btn-primary btn-glow">
+                <i class="fas fa-redo"></i>
+                <span>TENTAR NOVAMENTE</span>
+            </button>
+            <button id="exitBtn" class="btn btn-secondary">
+                <i class="fas fa-home"></i>
+                <span>SAIR</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Popup de Processamento -->
+<div id="transactionPopup" class="transaction-popup">
+    <div class="transaction-content">
+        <div class="transaction-icon">
+            <i class="fas fa-sync-alt fa-spin"></i>
+        </div>
+        <h3>PROCESSANDO</h3>
+        <p>Aguarde enquanto registramos seus resultados...</p>
+        <div class="transaction-details">
+            <div class="transaction-detail">
+                <span class="label">Status:</span>
+                <span class="value" id="txStatus">Verificando CAPTCHA...</span>
+            </div>
+        </div>
+        <div class="transaction-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Não feche esta janela.</span>
+        </div>
+    </div>
+</div>
+
+<!-- Notificação In-Game -->
+<div id="notification" class="notification">
+    <div class="notification-icon"><i class="fas fa-star"></i></div>
+    <div class="notification-content">
+        <div class="notification-title" id="notificationTitle">ASTEROIDE DESTRUÍDO!</div>
+        <div class="notification-message" id="notificationMessage">+R$ 0,02</div>
+    </div>
+</div>
+
+<!-- Modal de Alerta Customizado -->
+<div id="customAlert" class="modal-overlay custom-alert">
+    <div class="alert-container">
+        <div class="alert-icon" id="alertIcon">
+            <i class="fas fa-info-circle"></i>
+        </div>
+        <div class="alert-title" id="alertTitle">Aviso</div>
+        <div class="alert-message" id="alertMessage">Mensagem aqui</div>
+        <button id="alertOkBtn" class="btn btn-primary">OK</button>
+    </div>
+</div>
+
+<!-- Modal de Confirmação Customizado -->
+<div id="customConfirm" class="modal-overlay custom-confirm">
+    <div class="confirm-container">
+        <div class="confirm-icon" id="confirmIcon">
+            <i class="fas fa-question-circle"></i>
+        </div>
+        <div class="confirm-title" id="confirmTitle">Confirmar</div>
+        <div class="confirm-message" id="confirmMessage">Tem certeza?</div>
+        <div class="confirm-buttons">
+            <button id="confirmYesBtn" class="btn btn-primary">SIM</button>
+            <button id="confirmNoBtn" class="btn btn-secondary">NÃO</button>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript Modules -->
+<!-- Firebase SDK v10.7.1 (compat mode) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
+<script src="js/firebase-config.js?v=2.0"></script>
+<script src="js/auth-manager.js?v=2.0"></script>
+<script src="js/game-config-v2.js?v=3.0"></script>
+<script src="js/game-anticheat.js?v=2.0"></script>
+<script src="js/game-ships.js?v=2.0"></script>
+<script src="js/game-audio.js?v=2.0"></script>
+<script src="js/game-ui.js?v=2.0"></script>
+<script src="js/game-session-manager-v2.js?v=3.0"></script>
+<script src="js/captcha-manager.js?v=2.0"></script>
+<script src="js/ads-manager.js?v=2.0"></script>
+<script src="js/game-engine-v2.js?v=3.0"></script>
+<script src="js/ship-renderer.js?v=2.0"></script>
+<script src="js/game-renderer.js?v=2.0"></script>
+<script src="js/game-start-v2.js?v=3.0"></script>
+<script src="js/game-main-v2.js?v=3.0"></script>
+</body>
+</html>

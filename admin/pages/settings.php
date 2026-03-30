@@ -90,6 +90,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = "Transação executada! " . ($type === 'add' ? '+' : '-') . "R$ " . number_format($amount, 2);
                 break;
                 
+            case 'update_game_modes':
+                $modeSettings = [
+                    'mode_normal_enabled' => isset($_POST['mode_normal_enabled']) ? 'true' : 'false',
+                    'mode_normal_credits' => max(1, (int)($_POST['mode_normal_credits'] ?? 1)),
+                    'mode_normal_speed' => (float)($_POST['mode_normal_speed'] ?? 1.3),
+                    'mode_normal_max_asteroids' => max(5, (int)($_POST['mode_normal_max_asteroids'] ?? 14)),
+                    'mode_normal_spawn_interval' => max(50, (int)($_POST['mode_normal_spawn_interval'] ?? 400)),
+                    'mode_hard_enabled' => isset($_POST['mode_hard_enabled']) ? 'true' : 'false',
+                    'mode_hard_credits' => max(1, (int)($_POST['mode_hard_credits'] ?? 2)),
+                    'mode_hard_speed' => (float)($_POST['mode_hard_speed'] ?? 1.7),
+                    'mode_hard_max_asteroids' => max(5, (int)($_POST['mode_hard_max_asteroids'] ?? 18)),
+                    'mode_hard_spawn_interval' => max(50, (int)($_POST['mode_hard_spawn_interval'] ?? 200)),
+                    'mode_extreme_enabled' => isset($_POST['mode_extreme_enabled']) ? 'true' : 'false',
+                    'mode_extreme_credits' => max(1, (int)($_POST['mode_extreme_credits'] ?? 3)),
+                    'mode_extreme_speed' => (float)($_POST['mode_extreme_speed'] ?? 2.4),
+                    'mode_extreme_max_asteroids' => max(5, (int)($_POST['mode_extreme_max_asteroids'] ?? 22)),
+                    'mode_extreme_spawn_interval' => max(50, (int)($_POST['mode_extreme_spawn_interval'] ?? 100)),
+                    'mode_training_enabled' => isset($_POST['mode_training_enabled']) ? 'true' : 'false',
+                ];
+
+                foreach ($modeSettings as $key => $value) {
+                    $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES (?, ?, 0, NOW()) ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()")
+                        ->execute([$key, $value, $value]);
+                }
+
+                $message = "Configurações de modos de jogo salvas!";
+                break;
+
             case 'run_maintenance':
                 $deleted = 0;
                 $deleted += $pdo->exec("DELETE FROM rate_limits WHERE created_at < DATE_SUB(NOW(), INTERVAL 2 HOUR)");
@@ -475,6 +503,125 @@ try {
                     btn.innerHTML = '<i class="fas fa-bolt"></i> Processar Agora';
                 }
                 </script>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modos de Jogo v2 -->
+    <div style="display: grid; grid-template-columns: 1fr; gap: 30px; margin-top: 30px;">
+        <div class="panel">
+            <div class="panel-header">
+                <h3 class="panel-title"><i class="fas fa-layer-group"></i> Modos de Jogo (v2)</h3>
+            </div>
+            <div class="panel-body">
+                <form method="POST">
+                    <input type="hidden" name="action" value="update_game_modes">
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                        <!-- Normal -->
+                        <div style="padding: 16px; border: 2px solid rgba(46,204,113,0.3); border-radius: 12px; background: rgba(46,204,113,0.05);">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="mode_normal_enabled" <?php echo ($settings['mode_normal_enabled'] ?? 'true') === 'true' ? 'checked' : ''; ?> style="width: 18px; height: 18px;">
+                                    <span style="color: #2ecc71; font-weight: 700; font-size: 1rem;">NORMAL</span>
+                                </label>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 8px;">
+                                <label class="form-label" style="font-size: 0.8rem;">Créditos</label>
+                                <input type="number" name="mode_normal_credits" class="form-control" value="<?php echo $settings['mode_normal_credits'] ?? 1; ?>" min="1" max="10">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 8px;">
+                                <label class="form-label" style="font-size: 0.8rem;">Velocidade (x)</label>
+                                <input type="number" name="mode_normal_speed" class="form-control" value="<?php echo $settings['mode_normal_speed'] ?? 1.3; ?>" step="0.1" min="0.5" max="5.0">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 8px;">
+                                <label class="form-label" style="font-size: 0.8rem;">Max Asteroides</label>
+                                <input type="number" name="mode_normal_max_asteroids" class="form-control" value="<?php echo $settings['mode_normal_max_asteroids'] ?? 14; ?>" min="5" max="50">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 0.8rem;">Spawn Interval (ms)</label>
+                                <input type="number" name="mode_normal_spawn_interval" class="form-control" value="<?php echo $settings['mode_normal_spawn_interval'] ?? 400; ?>" min="50" max="2000" step="50">
+                            </div>
+                        </div>
+
+                        <!-- Hard -->
+                        <div style="padding: 16px; border: 2px solid rgba(243,156,18,0.3); border-radius: 12px; background: rgba(243,156,18,0.05);">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="mode_hard_enabled" <?php echo ($settings['mode_hard_enabled'] ?? 'true') === 'true' ? 'checked' : ''; ?> style="width: 18px; height: 18px;">
+                                    <span style="color: #f39c12; font-weight: 700; font-size: 1rem;">DIFÍCIL</span>
+                                </label>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 8px;">
+                                <label class="form-label" style="font-size: 0.8rem;">Créditos</label>
+                                <input type="number" name="mode_hard_credits" class="form-control" value="<?php echo $settings['mode_hard_credits'] ?? 2; ?>" min="1" max="10">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 8px;">
+                                <label class="form-label" style="font-size: 0.8rem;">Velocidade (x)</label>
+                                <input type="number" name="mode_hard_speed" class="form-control" value="<?php echo $settings['mode_hard_speed'] ?? 1.7; ?>" step="0.1" min="0.5" max="5.0">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 8px;">
+                                <label class="form-label" style="font-size: 0.8rem;">Max Asteroides</label>
+                                <input type="number" name="mode_hard_max_asteroids" class="form-control" value="<?php echo $settings['mode_hard_max_asteroids'] ?? 18; ?>" min="5" max="50">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 0.8rem;">Spawn Interval (ms)</label>
+                                <input type="number" name="mode_hard_spawn_interval" class="form-control" value="<?php echo $settings['mode_hard_spawn_interval'] ?? 200; ?>" min="50" max="2000" step="50">
+                            </div>
+                        </div>
+
+                        <!-- Extreme -->
+                        <div style="padding: 16px; border: 2px solid rgba(231,76,60,0.3); border-radius: 12px; background: rgba(231,76,60,0.05);">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="mode_extreme_enabled" <?php echo ($settings['mode_extreme_enabled'] ?? 'true') === 'true' ? 'checked' : ''; ?> style="width: 18px; height: 18px;">
+                                    <span style="color: #e74c3c; font-weight: 700; font-size: 1rem;">EXTREME</span>
+                                </label>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 8px;">
+                                <label class="form-label" style="font-size: 0.8rem;">Créditos</label>
+                                <input type="number" name="mode_extreme_credits" class="form-control" value="<?php echo $settings['mode_extreme_credits'] ?? 3; ?>" min="1" max="10">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 8px;">
+                                <label class="form-label" style="font-size: 0.8rem;">Velocidade (x)</label>
+                                <input type="number" name="mode_extreme_speed" class="form-control" value="<?php echo $settings['mode_extreme_speed'] ?? 2.4; ?>" step="0.1" min="0.5" max="5.0">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 8px;">
+                                <label class="form-label" style="font-size: 0.8rem;">Max Asteroides</label>
+                                <input type="number" name="mode_extreme_max_asteroids" class="form-control" value="<?php echo $settings['mode_extreme_max_asteroids'] ?? 22; ?>" min="5" max="50">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 0.8rem;">Spawn Interval (ms)</label>
+                                <input type="number" name="mode_extreme_spawn_interval" class="form-control" value="<?php echo $settings['mode_extreme_spawn_interval'] ?? 100; ?>" min="50" max="2000" step="50">
+                            </div>
+                        </div>
+
+                        <!-- Training -->
+                        <div style="padding: 16px; border: 2px dashed rgba(149,165,166,0.3); border-radius: 12px; background: rgba(149,165,166,0.03);">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="mode_training_enabled" <?php echo ($settings['mode_training_enabled'] ?? 'true') === 'true' ? 'checked' : ''; ?> style="width: 18px; height: 18px;">
+                                    <span style="color: #95a5a6; font-weight: 700; font-size: 1rem;">TREINO</span>
+                                </label>
+                            </div>
+                            <p style="color: var(--text-dim); font-size: 0.8rem; margin: 0;">
+                                Sem custo de créditos.<br>
+                                Sem ganhos reais.<br>
+                                Não salva no banco de dados.<br>
+                                Apenas prática.
+                            </p>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="margin-top: 16px;"><i class="fas fa-save"></i> Salvar Modos</button>
+                </form>
+
+                <div style="margin-top: 16px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                    <p style="color: var(--text-dim); font-size: 0.8rem; margin: 0;">
+                        <strong style="color: var(--primary);">Nota:</strong> Estas configurações controlam os modos do game-v2.html.
+                        O game.html original (legado) continua funcionando com o sistema antigo.
+                    </p>
+                </div>
             </div>
         </div>
     </div>
