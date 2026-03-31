@@ -17,8 +17,9 @@ function initCanvas() {
 }
 
 function resizeCanvas() {
-    const MIN_WIDTH = 1024;
-    const MIN_HEIGHT = 768;
+    const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent) || 'ontouchstart' in window && window.innerWidth < 1024;
+    const MIN_WIDTH = isMobile ? 0 : 1024;
+    const MIN_HEIGHT = isMobile ? 0 : 768;
     canvas.width = Math.max(window.innerWidth, MIN_WIDTH);
     canvas.height = Math.max(window.innerHeight, MIN_HEIGHT);
 
