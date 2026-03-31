@@ -537,7 +537,6 @@ function drawAsteroids() {
                 
                 if (typeof animateLifeLost === 'function') animateLifeLost();
                 if (typeof showNotification === 'function') showNotification('⚠️ COLISÃO!', `${gameState.lives} vidas restantes`, true);
-                if (typeof playSound === 'function') playSound('explosion.mp3', 0.8);
                 
                 if (gameState.lives <= 0) {
                     gameOver();

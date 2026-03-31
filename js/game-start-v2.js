@@ -259,14 +259,6 @@ function _proceedWithGameStart() {
         if (typeof startSpawnTimer === 'function') startSpawnTimer();
         if (typeof gameLoop === 'function') gameLoop();
 
-        // Áudio
-        if (typeof gameState !== 'undefined' && gameState.audioEnabled) {
-            setTimeout(() => {
-                if (typeof playBackgroundMusic === 'function') {
-                    playBackgroundMusic();
-                }
-            }, 500);
-        }
 
         // Info da missão
         if (typeof showMissionStartInfo === 'function') {
