@@ -544,7 +544,7 @@ try {
                             </div>
                             <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Velocidade (x)</label>
-                                <input type="number" name="mode_normal_speed" class="form-control" value="<?php echo $settings['mode_normal_speed'] ?? 1.3; ?>" step="0.1" min="0.5" max="5.0">
+                                <input type="number" name="mode_normal_speed" class="form-control" value="<?php echo $settings['mode_normal_speed'] ?? 1.3; ?>" step="0.1" min="0.5" max="10.0">
                             </div>
                             <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Max Asteroides</label>
@@ -591,7 +591,7 @@ try {
                             </div>
                             <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Velocidade (x)</label>
-                                <input type="number" name="mode_hard_speed" class="form-control" value="<?php echo $settings['mode_hard_speed'] ?? 1.7; ?>" step="0.1" min="0.5" max="5.0">
+                                <input type="number" name="mode_hard_speed" class="form-control" value="<?php echo $settings['mode_hard_speed'] ?? 1.7; ?>" step="0.1" min="0.5" max="10.0">
                             </div>
                             <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Max Asteroides</label>
@@ -638,7 +638,7 @@ try {
                             </div>
                             <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Velocidade (x)</label>
-                                <input type="number" name="mode_extreme_speed" class="form-control" value="<?php echo $settings['mode_extreme_speed'] ?? 2.4; ?>" step="0.1" min="0.5" max="5.0">
+                                <input type="number" name="mode_extreme_speed" class="form-control" value="<?php echo $settings['mode_extreme_speed'] ?? 2.4; ?>" step="0.1" min="0.5" max="10.0">
                             </div>
                             <div class="form-group" style="margin-bottom: 8px;">
                                 <label class="form-label" style="font-size: 0.8rem;">Max Asteroides</label>
