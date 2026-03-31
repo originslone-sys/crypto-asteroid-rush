@@ -164,6 +164,34 @@ try {
         exit;
     }
 
+    // ANTI-EXPLOIT: Validar proporções contra spawn rates do admin
+    $gameMode = $session['game_mode'] ?? ($session['is_hard_mode'] ? 'hard' : 'normal');
+    if ($totalAsteroids >= 30 && $gameMode !== 'training') {
+        $spawnPrefix = "mode_{$gameMode}_spawn_";
+        $stmtSpawn = $pdo->prepare("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN (?, ?, ?)");
+        $stmtSpawn->execute([$spawnPrefix.'rare', $spawnPrefix.'epic', $spawnPrefix.'legendary']);
+        $spawnCfg = [];
+        while ($row = $stmtSpawn->fetch()) { $spawnCfg[$row['setting_key']] = (float)$row['setting_value']; }
+
+        $defs = ['normal'=>['rare'=>7,'epic'=>2,'legendary'=>1],'hard'=>['rare'=>15,'epic'=>4,'legendary'=>1],'extreme'=>['rare'=>20,'epic'=>8,'legendary'=>2]];
+        $d = $defs[$gameMode] ?? $defs['normal'];
+        $expR = ($spawnCfg[$spawnPrefix.'rare'] ?? $d['rare']) / 100;
+        $expE = ($spawnCfg[$spawnPrefix.'epic'] ?? $d['epic']) / 100;
+        $expL = ($spawnCfg[$spawnPrefix.'legendary'] ?? $d['legendary']) / 100;
+        $tol = 3.0;
+        $sf = [];
+        if ($finalStats['rare'] > $totalAsteroids * $expR * $tol) $sf[] = "Rare:{$finalStats['rare']}/$totalAsteroids";
+        if ($finalStats['epic'] > $totalAsteroids * $expE * $tol) $sf[] = "Epic:{$finalStats['epic']}/$totalAsteroids";
+        if ($finalStats['legendary'] > $totalAsteroids * $expL * $tol) $sf[] = "Legendary:{$finalStats['legendary']}/$totalAsteroids";
+        if (!empty($sf)) {
+            $pdo->prepare("UPDATE game_sessions SET status = 'flagged', ended_at = NOW(), game_duration = ? WHERE id = ?")
+                ->execute([min($gameDuration, GAME_DURATION), $sessionId]);
+            secureLog("EXPLOIT_SPAWN_RATE | Session: $sessionId | UID: $googleUid | Mode: $gameMode | " . implode(' | ', $sf));
+            echo json_encode(['success' => false, 'error' => 'Sessão inválida', 'flagged' => true]);
+            exit;
+        }
+    }
+
     // ============================================
     // 4. VALIDAÇÃO ANTI-CHEAT
     // ============================================

@@ -201,6 +201,57 @@ try {
         exit;
     }
 
+    // ANTI-EXPLOIT: Validar proporções contra spawn rates configurados no admin
+    if ($totalAsteroids >= 30 && $gameMode !== 'training') {
+        $spawnPrefix = "mode_{$gameMode}_spawn_";
+        $stmtSpawn = $pdo->prepare("
+            SELECT setting_key, setting_value FROM game_settings
+            WHERE setting_key IN (?, ?, ?)
+        ");
+        $stmtSpawn->execute([
+            $spawnPrefix . 'rare',
+            $spawnPrefix . 'epic',
+            $spawnPrefix . 'legendary'
+        ]);
+        $spawnCfg = [];
+        while ($row = $stmtSpawn->fetch()) {
+            $spawnCfg[$row['setting_key']] = (float)$row['setting_value'];
+        }
+
+        $defaultRates = [
+            'normal'  => ['rare' => 7, 'epic' => 2, 'legendary' => 1],
+            'hard'    => ['rare' => 15, 'epic' => 4, 'legendary' => 1],
+            'extreme' => ['rare' => 20, 'epic' => 8, 'legendary' => 2],
+        ];
+        $defs = $defaultRates[$gameMode] ?? $defaultRates['normal'];
+
+        $expRare = ($spawnCfg[$spawnPrefix . 'rare'] ?? $defs['rare']) / 100;
+        $expEpic = ($spawnCfg[$spawnPrefix . 'epic'] ?? $defs['epic']) / 100;
+        $expLegendary = ($spawnCfg[$spawnPrefix . 'legendary'] ?? $defs['legendary']) / 100;
+
+        // Tolerância 3x o esperado (variância natural do RNG)
+        $tolerance = 3.0;
+        $spawnFlags = [];
+
+        if ($finalStats['rare'] > $totalAsteroids * $expRare * $tolerance) {
+            $spawnFlags[] = "Rare:{$finalStats['rare']}/$totalAsteroids(" . round($finalStats['rare']/$totalAsteroids*100,1) . "% vs " . round($expRare*100,1) . "%)";
+        }
+        if ($finalStats['epic'] > $totalAsteroids * $expEpic * $tolerance) {
+            $spawnFlags[] = "Epic:{$finalStats['epic']}/$totalAsteroids(" . round($finalStats['epic']/$totalAsteroids*100,1) . "% vs " . round($expEpic*100,1) . "%)";
+        }
+        if ($finalStats['legendary'] > $totalAsteroids * $expLegendary * $tolerance) {
+            $spawnFlags[] = "Legendary:{$finalStats['legendary']}/$totalAsteroids(" . round($finalStats['legendary']/$totalAsteroids*100,1) . "% vs " . round($expLegendary*100,1) . "%)";
+        }
+
+        if (!empty($spawnFlags)) {
+            $pdo->prepare("UPDATE game_sessions SET status = 'flagged', ended_at = NOW(), game_duration = ? WHERE id = ?")
+                ->execute([min($gameDuration, GAME_DURATION_V2), $sessionId]);
+            secureLog("EXPLOIT_SPAWN_RATE | Session: $sessionId | UID: $googleUid | Mode: $gameMode | " . implode(' | ', $spawnFlags));
+            echo json_encode(['success' => false, 'error' => 'Sessão inválida', 'flagged' => true]);
+            exit;
+        }
+    }
+
     // ============================================
     // 4. CALCULAR GANHOS NO SERVIDOR
     // ============================================
