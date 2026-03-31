@@ -246,6 +246,73 @@ try {
             $signals[] = 'Conta nova (' . round($accountAge, 1) . ' dias) com ' . $sessions . ' sessões';
         }
 
+        // --- SINAL 10: Taxa de vitória anormalmente alta ---
+        $completed = (int)$p['completed_sessions'];
+        $winRate = ($sessions > 0) ? ($completed / $sessions) : 0;
+        if ($sessions >= 10 && $winRate >= 0.95) {
+            $score += 25;
+            $signals[] = 'Taxa de vitória ' . round($winRate * 100, 1) . '% (' . $completed . '/' . $sessions . ') — quase impossível';
+        } elseif ($sessions >= 10 && $winRate >= 0.85) {
+            $score += 15;
+            $signals[] = 'Taxa de vitória alta: ' . round($winRate * 100, 1) . '% (' . $completed . '/' . $sessions . ')';
+        } elseif ($sessions >= 10 && $winRate >= 0.75) {
+            $score += 8;
+            $signals[] = 'Taxa de vitória: ' . round($winRate * 100, 1) . '%';
+        }
+
+        // --- SINAL 11: Asteroides destruídos muito consistentes (baixa variância) ---
+        if ($sessions >= 10 && $avgAsteroids > 50) {
+            $stddevAsteroids = 0;
+            $stmtAstStd = $pdo->prepare("
+                SELECT STDDEV(asteroids_destroyed) FROM game_sessions
+                WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                  AND status IN ('completed', 'flagged')
+            ");
+            $stmtAstStd->execute([$uid, $days]);
+            $stddevAsteroids = (float)$stmtAstStd->fetchColumn();
+
+            $cvAst = ($stddevAsteroids > 0) ? ($stddevAsteroids / $avgAsteroids) : 0;
+            if ($cvAst < 0.05) {
+                $score += 20;
+                $signals[] = 'Asteroides destruídos quase idênticos entre sessões (CV=' . round($cvAst * 100, 1) . '%, média=' . round($avgAsteroids) . ')';
+            } elseif ($cvAst < 0.10) {
+                $score += 10;
+                $signals[] = 'Asteroides destruídos muito consistentes (CV=' . round($cvAst * 100, 1) . '%, média=' . round($avgAsteroids) . ')';
+            }
+        }
+
+        // --- SINAL 12: Joga exclusivamente no modo mais lucrativo ---
+        $stmtModes = $pdo->prepare("
+            SELECT game_mode, COUNT(*) as cnt FROM game_sessions
+            WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+              AND status IN ('completed', 'flagged')
+            GROUP BY game_mode ORDER BY cnt DESC
+        ");
+        $stmtModes->execute([$uid, $days]);
+        $modes = $stmtModes->fetchAll();
+        if (count($modes) === 1 && $modes[0]['game_mode'] === 'extreme' && $sessions >= 10) {
+            $score += 10;
+            $signals[] = '100% das sessões no Extreme (' . $sessions . ' sessões, nenhum outro modo)';
+        }
+
+        // --- SINAL 13: Sessões em horários incomuns (madrugada 2h-6h) ---
+        $stmtNight = $pdo->prepare("
+            SELECT COUNT(*) FROM game_sessions
+            WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+              AND HOUR(started_at) BETWEEN 2 AND 5
+              AND status IN ('completed', 'flagged')
+        ");
+        $stmtNight->execute([$uid, $days]);
+        $nightSessions = (int)$stmtNight->fetchColumn();
+        $nightRatio = ($sessions > 0) ? ($nightSessions / $sessions) : 0;
+        if ($nightSessions >= 10 && $nightRatio > 0.5) {
+            $score += 10;
+            $signals[] = round($nightRatio * 100) . '% das sessões entre 2h-6h (' . $nightSessions . ' sessões na madrugada)';
+        } elseif ($nightSessions >= 5 && $nightRatio > 0.3) {
+            $score += 5;
+            $signals[] = $nightSessions . ' sessões na madrugada (2h-6h)';
+        }
+
         // Cap at 100
         $score = min($score, 100);
 

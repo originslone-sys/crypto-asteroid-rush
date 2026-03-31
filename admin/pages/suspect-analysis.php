@@ -165,6 +165,63 @@ try {
             $score += 10; $signals[] = 'Conta nova (' . round($accountAge, 1) . 'd) com ' . $sessions . ' sessões';
         }
 
+        // 10. Taxa de vitória anormalmente alta
+        $completed = (int)$p['completed_sessions'];
+        $winRate = ($sessions > 0) ? ($completed / $sessions) : 0;
+        if ($sessions >= 10 && $winRate >= 0.95) {
+            $score += 25; $signals[] = 'Taxa de vitória ' . round($winRate * 100, 1) . '% (' . $completed . '/' . $sessions . ')';
+        } elseif ($sessions >= 10 && $winRate >= 0.85) {
+            $score += 15; $signals[] = 'Vitória alta: ' . round($winRate * 100, 1) . '%';
+        } elseif ($sessions >= 10 && $winRate >= 0.75) {
+            $score += 8; $signals[] = 'Vitória: ' . round($winRate * 100, 1) . '%';
+        }
+
+        // 11. Asteroides destruídos muito consistentes
+        if ($sessions >= 10 && $avgAsteroids > 50) {
+            $stmtAstStd = $pdo->prepare("
+                SELECT STDDEV(asteroids_destroyed) FROM game_sessions
+                WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                  AND status IN ('completed', 'flagged')
+            ");
+            $stmtAstStd->execute([$uid, $days]);
+            $stddevAst = (float)$stmtAstStd->fetchColumn();
+            $cvAst = ($stddevAst > 0) ? ($stddevAst / $avgAsteroids) : 0;
+            if ($cvAst < 0.05) {
+                $score += 20; $signals[] = 'Asteroides quase idênticos (CV=' . round($cvAst * 100, 1) . '%, ~' . round($avgAsteroids) . '/partida)';
+            } elseif ($cvAst < 0.10) {
+                $score += 10; $signals[] = 'Asteroides consistentes (CV=' . round($cvAst * 100, 1) . '%)';
+            }
+        }
+
+        // 12. Joga exclusivamente Extreme
+        $stmtModes = $pdo->prepare("
+            SELECT game_mode, COUNT(*) as cnt FROM game_sessions
+            WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+              AND status IN ('completed', 'flagged')
+            GROUP BY game_mode ORDER BY cnt DESC
+        ");
+        $stmtModes->execute([$uid, $days]);
+        $modes = $stmtModes->fetchAll();
+        if (count($modes) === 1 && $modes[0]['game_mode'] === 'extreme' && $sessions >= 10) {
+            $score += 10; $signals[] = '100% Extreme (' . $sessions . ' sessões)';
+        }
+
+        // 13. Sessões na madrugada (2h-6h)
+        $stmtNight = $pdo->prepare("
+            SELECT COUNT(*) FROM game_sessions
+            WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+              AND HOUR(started_at) BETWEEN 2 AND 5
+              AND status IN ('completed', 'flagged')
+        ");
+        $stmtNight->execute([$uid, $days]);
+        $nightSessions = (int)$stmtNight->fetchColumn();
+        $nightRatio = ($sessions > 0) ? ($nightSessions / $sessions) : 0;
+        if ($nightSessions >= 10 && $nightRatio > 0.5) {
+            $score += 10; $signals[] = round($nightRatio * 100) . '% madrugada (' . $nightSessions . ' sessões 2h-6h)';
+        } elseif ($nightSessions >= 5 && $nightRatio > 0.3) {
+            $score += 5; $signals[] = $nightSessions . ' sessões 2h-6h';
+        }
+
         $score = min($score, 100);
         $level = $score >= 60 ? 'alto' : ($score >= 30 ? 'medio' : 'baixo');
 
@@ -411,6 +468,18 @@ try {
                 <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 10px;">
                     <div style="font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;"><i class="fas fa-flag" style="color: var(--primary);"></i> Outros Sinais</div>
                     <div style="font-size: 0.75rem; color: var(--text-dim);">Sessões flagged, alertas suspeitos, conta nova com volume alto, premium + farming. Peso: até 15pts.</div>
+                </div>
+                <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 10px;">
+                    <div style="font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;"><i class="fas fa-trophy" style="color: var(--primary);"></i> Taxa de Vitória</div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim);">95%+ vitória em 10+ sessões é quase impossível legitimamente, especialmente no Extreme. Peso: até 25pts.</div>
+                </div>
+                <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 10px;">
+                    <div style="font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;"><i class="fas fa-crosshairs" style="color: var(--primary);"></i> Asteroides Consistentes</div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim);">Destruir quase a mesma quantidade toda partida (ex: 650-690) indica automação. Humanos variam 20%+. Peso: até 20pts.</div>
+                </div>
+                <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 10px;">
+                    <div style="font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;"><i class="fas fa-moon" style="color: var(--primary);"></i> Horário + Modo Exclusivo</div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim);">Jogar majoritariamente na madrugada (2h-6h) e exclusivamente no modo mais lucrativo indica bot. Peso: até 20pts.</div>
                 </div>
             </div>
         </div>
