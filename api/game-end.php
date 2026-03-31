@@ -143,6 +143,7 @@ try {
     ];
     
     $totalAsteroids = array_sum($finalStats);
+    $totalSpawned = (int)($clientStats['total_spawned'] ?? 0);
 
     // ANTI-EXPLOIT: Validar stats proporcionais ao tempo
     $maxRealisticAsteroids = max(50, $gameDuration * 5);
@@ -276,7 +277,7 @@ try {
         
         // 7a. Atualizar sessão
         $stmt = $pdo->prepare("
-            UPDATE game_sessions SET 
+            UPDATE game_sessions SET
                 status = ?,
                 earnings_brl = ?,
                 asteroids_destroyed = ?,
@@ -284,6 +285,7 @@ try {
                 rare_asteroids = ?,
                 epic_asteroids = ?,
                 legendary_asteroids = ?,
+                total_spawned = ?,
                 game_duration = ?,
                 ended_at = NOW()
             WHERE id = ?
@@ -296,6 +298,7 @@ try {
             $finalStats['rare'],
             $finalStats['epic'],
             $finalStats['legendary'],
+            $totalSpawned,
             min($gameDuration, GAME_DURATION), // Cap duration at game time
             $sessionId
         ]);

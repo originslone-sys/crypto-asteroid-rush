@@ -247,7 +247,8 @@ function getGameStats() {
         common: 0,
         rare: 0,
         epic: 0,
-        legendary: 0
+        legendary: 0,
+        total_spawned: gameState.asteroidSpawnCounter || 0
     };
 
     gameState.destroyedAsteroids.forEach(asteroid => {

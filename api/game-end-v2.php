@@ -170,6 +170,7 @@ try {
     ];
 
     $totalAsteroids = array_sum($finalStats);
+    $totalSpawned = (int)($clientStats['total_spawned'] ?? 0);
 
     // ANTI-EXPLOIT: Validar stats proporcionais ao tempo
     // Máximo realista: ~5 asteroides por segundo (clique/tiro muito rápido)
@@ -319,6 +320,7 @@ try {
                 rare_asteroids = ?,
                 epic_asteroids = ?,
                 legendary_asteroids = ?,
+                total_spawned = ?,
                 game_duration = ?,
                 ended_at = NOW()
             WHERE id = ?
@@ -331,6 +333,7 @@ try {
             $finalStats['rare'],
             $finalStats['epic'],
             $finalStats['legendary'],
+            $totalSpawned,
             min($gameDuration, GAME_DURATION_V2), // Cap duration at game time
             $sessionId
         ]);

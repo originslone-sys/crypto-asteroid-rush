@@ -398,9 +398,24 @@ try {
                                 $ml = $modeLabels[$gm] ?? strtoupper($gm);
                             ?>
                             <span style="background: <?php echo $mc; ?>22; color: <?php echo $mc; ?>; padding: 1px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 700;"><?php echo $ml; ?></span>
+                            <?php
+                                $tSpawned = (int)($s['total_spawned'] ?? 0);
+                                $tDestroyed = (int)($s['asteroids_destroyed'] ?? 0);
+                                $destroyRate = $tSpawned > 0 ? ($tDestroyed / $tSpawned) : 0;
+                                if ($tSpawned > 0 && $destroyRate > 0.90):
+                            ?>
+                            <span style="background: #e74c3c22; color: #e74c3c; padding: 1px 6px; border-radius: 4px; font-size: 0.6rem; font-weight: 700; margin-left: 4px;" title="Destruiu <?php echo round($destroyRate * 100, 1); ?>% dos asteroides gerados (<?php echo $tDestroyed; ?>/<?php echo $tSpawned; ?>)"><i class="fas fa-exclamation-triangle" style="margin-right: 2px;"></i>SUSPEITO</span>
+                            <?php endif; ?>
                         </td>
                         <td>#<?php echo $s['mission_number']; ?></td>
-                        <td><?php echo $s['asteroids_destroyed']; ?> <small style="color: var(--warning);">(<?php echo $s['rare_asteroids']; ?>R/<?php echo $s['epic_asteroids']; ?>E)</small></td>
+                        <td>
+                            <?php echo $s['asteroids_destroyed']; ?>
+                            <?php if ($tSpawned > 0): ?>
+                                <small style="color: rgba(255,255,255,0.35);">/<?php echo $tSpawned; ?></small>
+                                <small style="color: <?php echo $destroyRate > 0.90 ? '#e74c3c' : ($destroyRate > 0.75 ? '#f39c12' : '#00d68f'); ?>; font-weight: 600;">(<?php echo round($destroyRate * 100); ?>%)</small>
+                            <?php endif; ?>
+                            <small style="color: var(--warning);">(<?php echo $s['rare_asteroids']; ?>R/<?php echo $s['epic_asteroids']; ?>E)</small>
+                        </td>
                         <td style="color: var(--success);"><?php echo formatBRL($s['earnings_brl']); ?></td>
                         <td><?php echo $s['game_duration'] ? $s['game_duration'] . 's' : '-'; ?></td>
                         <td>
