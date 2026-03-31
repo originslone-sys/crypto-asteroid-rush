@@ -300,6 +300,29 @@ try {
         }
     }
 
+    // ANTI-EXPLOIT: Extreme mode - taxa de destruição > 90% é humanamente impossível
+    if ($gameMode === 'extreme' && $totalAsteroids >= 30) {
+        // Buscar spawn interval do extreme (se ainda não carregado)
+        if (!isset($cfgSpawnInterval)) {
+            $cfgPrefix = "mode_extreme_";
+            $stmtExt = $pdo->prepare("SELECT setting_key, setting_value FROM game_settings WHERE setting_key = ?");
+            $stmtExt->execute([$cfgPrefix . 'spawn_interval']);
+            $extRow = $stmtExt->fetch();
+            $cfgSpawnInterval = $extRow ? (float)$extRow['setting_value'] : 100;
+        }
+        $effectiveDuration = min($gameDuration, GAME_DURATION_V2);
+        $estimatedSpawns = ($effectiveDuration * 1000) / max($cfgSpawnInterval, 50);
+        $destructionRate = $totalAsteroids / max($estimatedSpawns, 1);
+
+        if ($destructionRate > 0.90) {
+            $pdo->prepare("UPDATE game_sessions SET status = 'flagged', ended_at = NOW(), game_duration = ? WHERE id = ?")
+                ->execute([min($gameDuration, GAME_DURATION_V2), $sessionId]);
+            secureLog("EXPLOIT_EXTREME_RATE | Session: $sessionId | UID: $googleUid | DestructionRate: " . round($destructionRate * 100, 1) . "% | Destroyed: $totalAsteroids / ~" . round($estimatedSpawns) . " spawns");
+            echo json_encode(['success' => false, 'error' => 'Sessão inválida', 'flagged' => true]);
+            exit;
+        }
+    }
+
     // ============================================
     // 4. CALCULAR GANHOS NO SERVIDOR
     // ============================================
