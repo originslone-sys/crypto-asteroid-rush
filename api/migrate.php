@@ -329,6 +329,16 @@ try {
         }
     } catch (Exception $e) { /* tabela pode não existir */ }
 
+    // game_sessions — coluna total_spawned
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM game_sessions LIKE 'total_spawned'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE game_sessions ADD COLUMN total_spawned INT NOT NULL DEFAULT 0 AFTER legendary_asteroids");
+            $results['migrations'][] = 'game_sessions.total_spawned';
+            output("  [OK] game_sessions: coluna total_spawned adicionada");
+        }
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
     // ============================================
     // ÍNDICES CRÍTICOS
     // ============================================
