@@ -46,6 +46,7 @@ try {
             u.created_at AS account_created,
             COUNT(gs.id) AS sessions_count,
             SUM(CASE WHEN gs.status = 'completed' THEN 1 ELSE 0 END) AS completed_sessions,
+            SUM(CASE WHEN gs.status = 'abandoned' THEN 1 ELSE 0 END) AS abandoned_sessions,
             SUM(CASE WHEN gs.status = 'flagged' THEN 1 ELSE 0 END) AS flagged_sessions,
             AVG(gs.earnings_brl) AS avg_earnings,
             MAX(gs.earnings_brl) AS max_earnings,
@@ -64,7 +65,7 @@ try {
         FROM users u
         INNER JOIN game_sessions gs ON gs.google_uid = u.google_uid
         WHERE gs.started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-          AND gs.status IN ('completed', 'flagged')
+          AND gs.status IN ('completed', 'flagged', 'abandoned')
         GROUP BY u.id
         HAVING sessions_count >= ?
         ORDER BY sessions_count DESC
@@ -311,6 +312,98 @@ try {
         } elseif ($nightSessions >= 5 && $nightRatio > 0.3) {
             $score += 5;
             $signals[] = $nightSessions . ' sessões na madrugada (2h-6h)';
+        }
+
+        // --- SINAL 14: Sequência de vitórias consecutivas ---
+        $stmtStreak = $pdo->prepare("
+            SELECT status FROM game_sessions
+            WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+              AND status IN ('completed', 'abandoned')
+            ORDER BY started_at DESC LIMIT 100
+        ");
+        $stmtStreak->execute([$uid, $days]);
+        $statuses = $stmtStreak->fetchAll(PDO::FETCH_COLUMN);
+        $maxStreak = 0; $currentStreak = 0;
+        foreach ($statuses as $st) {
+            if ($st === 'completed') { $currentStreak++; $maxStreak = max($maxStreak, $currentStreak); }
+            else { $currentStreak = 0; }
+        }
+        if ($maxStreak >= 30) {
+            $score += 25; $signals[] = $maxStreak . ' vitórias consecutivas sem game over';
+        } elseif ($maxStreak >= 20) {
+            $score += 15; $signals[] = $maxStreak . ' vitórias consecutivas';
+        } elseif ($maxStreak >= 12) {
+            $score += 8; $signals[] = $maxStreak . ' vitórias seguidas';
+        }
+
+        // --- SINAL 15: Zero abandonos (nunca perde) ---
+        $abandoned = (int)$p['abandoned_sessions'];
+        if ($sessions >= 15 && $abandoned === 0) {
+            $score += 20; $signals[] = 'Zero game overs em ' . $sessions . ' sessões';
+        } elseif ($sessions >= 15 && $abandoned <= 1) {
+            $score += 10; $signals[] = 'Apenas ' . $abandoned . ' game over em ' . $sessions . ' sessões';
+        }
+
+        // --- SINAL 16: Horas jogadas por dia (farming extremo) ---
+        $activeDays = max(1, (int)$p['active_days']);
+        $totalPlaySeconds = $avgDuration * $completed;
+        $avgHoursPerDay = ($totalPlaySeconds / 3600) / $activeDays;
+        if ($avgHoursPerDay >= 10) {
+            $score += 15; $signals[] = 'Média ' . round($avgHoursPerDay, 1) . ' horas/dia jogando';
+        } elseif ($avgHoursPerDay >= 6) {
+            $score += 8; $signals[] = round($avgHoursPerDay, 1) . ' horas/dia de jogo';
+        }
+
+        // --- SINAL 17: Mesmo IP em múltiplas contas com padrão similar ---
+        if ((int)$p['distinct_ips'] <= 2) {
+            $stmtMulti = $pdo->prepare("
+                SELECT COUNT(DISTINCT gs2.google_uid) as other_accounts
+                FROM game_sessions gs1
+                INNER JOIN game_sessions gs2 ON gs1.ip_address = gs2.ip_address
+                    AND gs2.google_uid != gs1.google_uid
+                WHERE gs1.google_uid = ?
+                  AND gs1.started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                  AND gs2.started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                LIMIT 1
+            ");
+            $stmtMulti->execute([$uid, $days, $days]);
+            $otherAccounts = (int)$stmtMulti->fetchColumn();
+            if ($otherAccounts >= 3) {
+                $score += 15; $signals[] = $otherAccounts . ' outras contas no mesmo IP';
+            } elseif ($otherAccounts >= 1) {
+                $score += 5; $signals[] = $otherAccounts . ' outra(s) conta(s) no mesmo IP';
+            }
+        }
+
+        // --- SINAL 18: Ganho por asteroide acima do esperado ---
+        if ($avgAsteroids > 50 && $avgEarnings > 0) {
+            $earningsPerAsteroid = $avgEarnings / $avgAsteroids;
+            // Esperado: ~R$0.002-0.005/asteroide (maioria common = R$0)
+            if ($earningsPerAsteroid > 0.015) {
+                $score += 15; $signals[] = 'R$/asteroide alto: R$ ' . round($earningsPerAsteroid, 4) . ' (esperado ~0.005)';
+            } elseif ($earningsPerAsteroid > 0.010) {
+                $score += 8; $signals[] = 'R$/asteroide acima da média: R$ ' . round($earningsPerAsteroid, 4);
+            }
+        }
+
+        // --- SINAL 19: Padrão de horário repetitivo entre dias ---
+        $stmtHourPattern = $pdo->prepare("
+            SELECT HOUR(started_at) as hr, COUNT(*) as cnt
+            FROM game_sessions
+            WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+              AND status IN ('completed', 'abandoned')
+            GROUP BY hr ORDER BY cnt DESC
+        ");
+        $stmtHourPattern->execute([$uid, $days]);
+        $hourDist = $stmtHourPattern->fetchAll();
+        if (count($hourDist) > 0 && $sessions >= 10) {
+            $topHourCount = (int)$hourDist[0]['cnt'];
+            $topHourPct = $topHourCount / $sessions;
+            $uniqueHours = count($hourDist);
+            // Se 80%+ das sessões concentradas em 2 horas ou menos
+            if ($uniqueHours <= 3 && $topHourPct >= 0.5 && $sessions >= 15) {
+                $score += 10; $signals[] = 'Joga sempre nos mesmos horários (' . $uniqueHours . ' horas distintas)';
+            }
         }
 
         // Cap at 100

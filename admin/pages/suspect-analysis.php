@@ -24,6 +24,7 @@ try {
             u.created_at AS account_created,
             COUNT(gs.id) AS sessions_count,
             SUM(CASE WHEN gs.status = 'completed' THEN 1 ELSE 0 END) AS completed_sessions,
+            SUM(CASE WHEN gs.status = 'abandoned' THEN 1 ELSE 0 END) AS abandoned_sessions,
             SUM(CASE WHEN gs.status = 'flagged' THEN 1 ELSE 0 END) AS flagged_sessions,
             AVG(gs.earnings_brl) AS avg_earnings,
             MAX(gs.earnings_brl) AS max_earnings,
@@ -42,7 +43,7 @@ try {
         FROM users u
         INNER JOIN game_sessions gs ON gs.google_uid = u.google_uid
         WHERE gs.started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-          AND gs.status IN ('completed', 'flagged')
+          AND gs.status IN ('completed', 'flagged', 'abandoned')
         GROUP BY u.id
         HAVING sessions_count >= ?
         ORDER BY sessions_count DESC
@@ -222,6 +223,76 @@ try {
             $score += 5; $signals[] = $nightSessions . ' sessões 2h-6h';
         }
 
+        // 14. Sequência de vitórias consecutivas
+        $stmtStreak = $pdo->prepare("
+            SELECT status FROM game_sessions
+            WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+              AND status IN ('completed', 'abandoned')
+            ORDER BY started_at DESC LIMIT 100
+        ");
+        $stmtStreak->execute([$uid, $days]);
+        $statuses = $stmtStreak->fetchAll(PDO::FETCH_COLUMN);
+        $maxStreak = 0; $curStreak = 0;
+        foreach ($statuses as $st) {
+            if ($st === 'completed') { $curStreak++; $maxStreak = max($maxStreak, $curStreak); }
+            else { $curStreak = 0; }
+        }
+        if ($maxStreak >= 30) { $score += 25; $signals[] = $maxStreak . ' vitórias consecutivas'; }
+        elseif ($maxStreak >= 20) { $score += 15; $signals[] = $maxStreak . ' vitórias seguidas'; }
+        elseif ($maxStreak >= 12) { $score += 8; $signals[] = $maxStreak . ' vitórias seguidas'; }
+
+        // 15. Zero abandonos
+        $abandoned = (int)$p['abandoned_sessions'];
+        if ($sessions >= 15 && $abandoned === 0) {
+            $score += 20; $signals[] = 'Zero game over em ' . $sessions . ' sessões';
+        } elseif ($sessions >= 15 && $abandoned <= 1) {
+            $score += 10; $signals[] = $abandoned . ' game over em ' . $sessions . ' sessões';
+        }
+
+        // 16. Horas jogadas por dia
+        $activeDays = max(1, (int)$p['active_days']);
+        $totalPlaySec = $avgDuration * $completed;
+        $avgHoursDay = ($totalPlaySec / 3600) / $activeDays;
+        if ($avgHoursDay >= 10) { $score += 15; $signals[] = round($avgHoursDay, 1) . 'h/dia jogando'; }
+        elseif ($avgHoursDay >= 6) { $score += 8; $signals[] = round($avgHoursDay, 1) . 'h/dia'; }
+
+        // 17. Mesmo IP múltiplas contas
+        if ((int)$p['distinct_ips'] <= 2) {
+            $stmtMulti = $pdo->prepare("
+                SELECT COUNT(DISTINCT gs2.google_uid) FROM game_sessions gs1
+                INNER JOIN game_sessions gs2 ON gs1.ip_address = gs2.ip_address AND gs2.google_uid != gs1.google_uid
+                WHERE gs1.google_uid = ? AND gs1.started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                  AND gs2.started_at >= DATE_SUB(NOW(), INTERVAL ? DAY) LIMIT 1
+            ");
+            $stmtMulti->execute([$uid, $days, $days]);
+            $otherAccounts = (int)$stmtMulti->fetchColumn();
+            if ($otherAccounts >= 3) { $score += 15; $signals[] = $otherAccounts . ' contas no mesmo IP'; }
+            elseif ($otherAccounts >= 1) { $score += 5; $signals[] = $otherAccounts . ' conta(s) mesmo IP'; }
+        }
+
+        // 18. Ganho por asteroide acima do esperado
+        if ($avgAsteroids > 50 && $avgEarnings > 0) {
+            $epa = $avgEarnings / $avgAsteroids;
+            if ($epa > 0.015) { $score += 15; $signals[] = 'R$/asteroide: R$ ' . round($epa, 4) . ' (esperado ~0.005)'; }
+            elseif ($epa > 0.010) { $score += 8; $signals[] = 'R$/asteroide: R$ ' . round($epa, 4); }
+        }
+
+        // 19. Padrão de horário repetitivo
+        $stmtHrP = $pdo->prepare("
+            SELECT HOUR(started_at) as hr, COUNT(*) as cnt FROM game_sessions
+            WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+              AND status IN ('completed', 'abandoned')
+            GROUP BY hr ORDER BY cnt DESC
+        ");
+        $stmtHrP->execute([$uid, $days]);
+        $hrDist = $stmtHrP->fetchAll();
+        if (count($hrDist) > 0 && $sessions >= 15) {
+            $uniqueHrs = count($hrDist);
+            if ($uniqueHrs <= 3) {
+                $score += 10; $signals[] = 'Sempre nos mesmos horários (' . $uniqueHrs . ' horas distintas)';
+            }
+        }
+
         $score = min($score, 100);
         $level = $score >= 60 ? 'alto' : ($score >= 30 ? 'medio' : 'baixo');
 
@@ -238,7 +309,11 @@ try {
             'level' => $level,
             'signals' => $signals,
             'sessions' => $sessions,
+            'completed' => $completed,
+            'abandoned' => $abandoned,
             'flagged' => $flagged,
+            'win_rate' => round($winRate * 100, 1),
+            'max_streak' => $maxStreak,
             'avg_earnings' => round($avgEarnings, 4),
             'total_earnings' => round((float)$p['total_earnings_period'], 2),
             'avg_asteroids' => round($avgAsteroids, 1),
@@ -359,10 +434,11 @@ try {
                                 <th style="width: 70px;">Score</th>
                                 <th>Jogador</th>
                                 <th>Sessões</th>
+                                <th>Win Rate</th>
+                                <th>Streak</th>
                                 <th>R$ Médio</th>
                                 <th>R$ Total</th>
                                 <th>Pico/h</th>
-                                <th>Intervalo</th>
                                 <th>Sinais</th>
                             </tr>
                         </thead>
@@ -405,6 +481,18 @@ try {
                                     <?php endif; ?>
                                     <div style="font-size: 0.65rem; color: var(--text-dim);"><?php echo $r['active_days']; ?> dias</div>
                                 </td>
+                                <td style="text-align: center;">
+                                    <?php
+                                        $wrColor = $r['win_rate'] >= 95 ? '#ff3366' : ($r['win_rate'] >= 80 ? '#ffaa00' : '#05ffa1');
+                                    ?>
+                                    <div style="font-weight: 700; color: <?php echo $wrColor; ?>;"><?php echo $r['win_rate']; ?>%</div>
+                                    <div style="font-size: 0.6rem; color: var(--text-dim);"><?php echo $r['completed']; ?>W / <?php echo $r['abandoned']; ?>L</div>
+                                </td>
+                                <td style="text-align: center;">
+                                    <?php $streakColor = $r['max_streak'] >= 20 ? '#ff3366' : ($r['max_streak'] >= 10 ? '#ffaa00' : 'inherit'); ?>
+                                    <div style="font-weight: 700; color: <?php echo $streakColor; ?>;"><?php echo $r['max_streak']; ?></div>
+                                    <div style="font-size: 0.6rem; color: var(--text-dim);">seguidas</div>
+                                </td>
                                 <td style="color: var(--success); font-weight: 600;">
                                     R$ <?php echo number_format($r['avg_earnings'], 4, ',', '.'); ?>
                                 </td>
@@ -415,9 +503,6 @@ try {
                                     <span style="font-weight: 700; <?php echo $r['max_per_hour'] >= 10 ? 'color: var(--danger);' : ''; ?>">
                                         <?php echo $r['max_per_hour']; ?>
                                     </span>
-                                </td>
-                                <td style="text-align: center; font-size: 0.85rem;">
-                                    <?php echo $r['avg_gap'] < 999 ? round($r['avg_gap']) . 's' : '-'; ?>
                                 </td>
                                 <td style="max-width: 280px;">
                                     <?php foreach ($r['signals'] as $signal): ?>
@@ -480,6 +565,18 @@ try {
                 <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 10px;">
                     <div style="font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;"><i class="fas fa-moon" style="color: var(--primary);"></i> Horário + Modo Exclusivo</div>
                     <div style="font-size: 0.75rem; color: var(--text-dim);">Jogar majoritariamente na madrugada (2h-6h) e exclusivamente no modo mais lucrativo indica bot. Peso: até 20pts.</div>
+                </div>
+                <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 10px;">
+                    <div style="font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;"><i class="fas fa-fire" style="color: var(--primary);"></i> Win Streak + Zero Game Over</div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim);">20+ vitórias consecutivas ou zero game overs em 15+ sessões é quase impossível para humanos. Peso: até 45pts.</div>
+                </div>
+                <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 10px;">
+                    <div style="font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;"><i class="fas fa-hourglass-half" style="color: var(--primary);"></i> Horas/Dia + Multi-conta</div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim);">Jogar 6-10+ horas/dia ou múltiplas contas no mesmo IP. Peso: até 30pts.</div>
+                </div>
+                <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 10px;">
+                    <div style="font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;"><i class="fas fa-dollar-sign" style="color: var(--primary);"></i> R$/Asteroide + Horário Fixo</div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim);">Ganho por asteroide acima do esperado indica stats manipulados. Jogar sempre nas mesmas horas indica agendamento. Peso: até 25pts.</div>
                 </div>
             </div>
         </div>
