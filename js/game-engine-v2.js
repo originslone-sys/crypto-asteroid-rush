@@ -17,8 +17,10 @@ function initCanvas() {
 }
 
 function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const MIN_WIDTH = 1024;
+    const MIN_HEIGHT = 768;
+    canvas.width = Math.max(window.innerWidth, MIN_WIDTH);
+    canvas.height = Math.max(window.innerHeight, MIN_HEIGHT);
 
     if (gameState.ship) {
         gameState.ship.y = canvas.height - 120;
