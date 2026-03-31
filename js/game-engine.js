@@ -39,8 +39,11 @@ function resizeCanvas() {
     }
 }
 
-// Anti-cheat: detecta zoom out e janela redimensionada
+// Anti-cheat: detecta zoom out e janela redimensionada (apenas desktop)
 function checkZoomExploit() {
+    const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent) || 'ontouchstart' in window && window.innerWidth < 1024;
+    if (isMobile) return false;
+
     const zoomRatio = window.outerWidth / window.innerWidth;
     const minOuterWidth = 800;
     const minOuterHeight = 600;
