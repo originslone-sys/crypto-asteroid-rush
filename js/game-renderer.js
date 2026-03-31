@@ -622,20 +622,26 @@ function drawHitboxes() {
 // ============================================
 function gameLoop() {
     if (!gameState.gameActive) return;
-    
+
+    // Anti-cheat: pausar se zoom out ou janela muito pequena
+    if (typeof checkZoomExploit === 'function' && checkZoomExploit()) {
+        animationFrameId = requestAnimationFrame(gameLoop);
+        return;
+    }
+
     // Update ship position based on input
     if (typeof updateShipPosition === 'function') updateShipPosition();
-    
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawBackground();
     drawParticles();
     drawAsteroids();
     drawBullets();
     drawShip();
-    
+
     // Debug hitboxes (uncomment to see)
     // drawHitboxes();
-    
+
     animationFrameId = requestAnimationFrame(gameLoop);
 }
 

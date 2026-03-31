@@ -39,6 +39,33 @@ function resizeCanvas() {
     }
 }
 
+// Anti-cheat: detecta zoom out e janela redimensionada
+function checkZoomExploit() {
+    const zoomRatio = window.outerWidth / window.innerWidth;
+    const minOuterWidth = 800;
+    const minOuterHeight = 600;
+    const isTooSmall = window.outerWidth < minOuterWidth || window.outerHeight < minOuterHeight;
+    const isZoomedOut = zoomRatio < 0.75;
+
+    let overlay = document.getElementById('zoom-exploit-overlay');
+
+    if (isTooSmall || isZoomedOut) {
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'zoom-exploit-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;font-family:Orbitron,monospace;';
+            overlay.innerHTML = '<div style="font-size:1.5rem;color:#e74c3c;margin-bottom:12px;"><i class="fas fa-exclamation-triangle"></i> JOGO PAUSADO</div>'
+                + '<div style="font-size:0.9rem;color:rgba(255,255,255,0.7);text-align:center;max-width:400px;">Redimensione a janela para o tamanho normal ou restaure o zoom (Ctrl+0) para continuar jogando.</div>';
+            document.body.appendChild(overlay);
+        }
+        overlay.style.display = 'flex';
+        return true;
+    } else {
+        if (overlay) overlay.style.display = 'none';
+        return false;
+    }
+}
+
 function generateAsteroidShape(baseRadius) {
     const points = [];
     const numPoints = 8 + Math.floor(Math.random() * 5);
