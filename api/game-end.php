@@ -115,7 +115,21 @@ try {
         ]);
         exit;
     }
-    
+
+    // ANTI-EXPLOIT: Validar tempo mínimo para vitória
+    $minDurationForVictory = GAME_DURATION - 30;
+    if ($victory && $gameDuration < $minDurationForVictory) {
+        $pdo->prepare("UPDATE game_sessions SET status = 'flagged', ended_at = NOW(), game_duration = ? WHERE id = ?")
+            ->execute([min($gameDuration, GAME_DURATION), $sessionId]);
+        secureLog("EXPLOIT_BLOCKED | Session: $sessionId | UID: $googleUid | Duration: {$gameDuration}s < {$minDurationForVictory}s | IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        echo json_encode([
+            'success' => false,
+            'error' => 'Sessão inválida',
+            'flagged' => true
+        ]);
+        exit;
+    }
+
     // ============================================
     // 3. DETERMINAR ESTATÍSTICAS FINAIS
     // ============================================
@@ -129,7 +143,27 @@ try {
     ];
     
     $totalAsteroids = array_sum($finalStats);
-    
+
+    // ANTI-EXPLOIT: Validar stats proporcionais ao tempo
+    $maxRealisticAsteroids = max(50, $gameDuration * 5);
+    if ($totalAsteroids > $maxRealisticAsteroids) {
+        $pdo->prepare("UPDATE game_sessions SET status = 'flagged', ended_at = NOW(), game_duration = ? WHERE id = ?")
+            ->execute([min($gameDuration, GAME_DURATION), $sessionId]);
+        secureLog("EXPLOIT_STATS | Session: $sessionId | UID: $googleUid | Asteroids: $totalAsteroids > max $maxRealisticAsteroids | Duration: {$gameDuration}s");
+        echo json_encode(['success' => false, 'error' => 'Sessão inválida', 'flagged' => true]);
+        exit;
+    }
+
+    // ANTI-EXPLOIT: Validar proporção de raros impossível
+    $specialAsteroids = $finalStats['rare'] + $finalStats['epic'] + $finalStats['legendary'];
+    if ($totalAsteroids > 20 && $specialAsteroids > $totalAsteroids * 0.5) {
+        $pdo->prepare("UPDATE game_sessions SET status = 'flagged', ended_at = NOW(), game_duration = ? WHERE id = ?")
+            ->execute([min($gameDuration, GAME_DURATION), $sessionId]);
+        secureLog("EXPLOIT_RATIO | Session: $sessionId | UID: $googleUid | Special: $specialAsteroids/$totalAsteroids (" . round($specialAsteroids/$totalAsteroids*100) . "%)");
+        echo json_encode(['success' => false, 'error' => 'Sessão inválida', 'flagged' => true]);
+        exit;
+    }
+
     // ============================================
     // 4. VALIDAÇÃO ANTI-CHEAT
     // ============================================

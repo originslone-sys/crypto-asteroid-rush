@@ -142,6 +142,21 @@ try {
         exit;
     }
 
+    // ANTI-EXPLOIT: Validar tempo mínimo para vitória
+    // Impossível completar legitimamente em menos de 150s (180s - 30s tolerância countdown/latência)
+    $minDurationForVictory = GAME_DURATION_V2 - 30;
+    if ($victory && $gameDuration < $minDurationForVictory) {
+        $pdo->prepare("UPDATE game_sessions SET status = 'flagged', ended_at = NOW(), game_duration = ? WHERE id = ?")
+            ->execute([min($gameDuration, GAME_DURATION_V2), $sessionId]);
+        secureLog("EXPLOIT_BLOCKED | Session: $sessionId | UID: $googleUid | Duration: {$gameDuration}s < {$minDurationForVictory}s | Mode: $gameMode | IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        echo json_encode([
+            'success' => false,
+            'error' => 'Sessão inválida',
+            'flagged' => true
+        ]);
+        exit;
+    }
+
     // ============================================
     // 3. DETERMINAR ESTATÍSTICAS FINAIS
     // ============================================
@@ -155,6 +170,36 @@ try {
     ];
 
     $totalAsteroids = array_sum($finalStats);
+
+    // ANTI-EXPLOIT: Validar stats proporcionais ao tempo
+    // Máximo realista: ~5 asteroides por segundo (clique/tiro muito rápido)
+    $maxRealisticAsteroids = max(50, $gameDuration * 5);
+    if ($totalAsteroids > $maxRealisticAsteroids) {
+        $pdo->prepare("UPDATE game_sessions SET status = 'flagged', ended_at = NOW(), game_duration = ? WHERE id = ?")
+            ->execute([min($gameDuration, GAME_DURATION_V2), $sessionId]);
+        secureLog("EXPLOIT_STATS | Session: $sessionId | UID: $googleUid | Asteroids: $totalAsteroids > max $maxRealisticAsteroids | Duration: {$gameDuration}s | Mode: $gameMode");
+        echo json_encode([
+            'success' => false,
+            'error' => 'Sessão inválida',
+            'flagged' => true
+        ]);
+        exit;
+    }
+
+    // ANTI-EXPLOIT: Validar proporção de raros impossível
+    // Em condições normais, raros+épicos+lendários não passam de 40% do total
+    $specialAsteroids = $finalStats['rare'] + $finalStats['epic'] + $finalStats['legendary'];
+    if ($totalAsteroids > 20 && $specialAsteroids > $totalAsteroids * 0.5) {
+        $pdo->prepare("UPDATE game_sessions SET status = 'flagged', ended_at = NOW(), game_duration = ? WHERE id = ?")
+            ->execute([min($gameDuration, GAME_DURATION_V2), $sessionId]);
+        secureLog("EXPLOIT_RATIO | Session: $sessionId | UID: $googleUid | Special: $specialAsteroids/$totalAsteroids (" . round($specialAsteroids/$totalAsteroids*100) . "%) | Mode: $gameMode");
+        echo json_encode([
+            'success' => false,
+            'error' => 'Sessão inválida',
+            'flagged' => true
+        ]);
+        exit;
+    }
 
     // ============================================
     // 4. CALCULAR GANHOS NO SERVIDOR
