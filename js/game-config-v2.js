@@ -131,7 +131,20 @@ async function loadModesFromServer() {
 }
 
 // Carregar ao iniciar (não bloqueia - aplica quando pronto)
-window._modesConfigReady = loadModesFromServer();
+// Após carregar, congela CONFIG para impedir manipulação via console
+window._modesConfigReady = loadModesFromServer().then(() => {
+    // Deep freeze para impedir alteração de qualquer propriedade
+    (function deepFreeze(obj) {
+        Object.freeze(obj);
+        Object.getOwnPropertyNames(obj).forEach(prop => {
+            const val = obj[prop];
+            if (val !== null && typeof val === 'object' && !Object.isFrozen(val)) {
+                deepFreeze(val);
+            }
+        });
+    })(CONFIG);
+    console.log('🔒 CONFIG protegido');
+});
 
 // ============================================
 // ESTADO DO MODO SELECIONADO
@@ -173,9 +186,9 @@ let gameState = {
     serverConfirmedEarnings: 0,
     newBalance: null,
 
-    // Vidas
-    lives: CONFIG.INITIAL_LIVES,
-    invincibilityFrames: 0,
+    // Vidas (protegidas por defineProperty abaixo)
+    _lives_init: true,
+    _invincibility_init: true,
 
     // Áudio
     audioEnabled: true,
@@ -210,6 +223,38 @@ let gameState = {
         right: null
     }
 };
+
+// Anti-cheat: proteger lives e invincibilityFrames com closures
+(function() {
+    let _lives = CONFIG.INITIAL_LIVES;
+    let _invFrames = 0;
+    const maxIF = CONFIG.INVINCIBILITY_FRAMES || 120;
+
+    Object.defineProperty(gameState, 'lives', {
+        get() { return _lives; },
+        set(val) {
+            val = Math.floor(val);
+            if (val === _lives - 1 || val === 0 || val === CONFIG.INITIAL_LIVES) {
+                _lives = val;
+            }
+        },
+        enumerable: true, configurable: false
+    });
+
+    Object.defineProperty(gameState, 'invincibilityFrames', {
+        get() { return _invFrames; },
+        set(val) {
+            val = Math.floor(val);
+            if (val === 0 || val === _invFrames - 1 || val === maxIF) {
+                _invFrames = val;
+            }
+        },
+        enumerable: true, configurable: false
+    });
+
+    delete gameState._lives_init;
+    delete gameState._invincibility_init;
+})();
 
 // ============================================
 // FUNÇÕES DE MODO
@@ -315,9 +360,9 @@ function formatEarnings(value) {
 // ============================================
 // EXPORTAR PARA ESCOPO GLOBAL
 // ============================================
-window.CONFIG = CONFIG;
+Object.defineProperty(window, 'CONFIG', { value: CONFIG, writable: false, configurable: false });
 window.missionStats = missionStats;
-window.gameState = gameState;
+Object.defineProperty(window, 'gameState', { value: gameState, writable: false, configurable: false });
 window.selectedGameMode = selectedGameMode;
 window.isTrainingMode = isTrainingMode;
 window.getCurrentModeConfig = getCurrentModeConfig;
