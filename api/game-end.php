@@ -216,26 +216,6 @@ try {
         }
     }
 
-    // ANTI-EXPLOIT: Extreme mode - taxa de destruição > 90% é humanamente impossível
-    if ($gameMode === 'extreme' && $totalAsteroids >= 30) {
-        if (!isset($cInterval)) {
-            $stmtExt = $pdo->prepare("SELECT setting_value FROM game_settings WHERE setting_key = ?");
-            $stmtExt->execute(["mode_extreme_spawn_interval"]);
-            $extRow = $stmtExt->fetch();
-            $cInterval = $extRow ? (float)$extRow['setting_value'] : 100;
-        }
-        $eDur = min($gameDuration, GAME_DURATION);
-        $estSpawns = ($eDur * 1000) / max($cInterval, 50);
-        $dRate = $totalAsteroids / max($estSpawns, 1);
-        if ($dRate > 0.90) {
-            $pdo->prepare("UPDATE game_sessions SET status = 'flagged', ended_at = NOW(), game_duration = ? WHERE id = ?")
-                ->execute([min($gameDuration, GAME_DURATION), $sessionId]);
-            secureLog("EXPLOIT_EXTREME_RATE | Session: $sessionId | UID: $googleUid | DestructionRate: " . round($dRate * 100, 1) . "% | Destroyed: $totalAsteroids / ~" . round($estSpawns) . " spawns");
-            echo json_encode(['success' => false, 'error' => 'Sessão inválida', 'flagged' => true]);
-            exit;
-        }
-    }
-
     // ============================================
     // 4. VALIDAÇÃO ANTI-CHEAT
     // ============================================
