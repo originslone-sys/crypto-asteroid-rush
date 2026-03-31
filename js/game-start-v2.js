@@ -252,23 +252,27 @@ function _proceedWithGameStart() {
     // Atualizar UI
     if (typeof resetLivesDisplay === 'function') resetLivesDisplay();
     if (typeof updateUI === 'function') updateUI();
-    if (typeof startGameTimer === 'function') startGameTimer();
-    if (typeof startSpawnTimer === 'function') startSpawnTimer();
-    if (typeof gameLoop === 'function') gameLoop();
 
-    // Áudio
-    if (typeof gameState !== 'undefined' && gameState.audioEnabled) {
-        setTimeout(() => {
-            if (typeof playBackgroundMusic === 'function') {
-                playBackgroundMusic();
-            }
-        }, 500);
-    }
+    // Countdown 3, 2, 1, GO! antes de ativar o jogo
+    _showCountdown(() => {
+        if (typeof startGameTimer === 'function') startGameTimer();
+        if (typeof startSpawnTimer === 'function') startSpawnTimer();
+        if (typeof gameLoop === 'function') gameLoop();
 
-    // Info da missão
-    if (typeof showMissionStartInfo === 'function') {
-        showMissionStartInfo();
-    }
+        // Áudio
+        if (typeof gameState !== 'undefined' && gameState.audioEnabled) {
+            setTimeout(() => {
+                if (typeof playBackgroundMusic === 'function') {
+                    playBackgroundMusic();
+                }
+            }, 500);
+        }
+
+        // Info da missão
+        if (typeof showMissionStartInfo === 'function') {
+            showMissionStartInfo();
+        }
+    });
 }
 
 /**
@@ -338,6 +342,48 @@ function showMissionStartInfo() {
         training: isTraining,
         hardMode: typeof missionStats !== 'undefined' ? missionStats.isHardMode : false
     });
+}
+
+/**
+ * Countdown visual 3, 2, 1, GO!
+ * Overlay sobre o canvas, chama callback ao finalizar
+ */
+function _showCountdown(onComplete) {
+    const overlay = document.createElement('div');
+    overlay.id = 'countdownOverlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;pointer-events:none;';
+
+    const text = document.createElement('div');
+    text.style.cssText = "font-family:'Orbitron',monospace;font-size:6rem;font-weight:900;color:#fff;text-shadow:0 0 40px rgba(77,166,255,0.8),0 0 80px rgba(77,166,255,0.4);transition:transform 0.3s ease,opacity 0.3s ease;";
+    overlay.appendChild(text);
+    document.body.appendChild(overlay);
+
+    const steps = ['3', '2', '1', 'GO!'];
+    let i = 0;
+
+    function showNext() {
+        if (i >= steps.length) {
+            overlay.style.opacity = '0';
+            overlay.style.transition = 'opacity 0.3s ease';
+            setTimeout(() => { overlay.remove(); onComplete(); }, 300);
+            return;
+        }
+        text.textContent = steps[i];
+        text.style.transform = 'scale(1.5)';
+        text.style.opacity = '0.3';
+        requestAnimationFrame(() => {
+            text.style.transform = 'scale(1)';
+            text.style.opacity = '1';
+        });
+        if (steps[i] === 'GO!') {
+            text.style.color = '#00d68f';
+            text.style.textShadow = '0 0 40px rgba(0,214,143,0.8),0 0 80px rgba(0,214,143,0.4)';
+        }
+        i++;
+        setTimeout(showNext, steps[i - 1] === 'GO!' ? 600 : 800);
+    }
+
+    showNext();
 }
 
 // Exportar funções
