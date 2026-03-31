@@ -252,54 +252,6 @@ try {
         }
     }
 
-    // ANTI-EXPLOIT: Validar asteroides destruídos vs capacidade real do modo
-    // Usa velocidade, spawn interval e max_asteroids configurados no admin
-    if ($totalAsteroids >= 30 && $gameMode !== 'training') {
-        $cfgPrefix = "mode_{$gameMode}_";
-        $stmtModeCfg = $pdo->prepare("
-            SELECT setting_key, setting_value FROM game_settings
-            WHERE setting_key IN (?, ?, ?)
-        ");
-        $stmtModeCfg->execute([
-            $cfgPrefix . 'speed',
-            $cfgPrefix . 'spawn_interval',
-            $cfgPrefix . 'max_asteroids'
-        ]);
-        $modeCfg = [];
-        while ($row = $stmtModeCfg->fetch()) {
-            $modeCfg[$row['setting_key']] = (float)$row['setting_value'];
-        }
-
-        $defaultCfg = [
-            'normal'  => ['speed' => 1.3, 'spawn_interval' => 400, 'max_asteroids' => 14],
-            'hard'    => ['speed' => 1.7, 'spawn_interval' => 200, 'max_asteroids' => 18],
-            'extreme' => ['speed' => 2.4, 'spawn_interval' => 100, 'max_asteroids' => 22],
-        ];
-        $defCfg = $defaultCfg[$gameMode] ?? $defaultCfg['normal'];
-
-        $cfgSpeed = $modeCfg[$cfgPrefix . 'speed'] ?? $defCfg['speed'];
-        $cfgSpawnInterval = $modeCfg[$cfgPrefix . 'spawn_interval'] ?? $defCfg['spawn_interval'];
-        $cfgMaxAsteroids = $modeCfg[$cfgPrefix . 'max_asteroids'] ?? $defCfg['max_asteroids'];
-
-        // Total possível de spawns no tempo jogado
-        $effectiveDuration = min($gameDuration, GAME_DURATION_V2);
-        $maxSpawns = ($effectiveDuration * 1000) / max($cfgSpawnInterval, 50);
-
-        // Com velocidade alta, jogador tem menos tempo pra acertar cada asteroide
-        // Taxa de acerto máxima realista diminui com a velocidade
-        // Velocidade 1x = ~80% acerto possível, 6x = ~40% acerto possível
-        $hitRateCap = max(0.25, 0.85 - ($cfgSpeed * 0.08));
-        $maxRealisticDestroyed = ceil($maxSpawns * $hitRateCap);
-
-        if ($totalAsteroids > $maxRealisticDestroyed) {
-            $pdo->prepare("UPDATE game_sessions SET status = 'flagged', ended_at = NOW(), game_duration = ? WHERE id = ?")
-                ->execute([min($gameDuration, GAME_DURATION_V2), $sessionId]);
-            secureLog("EXPLOIT_SPEED_ABUSE | Session: $sessionId | UID: $googleUid | Mode: $gameMode | Destroyed: $totalAsteroids > max $maxRealisticDestroyed | Speed: {$cfgSpeed}x | SpawnInterval: {$cfgSpawnInterval}ms | HitRate: " . round($hitRateCap*100) . "%");
-            echo json_encode(['success' => false, 'error' => 'Sessão inválida', 'flagged' => true]);
-            exit;
-        }
-    }
-
     // ============================================
     // 4. CALCULAR GANHOS NO SERVIDOR
     // ============================================

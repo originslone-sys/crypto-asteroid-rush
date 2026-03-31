@@ -192,34 +192,10 @@ try {
         }
     }
 
-    // ANTI-EXPLOIT: Validar asteroides destruídos vs capacidade real do modo
-    if ($totalAsteroids >= 30 && $gameMode !== 'training') {
-        $cp = "mode_{$gameMode}_";
-        $stmtMC = $pdo->prepare("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN (?, ?, ?)");
-        $stmtMC->execute([$cp.'speed', $cp.'spawn_interval', $cp.'max_asteroids']);
-        $mc = [];
-        while ($row = $stmtMC->fetch()) { $mc[$row['setting_key']] = (float)$row['setting_value']; }
-        $dc = ['normal'=>['speed'=>1.3,'spawn_interval'=>400,'max_asteroids'=>14],'hard'=>['speed'=>1.7,'spawn_interval'=>200,'max_asteroids'=>18],'extreme'=>['speed'=>2.4,'spawn_interval'=>100,'max_asteroids'=>22]];
-        $dd = $dc[$gameMode] ?? $dc['normal'];
-        $cSpeed = $mc[$cp.'speed'] ?? $dd['speed'];
-        $cInterval = $mc[$cp.'spawn_interval'] ?? $dd['spawn_interval'];
-        $eDur = min($gameDuration, GAME_DURATION);
-        $maxSpawns = ($eDur * 1000) / max($cInterval, 50);
-        $hitCap = max(0.25, 0.85 - ($cSpeed * 0.08));
-        $maxDest = ceil($maxSpawns * $hitCap);
-        if ($totalAsteroids > $maxDest) {
-            $pdo->prepare("UPDATE game_sessions SET status = 'flagged', ended_at = NOW(), game_duration = ? WHERE id = ?")
-                ->execute([min($gameDuration, GAME_DURATION), $sessionId]);
-            secureLog("EXPLOIT_SPEED_ABUSE | Session: $sessionId | UID: $googleUid | Mode: $gameMode | Destroyed: $totalAsteroids > max $maxDest | Speed: {$cSpeed}x");
-            echo json_encode(['success' => false, 'error' => 'Sessão inválida', 'flagged' => true]);
-            exit;
-        }
-    }
-
     // ============================================
     // 4. VALIDAÇÃO ANTI-CHEAT
     // ============================================
-
+    
     $validation = validateGameStats($finalStats, $gameDuration, (bool)$session['is_hard_mode']);
 
     $isFlagged = false;
