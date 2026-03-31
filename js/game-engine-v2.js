@@ -129,8 +129,14 @@ function createAsteroid(id, spawnAtTop = true) {
         rotation: Math.random() * Math.PI * 2,
         rotationSpeed: (Math.random() - 0.5) * 0.04,
         wobble: Math.random() * Math.PI * 2,
-        wobbleSpeed: Math.random() * 0.02,
-        wobbleAmount: Math.random() * 0.5,
+        wobbleSpeed: type === 'LEGENDARY' ? 0.03 + Math.random() * 0.03 :
+                     type === 'EPIC' ? 0.02 + Math.random() * 0.025 :
+                     type === 'RARE' ? 0.015 + Math.random() * 0.015 :
+                     Math.random() * 0.02,
+        wobbleAmount: type === 'LEGENDARY' ? 3 + Math.random() * 3 :
+                      type === 'EPIC' ? 2 + Math.random() * 2.5 :
+                      type === 'RARE' ? 1.5 + Math.random() * 1.5 :
+                      Math.random() * 0.5,
         hitRadius: baseSize * 0.45
     };
 }
