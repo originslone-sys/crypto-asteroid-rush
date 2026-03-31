@@ -181,10 +181,6 @@ function fireBullet() {
     if (now - gameState.lastFireTime < CONFIG.FIRE_RATE) return;
     gameState.lastFireTime = now;
 
-    if (typeof isAudioUnlocked !== 'undefined' && !isAudioUnlocked && typeof unlockAudio === 'function') {
-        unlockAudio();
-    }
-
     [-16, 16].forEach(offsetX => {
         gameState.bullets.push({
             x: gameState.ship.x + offsetX,
@@ -194,14 +190,6 @@ function fireBullet() {
             speed: CONFIG.BULLET_SPEED
         });
     });
-
-    if (typeof isAudioUnlocked !== 'undefined' && isAudioUnlocked && gameState.audioEnabled) {
-        try {
-            const laserSound = new Audio('sounds/laser.mp3');
-            laserSound.volume = 0.4;
-            laserSound.play().catch(() => {});
-        } catch (e) {}
-    }
 }
 
 // ============================================
@@ -222,20 +210,15 @@ function createExplosion(x, y, colors, asteroid) {
         });
     }
 
-    if (typeof playSound === 'function') playSound('explosion.mp3', 0.6);
-
     // Notificações em português e formato BRL
     const rewardText = `+R$ ${asteroid.reward.toFixed(2)}`.replace('.', ',');
 
     if (asteroid.type === 'LEGENDARY') {
         if (typeof showNotification === 'function') showNotification('⭐ LENDÁRIO!', rewardText, true);
-        setTimeout(() => { if (typeof playSound === 'function') playSound('powerup.mp3', 1.0); }, 100);
     } else if (asteroid.type === 'EPIC') {
         if (typeof showNotification === 'function') showNotification('🔮 ÉPICO!', rewardText, true);
-        setTimeout(() => { if (typeof playSound === 'function') playSound('powerup.mp3', 0.9); }, 100);
     } else if (asteroid.type === 'RARE') {
         if (typeof showNotification === 'function') showNotification('💎 RARO!', rewardText, true);
-        setTimeout(() => { if (typeof playSound === 'function') playSound('powerup.mp3', 0.8); }, 100);
     }
 }
 
@@ -258,7 +241,6 @@ function handleShipCollision(asteroid) {
 
         if (typeof animateLifeLost === 'function') animateLifeLost();
         if (typeof showNotification === 'function') showNotification('⚠️ DANO!', `${gameState.lives} vidas restantes`, true);
-        if (typeof playSound === 'function') playSound('explosion.mp3', 0.8);
 
         if (gameState.lives <= 0) {
             gameOver();
