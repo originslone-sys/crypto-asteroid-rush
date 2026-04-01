@@ -266,9 +266,17 @@ try {
                                     </button>
                                 </div>
                                 <?php elseif ($w['status'] === 'processing'): ?>
+                                <div class="btn-group">
                                     <button onclick="checkCashoutStatus(<?php echo $w['id']; ?>)" class="btn btn-primary btn-sm" title="Verificar status na ZettPay">
                                         <i class="fas fa-sync-alt"></i> Verificar
                                     </button>
+                                    <button onclick="forceCompleteWithdrawal(<?php echo $w['id']; ?>, <?php echo $w['amount_brl']; ?>)" class="btn btn-success btn-sm" title="Confirmar manualmente como pago">
+                                        <i class="fas fa-check-double"></i> Confirmar
+                                    </button>
+                                    <button onclick="rejectWithdrawal(<?php echo $w['id']; ?>)" class="btn btn-danger btn-sm" title="Rejeitar e devolver saldo">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
                                 <?php else: ?>
                                     <span style="color: var(--text-dim);">-</span>
                                 <?php endif; ?>
@@ -421,6 +429,40 @@ async function checkCashoutStatus(id) {
             }
         } else {
             alert('Erro: ' + (data.error || 'Falha ao consultar status'));
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    } catch (error) {
+        alert('Erro de conexão: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
+}
+
+async function forceCompleteWithdrawal(id, amount) {
+    if (!confirm('Confirmar manualmente o saque #' + id + ' de R$ ' + amount.toFixed(2).replace('.', ',') + ' como PAGO?\n\nUse esta opção quando o processamento travou mas o pagamento já foi realizado ou será feito manualmente.')) {
+        return;
+    }
+
+    const btn = event.target.closest('button');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    try {
+        const response = await fetch('../api/admin-ajax.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'force_complete_withdrawal', id: id })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.message || 'Saque confirmado como pago!');
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.error || 'Falha ao confirmar saque'));
             btn.disabled = false;
             btn.innerHTML = originalHtml;
         }
