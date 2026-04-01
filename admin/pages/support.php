@@ -106,17 +106,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         case 'delete_ticket':
             if ($ticketId) {
                 try {
-                    $stmt = $pdo->prepare("SELECT status FROM support_tickets WHERE id = ?");
-                    $stmt->execute([$ticketId]);
-                    $ticket = $stmt->fetch();
-                    if ($ticket && in_array($ticket['status'], ['resolved', 'closed'])) {
-                        $pdo->prepare("DELETE FROM support_tickets WHERE id = ?")->execute([$ticketId]);
-                        $message = "Ticket #$ticketId excluido!";
-                        $messageType = 'success';
-                    } else {
-                        $message = "So e possivel excluir tickets resolvidos ou fechados.";
-                        $messageType = 'danger';
-                    }
+                    $pdo->prepare("DELETE FROM support_tickets WHERE id = ?")->execute([$ticketId]);
+                    $message = "Ticket #$ticketId excluido!";
+                    $messageType = 'success';
                 } catch (Exception $e) {
                     $message = "Erro: " . $e->getMessage();
                     $messageType = 'danger';
@@ -372,7 +364,6 @@ $categoryLabels = [
                         </div>
                     </form>
 
-                    <?php if (in_array($viewTicket['status'], ['resolved', 'closed'])): ?>
                     <form method="POST" style="margin-top:12px;" onsubmit="return confirm('Excluir ticket #<?php echo $viewTicket['id']; ?> permanentemente?');">
                         <input type="hidden" name="action" value="delete_ticket">
                         <input type="hidden" name="ticket_id" value="<?php echo $viewTicket['id']; ?>">
@@ -380,7 +371,6 @@ $categoryLabels = [
                             <i class="fas fa-trash"></i> Excluir Ticket
                         </button>
                     </form>
-                    <?php endif; ?>
                 </div>
             </div>
 
@@ -527,13 +517,11 @@ $categoryLabels = [
                                     <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=support&view=<?php echo $t['id']; ?>" class="btn btn-primary" style="padding:5px 12px;font-size:0.8rem;text-decoration:none;">
                                         <i class="fas fa-eye"></i> Ver
                                     </a>
-                                    <?php if (in_array($t['status'], ['resolved', 'closed'])): ?>
                                     <form method="POST" style="display:inline;" onsubmit="return confirm('Excluir ticket #<?php echo $t['id']; ?>?');">
                                         <input type="hidden" name="action" value="delete_ticket">
                                         <input type="hidden" name="ticket_id" value="<?php echo $t['id']; ?>">
                                         <button type="submit" class="btn btn-danger" style="padding:5px 10px;font-size:0.8rem;"><i class="fas fa-trash"></i></button>
                                     </form>
-                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
