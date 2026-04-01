@@ -10,6 +10,16 @@ require_once __DIR__ . "/config.php";
 
 setCorsHeaders();
 
+// Proteger contra acesso direto - exigir header de requisição interna
+$requestToken = $_SERVER['HTTP_X_GAME_TOKEN'] ?? '';
+$isAjax = ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest';
+
+if (!$isAjax || $requestToken !== 'unobix_modes_2024') {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Acesso negado']);
+    exit;
+}
+
 try {
     $pdo = getDatabaseConnection();
     if (!$pdo) {

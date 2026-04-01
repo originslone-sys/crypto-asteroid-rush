@@ -91,7 +91,12 @@ const CONFIG = {
  */
 async function loadModesFromServer() {
     try {
-        const resp = await fetch('api/game-modes-config.php');
+        const resp = await fetch('api/game-modes-config.php', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-Game-Token': 'unobix_modes_2024'
+            }
+        });
         const data = await resp.json();
         if (!data.success || !data.modes) return;
 
