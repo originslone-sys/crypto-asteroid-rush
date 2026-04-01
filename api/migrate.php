@@ -401,6 +401,89 @@ try {
     } catch (Exception $e) { /* game_settings pode não existir */ }
 
     // ============================================
+    // EXPLORAÇÃO DE NAVES
+    // ============================================
+    output("\n--- Exploração de Naves ---");
+
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS exploration_ships (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ship_key VARCHAR(20) NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            description VARCHAR(255) DEFAULT NULL,
+            rental_price_brl DECIMAL(10,2) NOT NULL,
+            rental_duration_hours INT NOT NULL DEFAULT 24,
+            credits_per_day INT NOT NULL DEFAULT 10,
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            sort_order INT NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_active (is_active),
+            INDEX idx_ship_key (ship_key)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'exploration_ships:create';
+    output("  [OK] Tabela exploration_ships");
+
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS exploration_rentals (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            google_uid VARCHAR(128) NOT NULL,
+            ship_id INT NOT NULL,
+            ship_key VARCHAR(20) NOT NULL,
+            rental_price_brl DECIMAL(10,2) NOT NULL,
+            credits_per_day INT NOT NULL,
+            status ENUM('active','expired','cancelled') NOT NULL DEFAULT 'active',
+            credits_accumulated INT NOT NULL DEFAULT 0,
+            credits_claimed INT NOT NULL DEFAULT 0,
+            started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            expires_at DATETIME NOT NULL,
+            last_accumulation_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            claimed_at DATETIME DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user_id (user_id),
+            INDEX idx_google_uid (google_uid),
+            INDEX idx_status (status),
+            INDEX idx_user_status (user_id, status),
+            INDEX idx_expires (expires_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'exploration_rentals:create';
+    output("  [OK] Tabela exploration_rentals");
+
+    // Seed: naves padrão
+    try {
+        $shipCount = (int)$pdo->query("SELECT COUNT(*) FROM exploration_ships")->fetchColumn();
+        if ($shipCount === 0) {
+            $pdo->exec("
+                INSERT INTO exploration_ships (ship_key, name, description, rental_price_brl, rental_duration_hours, credits_per_day, is_active, sort_order) VALUES
+                ('PHOENIX', 'Phoenix Crimson', 'Explorador equilibrado com boa coleta', 2.00, 24, 5, 1, 1),
+                ('GUARDIAN', 'Forest Guardian', 'Casco resistente para missões longas', 3.00, 48, 8, 1, 2),
+                ('THUNDER', 'Thunder Strike', 'Coletor de alta velocidade', 5.00, 72, 12, 1, 3),
+                ('INFERNO', 'Inferno Blaze', 'Motores potentes aceleram a coleta', 4.00, 48, 10, 1, 4),
+                ('NEBULA', 'Nebula Phantom', 'Explorador ágil e eficiente', 6.00, 72, 15, 1, 5),
+                ('VIPER', 'Toxic Viper', 'Serpente ágil coletora', 3.50, 48, 9, 1, 6),
+                ('WOLF', 'Steel Wolf', 'Coletor pesado de assalto', 8.00, 96, 20, 1, 7)
+            ");
+            $results['migrations'][] = 'exploration_ships:seed';
+            output("  [OK] Naves padrão inseridas (7)");
+        }
+    } catch (Exception $e) {}
+
+    // Settings de exploração
+    try {
+        $expSettings = (int)$pdo->query("SELECT COUNT(*) FROM game_settings WHERE setting_key LIKE 'exploration_%'")->fetchColumn();
+        if ($expSettings === 0) {
+            $ins = $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES (?, ?, ?, NOW())");
+            $ins->execute(['exploration_enabled', 'true', 0]);
+            $ins->execute(['exploration_max_rentals_per_user', '3', 0]);
+            $results['migrations'][] = 'game_settings:exploration_defaults';
+            output("  [OK] Configurações de exploração padrão inseridas");
+        }
+    } catch (Exception $e) {}
+
+    // ============================================
     // LIMPEZA: Remover flag files antigos
     // ============================================
     $flagFiles = glob(sys_get_temp_dir() . '/unobix_*.flag');
