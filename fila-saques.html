@@ -418,6 +418,19 @@
         <button class="filter-btn" data-status="rejected"><i class="fas fa-times"></i> Rejeitados</button>
     </div>
 
+    <!-- Busca por número da solicitação -->
+    <div style="margin-bottom:16px;display:flex;gap:8px;max-width:400px;">
+        <input type="text" id="searchOrderId" placeholder="Buscar por nº da solicitação (ex: 152)"
+            style="flex:1;padding:10px 14px;background:rgba(0,20,40,0.6);border:1px solid rgba(0,200,255,0.2);border-radius:8px;color:#fff;font-size:0.9rem;font-family:inherit;outline:none;"
+            inputmode="numeric">
+        <button id="btnSearchOrder" style="padding:10px 16px;background:linear-gradient(135deg,#00c8ff,#0088ff);border:none;border-radius:8px;color:#fff;font-size:0.9rem;cursor:pointer;font-weight:600;">
+            <i class="fas fa-search"></i>
+        </button>
+        <button id="btnClearSearch" style="padding:10px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#8899aa;font-size:0.9rem;cursor:pointer;display:none;">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
     <!-- Tabela -->
     <div class="queue-table-container">
         <table class="queue-table">
@@ -466,6 +479,7 @@
     let currentPage = 1;
     let currentStatus = 'all';
     let refreshTimer = null;
+    let searchId = 0;
 
     const statusLabels = {
         pending: 'Pendente',
@@ -507,7 +521,9 @@
 
     async function loadQueue() {
         try {
-            const res = await fetch('api/withdrawal-queue.php?page=' + currentPage + '&status=' + currentStatus);
+            let url = 'api/withdrawal-queue.php?page=' + currentPage + '&status=' + currentStatus;
+            if (searchId > 0) url += '&search_id=' + searchId;
+            const res = await fetch(url);
             const data = await res.json();
             if (!data.success) return;
 
@@ -522,16 +538,54 @@
             document.getElementById('monitorCompleted24h').textContent = data.monitor.completed_24h;
             document.getElementById('monitorEstimate').textContent = formatEstimate(data.monitor.estimated_hours);
 
+            // Banner de posição na fila (quando buscou por ID)
+            var positionBanner = document.getElementById('positionBanner');
+            if (!positionBanner) {
+                positionBanner = document.createElement('div');
+                positionBanner.id = 'positionBanner';
+                var tableContainer = document.querySelector('.queue-table-container');
+                tableContainer.parentNode.insertBefore(positionBanner, tableContainer);
+            }
+
+            if (searchId > 0 && data.items.length > 0) {
+                var item = data.items[0];
+                var posHtml = '<div style="padding:14px 18px;border-radius:10px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;';
+
+                if (data.queue_position) {
+                    posHtml += 'background:linear-gradient(135deg,rgba(0,200,255,0.12),rgba(0,136,255,0.08));border:1px solid rgba(0,200,255,0.3);">';
+                    posHtml += '<i class="fas fa-map-marker-alt" style="font-size:1.3rem;color:#00c8ff;"></i>';
+                    posHtml += '<div><strong style="color:#fff;font-size:1rem;">Solicitação #' + item.id + '</strong>';
+                    posHtml += '<div style="color:#00c8ff;font-size:0.9rem;margin-top:2px;">Posição na fila: <strong>' + data.queue_position + 'º</strong> de ' + (data.counts.pending + data.counts.processing) + ' em andamento</div></div>';
+                } else {
+                    var statusColor = item.status === 'completed' ? '#00ff88' : '#ff4757';
+                    var statusText = item.status === 'completed' ? 'Concluído' : 'Rejeitado';
+                    posHtml += 'background:linear-gradient(135deg,rgba(' + (item.status === 'completed' ? '0,255,136' : '255,71,87') + ',0.12),rgba(0,0,0,0.2));border:1px solid rgba(' + (item.status === 'completed' ? '0,255,136' : '255,71,87') + ',0.3);">';
+                    posHtml += '<i class="fas fa-' + (item.status === 'completed' ? 'check-circle' : 'times-circle') + '" style="font-size:1.3rem;color:' + statusColor + ';"></i>';
+                    posHtml += '<div><strong style="color:#fff;font-size:1rem;">Solicitação #' + item.id + '</strong>';
+                    posHtml += '<div style="color:' + statusColor + ';font-size:0.9rem;margin-top:2px;">' + statusText + '</div></div>';
+                }
+                posHtml += '</div>';
+                positionBanner.innerHTML = posHtml;
+            } else if (searchId > 0 && data.items.length === 0) {
+                positionBanner.innerHTML = '<div style="padding:14px 18px;border-radius:10px;margin-bottom:14px;background:rgba(255,170,0,0.1);border:1px solid rgba(255,170,0,0.3);display:flex;align-items:center;gap:12px;">' +
+                    '<i class="fas fa-search" style="font-size:1.2rem;color:#ffaa00;"></i>' +
+                    '<span style="color:#ffaa00;">Solicitação #' + searchId + ' não encontrada</span></div>';
+            } else {
+                positionBanner.innerHTML = '';
+            }
+
             // Tabela
             const tbody = document.getElementById('queueBody');
+            var isSearching = searchId > 0;
 
             if (data.items.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">' +
-                    '<i class="fas fa-inbox"></i><p>Nenhuma solicitacao encontrada</p></div></td></tr>';
+                    '<i class="fas fa-inbox"></i><p>' + (isSearching ? 'Solicitação não encontrada' : 'Nenhuma solicitacao encontrada') + '</p></div></td></tr>';
             } else {
                 tbody.innerHTML = data.items.map(function(item) {
-                    return '<tr>' +
-                        '<td><span style="color:var(--text-dim);font-size:0.8rem;">#' + item.id + '</span></td>' +
+                    var highlight = isSearching ? ' style="background:rgba(0,200,255,0.08);box-shadow:inset 3px 0 0 #00c8ff;"' : '';
+                    return '<tr' + highlight + '>' +
+                        '<td><span style="color:' + (isSearching ? '#00c8ff;font-weight:700' : 'var(--text-dim)') + ';font-size:0.8rem;">#' + item.id + '</span></td>' +
                         '<td><span class="user-name">' + escapeHtml(item.name) + '</span></td>' +
                         '<td><span class="amount-value">R$ ' + item.amount + '</span></td>' +
                         '<td class="hide-mobile"><span class="method-badge">' + escapeHtml(item.method) + '</span></td>' +
@@ -597,6 +651,35 @@
         return div.innerHTML;
     }
 
+    // Busca por número da solicitação
+    var searchInput = document.getElementById('searchOrderId');
+    var btnSearch = document.getElementById('btnSearchOrder');
+    var btnClear = document.getElementById('btnClearSearch');
+
+    function doSearch() {
+        var val = parseInt(searchInput.value.replace(/\D/g, ''), 10);
+        if (val > 0) {
+            searchId = val;
+            currentPage = 1;
+            btnClear.style.display = 'inline-flex';
+            loadQueue();
+        }
+    }
+
+    function clearSearch() {
+        searchId = 0;
+        searchInput.value = '';
+        btnClear.style.display = 'none';
+        currentPage = 1;
+        loadQueue();
+    }
+
+    btnSearch.addEventListener('click', doSearch);
+    btnClear.addEventListener('click', clearSearch);
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') doSearch();
+    });
+
     // Filtros
     document.querySelectorAll('.filter-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -604,6 +687,9 @@
             btn.classList.add('active');
             currentStatus = btn.dataset.status;
             currentPage = 1;
+            searchId = 0;
+            searchInput.value = '';
+            btnClear.style.display = 'none';
             loadQueue();
         });
     });
