@@ -236,6 +236,10 @@ let gameState = {
             val = Math.floor(val);
             if (val === _lives - 1 || val === 0 || val === CONFIG.INITIAL_LIVES) {
                 _lives = val;
+            } else if (val >= 0 && val <= CONFIG.INITIAL_LIVES) {
+                // Permitir qualquer valor válido dentro do range (fallback seguro)
+                console.warn('⚠️ Lives set fallback:', _lives, '->', val);
+                _lives = val;
             }
         },
         enumerable: true, configurable: false

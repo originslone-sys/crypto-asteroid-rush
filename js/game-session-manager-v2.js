@@ -11,6 +11,19 @@ const SessionManager = {
     pendingEndSession: null, // Armazena dados para reenvio apos CAPTCHA
 
     /**
+     * Restaurar sessao pendente de CAPTCHA do localStorage (sobrevive refresh)
+     */
+    restorePending() {
+        try {
+            const saved = localStorage.getItem('pendingEndSession');
+            if (saved) {
+                this.pendingEndSession = JSON.parse(saved);
+                console.log('🔄 Sessao pendente restaurada do localStorage');
+            }
+        } catch (e) {}
+    },
+
+    /**
      * Obter Google UID de varias fontes
      */
     getGoogleUid() {
@@ -218,8 +231,14 @@ const SessionManager = {
                         score: score,
                         earnings: earnings,
                         stats: stats,
+                        victory: typeof gameState !== 'undefined' ? gameState.lives > 0 : true,
                         pendingEarnings: result.pending_earnings || earnings
                     };
+
+                    // Persistir no localStorage para sobreviver refresh/crash
+                    try {
+                        localStorage.setItem('pendingEndSession', JSON.stringify(this.pendingEndSession));
+                    } catch (e) {}
 
                     // NAO limpar sessao ainda
                     return result;
@@ -234,6 +253,7 @@ const SessionManager = {
                 // Limpar sessao e pending
                 this.currentSession = null;
                 this.pendingEndSession = null;
+                localStorage.removeItem('pendingEndSession');
 
                 if (typeof gameState !== 'undefined') {
                     gameState.sessionId = null;
@@ -278,7 +298,7 @@ const SessionManager = {
                 score: pending.score,
                 earnings: pending.earnings,
                 lives_remaining: typeof gameState !== 'undefined' ? gameState.lives : 0,
-                victory: true,
+                victory: pending.victory !== undefined ? pending.victory : true,
                 stats: pending.stats,
                 captcha_token: captchaToken
             };
@@ -291,15 +311,17 @@ const SessionManager = {
 
             const result = await response.json();
 
-            if (result.success && result.credited) {
-                console.log('✅ Ganhos creditados apos CAPTCHA:', {
+            if (result.success) {
+                console.log('✅ Sessao finalizada apos CAPTCHA:', {
                     earnings: result.final_earnings,
-                    newBalance: result.new_balance
+                    newBalance: result.new_balance,
+                    credited: result.credited
                 });
 
                 // Limpar tudo
                 this.currentSession = null;
                 this.pendingEndSession = null;
+                localStorage.removeItem('pendingEndSession');
 
                 if (typeof gameState !== 'undefined') {
                     gameState.sessionId = null;
@@ -398,7 +420,8 @@ const SessionManager = {
     }
 };
 
-// Exportar
+// Exportar e restaurar pendentes
 window.SessionManager = SessionManager;
+SessionManager.restorePending();
 
 console.log('📦 SessionManager v2 carregado (multi-mode com reenvio apos CAPTCHA)');
