@@ -2,8 +2,14 @@
 // ============================================
 // UNOBIX - Teste de Conexão MySQL
 // api/db-test.php - Cloud Run Edition
-// REMOVA APÓS TESTAR!
+// BLOQUEADO EM PRODUÇÃO
 // ============================================
+
+// Endpoint de desenvolvimento - bloqueado em produção
+http_response_code(403);
+header('Content-Type: application/json; charset=utf-8');
+echo json_encode(['success' => false, 'error' => 'Endpoint desabilitado']);
+exit;
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
