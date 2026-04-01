@@ -555,7 +555,12 @@
                     posHtml += 'background:linear-gradient(135deg,rgba(0,200,255,0.12),rgba(0,136,255,0.08));border:1px solid rgba(0,200,255,0.3);">';
                     posHtml += '<i class="fas fa-map-marker-alt" style="font-size:1.3rem;color:#00c8ff;"></i>';
                     posHtml += '<div><strong style="color:#fff;font-size:1rem;">Solicitação #' + item.id + '</strong>';
-                    posHtml += '<div style="color:#00c8ff;font-size:0.9rem;margin-top:2px;">Posição na fila: <strong>' + data.queue_position + 'º</strong> de ' + (data.counts.pending + data.counts.processing) + ' em andamento</div></div>';
+                    posHtml += '<div style="color:#00c8ff;font-size:0.9rem;margin-top:2px;">Posição na fila: <strong>' + data.queue_position + 'º</strong> de ' + data.counts.pending + ' pendentes</div></div>';
+                } else if (item.status === 'processing') {
+                    posHtml += 'background:linear-gradient(135deg,rgba(0,200,255,0.12),rgba(0,136,255,0.08));border:1px solid rgba(0,200,255,0.3);">';
+                    posHtml += '<i class="fas fa-spinner fa-pulse" style="font-size:1.3rem;color:#00c8ff;"></i>';
+                    posHtml += '<div><strong style="color:#fff;font-size:1rem;">Solicitação #' + item.id + '</strong>';
+                    posHtml += '<div style="color:#00c8ff;font-size:0.9rem;margin-top:2px;">Em processamento</div></div>';
                 } else {
                     var statusColor = item.status === 'completed' ? '#00ff88' : '#ff4757';
                     var statusText = item.status === 'completed' ? 'Concluído' : 'Rejeitado';

@@ -140,15 +140,15 @@ try {
         ];
     }
 
-    // Se buscou por ID, calcular posição na fila
+    // Se buscou por ID, calcular posição na fila (apenas entre pendentes)
     $queuePosition = null;
     if ($searchId > 0 && !empty($items)) {
         $foundItem = $items[0];
-        if (in_array($foundItem['status'], ['pending', 'processing'])) {
+        if ($foundItem['status'] === 'pending') {
             $posStmt = $pdo->prepare("
                 SELECT COUNT(*) + 1 as position
                 FROM withdrawals
-                WHERE status IN ('pending', 'processing')
+                WHERE status = 'pending'
                 AND created_at < (SELECT created_at FROM withdrawals WHERE id = ?)
             ");
             $posStmt->execute([$searchId]);
