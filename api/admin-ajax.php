@@ -156,6 +156,42 @@ try {
             break;
 
         // -------------------------------------------------------
+        // CONFIRMAR MANUALMENTE SAQUE TRAVADO EM PROCESSAMENTO
+        // Admin confirma → muda de 'processing' para 'completed'
+        // -------------------------------------------------------
+        case "force_complete_withdrawal":
+            $id = intval($input["id"] ?? 0);
+            if ($id <= 0) throw new Exception("ID inválido");
+
+            $pdo->beginTransaction();
+
+            $stmt = $pdo->prepare("SELECT * FROM withdrawals WHERE id = ? FOR UPDATE");
+            $stmt->execute([$id]);
+            $withdrawal = $stmt->fetch();
+
+            if (!$withdrawal) throw new Exception("Saque não encontrado");
+            if ($withdrawal["status"] !== "processing") throw new Exception("Saque não está em processamento (status: " . $withdrawal["status"] . ")");
+
+            $stmt = $pdo->prepare("UPDATE withdrawals SET status = 'completed', processed_at = NOW() WHERE id = ?");
+            $stmt->execute([$id]);
+
+            // Atualizar total_withdrawn_brl
+            $amount = $withdrawal['amount_brl'] ?? 0;
+            $userId = $withdrawal['user_id'];
+            $pdo->prepare("UPDATE users SET total_withdrawn_brl = total_withdrawn_brl + ? WHERE id = ?")->execute([$amount, $userId]);
+
+            // Atualizar transação no histórico
+            $stmt = $pdo->prepare("SELECT google_uid FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch();
+            $pdo->prepare("UPDATE transactions SET status = 'completed' WHERE google_uid = ? AND type = 'withdraw' AND description LIKE ? AND status = 'pending' LIMIT 1")
+                ->execute([$user['google_uid'] ?? null, "%#{$id}%"]);
+
+            $pdo->commit();
+            $response = ["success" => true, "message" => "✅ Saque #{$id} confirmado manualmente como pago!"];
+            break;
+
+        // -------------------------------------------------------
         // APROVAR SAQUE VIA ZETTPAY (PIX automático)
         // Admin aprova → sistema processa via API ZettPay
         // -------------------------------------------------------
