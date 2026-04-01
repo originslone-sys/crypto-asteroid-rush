@@ -185,7 +185,8 @@ $allowedPages = [
     'support',
     'premium',
     'metrics',
-    'suspect-analysis'
+    'suspect-analysis',
+    'exploration'
 ];
 
 if (!in_array($page, $allowedPages)) {

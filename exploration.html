@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <link rel="icon" type="image/png" href="img/logo.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exploração | UNOBIX</title>
+    <meta name="description" content="Alugue naves para coletar créditos automaticamente.">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .explore-header { text-align: center; margin-bottom: 30px; }
+        .explore-header h1 { font-family: 'Orbitron', sans-serif; font-size: 1.6rem; color: #fff; margin: 0 0 6px; }
+        .explore-header p { color: #8899aa; font-size: 0.9rem; }
+        .explore-stats { display: flex; gap: 12px; justify-content: center; margin-bottom: 24px; flex-wrap: wrap; }
+        .explore-stat { background: rgba(0,20,40,0.6); border: 1px solid rgba(0,200,255,0.15); border-radius: 10px; padding: 12px 20px; text-align: center; min-width: 120px; }
+        .explore-stat .value { font-family: 'Orbitron', sans-serif; font-size: 1.1rem; color: #00c8ff; }
+        .explore-stat .label { font-size: 0.7rem; color: #8899aa; margin-top: 2px; }
+
+        .section-title { font-family: 'Orbitron', sans-serif; font-size: 1rem; color: #fff; margin: 24px 0 14px; display: flex; align-items: center; gap: 8px; }
+        .section-title i { color: #00c8ff; }
+
+        /* Naves disponíveis */
+        .ships-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .ship-card { background: rgba(0,20,40,0.7); border: 1px solid rgba(0,200,255,0.12); border-radius: 14px; padding: 20px; text-align: center; transition: all 0.3s; position: relative; overflow: hidden; }
+        .ship-card:hover { border-color: rgba(0,200,255,0.4); transform: translateY(-2px); }
+        .ship-card.rented { border-color: rgba(0,255,136,0.3); }
+        .ship-card .ship-visual { width: 120px; height: 120px; margin: 0 auto 12px; }
+        .ship-card .ship-visual svg { width: 100%; height: 100%; filter: drop-shadow(0 0 8px rgba(0,200,255,0.3)); }
+        .ship-card .ship-name { font-family: 'Orbitron', sans-serif; font-size: 0.95rem; color: #fff; margin-bottom: 4px; }
+        .ship-card .ship-desc { color: #8899aa; font-size: 0.78rem; margin-bottom: 12px; }
+        .ship-card .ship-stats { display: flex; justify-content: center; gap: 16px; margin-bottom: 14px; font-size: 0.8rem; }
+        .ship-card .ship-stats .stat { text-align: center; }
+        .ship-card .ship-stats .stat-val { color: #00ff88; font-weight: 700; font-family: 'Orbitron', sans-serif; font-size: 0.85rem; }
+        .ship-card .ship-stats .stat-lbl { color: #667788; font-size: 0.65rem; }
+        .ship-card .rent-btn { width: 100%; padding: 10px; border: none; border-radius: 8px; font-family: 'Exo 2', sans-serif; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .ship-card .rent-btn.available { background: linear-gradient(135deg, #00c8ff, #0088ff); color: #fff; }
+        .ship-card .rent-btn.available:hover { filter: brightness(1.15); }
+        .ship-card .rent-btn.disabled { background: rgba(255,255,255,0.1); color: #667788; cursor: not-allowed; }
+        .ship-card .rented-badge { position: absolute; top: 12px; right: 12px; background: rgba(0,255,136,0.15); color: #00ff88; font-size: 0.65rem; padding: 3px 8px; border-radius: 20px; font-weight: 600; border: 1px solid rgba(0,255,136,0.3); }
+
+        /* Aluguéis ativos */
+        .rentals-list { display: flex; flex-direction: column; gap: 12px; }
+        .rental-card { background: rgba(0,20,40,0.7); border: 1px solid rgba(0,200,255,0.12); border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .rental-card.active { border-color: rgba(0,255,136,0.25); }
+        .rental-card.expired { opacity: 0.6; }
+        .rental-card .rental-ship { width: 60px; height: 60px; flex-shrink: 0; }
+        .rental-card .rental-ship svg { width: 100%; height: 100%; }
+        .rental-card .rental-info { flex: 1; min-width: 150px; }
+        .rental-card .rental-name { font-family: 'Orbitron', sans-serif; font-size: 0.85rem; color: #fff; }
+        .rental-card .rental-timer { font-size: 0.75rem; color: #00c8ff; margin-top: 2px; }
+        .rental-card .rental-timer.expired-text { color: #ff4757; }
+        .rental-card .rental-credits { text-align: center; min-width: 100px; }
+        .rental-card .rental-credits .credits-value { font-family: 'Orbitron', sans-serif; font-size: 1.2rem; color: #00ff88; }
+        .rental-card .rental-credits .credits-label { font-size: 0.65rem; color: #8899aa; }
+        .rental-card .claim-btn { padding: 10px 20px; background: linear-gradient(135deg, #00ff88, #00cc66); color: #000; border: none; border-radius: 8px; font-family: 'Exo 2', sans-serif; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: all 0.3s; }
+        .rental-card .claim-btn:hover { filter: brightness(1.15); }
+        .rental-card .claim-btn:disabled { background: rgba(255,255,255,0.1); color: #667788; cursor: not-allowed; }
+
+        .empty-rentals { text-align: center; padding: 40px 20px; color: #667788; }
+        .empty-rentals i { font-size: 2rem; opacity: 0.3; display: block; margin-bottom: 10px; }
+
+        @media (max-width: 600px) {
+            .ships-grid { grid-template-columns: 1fr; }
+            .rental-card { flex-direction: column; text-align: center; }
+        }
+    </style>
+</head>
+<body data-page="exploration">
+<div class="cosmic-bg"></div>
+
+<div id="connectOverlay" class="connect-overlay">
+    <div class="connect-box">
+        <div class="connect-icon"><i class="fas fa-rocket"></i></div>
+        <h2 class="connect-title">BEM-VINDO, COMANDANTE</h2>
+        <p class="connect-desc">Entre com sua conta Google para acessar a exploração.</p>
+        <button id="connectBtn" class="btn btn-primary btn-lg">
+            <i class="fab fa-google"></i> Entrar com Google
+        </button>
+    </div>
+</div>
+
+<div class="container">
+    <header class="header">
+        <a href="index.html" class="logo">
+            <span class="logo-icon"><img src="img/logo.png" alt="Unobix"></span>
+            <span class="logo-text">UNOBIX</span>
+        </a>
+        <nav class="nav" id="nav">
+            <a href="dashboard.html" class="nav-link">Painel</a>
+            <a href="game-v2.html" class="nav-link">Jogar</a>
+            <a href="wallet.html" class="nav-link">Carteira</a>
+            <a href="exploration.html" class="nav-link active">Exploração</a>
+            <a href="affiliates.html" class="nav-link">Afiliados</a>
+            <a href="support.html" class="nav-link">Suporte</a>
+        </nav>
+        <button id="walletBtn" class="wallet-btn">
+            <i class="fas fa-user-circle"></i>
+            <span id="userDisplayName">Entrar</span>
+        </button>
+        <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
+    </header>
+
+    <main class="main-content" style="padding-top:20px;">
+        <div class="explore-header">
+            <h1><i class="fas fa-shuttle-space"></i> EXPLORAÇÃO</h1>
+            <p>Alugue naves para coletar créditos automaticamente</p>
+        </div>
+
+        <div class="explore-stats">
+            <div class="explore-stat">
+                <div class="value" id="statBalance">R$ 0,00</div>
+                <div class="label">Saldo</div>
+            </div>
+            <div class="explore-stat">
+                <div class="value" id="statCredits">0</div>
+                <div class="label">Créditos</div>
+            </div>
+            <div class="explore-stat">
+                <div class="value" id="statActiveRentals">0/3</div>
+                <div class="label">Naves Ativas</div>
+            </div>
+        </div>
+
+        <!-- Aluguéis Ativos -->
+        <div id="rentalsSection" style="display:none;">
+            <div class="section-title"><i class="fas fa-satellite"></i> Suas Naves em Exploração</div>
+            <div class="rentals-list" id="rentalsList"></div>
+        </div>
+
+        <!-- Naves Disponíveis -->
+        <div class="section-title"><i class="fas fa-rocket"></i> Naves Disponíveis</div>
+        <div class="ships-grid" id="shipsGrid">
+            <div style="text-align:center;padding:40px;color:#667788;grid-column:1/-1;">
+                <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;"></i>
+                <p>Carregando naves...</p>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Toast -->
+<div id="toast" style="display:none;position:fixed;bottom:30px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999;font-family:'Exo 2',sans-serif;"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth-manager.js"></script>
+<script src="js/exploration.js?v=1.0"></script>
+</body>
+</html>

@@ -101,6 +101,11 @@ try {
                     <span class="badge"><?php echo $openTickets; ?></span>
                 <?php endif; ?>
             </a>
+
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=exploration" class="nav-item <?php echo $currentPage === 'exploration' ? 'active' : ''; ?>">
+                <i class="fas fa-compass"></i>
+                <span>Exploração</span>
+            </a>
         </div>
 
         <div class="nav-section">
