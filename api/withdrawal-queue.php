@@ -84,7 +84,12 @@ try {
     // Buscar solicitações com filtro
     $whereClause = '';
     $params = [];
-    if ($status !== 'all') {
+    $searchId = (int)($_GET['search_id'] ?? 0);
+
+    if ($searchId > 0) {
+        $whereClause = 'WHERE w.id = ?';
+        $params[] = $searchId;
+    } elseif ($status !== 'all') {
         $whereClause = 'WHERE w.status = ?';
         $params[] = $status;
     }
@@ -135,7 +140,23 @@ try {
         ];
     }
 
-    echo json_encode([
+    // Se buscou por ID, calcular posição na fila
+    $queuePosition = null;
+    if ($searchId > 0 && !empty($items)) {
+        $foundItem = $items[0];
+        if (in_array($foundItem['status'], ['pending', 'processing'])) {
+            $posStmt = $pdo->prepare("
+                SELECT COUNT(*) + 1 as position
+                FROM withdrawals
+                WHERE status IN ('pending', 'processing')
+                AND created_at < (SELECT created_at FROM withdrawals WHERE id = ?)
+            ");
+            $posStmt->execute([$searchId]);
+            $queuePosition = (int)$posStmt->fetchColumn();
+        }
+    }
+
+    $response = [
         'success' => true,
         'counts' => [
             'pending' => (int)$counts['pending'],
@@ -157,7 +178,14 @@ try {
             'total_items' => $totalFiltered,
             'per_page' => $limit
         ]
-    ]);
+    ];
+
+    if ($queuePosition !== null) {
+        $response['queue_position'] = $queuePosition;
+        $response['search_id'] = $searchId;
+    }
+
+    echo json_encode($response);
 
 } catch (Exception $e) {
     error_log("withdrawal-queue error: " . $e->getMessage());
