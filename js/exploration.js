@@ -18,26 +18,100 @@
         GUARDIAN: { primary: '#2d5a27', secondary: '#8b6914', accent: '#4a7c3f', cockpit: '#66ffaa', engine: '#88cc44' },
         THUNDER:  { primary: '#1a4a8a', secondary: '#00d4ff', accent: '#4488ff', cockpit: '#00ffff', engine: '#00ccff' },
         INFERNO:  { primary: '#cc4400', secondary: '#ff2200', accent: '#ffaa00', cockpit: '#ffcc44', engine: '#ff6600' },
-        NEBULA:   { primary: '#6633aa', secondary: '#aa44ff', accent: '#cc66ff', cockpit: '#ff88ff', engine: '#9944ff' },
-        VIPER:    { primary: '#228833', secondary: '#44ff66', accent: '#66ff44', cockpit: '#aaffcc', engine: '#00ff44' },
-        WOLF:     { primary: '#556677', secondary: '#8899aa', accent: '#99aabb', cockpit: '#aaddff', engine: '#4488cc' }
+        NEBULA:   { primary: '#4a1a6b', secondary: '#8844cc', accent: '#cc44ff', cockpit: '#ff44ff', engine: '#aa22ff' },
+        VIPER:    { primary: '#1a4a2a', secondary: '#00ff66', accent: '#88ff44', cockpit: '#00ff88', engine: '#44ff00' },
+        WOLF:     { primary: '#3a3a4a', secondary: '#6a6a7a', accent: '#8a8a9a', cockpit: '#88aaff', engine: '#6688ff' }
     };
 
     function getShipSVG(key, size) {
         const c = SHIP_COLORS[key] || SHIP_COLORS.PHOENIX;
-        return `<svg width="${size}" height="${size}" viewBox="-50 -50 100 100">
+        const uid = 'sv_' + key + '_' + Math.random().toString(36).substr(2, 5);
+        return `<svg width="${size}" height="${size}" viewBox="-55 -45 110 100">
             <defs>
-                <radialGradient id="eng_${key}" cx="50%" cy="50%"><stop offset="0%" stop-color="${c.engine}" stop-opacity="0.8"/><stop offset="100%" stop-color="${c.engine}" stop-opacity="0"/></radialGradient>
+                <linearGradient id="${uid}_body" x1="0" y1="-38" x2="0" y2="28" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="${c.secondary}" stop-opacity="0.6"/>
+                    <stop offset="30%" stop-color="${c.primary}"/>
+                    <stop offset="100%" stop-color="${c.primary}" stop-opacity="0.7"/>
+                </linearGradient>
+                <linearGradient id="${uid}_wing" x1="0" y1="0" x2="48" y2="15" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="${c.primary}"/>
+                    <stop offset="100%" stop-color="${c.primary}" stop-opacity="0.5"/>
+                </linearGradient>
+                <linearGradient id="${uid}_flame" x1="0" y1="32" x2="0" y2="55" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#ffffff"/>
+                    <stop offset="20%" stop-color="${c.engine}"/>
+                    <stop offset="60%" stop-color="#ff4400" stop-opacity="0.6"/>
+                    <stop offset="100%" stop-color="#ff2200" stop-opacity="0"/>
+                </linearGradient>
+                <radialGradient id="${uid}_glow" cx="50%" cy="0%">
+                    <stop offset="0%" stop-color="${c.engine}" stop-opacity="0.4"/>
+                    <stop offset="100%" stop-color="${c.engine}" stop-opacity="0"/>
+                </radialGradient>
+                <linearGradient id="${uid}_glass" x1="-8" y1="-28" x2="8" y2="-10" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.6"/>
+                    <stop offset="30%" stop-color="${c.cockpit}" stop-opacity="0.7"/>
+                    <stop offset="100%" stop-color="${c.cockpit}" stop-opacity="0.4"/>
+                </linearGradient>
             </defs>
-            <ellipse cx="0" cy="35" rx="10" ry="18" fill="url(#eng_${key})"/>
-            <polygon points="0,-40 18,28 -18,28" fill="${c.primary}" stroke="${c.secondary}" stroke-width="1.5"/>
-            <polygon points="-10,5 -42,-8 -36,20" fill="${c.primary}" stroke="${c.secondary}" stroke-width="0.8" opacity="0.9"/>
-            <polygon points="10,5 42,-8 36,20" fill="${c.primary}" stroke="${c.secondary}" stroke-width="0.8" opacity="0.9"/>
-            <ellipse cx="0" cy="-18" rx="9" ry="7" fill="${c.cockpit}" opacity="0.7"/>
-            <line x1="0" y1="-38" x2="0" y2="26" stroke="${c.accent}" stroke-width="1" opacity="0.4"/>
-            <circle cx="0" cy="30" r="5" fill="${c.engine}" opacity="0.9"/>
-            <circle cx="-6" cy="28" r="2.5" fill="${c.engine}" opacity="0.6"/>
-            <circle cx="6" cy="28" r="2.5" fill="${c.engine}" opacity="0.6"/>
+            <!-- Engine glow -->
+            <ellipse cx="-10" cy="40" rx="8" ry="16" fill="url(#${uid}_glow)"/>
+            <ellipse cx="10" cy="40" rx="8" ry="16" fill="url(#${uid}_glow)"/>
+            <!-- Engine flames -->
+            <path d="M-12,32 Q-14,42 -10,52 Q-8,42 -8,32 Z" fill="url(#${uid}_flame)"/>
+            <path d="M8,32 Q8,42 10,52 Q14,42 12,32 Z" fill="url(#${uid}_flame)"/>
+            <!-- Engine housings -->
+            <rect x="-15" y="20" width="10" height="12" rx="1" fill="#1a1a24" stroke="#5a5a6a" stroke-width="0.8"/>
+            <rect x="5" y="20" width="10" height="12" rx="1" fill="#1a1a24" stroke="#5a5a6a" stroke-width="0.8"/>
+            <!-- Wings -->
+            <polygon points="8,5 48,-5 42,20 8,25" fill="url(#${uid}_wing)" stroke="${c.secondary}" stroke-width="0.6" opacity="0.9"/>
+            <polygon points="-8,5 -48,-5 -42,20 -8,25" fill="url(#${uid}_wing)" stroke="${c.secondary}" stroke-width="0.6" opacity="0.9"/>
+            <!-- Wing detail lines -->
+            <line x1="15" y1="6" x2="40" y2="0" stroke="${c.secondary}" stroke-width="0.4" opacity="0.4"/>
+            <line x1="-15" y1="6" x2="-40" y2="0" stroke="${c.secondary}" stroke-width="0.4" opacity="0.4"/>
+            <!-- Wing tip thrusters -->
+            <ellipse cx="46" cy="0" rx="3" ry="6" fill="${c.secondary}" opacity="0.7"/>
+            <ellipse cx="-46" cy="0" rx="3" ry="6" fill="${c.secondary}" opacity="0.7"/>
+            <circle cx="38" cy="18" r="3" fill="${c.engine}" opacity="0.5"/>
+            <circle cx="-38" cy="18" r="3" fill="${c.engine}" opacity="0.5"/>
+            <!-- Fuselage (curved body) -->
+            <path d="M0,-38 C8,-32 14,-20 15,-5 C16,10 14,22 8,28 L-8,28 C-14,22 -16,10 -15,-5 C-14,-20 -8,-32 0,-38 Z" fill="url(#${uid}_body)"/>
+            <!-- Fuselage highlight -->
+            <path d="M-6,-35 Q0,-38 6,-35" stroke="${c.secondary}" stroke-width="1" fill="none" opacity="0.5"/>
+            <!-- Center ridge -->
+            <path d="M0,-32 L3,-25 L3,15 L0,22 L-3,15 L-3,-25 Z" fill="${c.secondary}" opacity="0.5"/>
+            <!-- Hull panel lines -->
+            <line x1="-12" y1="-20" x2="12" y2="-20" stroke="${c.primary}" stroke-width="0.4" opacity="0.3"/>
+            <line x1="-12" y1="-10" x2="12" y2="-10" stroke="${c.primary}" stroke-width="0.4" opacity="0.3"/>
+            <line x1="-12" y1="5" x2="12" y2="5" stroke="${c.primary}" stroke-width="0.4" opacity="0.3"/>
+            <line x1="-12" y1="15" x2="12" y2="15" stroke="${c.primary}" stroke-width="0.4" opacity="0.3"/>
+            <!-- Hull vents -->
+            <rect x="-11" y="-15" width="3" height="8" fill="#1a1a24" opacity="0.6"/>
+            <rect x="8" y="-15" width="3" height="8" fill="#1a1a24" opacity="0.6"/>
+            <!-- Cockpit frame -->
+            <polygon points="0,-30 10,-18 8,-8 -8,-8 -10,-18" fill="#3a3a4a"/>
+            <!-- Cockpit glass -->
+            <polygon points="0,-28 8,-17 6,-10 -6,-10 -8,-17" fill="url(#${uid}_glass)"/>
+            <!-- Cockpit reflection -->
+            <polygon points="-3,-26 3,-26 5,-20 -2,-20" fill="white" opacity="0.2"/>
+            <!-- Cockpit HUD dots -->
+            <rect x="-4" y="-18" width="2" height="1" fill="#00ff88" opacity="0.4"/>
+            <rect x="1" y="-16" width="3" height="1" fill="#00ff88" opacity="0.3"/>
+            <!-- Weapon pods -->
+            <rect x="-19" y="-22" width="6" height="14" rx="2" fill="#2a2a35" stroke="#4a4a5a" stroke-width="0.5"/>
+            <rect x="13" y="-22" width="6" height="14" rx="2" fill="#2a2a35" stroke="#4a4a5a" stroke-width="0.5"/>
+            <!-- Weapon barrels -->
+            <rect x="-18" y="-34" width="4" height="14" rx="1" fill="#3a3a4a"/>
+            <rect x="14" y="-34" width="4" height="14" rx="1" fill="#3a3a4a"/>
+            <!-- Barrel tips -->
+            <circle cx="-16" cy="-34" r="2" fill="#1a1a22"/>
+            <circle cx="16" cy="-34" r="2" fill="#1a1a22"/>
+            <circle cx="-16" cy="-34" r="1" fill="${c.accent}" opacity="0.8"/>
+            <circle cx="16" cy="-34" r="1" fill="${c.accent}" opacity="0.8"/>
+            <!-- Nav lights -->
+            <circle cx="42" cy="-2" r="1.5" fill="#00ff00" opacity="0.7"/>
+            <circle cx="-42" cy="-2" r="1.5" fill="#ff0000" opacity="0.7"/>
+            <circle cx="0" cy="-36" r="1.2" fill="white" opacity="0.8"/>
+            <circle cx="0" cy="26" r="1.2" fill="#ffaa00" opacity="0.7"/>
         </svg>`;
     }
 
