@@ -23,16 +23,17 @@ const CaptchaManager = {
             return;
         }
 
-        // Aguardar API carregar (máx 5 tentativas)
+        // Aguardar API carregar (máx 20 tentativas, ~15 segundos)
         if (typeof grecaptcha === 'undefined' || typeof grecaptcha.render !== 'function') {
-            if (this._initRetries < 5) {
+            if (this._initRetries < 20) {
                 this._initRetries++;
+                // Intervalo progressivo: 500ms, 500ms... até 1500ms
+                const delay = Math.min(500 + (this._initRetries * 50), 1500);
                 console.log('⏳ Aguardando reCAPTCHA API... tentativa', this._initRetries);
-                setTimeout(() => this.init(containerId), 500);
+                setTimeout(() => this.init(containerId), delay);
             } else {
-                console.error('❌ reCAPTCHA API não carregou após 5 tentativas');
-                this.showStatus('❌ Erro ao carregar verificação', 'error');
-                this.enableClaimButton(); // Não bloquear o jogador
+                console.error('❌ reCAPTCHA API não carregou após 20 tentativas');
+                this.showRetryButton(containerId);
             }
             return;
         }
@@ -197,6 +198,34 @@ const CaptchaManager = {
                 }
                 break;
             }
+        }
+    },
+
+    /**
+     * Mostrar botão de tentar novamente quando reCAPTCHA falha ao carregar
+     */
+    showRetryButton(containerId) {
+        this.showStatus('❌ Erro ao carregar verificação', 'error');
+
+        const container = document.getElementById(containerId);
+        if (container) {
+            const retryBtn = document.createElement('button');
+            retryBtn.textContent = '🔄 TENTAR NOVAMENTE';
+            retryBtn.style.cssText = 'margin-top:10px;padding:12px 24px;background:linear-gradient(135deg,#00c8ff,#0088ff);color:#fff;border:none;border-radius:8px;font-size:0.95rem;font-weight:600;cursor:pointer;width:100%;font-family:inherit;';
+            retryBtn.onclick = () => {
+                retryBtn.remove();
+                this.showStatus('⏳ Carregando verificação...', 'info');
+                this._initRetries = 0;
+                // Recarregar script do Google se necessário
+                if (typeof grecaptcha === 'undefined') {
+                    const script = document.createElement('script');
+                    script.src = 'https://www.google.com/recaptcha/api.js';
+                    script.async = true;
+                    document.head.appendChild(script);
+                }
+                setTimeout(() => this.init(containerId), 1000);
+            };
+            container.appendChild(retryBtn);
         }
     },
 
