@@ -68,6 +68,20 @@ try {
         exit;
     }
 
+    // Fallback: se user_id veio NULL do LEFT JOIN, tentar buscar pelo google_uid
+    if (empty($session['user_id']) && !empty($session['google_uid'])) {
+        $stmtUser = $pdo->prepare("SELECT id, balance_brl, is_banned, is_premium, premium_expires_at FROM users WHERE google_uid = ? LIMIT 1");
+        $stmtUser->execute([$session['google_uid']]);
+        $userRow = $stmtUser->fetch();
+        if ($userRow) {
+            $session['user_id'] = $userRow['id'];
+            $session['user_balance'] = $userRow['balance_brl'];
+            $session['is_banned'] = $userRow['is_banned'];
+            $session['user_is_premium'] = $userRow['is_premium'];
+            $session['user_premium_expires'] = $userRow['premium_expires_at'];
+        }
+    }
+
     // Verificar UID (permitir truncado)
     $sessionUid = $session['google_uid'];
     if (strpos($googleUid, '...') === false && $sessionUid !== $googleUid) {
@@ -143,8 +157,8 @@ try {
     }
 
     // ANTI-EXPLOIT: Validar tempo mínimo para vitória
-    // Impossível completar legitimamente em menos de 150s (180s - 30s tolerância countdown/latência)
-    $minDurationForVictory = GAME_DURATION_V2 - 30;
+    // Tolerância de 45s para countdown, latência de rede e variação de clock
+    $minDurationForVictory = GAME_DURATION_V2 - 45;
     if ($victory && $gameDuration < $minDurationForVictory) {
         $pdo->prepare("UPDATE game_sessions SET status = 'flagged', ended_at = NOW(), game_duration = ? WHERE id = ?")
             ->execute([min($gameDuration, GAME_DURATION_V2), $sessionId]);
