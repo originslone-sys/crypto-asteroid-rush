@@ -144,9 +144,9 @@ try {
                     if ($maxRow) $maxRentals = (int)$maxRow['setting_value'];
                 } catch (Exception $e) {}
 
-                $activeCount = (int)$pdo->prepare("SELECT COUNT(*) FROM exploration_rentals WHERE user_id = ? AND status = 'active'");
-                $activeCount->execute([$userId]);
-                $activeCount = (int)$activeCount->fetchColumn();
+                $activeStmt = $pdo->prepare("SELECT COUNT(*) FROM exploration_rentals WHERE user_id = ? AND status = 'active'");
+                $activeStmt->execute([$userId]);
+                $activeCount = (int)$activeStmt->fetchColumn();
 
                 if ($activeCount >= $maxRentals) {
                     $pdo->rollBack();
@@ -329,8 +329,9 @@ try {
                 $pdo->commit();
 
                 // Buscar novo saldo de créditos
-                $newCredits = (int)$pdo->prepare("SELECT credits FROM users WHERE id = ?")->execute([$userId]);
-                $newCredits = (int)$pdo->query("SELECT credits FROM users WHERE id = $userId")->fetchColumn();
+                $creditsStmt = $pdo->prepare("SELECT credits FROM users WHERE id = ?");
+                $creditsStmt->execute([$userId]);
+                $newCredits = (int)$creditsStmt->fetchColumn();
 
                 echo json_encode([
                     'success' => true,
