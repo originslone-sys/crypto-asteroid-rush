@@ -27,7 +27,10 @@ function closeSidebar() {
 function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'exclamation-triangle'}"></i> ${message}`;
+    const icon = document.createElement('i');
+    icon.className = `fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'exclamation-triangle'}`;
+    toast.appendChild(icon);
+    toast.appendChild(document.createTextNode(' ' + message));
     document.body.appendChild(toast);
     
     setTimeout(() => {

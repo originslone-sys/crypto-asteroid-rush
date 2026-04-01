@@ -4,6 +4,14 @@
    ============================================ */
 
 // ============================================
+// SEGURANÇA - Escape HTML para prevenir XSS
+// ============================================
+function escapeHtml(text) {
+    const map = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'};
+    return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+// ============================================
 // ESTADO GLOBAL
 // ============================================
 
@@ -735,7 +743,7 @@ async function loadTransactionHistory() {
                         </div>
                         <div class="tx-info">
                             <div class="tx-type">${getActivityTitle(tx.type)}</div>
-                            <div class="tx-desc">${tx.description || ''}</div>
+                            <div class="tx-desc">${escapeHtml(tx.description || '')}</div>
                         </div>
                         <div class="tx-amount ${isPositive ? 'positive' : ''}">
                             ${isPositive ? '+' : ''}${formatBRL(tx.amount_brl)}
@@ -916,7 +924,7 @@ function updateReferralsTable(referrals) {
     
     tbody.innerHTML = referrals.map(ref => {
         const statusTexts = { 'pending': 'Em Progresso', 'qualified': 'Completado', 'claimed': 'Resgatado' };
-        const userDisplay = ref.display_name || ref.email?.split('@')[0] || ref.referred_short || 'Usuário';
+        const userDisplay = escapeHtml(ref.display_name || ref.email?.split('@')[0] || ref.referred_short || 'Usuário');
         const req = ref.missions_required || 20;
 
         return `
