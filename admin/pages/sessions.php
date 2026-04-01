@@ -23,7 +23,8 @@ try {
         $params[] = $filter;
     }
     if ($search) {
-        $filterSql .= " AND (gs.google_uid LIKE ? OR p.display_name LIKE ?)";
+        $filterSql .= " AND (gs.google_uid LIKE ? OR p.display_name LIKE ? OR p.email LIKE ?)";
+        $params[] = "%$search%";
         $params[] = "%$search%";
         $params[] = "%$search%";
     }
@@ -353,7 +354,7 @@ try {
         <div class="panel-body">
             <form method="GET" class="filters">
                 <input type="hidden" name="page" value="sessions">
-                <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Buscar jogador..." class="form-control" style="width: 200px;">
+                <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Buscar por nome ou e-mail..." class="form-control" style="width: 200px;">
                 <select name="filter" class="form-control">
                     <option value="all">Todos Status</option>
                     <option value="completed" <?php echo $filter === 'completed' ? 'selected' : ''; ?>>Completadas</option>
