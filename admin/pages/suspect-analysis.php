@@ -10,6 +10,291 @@ $pageTitle = 'Análise de Suspeitas';
 $days = min(max((int)($_GET['days'] ?? 7), 1), 30);
 $minSessions = max((int)($_GET['min_sessions'] ?? 5), 3);
 $filterLevel = $_GET['level'] ?? 'all';
+$analyzeEmail = trim($_GET['analyze_email'] ?? '');
+
+// ============================================
+// ANÁLISE INDIVIDUAL POR EMAIL
+// ============================================
+$accountAnalysis = null;
+$accountError = null;
+
+if (!empty($analyzeEmail)) {
+    try {
+        // Buscar usuário pelo email
+        $userStmt = $pdo->prepare("
+            SELECT u.*,
+                   DATEDIFF(NOW(), u.created_at) as account_age_days,
+                   (SELECT COUNT(*) FROM game_sessions gs WHERE gs.google_uid = u.google_uid) as total_sessions,
+                   (SELECT COUNT(*) FROM game_sessions gs WHERE gs.google_uid = u.google_uid AND gs.status = 'completed') as completed_sessions,
+                   (SELECT COUNT(*) FROM game_sessions gs WHERE gs.google_uid = u.google_uid AND gs.status = 'abandoned') as abandoned_sessions,
+                   (SELECT COUNT(*) FROM game_sessions gs WHERE gs.google_uid = u.google_uid AND gs.status = 'flagged') as flagged_sessions,
+                   (SELECT COUNT(*) FROM withdrawals w WHERE w.user_id = u.id) as total_withdrawals,
+                   (SELECT COALESCE(SUM(w.amount_brl), 0) FROM withdrawals w WHERE w.user_id = u.id AND w.status = 'approved') as total_withdrawn,
+                   (SELECT COUNT(*) FROM withdrawals w WHERE w.user_id = u.id AND w.status = 'pending') as pending_withdrawals,
+                   (SELECT COUNT(DISTINCT gs.ip_address) FROM game_sessions gs WHERE gs.google_uid = u.google_uid) as distinct_ips
+            FROM users u
+            WHERE u.email = ? OR u.google_uid = ?
+            LIMIT 1
+        ");
+        $userStmt->execute([$analyzeEmail, $analyzeEmail]);
+        $acctUser = $userStmt->fetch();
+
+        if (!$acctUser) {
+            $accountError = "Conta não encontrada para: " . $analyzeEmail;
+        } else {
+            $uid = $acctUser['google_uid'];
+            $accountAnalysis = [
+                'user' => $acctUser,
+                'risk_score' => 0,
+                'risk_signals' => [],
+                'positive_signals' => [],
+                'stats' => []
+            ];
+
+            // Sessões recentes (30 dias)
+            $sessStmt = $pdo->prepare("
+                SELECT
+                    COUNT(*) as sessions_30d,
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_30d,
+                    SUM(CASE WHEN status = 'abandoned' THEN 1 ELSE 0 END) as abandoned_30d,
+                    SUM(CASE WHEN status = 'flagged' THEN 1 ELSE 0 END) as flagged_30d,
+                    AVG(earnings_brl) as avg_earnings,
+                    MAX(earnings_brl) as max_earnings,
+                    STDDEV(earnings_brl) as stddev_earnings,
+                    SUM(earnings_brl) as total_earnings_30d,
+                    AVG(asteroids_destroyed) as avg_asteroids,
+                    STDDEV(asteroids_destroyed) as stddev_asteroids,
+                    AVG(legendary_asteroids) as avg_legendary,
+                    AVG(epic_asteroids) as avg_epic,
+                    AVG(game_duration) as avg_duration,
+                    STDDEV(game_duration) as stddev_duration,
+                    COUNT(DISTINCT DATE(started_at)) as active_days,
+                    COUNT(DISTINCT ip_address) as ips_30d
+                FROM game_sessions
+                WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                  AND status IN ('completed', 'flagged', 'abandoned')
+            ");
+            $sessStmt->execute([$uid]);
+            $s30 = $sessStmt->fetch();
+
+            $sessions30 = (int)$s30['sessions_30d'];
+            $accountAnalysis['stats'] = $s30;
+
+            $score = 0;
+            $signals = [];
+            $positives = [];
+
+            if ($sessions30 >= 5) {
+                $avgEarnings = (float)$s30['avg_earnings'];
+                $stddevEarnings = (float)$s30['stddev_earnings'];
+                $avgAsteroids = (float)$s30['avg_asteroids'];
+                $stddevAsteroids = (float)$s30['stddev_asteroids'];
+                $avgDuration = (float)$s30['avg_duration'];
+                $stddevDuration = (float)$s30['stddev_duration'];
+                $avgLegendary = (float)$s30['avg_legendary'];
+                $avgEpic = (float)$s30['avg_epic'];
+                $completed30 = (int)$s30['completed_30d'];
+                $abandoned30 = (int)$s30['abandoned_30d'];
+                $flagged30 = (int)$s30['flagged_30d'];
+
+                // 1. Consistência de ganhos
+                if ($sessions30 >= 10 && $avgEarnings > 0.05) {
+                    $cv = ($stddevEarnings > 0) ? ($stddevEarnings / $avgEarnings) : 0;
+                    if ($cv < 0.10) { $score += 20; $signals[] = 'Ganhos extremamente consistentes (CV=' . round($cv * 100, 1) . '%)'; }
+                    elseif ($cv < 0.20) { $score += 10; $signals[] = 'Ganhos pouco variáveis (CV=' . round($cv * 100, 1) . '%)'; }
+                    else { $positives[] = 'Variação natural de ganhos (CV=' . round($cv * 100, 1) . '%)'; }
+                }
+
+                // 2. Duração consistente
+                if ($sessions30 >= 10 && $avgDuration > 0) {
+                    $cvD = ($stddevDuration > 0) ? ($stddevDuration / $avgDuration) : 0;
+                    if ($cvD < 0.03) { $score += 15; $signals[] = 'Duração quase idêntica entre sessões'; }
+                    elseif ($cvD < 0.08) { $score += 7; $signals[] = 'Duração muito similar entre sessões'; }
+                    else { $positives[] = 'Duração varia naturalmente'; }
+                }
+
+                // 3. Win rate
+                $winRate = ($sessions30 > 0) ? ($completed30 / $sessions30) : 0;
+                if ($sessions30 >= 10 && $winRate >= 0.95) {
+                    $score += 25; $signals[] = 'Taxa de vitória ' . round($winRate * 100, 1) . '%';
+                } elseif ($sessions30 >= 10 && $winRate >= 0.85) {
+                    $score += 15; $signals[] = 'Vitória alta: ' . round($winRate * 100, 1) . '%';
+                } elseif ($sessions30 >= 10) {
+                    $positives[] = 'Win rate normal: ' . round($winRate * 100, 1) . '%';
+                }
+
+                // 4. Zero abandonos
+                if ($sessions30 >= 15 && $abandoned30 === 0) {
+                    $score += 20; $signals[] = 'Zero game over em ' . $sessions30 . ' sessões';
+                } elseif ($sessions30 >= 15 && $abandoned30 <= 1) {
+                    $score += 10; $signals[] = 'Apenas ' . $abandoned30 . ' game over em ' . $sessions30 . ' sessões';
+                }
+
+                // 5. Flagged
+                if ($flagged30 > 0) {
+                    $fr = $flagged30 / $sessions30;
+                    if ($fr > 0.3) { $score += 15; $signals[] = round($fr * 100) . '% flagged (' . $flagged30 . ')'; }
+                    elseif ($fr > 0.1) { $score += 8; $signals[] = $flagged30 . ' sessões flagged'; }
+                } else { $positives[] = 'Nenhuma sessão flagged'; }
+
+                // 6. Asteroides consistentes
+                if ($sessions30 >= 10 && $avgAsteroids > 50) {
+                    $cvAst = ($stddevAsteroids > 0) ? ($stddevAsteroids / $avgAsteroids) : 0;
+                    if ($cvAst < 0.05) { $score += 20; $signals[] = 'Asteroides quase idênticos (CV=' . round($cvAst * 100, 1) . '%)'; }
+                    elseif ($cvAst < 0.10) { $score += 10; $signals[] = 'Asteroides muito consistentes'; }
+                    else { $positives[] = 'Variação natural de asteroides'; }
+                }
+
+                // 7. Intervalos entre sessões
+                $gapStmt = $pdo->prepare("
+                    SELECT started_at FROM game_sessions
+                    WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                      AND status IN ('completed', 'flagged')
+                    ORDER BY started_at ASC LIMIT 100
+                ");
+                $gapStmt->execute([$uid]);
+                $times = $gapStmt->fetchAll(PDO::FETCH_COLUMN);
+                $gaps = [];
+                for ($i = 1; $i < count($times); $i++) {
+                    $gap = strtotime($times[$i]) - strtotime($times[$i - 1]);
+                    if ($gap > 0 && $gap < 7200) $gaps[] = $gap;
+                }
+                if (count($gaps) >= 5) {
+                    $avgGap = array_sum($gaps) / count($gaps);
+                    $variance = array_sum(array_map(fn($g) => pow($g - $avgGap, 2), $gaps)) / count($gaps);
+                    $stddevGap = sqrt($variance);
+                    $cvG = ($stddevGap > 0 && $avgGap > 0) ? ($stddevGap / $avgGap) : 0;
+                    if ($cvG < 0.08 && $avgGap < 300) { $score += 20; $signals[] = 'Intervalo mecânico (' . round($avgGap) . 's ±' . round($stddevGap) . 's)'; }
+                    elseif ($cvG < 0.15 && $avgGap < 300) { $score += 10; $signals[] = 'Intervalo regular (' . round($avgGap) . 's)'; }
+                    else { $positives[] = 'Intervalos naturais'; }
+                }
+
+                // 8. Pico por hora
+                $hrStmt = $pdo->prepare("
+                    SELECT COUNT(*) as cnt FROM game_sessions
+                    WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                      AND status IN ('completed', 'flagged')
+                    GROUP BY DATE_FORMAT(started_at, '%Y-%m-%d %H:00')
+                    ORDER BY cnt DESC LIMIT 1
+                ");
+                $hrStmt->execute([$uid]);
+                $maxPerHour = (int)($hrStmt->fetchColumn() ?: 0);
+                if ($maxPerHour >= 12) { $score += 15; $signals[] = 'Pico: ' . $maxPerHour . ' sessões/hora'; }
+                elseif ($maxPerHour >= 8) { $score += 8; $signals[] = $maxPerHour . ' sessões/hora (pico)'; }
+
+                // 9. Conta nova + volume
+                $accountAge = (int)$acctUser['account_age_days'];
+                if ($accountAge < 3 && $sessions30 >= 20) {
+                    $score += 10; $signals[] = 'Conta nova (' . $accountAge . 'd) com ' . $sessions30 . ' sessões';
+                }
+
+                // 10. Madrugada
+                $nightStmt = $pdo->prepare("
+                    SELECT COUNT(*) FROM game_sessions
+                    WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                      AND HOUR(started_at) BETWEEN 2 AND 5 AND status IN ('completed', 'flagged')
+                ");
+                $nightStmt->execute([$uid]);
+                $nightSessions = (int)$nightStmt->fetchColumn();
+                $nightRatio = ($sessions30 > 0) ? ($nightSessions / $sessions30) : 0;
+                if ($nightSessions >= 10 && $nightRatio > 0.5) {
+                    $score += 10; $signals[] = round($nightRatio * 100) . '% madrugada (' . $nightSessions . ' sessões 2h-6h)';
+                }
+
+                // 11. Win streak
+                $streakStmt = $pdo->prepare("
+                    SELECT status FROM game_sessions
+                    WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                      AND status IN ('completed', 'abandoned')
+                    ORDER BY started_at DESC LIMIT 100
+                ");
+                $streakStmt->execute([$uid]);
+                $statuses = $streakStmt->fetchAll(PDO::FETCH_COLUMN);
+                $maxStreak = 0; $curStreak = 0;
+                foreach ($statuses as $st) {
+                    if ($st === 'completed') { $curStreak++; $maxStreak = max($maxStreak, $curStreak); }
+                    else { $curStreak = 0; }
+                }
+                if ($maxStreak >= 30) { $score += 25; $signals[] = $maxStreak . ' vitórias consecutivas'; }
+                elseif ($maxStreak >= 20) { $score += 15; $signals[] = $maxStreak . ' vitórias seguidas'; }
+                elseif ($maxStreak >= 12) { $score += 8; $signals[] = $maxStreak . ' vitórias seguidas'; }
+
+                // 12. Multi-conta por IP
+                $multiStmt = $pdo->prepare("
+                    SELECT COUNT(DISTINCT gs2.google_uid)
+                    FROM game_sessions gs1
+                    INNER JOIN game_sessions gs2 ON gs1.ip_address = gs2.ip_address AND gs2.google_uid != gs1.google_uid
+                    WHERE gs1.google_uid = ? AND gs1.started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                      AND gs2.started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                    LIMIT 1
+                ");
+                $multiStmt->execute([$uid]);
+                $otherAccounts = (int)$multiStmt->fetchColumn();
+                if ($otherAccounts >= 3) { $score += 15; $signals[] = $otherAccounts . ' outras contas no mesmo IP'; }
+                elseif ($otherAccounts >= 1) { $score += 5; $signals[] = $otherAccounts . ' outra(s) conta(s) no mesmo IP'; }
+                else { $positives[] = 'IP único (sem multi-conta)'; }
+
+                // 13. Horas/dia
+                $activeDays = max(1, (int)$s30['active_days']);
+                $totalPlaySec = $avgDuration * $completed30;
+                $avgHoursDay = ($totalPlaySec / 3600) / $activeDays;
+                if ($avgHoursDay >= 10) { $score += 15; $signals[] = round($avgHoursDay, 1) . 'h/dia jogando'; }
+                elseif ($avgHoursDay >= 6) { $score += 8; $signals[] = round($avgHoursDay, 1) . 'h/dia'; }
+
+                // Modos jogados
+                $modeStmt = $pdo->prepare("
+                    SELECT game_mode, COUNT(*) as cnt FROM game_sessions
+                    WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                      AND status IN ('completed', 'flagged')
+                    GROUP BY game_mode ORDER BY cnt DESC
+                ");
+                $modeStmt->execute([$uid]);
+                $modes = $modeStmt->fetchAll();
+                $accountAnalysis['modes'] = $modes;
+
+                if (count($modes) === 1 && $modes[0]['game_mode'] === 'extreme' && $sessions30 >= 10) {
+                    $score += 10; $signals[] = '100% Extreme (' . $sessions30 . ' sessões)';
+                }
+
+                // Últimas transações
+                $txStmt = $pdo->prepare("
+                    SELECT type, amount_brl, description, status, created_at
+                    FROM transactions WHERE google_uid = ?
+                    ORDER BY created_at DESC LIMIT 10
+                ");
+                $txStmt->execute([$uid]);
+                $accountAnalysis['recent_transactions'] = $txStmt->fetchAll();
+
+                // Saques
+                $wdStmt = $pdo->prepare("
+                    SELECT id, amount_brl, status, pix_key, created_at
+                    FROM withdrawals WHERE user_id = ?
+                    ORDER BY created_at DESC LIMIT 10
+                ");
+                $wdStmt->execute([(int)$acctUser['id']]);
+                $accountAnalysis['recent_withdrawals'] = $wdStmt->fetchAll();
+
+                // Padrão de saque rápido
+                $totalWithdrawn = (float)$acctUser['total_withdrawn'];
+                $totalEarned = (float)$acctUser['total_earned_brl'];
+                if ($totalEarned > 0 && $totalWithdrawn / $totalEarned > 0.9 && $totalWithdrawn > 5) {
+                    $score += 5; $signals[] = 'Saca ' . round(($totalWithdrawn / $totalEarned) * 100) . '% do ganho (R$ ' . number_format($totalWithdrawn, 2, ',', '.') . ')';
+                }
+
+            } else {
+                $positives[] = 'Poucas sessões para análise estatística (' . $sessions30 . ')';
+            }
+
+            $score = min($score, 100);
+            $accountAnalysis['risk_score'] = $score;
+            $accountAnalysis['risk_signals'] = $signals;
+            $accountAnalysis['positive_signals'] = $positives;
+            $accountAnalysis['risk_level'] = $score >= 60 ? 'alto' : ($score >= 30 ? 'medio' : 'baixo');
+        }
+    } catch (Exception $e) {
+        $accountError = "Erro na análise: " . $e->getMessage();
+    }
+}
 
 // Buscar dados da API interna
 $analysisData = null;
@@ -385,6 +670,250 @@ try {
             </form>
         </div>
     </div>
+
+    <!-- Análise Individual -->
+    <div class="panel" style="margin-bottom: 20px;">
+        <div class="panel-header">
+            <h3 class="panel-title"><i class="fas fa-user-secret"></i> Análise Individual de Conta</h3>
+        </div>
+        <div class="panel-body" style="padding: 16px 20px;">
+            <form method="GET" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                <input type="hidden" name="page" value="suspect-analysis">
+                <input type="hidden" name="days" value="<?php echo $days; ?>">
+                <input type="hidden" name="min_sessions" value="<?php echo $minSessions; ?>">
+                <input type="hidden" name="level" value="<?php echo htmlspecialchars($filterLevel); ?>">
+                <div style="flex:1;min-width:250px;">
+                    <label class="form-label" style="font-size: 0.8rem;">Email ou Google UID</label>
+                    <input type="text" name="analyze_email" class="form-control" placeholder="email@exemplo.com"
+                        value="<?php echo htmlspecialchars($analyzeEmail); ?>" style="font-size: 0.9rem;">
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-microscope"></i> Analisar Conta</button>
+                <?php if (!empty($analyzeEmail)): ?>
+                    <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=suspect-analysis&days=<?php echo $days; ?>&min_sessions=<?php echo $minSessions; ?>&level=<?php echo htmlspecialchars($filterLevel); ?>" class="btn btn-secondary btn-sm" style="text-decoration:none;">
+                        <i class="fas fa-times"></i> Limpar
+                    </a>
+                <?php endif; ?>
+            </form>
+        </div>
+    </div>
+
+    <?php if ($accountError): ?>
+        <div class="alert alert-danger" style="margin-bottom: 20px;"><i class="fas fa-exclamation-triangle"></i> <?php echo htmlspecialchars($accountError); ?></div>
+    <?php endif; ?>
+
+    <?php if ($accountAnalysis): ?>
+    <?php
+        $au = $accountAnalysis['user'];
+        $aScore = $accountAnalysis['risk_score'];
+        $aLevel = $accountAnalysis['risk_level'];
+        $aScoreColor = '#05ffa1'; $aScoreBg = 'rgba(5,255,161,0.1)'; $aLabel = 'BAIXO';
+        if ($aLevel === 'alto') { $aScoreColor = '#ff3366'; $aScoreBg = 'rgba(255,51,102,0.1)'; $aLabel = 'ALTO'; }
+        elseif ($aLevel === 'medio') { $aScoreColor = '#ffaa00'; $aScoreBg = 'rgba(255,170,0,0.1)'; $aLabel = 'MÉDIO'; }
+        $st = $accountAnalysis['stats'];
+    ?>
+    <div class="panel" style="margin-bottom: 20px; border: 1px solid <?php echo $aScoreColor; ?>30;">
+        <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <h3 class="panel-title"><i class="fas fa-microscope"></i> Resultado: <?php echo htmlspecialchars($au['email']); ?></h3>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <?php if ($au['is_banned']): ?>
+                    <span class="badge badge-danger">BANIDO</span>
+                <?php endif; ?>
+                <?php if ($au['is_premium']): ?>
+                    <span class="badge" style="background: rgba(255,215,0,0.2); color: #ffd700;">PREMIUM</span>
+                <?php endif; ?>
+            </div>
+        </div>
+        <div class="panel-body">
+            <!-- Score grande + Info -->
+            <div style="display:grid;grid-template-columns:140px 1fr;gap:20px;margin-bottom:20px;">
+                <div style="text-align:center;padding:20px;background:<?php echo $aScoreBg; ?>;border-radius:12px;">
+                    <div style="font-family:'Orbitron',monospace;font-size:2.5rem;font-weight:900;color:<?php echo $aScoreColor; ?>;"><?php echo $aScore; ?>%</div>
+                    <div style="font-size:0.85rem;font-weight:700;color:<?php echo $aScoreColor; ?>;margin-top:4px;">RISCO <?php echo $aLabel; ?></div>
+                </div>
+                <div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
+                            <div style="font-size:0.7rem;color:var(--text-dim);">Nome</div>
+                            <div style="font-weight:600;"><?php echo htmlspecialchars($au['display_name'] ?? 'N/A'); ?></div>
+                        </div>
+                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
+                            <div style="font-size:0.7rem;color:var(--text-dim);">Conta criada</div>
+                            <div style="font-weight:600;"><?php echo date('d/m/Y', strtotime($au['created_at'])); ?> (<?php echo (int)$au['account_age_days']; ?> dias)</div>
+                        </div>
+                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
+                            <div style="font-size:0.7rem;color:var(--text-dim);">Saldo</div>
+                            <div style="font-weight:600;color:var(--success);">R$ <?php echo number_format((float)$au['balance_brl'], 2, ',', '.'); ?></div>
+                        </div>
+                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
+                            <div style="font-size:0.7rem;color:var(--text-dim);">Total Ganho</div>
+                            <div style="font-weight:600;">R$ <?php echo number_format((float)$au['total_earned_brl'], 2, ',', '.'); ?></div>
+                        </div>
+                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
+                            <div style="font-size:0.7rem;color:var(--text-dim);">Total Sacado</div>
+                            <div style="font-weight:600;">R$ <?php echo number_format((float)$au['total_withdrawn'], 2, ',', '.'); ?></div>
+                        </div>
+                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
+                            <div style="font-size:0.7rem;color:var(--text-dim);">Créditos</div>
+                            <div style="font-weight:600;"><?php echo (int)$au['credits']; ?></div>
+                        </div>
+                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
+                            <div style="font-size:0.7rem;color:var(--text-dim);">Sessões (total)</div>
+                            <div style="font-weight:600;"><?php echo (int)$au['total_sessions']; ?> (<?php echo (int)$au['completed_sessions']; ?>W / <?php echo (int)$au['abandoned_sessions']; ?>L / <?php echo (int)$au['flagged_sessions']; ?>F)</div>
+                        </div>
+                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
+                            <div style="font-size:0.7rem;color:var(--text-dim);">IPs distintos</div>
+                            <div style="font-weight:600;"><?php echo (int)$au['distinct_ips']; ?></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sinais de risco + positivos -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+                <div>
+                    <h4 style="font-size:0.9rem;margin:0 0 10px;color:<?php echo $aScoreColor; ?>;"><i class="fas fa-exclamation-triangle"></i> Sinais de Risco (<?php echo count($accountAnalysis['risk_signals']); ?>)</h4>
+                    <?php if (empty($accountAnalysis['risk_signals'])): ?>
+                        <div style="padding:12px;background:rgba(5,255,161,0.05);border-radius:8px;font-size:0.85rem;color:var(--success);">
+                            <i class="fas fa-check-circle"></i> Nenhum sinal de risco detectado
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($accountAnalysis['risk_signals'] as $sig): ?>
+                            <div style="padding:6px 10px;margin-bottom:4px;background:rgba(255,51,102,0.06);border-radius:6px;font-size:0.8rem;border-left:3px solid <?php echo $aScoreColor; ?>;">
+                                <i class="fas fa-exclamation-circle" style="color:<?php echo $aScoreColor; ?>;margin-right:4px;"></i>
+                                <?php echo htmlspecialchars($sig); ?>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+                <div>
+                    <h4 style="font-size:0.9rem;margin:0 0 10px;color:#05ffa1;"><i class="fas fa-check-circle"></i> Sinais Positivos (<?php echo count($accountAnalysis['positive_signals']); ?>)</h4>
+                    <?php if (empty($accountAnalysis['positive_signals'])): ?>
+                        <div style="padding:12px;background:rgba(255,170,0,0.05);border-radius:8px;font-size:0.85rem;color:var(--text-dim);">
+                            Sem sinais positivos suficientes
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($accountAnalysis['positive_signals'] as $sig): ?>
+                            <div style="padding:6px 10px;margin-bottom:4px;background:rgba(5,255,161,0.06);border-radius:6px;font-size:0.8rem;border-left:3px solid #05ffa1;">
+                                <i class="fas fa-check" style="color:#05ffa1;margin-right:4px;"></i>
+                                <?php echo htmlspecialchars($sig); ?>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Estatísticas 30 dias -->
+            <?php if ((int)($st['sessions_30d'] ?? 0) >= 5): ?>
+            <div style="margin-bottom:16px;">
+                <h4 style="font-size:0.9rem;margin:0 0 10px;"><i class="fas fa-chart-bar"></i> Estatísticas (30 dias)</h4>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;">
+                    <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;">
+                        <div style="font-size:0.65rem;color:var(--text-dim);">Sessões 30d</div>
+                        <div style="font-weight:700;"><?php echo (int)$st['sessions_30d']; ?></div>
+                    </div>
+                    <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;">
+                        <div style="font-size:0.65rem;color:var(--text-dim);">R$ Médio</div>
+                        <div style="font-weight:700;color:var(--success);">R$ <?php echo number_format((float)$st['avg_earnings'], 4, ',', '.'); ?></div>
+                    </div>
+                    <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;">
+                        <div style="font-size:0.65rem;color:var(--text-dim);">R$ Total 30d</div>
+                        <div style="font-weight:700;">R$ <?php echo number_format((float)$st['total_earnings_30d'], 2, ',', '.'); ?></div>
+                    </div>
+                    <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;">
+                        <div style="font-size:0.65rem;color:var(--text-dim);">Asteroides/partida</div>
+                        <div style="font-weight:700;"><?php echo round((float)$st['avg_asteroids'], 1); ?></div>
+                    </div>
+                    <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;">
+                        <div style="font-size:0.65rem;color:var(--text-dim);">Duração média</div>
+                        <div style="font-weight:700;"><?php echo round((float)$st['avg_duration'], 1); ?>s</div>
+                    </div>
+                    <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;">
+                        <div style="font-size:0.65rem;color:var(--text-dim);">Dias ativos</div>
+                        <div style="font-weight:700;"><?php echo (int)$st['active_days']; ?></div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Modos jogados -->
+            <?php if (!empty($accountAnalysis['modes'])): ?>
+            <div style="margin-bottom:16px;">
+                <h4 style="font-size:0.9rem;margin:0 0 10px;"><i class="fas fa-gamepad"></i> Modos Jogados (30 dias)</h4>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <?php foreach ($accountAnalysis['modes'] as $m): ?>
+                        <span style="padding:6px 12px;background:rgba(0,200,255,0.1);border:1px solid rgba(0,200,255,0.2);border-radius:8px;font-size:0.8rem;">
+                            <?php echo htmlspecialchars(ucfirst($m['game_mode'] ?? 'N/A')); ?>: <strong><?php echo (int)$m['cnt']; ?></strong>
+                        </span>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Últimos saques -->
+            <?php if (!empty($accountAnalysis['recent_withdrawals'])): ?>
+            <div style="margin-bottom:16px;">
+                <h4 style="font-size:0.9rem;margin:0 0 10px;"><i class="fas fa-money-bill-wave"></i> Últimos Saques</h4>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>#</th><th>Valor</th><th>PIX</th><th>Status</th><th>Data</th></tr></thead>
+                        <tbody>
+                            <?php foreach ($accountAnalysis['recent_withdrawals'] as $w): ?>
+                            <tr>
+                                <td>#<?php echo $w['id']; ?></td>
+                                <td style="font-weight:600;">R$ <?php echo number_format((float)$w['amount_brl'], 2, ',', '.'); ?></td>
+                                <td style="font-size:0.8rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;"><?php echo htmlspecialchars($w['pix_key'] ?? ''); ?></td>
+                                <td>
+                                    <?php
+                                    $wColors = ['pending' => 'warning', 'approved' => 'success', 'rejected' => 'danger', 'processing' => 'info'];
+                                    $wLabels = ['pending' => 'Pendente', 'approved' => 'Aprovado', 'rejected' => 'Rejeitado', 'processing' => 'Processando'];
+                                    ?>
+                                    <span class="badge badge-<?php echo $wColors[$w['status']] ?? 'secondary'; ?>">
+                                        <?php echo $wLabels[$w['status']] ?? $w['status']; ?>
+                                    </span>
+                                </td>
+                                <td style="font-size:0.8rem;"><?php echo date('d/m/y H:i', strtotime($w['created_at'])); ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Últimas transações -->
+            <?php if (!empty($accountAnalysis['recent_transactions'])): ?>
+            <div>
+                <h4 style="font-size:0.9rem;margin:0 0 10px;"><i class="fas fa-exchange-alt"></i> Últimas Transações</h4>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Tipo</th><th>Valor</th><th>Descrição</th><th>Status</th><th>Data</th></tr></thead>
+                        <tbody>
+                            <?php foreach ($accountAnalysis['recent_transactions'] as $tx): ?>
+                            <tr>
+                                <td style="font-size:0.8rem;"><?php echo htmlspecialchars($tx['type']); ?></td>
+                                <td style="font-weight:600;color:<?php echo (float)$tx['amount_brl'] >= 0 ? 'var(--success)' : 'var(--danger)'; ?>;">
+                                    R$ <?php echo number_format((float)$tx['amount_brl'], 2, ',', '.'); ?>
+                                </td>
+                                <td style="font-size:0.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;"><?php echo htmlspecialchars($tx['description'] ?? ''); ?></td>
+                                <td><span class="badge badge-<?php echo $tx['status'] === 'completed' ? 'success' : 'warning'; ?>"><?php echo $tx['status']; ?></span></td>
+                                <td style="font-size:0.8rem;"><?php echo date('d/m/y H:i', strtotime($tx['created_at'])); ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Link para perfil -->
+            <div style="margin-top:15px;padding-top:15px;border-top:1px solid var(--border-color, rgba(255,255,255,0.1));">
+                <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=players&search=<?php echo urlencode($au['email'] ?? ''); ?>" class="btn btn-secondary btn-sm" style="text-decoration:none;">
+                    <i class="fas fa-user"></i> Ver Perfil Completo
+                </a>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Stats Cards -->
     <div class="stats-grid">
