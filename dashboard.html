@@ -55,6 +55,9 @@
         <p class="page-subtitle">Acompanhe suas missões e gerencie seus ganhos.</p>
     </section>
     
+    <!-- Notificações Globais -->
+    <div id="notificationsArea" style="display:none;"></div>
+
     <!-- Cards de Estatísticas -->
     <section class="stats-grid">
         <div class="stat-card">
@@ -194,6 +197,73 @@
     border-top: 1px solid var(--border-color);
 }
 .tx-page-info { font-size: 0.8rem; color: var(--text-dim); }
+
+/* Notificações Globais */
+.notif-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    border: 1px solid;
+    animation: notifSlideIn 0.4s ease-out;
+}
+@keyframes notifSlideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.notif-banner .notif-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+.notif-banner .notif-content { flex: 1; min-width: 0; }
+.notif-banner .notif-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 3px;
+}
+.notif-banner .notif-msg {
+    font-size: 0.82rem;
+    opacity: 0.9;
+    line-height: 1.4;
+}
+.notif-banner .notif-close {
+    background: none;
+    border: none;
+    color: inherit;
+    opacity: 0.5;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0 4px;
+    flex-shrink: 0;
+}
+.notif-banner .notif-close:hover { opacity: 1; }
+.notif-banner.notif-info {
+    background: rgba(0, 200, 255, 0.08);
+    border-color: rgba(0, 200, 255, 0.25);
+    color: #b0e8ff;
+}
+.notif-banner.notif-info .notif-icon { color: #00c8ff; }
+.notif-banner.notif-warning {
+    background: rgba(255, 170, 0, 0.08);
+    border-color: rgba(255, 170, 0, 0.25);
+    color: #ffe0a0;
+}
+.notif-banner.notif-warning .notif-icon { color: #ffaa00; }
+.notif-banner.notif-success {
+    background: rgba(0, 255, 136, 0.08);
+    border-color: rgba(0, 255, 136, 0.25);
+    color: #a0ffd0;
+}
+.notif-banner.notif-success .notif-icon { color: #00ff88; }
+.notif-banner.notif-promo {
+    background: rgba(204, 68, 255, 0.08);
+    border-color: rgba(204, 68, 255, 0.25);
+    color: #e8b0ff;
+}
+.notif-banner.notif-promo .notif-icon { color: #cc44ff; }
 
 /* Estilo para o card de Afiliados */
 .action-card.affiliate {
@@ -465,12 +535,59 @@ function skipWhatsapp() {
     document.getElementById('whatsappModal').classList.remove('active');
 }
 
+// Notificações globais
+async function loadNotifications() {
+    try {
+        const resp = await fetch('/api/notifications.php');
+        const data = await resp.json();
+        if (!data.success || !data.notifications?.length) return;
+
+        const dismissed = JSON.parse(localStorage.getItem('dismissed_notifs') || '[]');
+        const active = data.notifications.filter(n => !dismissed.includes(n.id));
+        if (!active.length) return;
+
+        const icons = { info: 'fa-info-circle', warning: 'fa-exclamation-triangle', success: 'fa-check-circle', promo: 'fa-gift' };
+        const area = document.getElementById('notificationsArea');
+        area.style.display = 'block';
+        area.innerHTML = active.map(n => `
+            <div class="notif-banner notif-${escHtml(n.type)}" data-notif-id="${n.id}">
+                <div class="notif-icon"><i class="fas ${icons[n.type] || 'fa-info-circle'}"></i></div>
+                <div class="notif-content">
+                    <div class="notif-title">${escHtml(n.title)}</div>
+                    <div class="notif-msg">${escHtml(n.message)}</div>
+                </div>
+                <button class="notif-close" onclick="dismissNotif(${n.id})" title="Fechar">&times;</button>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Erro ao carregar notificações:', e);
+    }
+}
+
+function dismissNotif(id) {
+    const dismissed = JSON.parse(localStorage.getItem('dismissed_notifs') || '[]');
+    dismissed.push(id);
+    localStorage.setItem('dismissed_notifs', JSON.stringify(dismissed));
+    const el = document.querySelector(`[data-notif-id="${id}"]`);
+    if (el) {
+        el.style.transition = 'opacity 0.3s, transform 0.3s';
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-10px)';
+        setTimeout(() => {
+            el.remove();
+            const area = document.getElementById('notificationsArea');
+            if (!area.children.length) area.style.display = 'none';
+        }, 300);
+    }
+}
+
 // Inicializar quando autenticado
 document.addEventListener('authStateChanged', (e) => {
     if (e.detail.user) {
         document.getElementById('connectOverlay').classList.remove('active');
         loadDashboardData();
         loadTransactionHistory(0);
+        loadNotifications();
     } else {
         document.getElementById('connectOverlay').classList.add('active');
     }

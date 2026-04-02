@@ -484,6 +484,29 @@ try {
     } catch (Exception $e) {}
 
     // ============================================
+    // TABELA: notifications (avisos globais do admin)
+    // ============================================
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS notifications (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                message TEXT NOT NULL,
+                type ENUM('info','warning','success','promo') DEFAULT 'info',
+                is_active TINYINT(1) DEFAULT 1,
+                starts_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                expires_at DATETIME NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_active (is_active),
+                INDEX idx_dates (starts_at, expires_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $results['migrations'][] = 'notifications:create';
+        output("  [OK] Tabela notifications");
+    } catch (Exception $e) {}
+
+    // ============================================
     // LIMPEZA: Remover flag files antigos
     // ============================================
     $flagFiles = glob(sys_get_temp_dir() . '/unobix_*.flag');
