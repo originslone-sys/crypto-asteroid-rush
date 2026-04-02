@@ -171,6 +171,20 @@ try {
 
     $pdo->commit();
 
+    // Auto-registrar CPF em saved_pix_keys (garante checagem de duplicidade cross-account futura)
+    try {
+        $existsKey = $pdo->prepare("SELECT id FROM saved_pix_keys WHERE user_id = ? AND pix_key_type = 'cpf' LIMIT 1");
+        $existsKey->execute([(int)$player['id']]);
+        if (!$existsKey->fetch()) {
+            $pdo->prepare("
+                INSERT IGNORE INTO saved_pix_keys (user_id, pix_key, pix_key_type, created_at)
+                VALUES (?, ?, 'cpf', NOW())
+            ")->execute([(int)$player['id'], $paymentDetails]);
+        }
+    } catch (Throwable $e) {
+        // não bloquear o saque por falha no auto-save
+    }
+
     secureLog("WITHDRAW_REQUEST | UID: $googleUid | Amount: R$$amount | ID: $withdrawalId");
 
     echo json_encode([
