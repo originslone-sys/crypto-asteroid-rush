@@ -106,6 +106,11 @@ try {
                 <i class="fas fa-compass"></i>
                 <span>Exploração</span>
             </a>
+
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=notifications" class="nav-item <?php echo $currentPage === 'notifications' ? 'active' : ''; ?>">
+                <i class="fas fa-bell"></i>
+                <span>Notificações</span>
+            </a>
         </div>
 
         <div class="nav-section">
