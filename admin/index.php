@@ -187,6 +187,7 @@ $allowedPages = [
     'metrics',
     'suspect-analysis',
     'account-analysis',
+    'revenue',
     'exploration',
     'notifications'
 ];
