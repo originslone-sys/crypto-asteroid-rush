@@ -34,25 +34,33 @@ if (!empty($searchEmail)) {
         } else {
             $uid = $acctUser['google_uid'];
 
-            // Sessões dos últimos 30 dias
+            // ── Agregados dos últimos 30 dias ─────────────────────────────────
             $s30Stmt = $pdo->prepare("
                 SELECT
                     COUNT(*) as sessions_30d,
                     SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed_30d,
                     SUM(CASE WHEN status='abandoned' THEN 1 ELSE 0 END) as abandoned_30d,
-                    SUM(CASE WHEN status='flagged' THEN 1 ELSE 0 END) as flagged_30d,
-                    AVG(earnings_brl) as avg_earnings,
-                    MAX(earnings_brl) as max_earnings,
-                    STDDEV(earnings_brl) as stddev_earnings,
-                    SUM(earnings_brl) as total_earnings_30d,
-                    AVG(asteroids_destroyed) as avg_asteroids,
+                    SUM(CASE WHEN status='flagged'   THEN 1 ELSE 0 END) as flagged_30d,
+                    AVG(earnings_brl)           as avg_earnings,
+                    MAX(earnings_brl)           as max_earnings,
+                    STDDEV(earnings_brl)        as stddev_earnings,
+                    SUM(earnings_brl)           as total_earnings_30d,
+                    AVG(asteroids_destroyed)    as avg_asteroids,
                     STDDEV(asteroids_destroyed) as stddev_asteroids,
-                    AVG(legendary_asteroids) as avg_legendary,
-                    AVG(epic_asteroids) as avg_epic,
-                    AVG(game_duration) as avg_duration,
-                    STDDEV(game_duration) as stddev_duration,
-                    COUNT(DISTINCT DATE(started_at)) as active_days,
-                    COUNT(DISTINCT ip_address) as ips_30d
+                    AVG(legendary_asteroids)    as avg_legendary,
+                    STDDEV(legendary_asteroids) as stddev_legendary,
+                    AVG(epic_asteroids)         as avg_epic,
+                    STDDEV(epic_asteroids)      as stddev_epic,
+                    AVG(rare_asteroids)         as avg_rare,
+                    STDDEV(rare_asteroids)      as stddev_rare,
+                    AVG(common_asteroids)       as avg_common,
+                    AVG(total_spawned)          as avg_spawned,
+                    STDDEV(total_spawned)       as stddev_spawned,
+                    AVG(game_duration)          as avg_duration,
+                    STDDEV(game_duration)       as stddev_duration,
+                    COUNT(DISTINCT DATE(started_at))  as active_days,
+                    COUNT(DISTINCT ip_address)        as ips_30d,
+                    COUNT(DISTINCT user_agent)        as distinct_uas
                 FROM game_sessions
                 WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
                   AND status IN ('completed','flagged','abandoned')
@@ -61,63 +69,214 @@ if (!empty($searchEmail)) {
             $s30 = $s30Stmt->fetch();
 
             $sessions30 = (int)$s30['sessions_30d'];
-            $score = 0;
-            $signals = [];
+            $score    = 0;
+            $signals  = [];
             $positives = [];
 
             if ($sessions30 >= 5) {
-                $avgE  = (float)$s30['avg_earnings'];
-                $stdE  = (float)$s30['stddev_earnings'];
-                $avgD  = (float)$s30['avg_duration'];
-                $stdD  = (float)$s30['stddev_duration'];
-                $avgA  = (float)$s30['avg_asteroids'];
-                $stdA  = (float)$s30['stddev_asteroids'];
-                $comp  = (int)$s30['completed_30d'];
-                $aband = (int)$s30['abandoned_30d'];
-                $flagd = (int)$s30['flagged_30d'];
+                $avgE    = (float)$s30['avg_earnings'];
+                $stdE    = (float)$s30['stddev_earnings'];
+                $avgD    = (float)$s30['avg_duration'];
+                $stdD    = (float)$s30['stddev_duration'];
+                $avgA    = (float)$s30['avg_asteroids'];
+                $stdA    = (float)$s30['stddev_asteroids'];
+                $avgLeg  = (float)$s30['avg_legendary'];
+                $stdLeg  = (float)$s30['stddev_legendary'];
+                $avgEpic = (float)$s30['avg_epic'];
+                $stdEpic = (float)$s30['stddev_epic'];
+                $avgRare = (float)$s30['avg_rare'];
+                $stdRare = (float)$s30['stddev_rare'];
+                $avgSpwn = (float)$s30['avg_spawned'];
+                $stdSpwn = (float)$s30['stddev_spawned'];
+                $comp    = (int)$s30['completed_30d'];
+                $aband   = (int)$s30['abandoned_30d'];
+                $flagd   = (int)$s30['flagged_30d'];
+                $distUAs = (int)$s30['distinct_uas'];
 
-                // 1. Consistência de ganhos
+                // ── 1. Consistência de ganhos ──────────────────────────────────
                 if ($sessions30 >= 10 && $avgE > 0.05) {
                     $cv = ($stdE > 0) ? ($stdE / $avgE) : 0;
-                    if ($cv < 0.10)      { $score += 20; $signals[]   = 'Ganhos extremamente consistentes (CV=' . round($cv*100,1) . '%)'; }
-                    elseif ($cv < 0.20)  { $score += 10; $signals[]   = 'Ganhos pouco variáveis (CV=' . round($cv*100,1) . '%)'; }
-                    else                 { $positives[] = 'Variação natural de ganhos (CV=' . round($cv*100,1) . '%)'; }
+                    if ($cv < 0.10)     { $score += 20; $signals[]   = 'Ganhos extremamente consistentes (CV=' . round($cv*100,1) . '%)'; }
+                    elseif ($cv < 0.20) { $score += 10; $signals[]   = 'Ganhos pouco variáveis (CV=' . round($cv*100,1) . '%)'; }
+                    else                { $positives[] = 'Variação natural de ganhos (CV=' . round($cv*100,1) . '%)'; }
                 }
 
-                // 2. Duração consistente
+                // ── 2. Eficiência (ganho/asteroide) consistente ────────────────
+                // Mais preciso que ganho bruto: normaliza pela quantidade de asteroides
+                $effStmt = $pdo->prepare("
+                    SELECT earnings_brl / NULLIF(asteroids_destroyed,0) as eff
+                    FROM game_sessions
+                    WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                      AND status = 'completed' AND asteroids_destroyed > 10
+                    LIMIT 100
+                ");
+                $effStmt->execute([$uid]);
+                $effVals = array_filter(array_column($effStmt->fetchAll(), 'eff'), fn($v) => $v !== null && $v > 0);
+                if (count($effVals) >= 10) {
+                    $avgEff = array_sum($effVals) / count($effVals);
+                    $stdEff = sqrt(array_sum(array_map(fn($v) => pow($v - $avgEff, 2), $effVals)) / count($effVals));
+                    $cvEff  = ($stdEff > 0 && $avgEff > 0) ? ($stdEff / $avgEff) : 0;
+                    if ($cvEff < 0.05)     { $score += 25; $signals[]   = 'Eficiência R$/asteroide robótica (CV=' . round($cvEff*100,1) . '%)'; }
+                    elseif ($cvEff < 0.12) { $score += 12; $signals[]   = 'Eficiência R$/asteroide muito uniforme (CV=' . round($cvEff*100,1) . '%)'; }
+                    else                   { $positives[] = 'Eficiência R$/asteroide variável (CV=' . round($cvEff*100,1) . '%)'; }
+                }
+
+                // ── 3. Duração consistente ─────────────────────────────────────
                 if ($sessions30 >= 10 && $avgD > 0) {
                     $cvD = ($stdD > 0) ? ($stdD / $avgD) : 0;
-                    if ($cvD < 0.03)     { $score += 15; $signals[]   = 'Duração quase idêntica entre sessões'; }
-                    elseif ($cvD < 0.08) { $score += 7;  $signals[]   = 'Duração muito similar entre sessões'; }
-                    else                 { $positives[] = 'Duração varia naturalmente'; }
+                    if ($cvD < 0.03)     { $score += 15; $signals[]   = 'Duração quase idêntica entre sessões (CV=' . round($cvD*100,1) . '%)'; }
+                    elseif ($cvD < 0.08) { $score += 7;  $signals[]   = 'Duração muito similar (CV=' . round($cvD*100,1) . '%)'; }
+                    else                 { $positives[] = 'Duração varia naturalmente (CV=' . round($cvD*100,1) . '%)'; }
                 }
 
-                // 3. Win rate
+                // ── 4. Win rate ────────────────────────────────────────────────
                 $winRate = ($sessions30 > 0) ? ($comp / $sessions30) : 0;
-                if ($sessions30 >= 10 && $winRate >= 0.95)      { $score += 25; $signals[]   = 'Taxa de vitória ' . round($winRate*100,1) . '%'; }
-                elseif ($sessions30 >= 10 && $winRate >= 0.85)  { $score += 15; $signals[]   = 'Vitória alta: ' . round($winRate*100,1) . '%'; }
-                elseif ($sessions30 >= 10)                       { $positives[] = 'Win rate normal: ' . round($winRate*100,1) . '%'; }
+                if ($sessions30 >= 10 && $winRate >= 0.95)     { $score += 25; $signals[]   = 'Taxa de vitória ' . round($winRate*100,1) . '%'; }
+                elseif ($sessions30 >= 10 && $winRate >= 0.85) { $score += 15; $signals[]   = 'Vitória alta: ' . round($winRate*100,1) . '%'; }
+                elseif ($sessions30 >= 10)                      { $positives[] = 'Win rate normal: ' . round($winRate*100,1) . '%'; }
 
-                // 4. Zero abandonos
-                if ($sessions30 >= 15 && $aband === 0)      { $score += 20; $signals[] = 'Zero game over em ' . $sessions30 . ' sessões'; }
-                elseif ($sessions30 >= 15 && $aband <= 1)   { $score += 10; $signals[] = 'Apenas ' . $aband . ' game over em ' . $sessions30 . ' sessões'; }
+                // ── 5. Zero abandonos ──────────────────────────────────────────
+                if ($sessions30 >= 15 && $aband === 0)    { $score += 20; $signals[] = 'Zero game over em ' . $sessions30 . ' sessões'; }
+                elseif ($sessions30 >= 15 && $aband <= 1) { $score += 10; $signals[] = 'Apenas ' . $aband . ' game over em ' . $sessions30 . ' sessões'; }
 
-                // 5. Flagged
+                // ── 6. Sessões flagged ─────────────────────────────────────────
                 if ($flagd > 0) {
                     $fr = $flagd / $sessions30;
-                    if ($fr > 0.3)      { $score += 15; $signals[] = round($fr*100) . '% flagged (' . $flagd . ')'; }
-                    elseif ($fr > 0.1)  { $score += 8;  $signals[] = $flagd . ' sessões flagged'; }
+                    if ($fr > 0.3)     { $score += 15; $signals[] = round($fr*100) . '% flagged (' . $flagd . ')'; }
+                    elseif ($fr > 0.1) { $score += 8;  $signals[] = $flagd . ' sessões flagged'; }
                 } else { $positives[] = 'Nenhuma sessão flagged'; }
 
-                // 6. Asteroides consistentes
-                if ($sessions30 >= 10 && $avgA > 50) {
+                // ── 7. Asteroides totais consistentes ─────────────────────────
+                if ($sessions30 >= 10 && $avgA > 20) {
                     $cvA = ($stdA > 0) ? ($stdA / $avgA) : 0;
-                    if ($cvA < 0.05)     { $score += 20; $signals[]   = 'Asteroides quase idênticos (CV=' . round($cvA*100,1) . '%)'; }
-                    elseif ($cvA < 0.10) { $score += 10; $signals[]   = 'Asteroides muito consistentes'; }
+                    if ($cvA < 0.05)     { $score += 20; $signals[]   = 'Asteroides destruídos quase idênticos (CV=' . round($cvA*100,1) . '%)'; }
+                    elseif ($cvA < 0.10) { $score += 10; $signals[]   = 'Asteroides destruídos muito consistentes'; }
                     else                 { $positives[] = 'Variação natural de asteroides'; }
                 }
 
-                // 7. Intervalos entre sessões
+                // ── 8. Proporção de lendários consistente (RNG deveria variar) ─
+                // Ex: bot sempre destrói exatamente 3% de lendários — impossível humanamente
+                if ($sessions30 >= 10 && $avgLeg > 0 && $avgA > 0) {
+                    $legRatioStmt = $pdo->prepare("
+                        SELECT legendary_asteroids / NULLIF(asteroids_destroyed,0) as ratio
+                        FROM game_sessions
+                        WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                          AND status = 'completed' AND asteroids_destroyed > 10
+                        LIMIT 100
+                    ");
+                    $legRatioStmt->execute([$uid]);
+                    $legRatios = array_filter(array_column($legRatioStmt->fetchAll(), 'ratio'), fn($v) => $v !== null);
+                    if (count($legRatios) >= 10) {
+                        $avgLR = array_sum($legRatios) / count($legRatios);
+                        $stdLR = sqrt(array_sum(array_map(fn($v) => pow($v - $avgLR, 2), $legRatios)) / count($legRatios));
+                        $cvLR  = ($stdLR > 0 && $avgLR > 0) ? ($stdLR / $avgLR) : 0;
+                        if ($cvLR < 0.10)     { $score += 20; $signals[]   = 'Proporção de lendários robótica — RNG suspeitamente uniforme (CV=' . round($cvLR*100,1) . '%)'; }
+                        elseif ($cvLR < 0.20) { $score += 8;  $signals[]   = 'Proporção de lendários pouco variável (CV=' . round($cvLR*100,1) . '%)'; }
+                        else                  { $positives[] = 'Proporção de lendários com variação normal (RNG natural)'; }
+                    }
+                }
+
+                // ── 9. User-Agent: diversidade e headless ─────────────────────
+                $uaStmt = $pdo->prepare("
+                    SELECT user_agent, COUNT(*) as cnt
+                    FROM game_sessions
+                    WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                    GROUP BY user_agent ORDER BY cnt DESC LIMIT 10
+                ");
+                $uaStmt->execute([$uid]);
+                $uaRows = $uaStmt->fetchAll();
+                $headlessPatterns = ['HeadlessChrome','PhantomJS','Selenium','puppeteer','playwright','WebDriver','Googlebot','bot/'];
+                $headlessFound = [];
+                foreach ($uaRows as $ua) {
+                    foreach ($headlessPatterns as $pat) {
+                        if (stripos($ua['user_agent'], $pat) !== false) { $headlessFound[] = $pat; break; }
+                    }
+                }
+                if (!empty($headlessFound)) {
+                    $score += 40; $signals[] = 'User-Agent headless/bot detectado: ' . implode(', ', array_unique($headlessFound));
+                } elseif ($distUAs === 1 && $sessions30 >= 20) {
+                    $score += 15; $signals[] = 'Apenas 1 User-Agent em ' . $sessions30 . ' sessões (sem troca de dispositivo)';
+                } elseif ($distUAs <= 2 && $sessions30 >= 30) {
+                    $score += 7;  $signals[] = $distUAs . ' User-Agents em ' . $sessions30 . ' sessões';
+                } elseif ($distUAs >= 3) {
+                    $positives[] = $distUAs . ' User-Agents distintos (múltiplos dispositivos)';
+                }
+
+                // ── 10. Tempo de restart (ended_at → started_at) ──────────────
+                // Bots reiniciam em <5s; humanos levam >15s normalmente
+                $restartStmt = $pdo->prepare("
+                    SELECT TIMESTAMPDIFF(SECOND, gs1.ended_at, gs2.started_at) as gap
+                    FROM game_sessions gs1
+                    JOIN game_sessions gs2
+                      ON gs2.google_uid = gs1.google_uid
+                     AND gs2.started_at > gs1.ended_at
+                     AND gs2.started_at < DATE_ADD(gs1.ended_at, INTERVAL 120 SECOND)
+                    WHERE gs1.google_uid = ?
+                      AND gs1.ended_at IS NOT NULL
+                      AND gs1.started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                      AND gs1.status IN ('completed','flagged')
+                    ORDER BY gs1.started_at ASC LIMIT 60
+                ");
+                $restartStmt->execute([$uid]);
+                $restartGaps = array_filter(array_column($restartStmt->fetchAll(), 'gap'), fn($v) => $v >= 0);
+                if (count($restartGaps) >= 5) {
+                    $avgRG  = array_sum($restartGaps) / count($restartGaps);
+                    $stdRG  = sqrt(array_sum(array_map(fn($v) => pow($v - $avgRG, 2), $restartGaps)) / count($restartGaps));
+                    $under5 = count(array_filter($restartGaps, fn($v) => $v <= 5));
+                    $ratio5 = $under5 / count($restartGaps);
+                    if ($ratio5 >= 0.8)       { $score += 25; $signals[]   = round($ratio5*100) . '% dos restarts em ≤5s (média ' . round($avgRG,1) . 's) — automação evidente'; }
+                    elseif ($ratio5 >= 0.5)   { $score += 12; $signals[]   = round($ratio5*100) . '% dos restarts em ≤5s (média ' . round($avgRG,1) . 's)'; }
+                    elseif ($avgRG > 20)       { $positives[] = 'Tempo de restart natural (média ' . round($avgRG,1) . 's)'; }
+                }
+
+                // ── 11. Entropia de horários (sempre mesma hora = bot agendado) ─
+                $hourStmt = $pdo->prepare("
+                    SELECT HOUR(started_at) as hr, COUNT(*) as cnt
+                    FROM game_sessions
+                    WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                      AND status IN ('completed','flagged')
+                    GROUP BY hr
+                ");
+                $hourStmt->execute([$uid]);
+                $hourDist = $hourStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+                $totalHourSess = array_sum($hourDist);
+                if ($totalHourSess >= 20) {
+                    $entropy = 0;
+                    foreach ($hourDist as $cnt) {
+                        $p = $cnt / $totalHourSess;
+                        $entropy -= $p * log($p, 2);
+                    }
+                    $maxEntropy = log(min(count($hourDist), 24), 2);
+                    $relEntropy = ($maxEntropy > 0) ? ($entropy / $maxEntropy) : 1;
+                    if ($relEntropy < 0.35)       { $score += 20; $signals[]   = 'Horário extremamente concentrado — padrão de agendamento (entropia=' . round($relEntropy*100) . '%)'; }
+                    elseif ($relEntropy < 0.55)   { $score += 10; $signals[]   = 'Horário pouco variado — possível agendamento (entropia=' . round($relEntropy*100) . '%)'; }
+                    else                           { $positives[] = 'Distribuição de horários variada (entropia=' . round($relEntropy*100) . '%)'; }
+                }
+
+                // ── 12. Sequência de mission_number (sem gaps = bot) ──────────
+                $missionStmt = $pdo->prepare("
+                    SELECT mission_number FROM game_sessions
+                    WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                      AND status IN ('completed','flagged','abandoned')
+                    ORDER BY started_at ASC LIMIT 100
+                ");
+                $missionStmt->execute([$uid]);
+                $missions = array_column($missionStmt->fetchAll(), 'mission_number');
+                if (count($missions) >= 10) {
+                    $gaps_m = [];
+                    for ($i = 1; $i < count($missions); $i++) {
+                        $g = (int)$missions[$i] - (int)$missions[$i-1];
+                        if ($g > 0) $gaps_m[] = $g;
+                    }
+                    if (!empty($gaps_m)) {
+                        $always1 = count(array_filter($gaps_m, fn($g) => $g === 1)) / count($gaps_m);
+                        if ($always1 >= 0.98 && count($missions) >= 20) { $score += 15; $signals[]   = 'Mission number sempre +1, sem nenhum gap (' . count($missions) . ' sessões) — sequência robótica'; }
+                        elseif ($always1 >= 0.9)                          { $score += 7;  $signals[]   = round($always1*100) . '% das sessões com incremento exato +1'; }
+                        else                                               { $positives[] = 'Mission numbers com variação natural (resets/gaps presentes)'; }
+                    }
+                }
+
+                // ── 13. Intervalos entre sessões (started_at) ─────────────────
                 $gapStmt = $pdo->prepare("
                     SELECT started_at FROM game_sessions
                     WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
@@ -135,12 +294,12 @@ if (!empty($searchEmail)) {
                     $avgG = array_sum($gaps) / count($gaps);
                     $stdG = sqrt(array_sum(array_map(fn($g) => pow($g - $avgG, 2), $gaps)) / count($gaps));
                     $cvG  = ($stdG > 0 && $avgG > 0) ? ($stdG / $avgG) : 0;
-                    if ($cvG < 0.08 && $avgG < 300)     { $score += 20; $signals[]   = 'Intervalo mecânico (' . round($avgG) . 's ±' . round($stdG) . 's)'; }
-                    elseif ($cvG < 0.15 && $avgG < 300) { $score += 10; $signals[]   = 'Intervalo regular (' . round($avgG) . 's)'; }
-                    else                                  { $positives[] = 'Intervalos naturais entre sessões'; }
+                    if ($cvG < 0.08 && $avgG < 300)     { $score += 20; $signals[]   = 'Intervalo mecânico entre sessões (' . round($avgG) . 's ±' . round($stdG) . 's)'; }
+                    elseif ($cvG < 0.15 && $avgG < 300) { $score += 10; $signals[]   = 'Intervalo regular entre sessões (' . round($avgG) . 's)'; }
+                    else                                  { $positives[] = 'Intervalos entre sessões naturais'; }
                 }
 
-                // 8. Pico por hora
+                // ── 14. Pico por hora ─────────────────────────────────────────
                 $hrStmt = $pdo->prepare("
                     SELECT COUNT(*) as cnt FROM game_sessions
                     WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
@@ -150,14 +309,14 @@ if (!empty($searchEmail)) {
                 ");
                 $hrStmt->execute([$uid]);
                 $maxPerHour = (int)($hrStmt->fetchColumn() ?: 0);
-                if ($maxPerHour >= 12)     { $score += 15; $signals[] = 'Pico: ' . $maxPerHour . ' sessões/hora'; }
-                elseif ($maxPerHour >= 8)  { $score += 8;  $signals[] = $maxPerHour . ' sessões/hora no pico'; }
+                if ($maxPerHour >= 12)    { $score += 15; $signals[] = 'Pico: ' . $maxPerHour . ' sessões/hora'; }
+                elseif ($maxPerHour >= 8) { $score += 8;  $signals[] = $maxPerHour . ' sessões/hora no pico'; }
 
-                // 9. Conta nova + volume
+                // ── 15. Conta nova + volume ───────────────────────────────────
                 $accountAge = (int)$acctUser['account_age_days'];
                 if ($accountAge < 3 && $sessions30 >= 20) { $score += 10; $signals[] = 'Conta nova (' . $accountAge . 'd) com ' . $sessions30 . ' sessões'; }
 
-                // 10. Madrugada
+                // ── 16. Madrugada ─────────────────────────────────────────────
                 $nightStmt = $pdo->prepare("
                     SELECT COUNT(*) FROM game_sessions
                     WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
@@ -168,7 +327,7 @@ if (!empty($searchEmail)) {
                 $nightRatio = ($sessions30 > 0) ? ($nightSessions / $sessions30) : 0;
                 if ($nightSessions >= 10 && $nightRatio > 0.5) { $score += 10; $signals[] = round($nightRatio*100) . '% madrugada (' . $nightSessions . ' sessões 2h-6h)'; }
 
-                // 11. Win streak
+                // ── 17. Win streak ────────────────────────────────────────────
                 $streakStmt = $pdo->prepare("
                     SELECT status FROM game_sessions
                     WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
@@ -186,7 +345,7 @@ if (!empty($searchEmail)) {
                 elseif ($maxStreak >= 20) { $score += 15; $signals[] = $maxStreak . ' vitórias seguidas'; }
                 elseif ($maxStreak >= 12) { $score += 8;  $signals[] = $maxStreak . ' vitórias seguidas'; }
 
-                // 12. Multi-conta por IP
+                // ── 18. Multi-conta por IP ────────────────────────────────────
                 $multiStmt = $pdo->prepare("
                     SELECT COUNT(DISTINCT gs2.google_uid)
                     FROM game_sessions gs1
@@ -201,13 +360,13 @@ if (!empty($searchEmail)) {
                 elseif ($otherAccounts >= 1) { $score += 5;  $signals[]   = $otherAccounts . ' outra(s) conta(s) no mesmo IP'; }
                 else                          { $positives[] = 'IP único (sem multi-conta detectada)'; }
 
-                // 13. Horas/dia
+                // ── 19. Horas/dia ─────────────────────────────────────────────
                 $activeDays = max(1, (int)$s30['active_days']);
                 $avgHoursDay = (($avgD * $comp) / 3600) / $activeDays;
-                if ($avgHoursDay >= 10)     { $score += 15; $signals[] = round($avgHoursDay,1) . 'h/dia jogando'; }
-                elseif ($avgHoursDay >= 6)  { $score += 8;  $signals[] = round($avgHoursDay,1) . 'h/dia'; }
+                if ($avgHoursDay >= 10)    { $score += 15; $signals[] = round($avgHoursDay,1) . 'h/dia jogando (inumano)'; }
+                elseif ($avgHoursDay >= 6) { $score += 8;  $signals[] = round($avgHoursDay,1) . 'h/dia'; }
 
-                // 14. Modo único extremo
+                // ── 20. Modo único extremo ────────────────────────────────────
                 $modeStmt = $pdo->prepare("
                     SELECT game_mode, COUNT(*) as cnt FROM game_sessions
                     WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
@@ -217,20 +376,21 @@ if (!empty($searchEmail)) {
                 $modeStmt->execute([$uid]);
                 $modes = $modeStmt->fetchAll();
                 if (count($modes) === 1 && $modes[0]['game_mode'] === 'extreme' && $sessions30 >= 10) {
-                    $score += 10; $signals[] = '100% Extreme (' . $sessions30 . ' sessões)';
+                    $score += 10; $signals[] = '100% Extreme (' . $sessions30 . ' sessões) — sem variação de modo';
                 }
 
-                // 15. Padrão de saque rápido
+                // ── 21. Saque rápido após ganho ───────────────────────────────
                 $totalWithdrawn = (float)$acctUser['total_withdrawn'];
-                $totalEarned = (float)($acctUser['total_earned_brl'] ?? 0);
+                $totalEarned    = (float)($acctUser['total_earned_brl'] ?? 0);
                 if ($totalEarned > 0 && $totalWithdrawn / $totalEarned > 0.9 && $totalWithdrawn > 5) {
                     $score += 5; $signals[] = 'Saca ' . round(($totalWithdrawn/$totalEarned)*100) . '% do ganho (R$ ' . number_format($totalWithdrawn,2,',','.') . ')';
                 }
+
             } else {
                 $positives[] = 'Poucas sessões para análise estatística (' . $sessions30 . ')';
             }
 
-            // Últimas transações
+            // ── Dados complementares ──────────────────────────────────────────
             $txStmt = $pdo->prepare("
                 SELECT type, amount_brl, description, status, created_at
                 FROM transactions WHERE google_uid = ?
@@ -239,7 +399,6 @@ if (!empty($searchEmail)) {
             $txStmt->execute([$uid]);
             $recentTx = $txStmt->fetchAll();
 
-            // Saques (sem pix_key)
             $wdStmt = $pdo->prepare("
                 SELECT id, amount_brl, status, admin_notes, created_at
                 FROM withdrawals WHERE user_id = ?
@@ -248,10 +407,8 @@ if (!empty($searchEmail)) {
             $wdStmt->execute([(int)$acctUser['id']]);
             $recentWd = $wdStmt->fetchAll();
 
-            // Contas no mesmo IP
             $sameIpStmt = $pdo->prepare("
-                SELECT DISTINCT u2.email, u2.display_name, u2.is_banned,
-                       gs1.ip_address
+                SELECT DISTINCT u2.email, u2.display_name, u2.is_banned, gs1.ip_address
                 FROM game_sessions gs1
                 INNER JOIN game_sessions gs2 ON gs1.ip_address = gs2.ip_address AND gs2.google_uid != gs1.google_uid
                 INNER JOIN users u2 ON u2.google_uid = gs2.google_uid
@@ -273,6 +430,8 @@ if (!empty($searchEmail)) {
                 'stats'               => $s30,
                 'sessions_30d'        => $sessions30,
                 'modes'               => $modes ?? [],
+                'ua_rows'             => $uaRows ?? [],
+                'hour_dist'           => $hourDist ?? [],
                 'recent_transactions' => $recentTx,
                 'recent_withdrawals'  => $recentWd,
                 'same_ip_accounts'    => $sameIpAccounts,
@@ -456,6 +615,53 @@ if (!empty($searchEmail)) {
                         <?php echo htmlspecialchars(ucfirst($m['game_mode'] ?? 'N/A')); ?>: <strong><?php echo (int)$m['cnt']; ?></strong>
                     </span>
                     <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- User-Agents -->
+            <?php if (!empty($accountAnalysis['ua_rows'])): ?>
+            <div style="margin-bottom:20px;">
+                <h4 style="font-size:0.88rem;margin:0 0 10px;"><i class="fas fa-desktop"></i> User-Agents Detectados</h4>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                    <?php foreach ($accountAnalysis['ua_rows'] as $ua):
+                        $isHeadless = preg_match('/HeadlessChrome|PhantomJS|Selenium|puppeteer|playwright|WebDriver/i', $ua['user_agent']);
+                    ?>
+                    <div style="padding:6px 10px;background:<?php echo $isHeadless ? 'rgba(255,51,102,0.1)' : 'rgba(0,0,0,0.2)'; ?>;border-radius:6px;font-size:0.75rem;display:flex;justify-content:space-between;align-items:center;">
+                        <span style="word-break:break-all;max-width:85%;color:<?php echo $isHeadless ? '#ff3366' : 'inherit'; ?>;">
+                            <?php if ($isHeadless): ?><i class="fas fa-robot" style="margin-right:4px;"></i><?php endif; ?>
+                            <?php echo htmlspecialchars(substr($ua['user_agent'], 0, 120)); ?>
+                        </span>
+                        <span style="color:var(--text-dim);white-space:nowrap;margin-left:8px;"><?php echo (int)$ua['cnt']; ?>x</span>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Distribuição de horários -->
+            <?php if (!empty($accountAnalysis['hour_dist'])): ?>
+            <div style="margin-bottom:20px;">
+                <h4 style="font-size:0.88rem;margin:0 0 10px;"><i class="fas fa-clock"></i> Distribuição de Horários (30 dias)</h4>
+                <?php
+                $hd = $accountAnalysis['hour_dist'];
+                $hdMax = max($hd) ?: 1;
+                ?>
+                <div style="display:grid;grid-template-columns:repeat(24,1fr);gap:2px;align-items:end;height:50px;">
+                    <?php for ($h = 0; $h < 24; $h++):
+                        $cnt = $hd[$h] ?? 0;
+                        $pct = round(($cnt / $hdMax) * 100);
+                        $barColor = ($h >= 2 && $h <= 5) ? '#ff3366' : 'var(--primary)';
+                    ?>
+                    <div title="<?php echo $h; ?>h: <?php echo $cnt; ?> sessões"
+                         style="width:100%;height:<?php echo max(4,$pct); ?>%;background:<?php echo $barColor; ?>;opacity:<?php echo $cnt>0?'0.8':'0.15'; ?>;border-radius:2px 2px 0 0;">
+                    </div>
+                    <?php endfor; ?>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin-top:2px;">
+                    <?php for ($h = 0; $h < 24; $h++): ?>
+                    <div style="text-align:center;font-size:0.55rem;color:var(--text-dim);"><?php echo $h; ?></div>
+                    <?php endfor; ?>
                 </div>
             </div>
             <?php endif; ?>
