@@ -154,6 +154,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $message = "Configurações de saque automático salvas!";
                 break;
+
+            case 'update_ip_policy':
+                $val = isset($_POST['block_multiple_ip_accounts']) ? '1' : '0';
+                $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES ('block_multiple_ip_accounts', ?, 0, NOW()) ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()")
+                    ->execute([$val, $val]);
+                $message = "Política de IP salva!";
+                break;
         }
     } catch (Exception $e) {
         $error = $e->getMessage();
@@ -305,6 +312,35 @@ try {
             </div>
         </div>
         
+        <!-- Política de IP -->
+        <div class="panel">
+            <div class="panel-header">
+                <h3 class="panel-title"><i class="fas fa-network-wired"></i> Política de Contas por IP</h3>
+            </div>
+            <div class="panel-body">
+                <form method="POST">
+                    <input type="hidden" name="action" value="update_ip_policy">
+                    <div class="form-group" style="display:flex;align-items:center;gap:14px;">
+                        <label class="toggle-switch" style="flex-shrink:0;">
+                            <input type="checkbox" name="block_multiple_ip_accounts"
+                                   <?php echo ($settings['block_multiple_ip_accounts'] ?? '1') === '1' ? 'checked' : ''; ?>>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <div>
+                            <div style="font-weight:600;margin-bottom:3px;">Bloquear múltiplas contas por IP</div>
+                            <div style="font-size:0.82rem;color:var(--text-dim);">
+                                Quando ativo, impede o cadastro de uma segunda conta a partir do mesmo IP.
+                                O usuário vê um alerta explicando o motivo. Contas já existentes não são afetadas.
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top:14px;">
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Transação Manual -->
         <div class="panel">
             <div class="panel-header">

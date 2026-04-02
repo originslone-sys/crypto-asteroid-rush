@@ -297,6 +297,14 @@ try {
         output("  [OK] users.premium_expires_at adicionada");
     }
 
+    // users.registration_ip — IP do primeiro cadastro (usado para limite de contas por IP)
+    $col = $pdo->query("SHOW COLUMNS FROM users LIKE 'registration_ip'")->fetch();
+    if (!$col) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN registration_ip VARCHAR(45) DEFAULT NULL");
+        $results['migrations'][] = 'users.registration_ip';
+        output("  [OK] users.registration_ip adicionada");
+    }
+
     // transactions.amount_brl
     try {
         $col = $pdo->query("SHOW COLUMNS FROM transactions LIKE 'amount_brl'")->fetch();
@@ -390,6 +398,7 @@ try {
                 ['premium_price_brl', '19.90', 1],
                 ['premium_duration_days', '30', 1],
                 ['premium_enabled', 'true', 1],
+                ['block_multiple_ip_accounts', '1', 0],
             ];
             $ins = $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES (?, ?, ?, NOW())");
             foreach ($defaults as $d) {
