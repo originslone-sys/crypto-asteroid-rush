@@ -29,7 +29,7 @@ try {
         COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL {$days} DAY) THEN price_brl ELSE 0 END),0) as total_period,
         COUNT(*) as count_all,
         COUNT(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL {$days} DAY) THEN 1 END) as count_period
-        FROM premium_subscriptions WHERE status = 'confirmed'")->fetch();
+        FROM premium_subscriptions WHERE status = 'active'")->fetch();
     $kpi['premium'] = $r;
 
     // Saques pagos
@@ -59,7 +59,7 @@ try {
             FROM credit_purchases WHERE status = 'confirmed' AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
             UNION ALL
             SELECT DATE(created_at), 0, price_brl, 0, 0, 1, 0
-            FROM premium_subscriptions WHERE status = 'confirmed' AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+            FROM premium_subscriptions WHERE status = 'active' AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
             UNION ALL
             SELECT DATE(created_at), 0, 0, amount_brl, 0, 0, 1
             FROM withdrawals WHERE status = 'completed' AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
@@ -87,7 +87,7 @@ try {
                COUNT(*) as sales_count,
                COALESCE(SUM(price_brl), 0) as revenue,
                AVG(price_brl) as avg_price
-        FROM premium_subscriptions WHERE status = 'confirmed'
+        FROM premium_subscriptions WHERE status = 'active'
         GROUP BY duration_days ORDER BY sales_count DESC
     ");
     $premByDuration = $premDurStmt->fetchAll();
@@ -98,7 +98,7 @@ try {
                COUNT(*) as count,
                COALESCE(SUM(price_brl), 0) as revenue
         FROM premium_subscriptions
-        WHERE status = 'confirmed' AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        WHERE status = 'active' AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
         GROUP BY month ORDER BY month ASC
     ");
     $premByMonth = $premMonthStmt->fetchAll();
