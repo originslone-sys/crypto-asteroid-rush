@@ -45,14 +45,37 @@ try {
 
             $clientIP = getClientIP();
 
+            // ── Verificar limite de contas por IP (apenas para novos usuários) ──
+            $existingUser = $pdo->prepare("SELECT id FROM users WHERE google_uid = ? LIMIT 1");
+            $existingUser->execute([$googleUid]);
+            $isExisting = (bool)$existingUser->fetchColumn();
+
+            if (!$isExisting && $clientIP) {
+                // Checar se a feature está ativa
+                $blockSetting = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'block_multiple_ip_accounts' LIMIT 1");
+                $blockEnabled = $blockSetting ? (int)$blockSetting->fetchColumn() : 1;
+
+                if ($blockEnabled) {
+                    $ipCheck = $pdo->prepare("SELECT COUNT(*) FROM users WHERE registration_ip = ? LIMIT 1");
+                    $ipCheck->execute([$clientIP]);
+                    if ((int)$ipCheck->fetchColumn() > 0) {
+                        jsonResponse([
+                            'success'   => false,
+                            'error'     => 'Já existe uma conta cadastrada neste dispositivo/rede. Cada IP permite apenas uma conta.',
+                            'ip_limit'  => true
+                        ], 403);
+                    }
+                }
+            }
+
             // UPSERT
             $stmt = $pdo->prepare("
                 INSERT INTO users (
                     google_uid, email, display_name,
                     balance_brl, total_played, total_earned_brl,
-                    last_login_ip,
+                    last_login_ip, registration_ip,
                     created_at, updated_at, last_login
-                ) VALUES (?, ?, ?, 0, 0, 0, ?, NOW(), NOW(), NOW())
+                ) VALUES (?, ?, ?, 0, 0, 0, ?, ?, NOW(), NOW(), NOW())
                 ON DUPLICATE KEY UPDATE
                     email = COALESCE(VALUES(email), email),
                     display_name = COALESCE(VALUES(display_name), display_name),
@@ -60,7 +83,7 @@ try {
                     last_login = NOW(),
                     updated_at = NOW()
             ");
-            $stmt->execute([$googleUid, $email, $displayName, $clientIP]);
+            $stmt->execute([$googleUid, $email, $displayName, $clientIP, $clientIP]);
             
             // Detectar se é novo usuário (INSERT vs UPDATE)
             $isNewUser = ($stmt->rowCount() === 1);
