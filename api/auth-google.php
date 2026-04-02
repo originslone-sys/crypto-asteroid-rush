@@ -45,25 +45,44 @@ try {
 
             $clientIP = getClientIP();
 
-            // ── Verificar limite de contas por IP (apenas para novos usuários) ──
+            // ── Verificar limite de contas por IP (novos E existentes) ──
             $existingUser = $pdo->prepare("SELECT id FROM users WHERE google_uid = ? LIMIT 1");
             $existingUser->execute([$googleUid]);
             $isExisting = (bool)$existingUser->fetchColumn();
 
-            if (!$isExisting && $clientIP) {
-                // Checar se a feature está ativa
+            if ($clientIP) {
                 $blockSetting = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'block_multiple_ip_accounts' LIMIT 1");
                 $blockEnabled = $blockSetting ? (int)$blockSetting->fetchColumn() : 1;
 
                 if ($blockEnabled) {
-                    $ipCheck = $pdo->prepare("SELECT COUNT(*) FROM users WHERE registration_ip = ? LIMIT 1");
-                    $ipCheck->execute([$clientIP]);
-                    if ((int)$ipCheck->fetchColumn() > 0) {
-                        jsonResponse([
-                            'success'   => false,
-                            'error'     => 'Já existe uma conta cadastrada neste dispositivo/rede. Cada IP permite apenas uma conta.',
-                            'ip_limit'  => true
-                        ], 403);
+                    if (!$isExisting) {
+                        // Novo usuário: checar registration_ip
+                        $ipCheck = $pdo->prepare("SELECT COUNT(*) FROM users WHERE registration_ip = ? LIMIT 1");
+                        $ipCheck->execute([$clientIP]);
+                        if ((int)$ipCheck->fetchColumn() > 0) {
+                            jsonResponse([
+                                'success'  => false,
+                                'error'    => 'Já existe uma conta cadastrada neste dispositivo/rede. Cada IP permite apenas uma conta.',
+                                'ip_limit' => true
+                            ], 403);
+                        }
+                    } else {
+                        // Usuário existente: checar se outro google_uid usou este IP nas últimas 24h
+                        $ipActive = $pdo->prepare("
+                            SELECT COUNT(*) FROM users
+                            WHERE last_login_ip = ?
+                              AND google_uid != ?
+                              AND last_login >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                            LIMIT 1
+                        ");
+                        $ipActive->execute([$clientIP, $googleUid]);
+                        if ((int)$ipActive->fetchColumn() > 0) {
+                            jsonResponse([
+                                'success'  => false,
+                                'error'    => 'Outra conta está ativa neste dispositivo/rede. Cada IP permite apenas uma conta por vez.',
+                                'ip_limit' => true
+                            ], 403);
+                        }
                     }
                 }
             }
