@@ -75,39 +75,55 @@ try {
                 exit;
             }
 
-            $allowedTypes = ['cpf', 'cnpj', 'email', 'phone', 'evp'];
-            if (!in_array($pixKeyType, $allowedTypes)) {
-                echo json_encode(['success' => false, 'error' => 'Tipo de chave PIX inválido']);
+            // Apenas CPF é aceito
+            if ($pixKeyType !== 'cpf') {
+                echo json_encode(['success' => false, 'error' => 'Apenas chave PIX do tipo CPF é aceita.']);
                 exit;
             }
 
-            if (!validatePixKey($pixKey, $pixKeyType)) {
-                echo json_encode(['success' => false, 'error' => 'Chave PIX inválida para o tipo selecionado']);
+            // Normalizar CPF
+            $pixKey = preg_replace('/\D/', '', $pixKey);
+
+            if (!validatePixKey($pixKey, 'cpf')) {
+                echo json_encode(['success' => false, 'error' => 'CPF inválido. Verifique o número informado.']);
                 exit;
             }
 
             // Sanitizar label
             $label = $label ? substr($label, 0, 50) : null;
 
-            // Verificar limite de 3 e duplicata atomicamente com lock
+            // Verificar limite de 1 chave e duplicata atomicamente com lock
             $pdo->beginTransaction();
 
             $countStmt = $pdo->prepare("SELECT COUNT(*) FROM saved_pix_keys WHERE user_id = ? FOR UPDATE");
             $countStmt->execute([$userId]);
             $total = (int)$countStmt->fetchColumn();
 
-            if ($total >= 3) {
+            if ($total >= 1) {
                 $pdo->rollBack();
-                echo json_encode(['success' => false, 'error' => 'Limite de 3 chaves PIX atingido. Remova uma chave antes de adicionar outra.']);
+                echo json_encode(['success' => false, 'error' => 'Já existe uma chave CPF salva. Remova-a antes de cadastrar outra.']);
                 exit;
             }
 
-            // Verificar duplicata
+            // Verificar se CPF já está em uso por outra conta
+            $cpfInUse = $pdo->prepare("
+                SELECT spk.user_id FROM saved_pix_keys spk
+                WHERE spk.pix_key = ? AND spk.pix_key_type = 'cpf' AND spk.user_id != ?
+                LIMIT 1
+            ");
+            $cpfInUse->execute([$pixKey, $userId]);
+            if ($cpfInUse->fetch()) {
+                $pdo->rollBack();
+                echo json_encode(['success' => false, 'error' => 'Este CPF já está cadastrado em outra conta. Cada CPF só pode ser vinculado a uma conta.']);
+                exit;
+            }
+
+            // Verificar duplicata na mesma conta
             $dup = $pdo->prepare("SELECT id FROM saved_pix_keys WHERE user_id = ? AND pix_key = ?");
             $dup->execute([$userId, $pixKey]);
             if ($dup->fetch()) {
                 $pdo->rollBack();
-                echo json_encode(['success' => false, 'error' => 'Esta chave PIX já está salva']);
+                echo json_encode(['success' => false, 'error' => 'Esta chave CPF já está salva']);
                 exit;
             }
 

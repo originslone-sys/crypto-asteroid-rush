@@ -16,21 +16,10 @@ $paymentDetails = trim($input['payment_details'] ?? $input['pix_key'] ?? '');
 $paymentMethod = strtolower(trim($input['payment_method'] ?? 'pix'));
 $pixKeyType = strtolower(trim($input['pix_key_type'] ?? ''));
 
-// Auto-detectar tipo de chave PIX se não informado
-if ($paymentMethod === 'pix' && empty($pixKeyType)) {
-    $pixKeyType = detectPixKeyType($paymentDetails);
-}
-
-// Para chave tipo telefone, garantir prefixo +55
-if ($pixKeyType === 'phone' || $pixKeyType === 'celular') {
-    $phoneDigits = preg_replace('/\D/', '', $paymentDetails);
-    if (!str_starts_with($phoneDigits, '55')) {
-        $paymentDetails = '+55' . $phoneDigits;
-    } elseif (!str_starts_with($paymentDetails, '+')) {
-        $paymentDetails = '+' . $phoneDigits;
-    }
-    $pixKeyType = 'phone';
-}
+// Apenas CPF é aceito
+$pixKeyType = 'cpf';
+// Normalizar CPF: remover pontuação
+$paymentDetails = preg_replace('/\D/', '', $paymentDetails);
 
 // Validar google_uid
 if (!$googleUid || !validateGoogleUid($googleUid)) {
@@ -57,8 +46,28 @@ if (empty($paymentDetails)) {
 }
 
 if (!validatePixKey($paymentDetails, $pixKeyType)) {
-    echo json_encode(['success' => false, 'error' => 'Chave PIX inválida para o tipo selecionado']);
+    echo json_encode(['success' => false, 'error' => 'CPF inválido. Verifique o número informado.']);
     exit;
+}
+
+// Verificar se este CPF já está sendo usado por outra conta
+try {
+    $pdoCheck = getDatabaseConnection();
+    if ($pdoCheck) {
+        $cpfCheck = $pdoCheck->prepare("
+            SELECT spk.user_id FROM saved_pix_keys spk
+            INNER JOIN users u ON u.id = spk.user_id
+            WHERE spk.pix_key = ? AND spk.pix_key_type = 'cpf' AND u.google_uid != ?
+            LIMIT 1
+        ");
+        $cpfCheck->execute([$paymentDetails, $googleUid]);
+        if ($cpfCheck->fetch()) {
+            echo json_encode(['success' => false, 'error' => 'Este CPF já está cadastrado em outra conta. Cada CPF só pode ser vinculado a uma conta.']);
+            exit;
+        }
+    }
+} catch (Throwable $e) {
+    // não bloquear saque por falha de checagem de CPF duplicado
 }
 
 try {
