@@ -150,6 +150,11 @@ try {
                 <span>Análise de Suspeitas</span>
             </a>
 
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=account-analysis" class="nav-item <?php echo $currentPage === 'account-analysis' ? 'active' : ''; ?>">
+                <i class="fas fa-microscope"></i>
+                <span>Análise de Conta</span>
+            </a>
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=security" class="nav-item <?php echo $currentPage === 'security' ? 'active' : ''; ?>">
                 <i class="fas fa-shield-alt"></i>
                 <span>Segurança</span>
