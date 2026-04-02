@@ -10,16 +10,8 @@ $pageTitle = 'Análise de Suspeitas';
 $days = min(max((int)($_GET['days'] ?? 7), 1), 30);
 $minSessions = max((int)($_GET['min_sessions'] ?? 5), 3);
 $filterLevel = $_GET['level'] ?? 'all';
-$analyzeEmail = trim($_GET['analyze_email'] ?? '');
-
-// ============================================
-// ANÁLISE INDIVIDUAL POR EMAIL
-// ============================================
-$accountAnalysis = null;
-$accountError = null;
-
-if (!empty($analyzeEmail)) {
-    try {
+// Análise individual movida para account-analysis.php
+if (false) { try {
         // Buscar usuário pelo email
         $userStmt = $pdo->prepare("
             SELECT u.*,
@@ -267,7 +259,7 @@ if (!empty($analyzeEmail)) {
 
                 // Saques
                 $wdStmt = $pdo->prepare("
-                    SELECT id, amount_brl, status, pix_key, created_at
+                    SELECT id, amount_brl, status, admin_notes, created_at
                     FROM withdrawals WHERE user_id = ?
                     ORDER BY created_at DESC LIMIT 10
                 ");
@@ -671,249 +663,19 @@ try {
         </div>
     </div>
 
-    <!-- Análise Individual -->
-    <div class="panel" style="margin-bottom: 20px;">
-        <div class="panel-header">
-            <h3 class="panel-title"><i class="fas fa-user-secret"></i> Análise Individual de Conta</h3>
-        </div>
-        <div class="panel-body" style="padding: 16px 20px;">
-            <form method="GET" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
-                <input type="hidden" name="page" value="suspect-analysis">
-                <input type="hidden" name="days" value="<?php echo $days; ?>">
-                <input type="hidden" name="min_sessions" value="<?php echo $minSessions; ?>">
-                <input type="hidden" name="level" value="<?php echo htmlspecialchars($filterLevel); ?>">
-                <div style="flex:1;min-width:250px;">
-                    <label class="form-label" style="font-size: 0.8rem;">Email ou Google UID</label>
-                    <input type="text" name="analyze_email" class="form-control" placeholder="email@exemplo.com"
-                        value="<?php echo htmlspecialchars($analyzeEmail); ?>" style="font-size: 0.9rem;">
-                </div>
-                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-microscope"></i> Analisar Conta</button>
-                <?php if (!empty($analyzeEmail)): ?>
-                    <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=suspect-analysis&days=<?php echo $days; ?>&min_sessions=<?php echo $minSessions; ?>&level=<?php echo htmlspecialchars($filterLevel); ?>" class="btn btn-secondary btn-sm" style="text-decoration:none;">
-                        <i class="fas fa-times"></i> Limpar
-                    </a>
-                <?php endif; ?>
-            </form>
+    <!-- Análise Individual: movida para account-analysis.php -->
+    <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-body" style="padding:16px 20px;display:flex;align-items:center;gap:16px;">
+            <i class="fas fa-microscope" style="font-size:1.5rem;color:var(--primary);"></i>
+            <div style="flex:1;">
+                <div style="font-weight:600;margin-bottom:4px;">Análise Individual de Conta</div>
+                <div style="font-size:0.82rem;color:var(--text-dim);">Pesquise por email ou Google UID para ver o score de risco detalhado de uma conta específica.</div>
+            </div>
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=account-analysis" class="btn btn-primary" style="text-decoration:none;white-space:nowrap;">
+                <i class="fas fa-microscope"></i> Analisar Conta
+            </a>
         </div>
     </div>
-
-    <?php if ($accountError): ?>
-        <div class="alert alert-danger" style="margin-bottom: 20px;"><i class="fas fa-exclamation-triangle"></i> <?php echo htmlspecialchars($accountError); ?></div>
-    <?php endif; ?>
-
-    <?php if ($accountAnalysis): ?>
-    <?php
-        $au = $accountAnalysis['user'];
-        $aScore = $accountAnalysis['risk_score'];
-        $aLevel = $accountAnalysis['risk_level'];
-        $aScoreColor = '#05ffa1'; $aScoreBg = 'rgba(5,255,161,0.1)'; $aLabel = 'BAIXO';
-        if ($aLevel === 'alto') { $aScoreColor = '#ff3366'; $aScoreBg = 'rgba(255,51,102,0.1)'; $aLabel = 'ALTO'; }
-        elseif ($aLevel === 'medio') { $aScoreColor = '#ffaa00'; $aScoreBg = 'rgba(255,170,0,0.1)'; $aLabel = 'MÉDIO'; }
-        $st = $accountAnalysis['stats'];
-    ?>
-    <div class="panel" style="margin-bottom: 20px; border: 1px solid <?php echo $aScoreColor; ?>30;">
-        <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;">
-            <h3 class="panel-title"><i class="fas fa-microscope"></i> Resultado: <?php echo htmlspecialchars($au['email']); ?></h3>
-            <div style="display:flex;align-items:center;gap:12px;">
-                <?php if ($au['is_banned']): ?>
-                    <span class="badge badge-danger">BANIDO</span>
-                <?php endif; ?>
-                <?php if ($au['is_premium']): ?>
-                    <span class="badge" style="background: rgba(255,215,0,0.2); color: #ffd700;">PREMIUM</span>
-                <?php endif; ?>
-            </div>
-        </div>
-        <div class="panel-body">
-            <!-- Score grande + Info -->
-            <div style="display:grid;grid-template-columns:140px 1fr;gap:20px;margin-bottom:20px;">
-                <div style="text-align:center;padding:20px;background:<?php echo $aScoreBg; ?>;border-radius:12px;">
-                    <div style="font-family:'Orbitron',monospace;font-size:2.5rem;font-weight:900;color:<?php echo $aScoreColor; ?>;"><?php echo $aScore; ?>%</div>
-                    <div style="font-size:0.85rem;font-weight:700;color:<?php echo $aScoreColor; ?>;margin-top:4px;">RISCO <?php echo $aLabel; ?></div>
-                </div>
-                <div>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
-                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
-                            <div style="font-size:0.7rem;color:var(--text-dim);">Nome</div>
-                            <div style="font-weight:600;"><?php echo htmlspecialchars($au['display_name'] ?? 'N/A'); ?></div>
-                        </div>
-                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
-                            <div style="font-size:0.7rem;color:var(--text-dim);">Conta criada</div>
-                            <div style="font-weight:600;"><?php echo date('d/m/Y', strtotime($au['created_at'])); ?> (<?php echo (int)$au['account_age_days']; ?> dias)</div>
-                        </div>
-                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
-                            <div style="font-size:0.7rem;color:var(--text-dim);">Saldo</div>
-                            <div style="font-weight:600;color:var(--success);">R$ <?php echo number_format((float)$au['balance_brl'], 2, ',', '.'); ?></div>
-                        </div>
-                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
-                            <div style="font-size:0.7rem;color:var(--text-dim);">Total Ganho</div>
-                            <div style="font-weight:600;">R$ <?php echo number_format((float)$au['total_earned_brl'], 2, ',', '.'); ?></div>
-                        </div>
-                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
-                            <div style="font-size:0.7rem;color:var(--text-dim);">Total Sacado</div>
-                            <div style="font-weight:600;">R$ <?php echo number_format((float)$au['total_withdrawn'], 2, ',', '.'); ?></div>
-                        </div>
-                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
-                            <div style="font-size:0.7rem;color:var(--text-dim);">Créditos</div>
-                            <div style="font-weight:600;"><?php echo (int)$au['credits']; ?></div>
-                        </div>
-                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
-                            <div style="font-size:0.7rem;color:var(--text-dim);">Sessões (total)</div>
-                            <div style="font-weight:600;"><?php echo (int)$au['total_sessions']; ?> (<?php echo (int)$au['completed_sessions']; ?>W / <?php echo (int)$au['abandoned_sessions']; ?>L / <?php echo (int)$au['flagged_sessions']; ?>F)</div>
-                        </div>
-                        <div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">
-                            <div style="font-size:0.7rem;color:var(--text-dim);">IPs distintos</div>
-                            <div style="font-weight:600;"><?php echo (int)$au['distinct_ips']; ?></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sinais de risco + positivos -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-                <div>
-                    <h4 style="font-size:0.9rem;margin:0 0 10px;color:<?php echo $aScoreColor; ?>;"><i class="fas fa-exclamation-triangle"></i> Sinais de Risco (<?php echo count($accountAnalysis['risk_signals']); ?>)</h4>
-                    <?php if (empty($accountAnalysis['risk_signals'])): ?>
-                        <div style="padding:12px;background:rgba(5,255,161,0.05);border-radius:8px;font-size:0.85rem;color:var(--success);">
-                            <i class="fas fa-check-circle"></i> Nenhum sinal de risco detectado
-                        </div>
-                    <?php else: ?>
-                        <?php foreach ($accountAnalysis['risk_signals'] as $sig): ?>
-                            <div style="padding:6px 10px;margin-bottom:4px;background:rgba(255,51,102,0.06);border-radius:6px;font-size:0.8rem;border-left:3px solid <?php echo $aScoreColor; ?>;">
-                                <i class="fas fa-exclamation-circle" style="color:<?php echo $aScoreColor; ?>;margin-right:4px;"></i>
-                                <?php echo htmlspecialchars($sig); ?>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-                <div>
-                    <h4 style="font-size:0.9rem;margin:0 0 10px;color:#05ffa1;"><i class="fas fa-check-circle"></i> Sinais Positivos (<?php echo count($accountAnalysis['positive_signals']); ?>)</h4>
-                    <?php if (empty($accountAnalysis['positive_signals'])): ?>
-                        <div style="padding:12px;background:rgba(255,170,0,0.05);border-radius:8px;font-size:0.85rem;color:var(--text-dim);">
-                            Sem sinais positivos suficientes
-                        </div>
-                    <?php else: ?>
-                        <?php foreach ($accountAnalysis['positive_signals'] as $sig): ?>
-                            <div style="padding:6px 10px;margin-bottom:4px;background:rgba(5,255,161,0.06);border-radius:6px;font-size:0.8rem;border-left:3px solid #05ffa1;">
-                                <i class="fas fa-check" style="color:#05ffa1;margin-right:4px;"></i>
-                                <?php echo htmlspecialchars($sig); ?>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <!-- Estatísticas 30 dias -->
-            <?php if ((int)($st['sessions_30d'] ?? 0) >= 5): ?>
-            <div style="margin-bottom:16px;">
-                <h4 style="font-size:0.9rem;margin:0 0 10px;"><i class="fas fa-chart-bar"></i> Estatísticas (30 dias)</h4>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;">
-                    <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;">
-                        <div style="font-size:0.65rem;color:var(--text-dim);">Sessões 30d</div>
-                        <div style="font-weight:700;"><?php echo (int)$st['sessions_30d']; ?></div>
-                    </div>
-                    <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;">
-                        <div style="font-size:0.65rem;color:var(--text-dim);">R$ Médio</div>
-                        <div style="font-weight:700;color:var(--success);">R$ <?php echo number_format((float)$st['avg_earnings'], 4, ',', '.'); ?></div>
-                    </div>
-                    <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;">
-                        <div style="font-size:0.65rem;color:var(--text-dim);">R$ Total 30d</div>
-                        <div style="font-weight:700;">R$ <?php echo number_format((float)$st['total_earnings_30d'], 2, ',', '.'); ?></div>
-                    </div>
-                    <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;">
-                        <div style="font-size:0.65rem;color:var(--text-dim);">Asteroides/partida</div>
-                        <div style="font-weight:700;"><?php echo round((float)$st['avg_asteroids'], 1); ?></div>
-                    </div>
-                    <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;">
-                        <div style="font-size:0.65rem;color:var(--text-dim);">Duração média</div>
-                        <div style="font-weight:700;"><?php echo round((float)$st['avg_duration'], 1); ?>s</div>
-                    </div>
-                    <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;">
-                        <div style="font-size:0.65rem;color:var(--text-dim);">Dias ativos</div>
-                        <div style="font-weight:700;"><?php echo (int)$st['active_days']; ?></div>
-                    </div>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <!-- Modos jogados -->
-            <?php if (!empty($accountAnalysis['modes'])): ?>
-            <div style="margin-bottom:16px;">
-                <h4 style="font-size:0.9rem;margin:0 0 10px;"><i class="fas fa-gamepad"></i> Modos Jogados (30 dias)</h4>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <?php foreach ($accountAnalysis['modes'] as $m): ?>
-                        <span style="padding:6px 12px;background:rgba(0,200,255,0.1);border:1px solid rgba(0,200,255,0.2);border-radius:8px;font-size:0.8rem;">
-                            <?php echo htmlspecialchars(ucfirst($m['game_mode'] ?? 'N/A')); ?>: <strong><?php echo (int)$m['cnt']; ?></strong>
-                        </span>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <!-- Últimos saques -->
-            <?php if (!empty($accountAnalysis['recent_withdrawals'])): ?>
-            <div style="margin-bottom:16px;">
-                <h4 style="font-size:0.9rem;margin:0 0 10px;"><i class="fas fa-money-bill-wave"></i> Últimos Saques</h4>
-                <div class="table-container">
-                    <table>
-                        <thead><tr><th>#</th><th>Valor</th><th>PIX</th><th>Status</th><th>Data</th></tr></thead>
-                        <tbody>
-                            <?php foreach ($accountAnalysis['recent_withdrawals'] as $w): ?>
-                            <tr>
-                                <td>#<?php echo $w['id']; ?></td>
-                                <td style="font-weight:600;">R$ <?php echo number_format((float)$w['amount_brl'], 2, ',', '.'); ?></td>
-                                <td style="font-size:0.8rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;"><?php echo htmlspecialchars($w['pix_key'] ?? ''); ?></td>
-                                <td>
-                                    <?php
-                                    $wColors = ['pending' => 'warning', 'approved' => 'success', 'rejected' => 'danger', 'processing' => 'info'];
-                                    $wLabels = ['pending' => 'Pendente', 'approved' => 'Aprovado', 'rejected' => 'Rejeitado', 'processing' => 'Processando'];
-                                    ?>
-                                    <span class="badge badge-<?php echo $wColors[$w['status']] ?? 'secondary'; ?>">
-                                        <?php echo $wLabels[$w['status']] ?? $w['status']; ?>
-                                    </span>
-                                </td>
-                                <td style="font-size:0.8rem;"><?php echo date('d/m/y H:i', strtotime($w['created_at'])); ?></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <!-- Últimas transações -->
-            <?php if (!empty($accountAnalysis['recent_transactions'])): ?>
-            <div>
-                <h4 style="font-size:0.9rem;margin:0 0 10px;"><i class="fas fa-exchange-alt"></i> Últimas Transações</h4>
-                <div class="table-container">
-                    <table>
-                        <thead><tr><th>Tipo</th><th>Valor</th><th>Descrição</th><th>Status</th><th>Data</th></tr></thead>
-                        <tbody>
-                            <?php foreach ($accountAnalysis['recent_transactions'] as $tx): ?>
-                            <tr>
-                                <td style="font-size:0.8rem;"><?php echo htmlspecialchars($tx['type']); ?></td>
-                                <td style="font-weight:600;color:<?php echo (float)$tx['amount_brl'] >= 0 ? 'var(--success)' : 'var(--danger)'; ?>;">
-                                    R$ <?php echo number_format((float)$tx['amount_brl'], 2, ',', '.'); ?>
-                                </td>
-                                <td style="font-size:0.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;"><?php echo htmlspecialchars($tx['description'] ?? ''); ?></td>
-                                <td><span class="badge badge-<?php echo $tx['status'] === 'completed' ? 'success' : 'warning'; ?>"><?php echo $tx['status']; ?></span></td>
-                                <td style="font-size:0.8rem;"><?php echo date('d/m/y H:i', strtotime($tx['created_at'])); ?></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <!-- Link para perfil -->
-            <div style="margin-top:15px;padding-top:15px;border-top:1px solid var(--border-color, rgba(255,255,255,0.1));">
-                <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=players&search=<?php echo urlencode($au['email'] ?? ''); ?>" class="btn btn-secondary btn-sm" style="text-decoration:none;">
-                    <i class="fas fa-user"></i> Ver Perfil Completo
-                </a>
-            </div>
-        </div>
-    </div>
-    <?php endif; ?>
 
     <!-- Stats Cards -->
     <div class="stats-grid">
