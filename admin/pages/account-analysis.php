@@ -284,11 +284,10 @@ if (!empty($searchEmail)) {
 }
 ?>
 
-<div class="page-content">
-    <!-- Header + Formulário -->
-    <div class="page-header" style="margin-bottom:20px;">
+<div class="main-content">
+    <div class="page-header">
         <h1 class="page-title"><i class="fas fa-microscope"></i> Análise Individual de Conta</h1>
-        <p style="color:var(--text-dim);font-size:0.85rem;margin:4px 0 0;">Insira o email ou Google UID para analisar padrões de comportamento e risco de fraude.</p>
+        <p class="page-subtitle">Insira o email ou Google UID para analisar padrões de comportamento e risco de fraude.</p>
     </div>
 
     <div class="panel" style="margin-bottom:20px;">
