@@ -297,7 +297,7 @@ try {
     $stmt = $pdo->prepare("
         SELECT
             u.id AS user_id, u.google_uid, u.display_name, u.email,
-            u.is_premium, u.is_banned, u.total_earned_brl, u.total_played,
+            u.is_premium, u.is_banned, u.total_earned_brl, u.total_played, u.total_withdrawn_brl,
             u.created_at AS account_created,
             COUNT(gs.id) AS sessions_count,
             SUM(CASE WHEN gs.status = 'completed' THEN 1 ELSE 0 END) AS completed_sessions,
@@ -593,6 +593,7 @@ try {
             'max_streak' => $maxStreak,
             'avg_earnings' => round($avgEarnings, 4),
             'total_earnings' => round((float)$p['total_earnings_period'], 2),
+            'total_withdrawn' => round((float)$p['total_withdrawn_brl'], 2),
             'avg_asteroids' => round($avgAsteroids, 1),
             'avg_legendary' => round($avgLegendary, 2),
             'avg_duration' => round($avgDuration, 1),
@@ -609,10 +610,17 @@ try {
     $medCount = count(array_filter($results, fn($r) => $r['level'] === 'medio'));
     $lowCount = count(array_filter($results, fn($r) => $r['level'] === 'baixo'));
 
+    $totalEarningsAll = array_sum(array_column($results, 'total_earnings'));
+    $totalWithdrawnAll = array_sum(array_column($results, 'total_withdrawn'));
+    $highResults = array_filter($results, fn($r) => $r['level'] === 'alto');
+    $totalEarningsHigh = array_sum(array_column($highResults, 'total_earnings'));
+    $totalWithdrawnHigh = array_sum(array_column($highResults, 'total_withdrawn'));
+
 } catch (Exception $e) {
     $error = $e->getMessage();
     $results = [];
     $highCount = $medCount = $lowCount = 0;
+    $totalEarningsAll = $totalWithdrawnAll = $totalEarningsHigh = $totalWithdrawnHigh = 0;
 }
 ?>
 
@@ -702,6 +710,48 @@ try {
             <div class="value"><?php echo count($results); ?></div>
             <div class="label">Analisados</div>
             <div class="change">Últimos <?php echo $days; ?> dias</div>
+        </div>
+    </div>
+
+    <!-- Métricas Financeiras -->
+    <div class="panel" style="margin-bottom: 20px;">
+        <div class="panel-header">
+            <h3 class="panel-title"><i class="fas fa-money-bill-wave"></i> Impacto Financeiro das Contas Suspeitas</h3>
+        </div>
+        <div class="panel-body" style="padding: 16px 20px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                <div style="background: rgba(255,51,102,0.08); border: 1px solid rgba(255,51,102,0.25); border-radius: 10px; padding: 16px; text-align: center;">
+                    <div style="font-size: 0.75rem; color: #ff3366; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+                        <i class="fas fa-exclamation-triangle"></i> Ganhos (Alto Risco)
+                    </div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #ff3366;">R$ <?php echo number_format($totalEarningsHigh, 2, ',', '.'); ?></div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;"><?php echo $highCount; ?> conta(s)</div>
+                </div>
+                <div style="background: rgba(255,51,102,0.08); border: 1px solid rgba(255,51,102,0.25); border-radius: 10px; padding: 16px; text-align: center;">
+                    <div style="font-size: 0.75rem; color: #ff3366; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+                        <i class="fas fa-exclamation-triangle"></i> Saques (Alto Risco)
+                    </div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #ff3366;">R$ <?php echo number_format($totalWithdrawnHigh, 2, ',', '.'); ?></div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;"><?php echo $highCount; ?> conta(s)</div>
+                </div>
+                <div style="background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.25); border-radius: 10px; padding: 16px; text-align: center;">
+                    <div style="font-size: 0.75rem; color: var(--warning); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+                        <i class="fas fa-chart-line"></i> Ganhos (Todos Suspeitos)
+                    </div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--warning);">R$ <?php echo number_format($totalEarningsAll, 2, ',', '.'); ?></div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;"><?php echo count($results); ?> conta(s)</div>
+                </div>
+                <div style="background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.25); border-radius: 10px; padding: 16px; text-align: center;">
+                    <div style="font-size: 0.75rem; color: var(--warning); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+                        <i class="fas fa-wallet"></i> Saques (Todos Suspeitos)
+                    </div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--warning);">R$ <?php echo number_format($totalWithdrawnAll, 2, ',', '.'); ?></div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;"><?php echo count($results); ?> conta(s)</div>
+                </div>
+            </div>
+            <div style="margin-top: 12px; font-size: 0.78rem; color: var(--text-dim);">
+                <i class="fas fa-info-circle"></i> Ganhos referem-se ao período selecionado (<?php echo $days; ?> dias). Saques mostram o total histórico acumulado da conta.
+            </div>
         </div>
     </div>
 
