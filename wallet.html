@@ -829,9 +829,15 @@
             </button>
         </div>
         
+        <!-- Aviso saque pendente -->
+        <div id="pendingWithdrawNotice" class="withdraw-info warning" style="display: none;">
+            <i class="fas fa-clock"></i>
+            <span>Você tem um saque de <strong id="pendingWithdrawAmount"></strong> em processamento. Aguarde a conclusão antes de solicitar outro. <a href="fila-saques.html" style="color:var(--warning);text-decoration:underline;">Ver fila</a></span>
+        </div>
+
         <div class="withdraw-info">
             <i class="fas fa-info-circle"></i>
-            <span>Mínimo: R$ 20,00 • 1 saque por dia • Sem taxas • <a href="fila-saques.html" style="color:var(--primary);text-decoration:underline;">Acompanhe em tempo real</a></span>
+            <span>Mínimo: R$ 20,00 • 1 saque por vez (aguarde o processamento) • Sem taxas • <a href="fila-saques.html" style="color:var(--primary);text-decoration:underline;">Acompanhe em tempo real</a></span>
         </div>
         
         <div class="withdraw-info warning" id="withdrawWarning" style="display: none;">
@@ -929,6 +935,21 @@ async function loadWalletData() {
             document.getElementById('walletEarned').textContent = formatBRL(data.total_earned_brl);
             document.getElementById('walletWithdrawn').textContent = formatBRL(data.total_withdrawn_brl);
             document.getElementById('walletPending').textContent = formatBRL(data.pending_withdrawal_brl || 0);
+
+            // Bloquear formulário de saque se houver saque pendente
+            const pendingBrl = parseFloat(data.pending_withdrawal_brl) || 0;
+            const withdrawBtn = document.getElementById('withdrawBtn');
+            const pendingNotice = document.getElementById('pendingWithdrawNotice');
+            if (pendingBrl > 0) {
+                if (withdrawBtn) { withdrawBtn.disabled = true; withdrawBtn.style.opacity = '0.5'; }
+                if (pendingNotice) {
+                    pendingNotice.style.display = 'flex';
+                    document.getElementById('pendingWithdrawAmount').textContent = formatBRL(pendingBrl);
+                }
+            } else {
+                if (withdrawBtn) { withdrawBtn.disabled = false; withdrawBtn.style.opacity = ''; }
+                if (pendingNotice) pendingNotice.style.display = 'none';
+            }
 
             // Premium status
             window._userIsPremium = !!data.is_premium;
