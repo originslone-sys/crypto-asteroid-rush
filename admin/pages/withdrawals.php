@@ -8,11 +8,31 @@ $pageTitle = 'Saques';
 $statusFilter = $_GET['status'] ?? 'pending';
 $searchQuery = trim($_GET['q'] ?? '');
 
+// Ler configuração de saques
+$withdrawalsEnabled = true;
+try {
+    $weSt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'withdrawals_enabled' LIMIT 1");
+    if ($weSt) {
+        $weVal = $weSt->fetchColumn();
+        if ($weVal !== false) $withdrawalsEnabled = ($weVal !== 'false' && $weVal !== '0');
+    }
+} catch (Exception $e) {}
+
 // Processar ações
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     try {
-        if ($action === 'approve') {
+        if ($action === 'toggle_withdrawals') {
+            $newVal = $withdrawalsEnabled ? 'false' : 'true';
+            $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at)
+                           VALUES ('withdrawals_enabled', ?, 0, NOW())
+                           ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()")
+                ->execute([$newVal, $newVal]);
+            $withdrawalsEnabled = ($newVal === 'true');
+            $message = $withdrawalsEnabled
+                ? '✓ Saques reativados. Usuários já podem solicitar saques.'
+                : '✓ Saques desativados. Nenhum novo saque pode ser solicitado.';
+        } elseif ($action === 'approve') {
             // Verificar se é PIX para redirecionar para ZettPay (via AJAX)
             $stmt = $pdo->prepare("UPDATE withdrawals SET status = 'completed', processed_at = NOW() WHERE id = ?");
             $stmt->execute([(int)$_POST['withdrawal_id']]);
@@ -122,13 +142,33 @@ try {
             <h1 class="page-title"><i class="fas fa-money-bill-wave"></i> Gerenciamento de Saques</h1>
             <p class="page-subtitle">Aprovar, rejeitar e acompanhar solicitações</p>
         </div>
-        <?php if (($stats['pending'] ?? 0) > 0): ?>
-        <button onclick="document.getElementById('modalCancelAll').style.display='flex'"
-                class="btn btn-danger btn-sm" style="margin-top:6px;">
-            <i class="fas fa-ban"></i> Cancelar todos pendentes (<?php echo (int)$stats['pending']; ?>)
-        </button>
-        <?php endif; ?>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:6px;">
+            <!-- Toggle saques -->
+            <form method="POST" onsubmit="return confirm('<?php echo $withdrawalsEnabled ? 'Desativar saques? Nenhum novo saque poderá ser solicitado.' : 'Reativar saques para todos os usuários?'; ?>')">
+                <input type="hidden" name="action" value="toggle_withdrawals">
+                <button type="submit" class="btn btn-sm" style="background:<?php echo $withdrawalsEnabled ? 'rgba(5,255,161,0.15)' : 'rgba(255,51,102,0.15)'; ?>;color:<?php echo $withdrawalsEnabled ? '#05ffa1' : '#ff3366'; ?>;border:1px solid <?php echo $withdrawalsEnabled ? 'rgba(5,255,161,0.4)' : 'rgba(255,51,102,0.4)'; ?>;">
+                    <i class="fas fa-<?php echo $withdrawalsEnabled ? 'toggle-on' : 'toggle-off'; ?>"></i>
+                    Saques: <?php echo $withdrawalsEnabled ? 'ATIVOS' : 'DESATIVADOS'; ?>
+                </button>
+            </form>
+            <?php if (($stats['pending'] ?? 0) > 0): ?>
+            <button onclick="document.getElementById('modalCancelAll').style.display='flex'"
+                    class="btn btn-danger btn-sm">
+                <i class="fas fa-ban"></i> Cancelar todos pendentes (<?php echo (int)$stats['pending']; ?>)
+            </button>
+            <?php endif; ?>
+        </div>
     </div>
+
+    <?php if (!$withdrawalsEnabled): ?>
+    <div style="background:rgba(255,51,102,0.1);border:1px solid rgba(255,51,102,0.4);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <i class="fas fa-ban" style="color:#ff3366;font-size:1.3rem;"></i>
+        <div>
+            <strong style="color:#ff3366;">Saques desativados</strong>
+            <span style="color:var(--text-dim);font-size:0.85rem;margin-left:8px;">Nenhum novo saque pode ser solicitado pelos usuários até que você reative.</span>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Modal de confirmação -->
     <div id="modalCancelAll" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center;">
