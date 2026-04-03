@@ -33,6 +33,21 @@ if (!in_array($paymentMethod, WITHDRAW_METHODS)) {
     exit;
 }
 
+// Verificar se saques estão habilitados
+try {
+    $pdoCheck2 = getDatabaseConnection();
+    if ($pdoCheck2) {
+        $weSt = $pdoCheck2->query("SELECT setting_value FROM game_settings WHERE setting_key = 'withdrawals_enabled' LIMIT 1");
+        if ($weSt) {
+            $weVal = $weSt->fetchColumn();
+            if ($weVal !== false && ($weVal === 'false' || $weVal === '0')) {
+                echo json_encode(['success' => false, 'error' => 'Saques estão temporariamente desativados. Tente novamente em breve.', 'withdrawals_disabled' => true]);
+                exit;
+            }
+        }
+    }
+} catch (Throwable $e) { /* não bloquear por falha de leitura */ }
+
 // Validar valor mínimo
 if ($amount < MIN_WITHDRAW_BRL) {
     echo json_encode(['success' => false, 'error' => 'Valor mínimo: R$ ' . number_format(MIN_WITHDRAW_BRL, 2, ',', '.')]);
