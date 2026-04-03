@@ -236,8 +236,14 @@ function processDeposit($pdo, $data, $rawBody) {
                     }
 
                     // Activate premium on user
-                    $pdo->prepare("UPDATE users SET is_premium = 1, premium_expires_at = ?, updated_at = NOW() WHERE id = ?")
-                        ->execute([$expiresAt, $user['id']]);
+                    $isNewActivation = !(!empty($user['is_premium']) && $currentExpires && strtotime($currentExpires) > time());
+                    $premiumUpdateSql = "UPDATE users SET is_premium = 1, premium_expires_at = ?, updated_at = NOW()";
+                    if ($isNewActivation) {
+                        // Nova ativação: inicializar timestamp para créditos diários
+                        $premiumUpdateSql .= ", premium_credits_claimed_at = NOW()";
+                    }
+                    $premiumUpdateSql .= " WHERE id = ?";
+                    $pdo->prepare($premiumUpdateSql)->execute([$expiresAt, $user['id']]);
 
                     // Update subscription record
                     $pdo->prepare("UPDATE premium_subscriptions SET status = 'active', activated_at = NOW(), expires_at = ? WHERE id = ?")
