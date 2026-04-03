@@ -711,9 +711,22 @@
                     <div style="color: var(--text-dim); font-size: 0.85rem;">Sem anuncios e sem CAPTCHA</div>
                 </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 10px;">
                 <i class="fas fa-clock" style="color: var(--warning);"></i>
                 <span style="color: var(--text-dim); font-size: 0.85rem;">Expira em: <strong id="premiumExpiresText" style="color: #fff;">-</strong></span>
+            </div>
+            <!-- Créditos Diários Premium -->
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; background: rgba(255,215,0,0.07); border: 1px solid rgba(255,215,0,0.25); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-coins" style="color: #ffd700; font-size: 1.1rem;"></i>
+                    <div>
+                        <div style="color: #ffd700; font-size: 0.8rem; font-weight: 700;">CRÉDITOS DIÁRIOS</div>
+                        <div style="color: var(--text-dim); font-size: 0.78rem;"><span id="premiumDailyCreditsCount" style="color: #fff; font-weight: 700;">0</span> crédito(s) disponíveis <span style="color: rgba(255,255,255,0.4);">(+2/dia)</span></div>
+                    </div>
+                </div>
+                <button id="premiumClaimBtn" onclick="claimPremiumCredits()" disabled style="padding: 8px 16px; background: linear-gradient(135deg, #ffd700, #ff8c00); color: #000; font-family: 'Orbitron', sans-serif; font-size: 0.7rem; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap; opacity: 0.5; transition: opacity 0.2s;">
+                    <i class="fas fa-gift"></i> Resgatar
+                </button>
             </div>
         </div>
 
@@ -1661,9 +1674,74 @@ async function loadPremiumPrice() {
             const price = 'R$ ' + parseFloat(data.price_brl).toFixed(2).replace('.', ',');
             document.getElementById('premiumPriceText').textContent = price;
             document.getElementById('premiumDurationText').textContent = data.duration_days || 30;
+
+            // Atualizar contador de créditos diários
+            const countEl = document.getElementById('premiumDailyCreditsCount');
+            const claimBtn = document.getElementById('premiumClaimBtn');
+            if (countEl && claimBtn) {
+                const pending = data.pending_daily_credits || 0;
+                countEl.textContent = pending;
+                if (pending > 0) {
+                    claimBtn.disabled = false;
+                    claimBtn.style.opacity = '1';
+                    claimBtn.style.cursor = 'pointer';
+                } else {
+                    claimBtn.disabled = true;
+                    claimBtn.style.opacity = '0.5';
+                    claimBtn.style.cursor = 'default';
+                }
+            }
         }
     } catch (e) {
         console.error('Erro ao carregar preco premium:', e);
+    }
+}
+
+async function claimPremiumCredits() {
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    const btn = document.getElementById('premiumClaimBtn');
+    const origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.style.opacity = '0.7';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    try {
+        const response = await fetch('api/premium-purchase.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid, action: 'claim_daily_credits' })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            // Atualizar saldo de créditos na tela
+            const credEl = document.getElementById('creditsBalance');
+            if (credEl) credEl.textContent = data.new_credits_balance;
+
+            // Zerar contador pendente e bloquear botão
+            document.getElementById('premiumDailyCreditsCount').textContent = '0';
+            btn.innerHTML = '<i class="fas fa-check"></i> Resgatado!';
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'default';
+
+            // Feedback visual breve
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-gift"></i> Resgatar';
+            }, 3000);
+        } else {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.innerHTML = origHtml;
+            showWarning(data.error || 'Erro ao resgatar créditos');
+        }
+    } catch (e) {
+        console.error('Erro ao resgatar créditos:', e);
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.innerHTML = origHtml;
+        showWarning('Erro de conexão. Tente novamente.');
     }
 }
 

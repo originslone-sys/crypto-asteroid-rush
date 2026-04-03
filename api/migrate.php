@@ -297,6 +297,14 @@ try {
         output("  [OK] users.premium_expires_at adicionada");
     }
 
+    // users.premium_credits_claimed_at — timestamp do último resgate de créditos diários premium
+    $col = $pdo->query("SHOW COLUMNS FROM users LIKE 'premium_credits_claimed_at'")->fetch();
+    if (!$col) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN premium_credits_claimed_at DATETIME DEFAULT NULL");
+        $results['migrations'][] = 'users.premium_credits_claimed_at';
+        output("  [OK] users.premium_credits_claimed_at adicionada");
+    }
+
     // users.registration_ip — IP do primeiro cadastro (usado para limite de contas por IP)
     $col = $pdo->query("SHOW COLUMNS FROM users LIKE 'registration_ip'")->fetch();
     if (!$col) {
