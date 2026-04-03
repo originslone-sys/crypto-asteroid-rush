@@ -52,12 +52,18 @@ try {
             $pendingDailyCredits = 0;
             if ($isPremium) {
                 $lastClaimed = $user['premium_credits_claimed_at'] ?? null;
-                if ($lastClaimed) {
-                    $capTime = min(time(), strtotime($expiresAt));
-                    $elapsed = $capTime - strtotime($lastClaimed);
-                    if ($elapsed > 0) {
-                        $pendingDailyCredits = (int)floor($elapsed / 86400) * 2;
-                    }
+
+                // Usuário tem premium mas ainda não tem timestamp (ativou antes da feature existir)
+                // Inicializar agora para que comece a acumular a partir deste momento
+                if (!$lastClaimed) {
+                    $pdo->prepare("UPDATE users SET premium_credits_claimed_at = NOW() WHERE id = ?")->execute([$user['id']]);
+                    $lastClaimed = date('Y-m-d H:i:s');
+                }
+
+                $capTime = min(time(), strtotime($expiresAt));
+                $elapsed = $capTime - strtotime($lastClaimed);
+                if ($elapsed > 0) {
+                    $pendingDailyCredits = (int)floor($elapsed / 86400) * 2;
                 }
             }
 
@@ -234,12 +240,27 @@ try {
                 exit;
             }
 
-            $expiresAt = $user['premium_expires_at'];
-            $lastClaimed = $user['premium_credits_claimed_at'] ?? null;
+            // Abrir transação com lock para evitar double-claim
+            $pdo->beginTransaction();
+
+            // Re-ler usuário com lock exclusivo
+            $lockedStmt = $pdo->prepare("SELECT credits, premium_expires_at, is_premium, premium_credits_claimed_at FROM users WHERE id = ? FOR UPDATE");
+            $lockedStmt->execute([$user['id']]);
+            $locked = $lockedStmt->fetch();
+
+            if (!$locked || empty($locked['is_premium']) || empty($locked['premium_expires_at']) || strtotime($locked['premium_expires_at']) <= time()) {
+                $pdo->rollBack();
+                echo json_encode(['success' => false, 'error' => 'Premium não está ativo.']);
+                exit;
+            }
+
+            $expiresAt = $locked['premium_expires_at'];
+            $lastClaimed = $locked['premium_credits_claimed_at'] ?? null;
 
             if (!$lastClaimed) {
-                // Não deveria acontecer, mas fallback: inicializar agora com 0 pendentes
+                // Fallback: inicializar agora com 0 pendentes
                 $pdo->prepare("UPDATE users SET premium_credits_claimed_at = NOW() WHERE id = ?")->execute([$user['id']]);
+                $pdo->commit();
                 echo json_encode(['success' => false, 'error' => 'Nenhum crédito disponível ainda. Volte amanhã!']);
                 exit;
             }
@@ -250,11 +271,12 @@ try {
             $pendingCredits = $pendingDays * 2;
 
             if ($pendingCredits <= 0) {
+                $pdo->rollBack();
                 echo json_encode(['success' => false, 'error' => 'Nenhum crédito disponível ainda. Volte amanhã!']);
                 exit;
             }
 
-            // Creditar e atualizar timestamp (avançar pelo número de dias completos, não NOW(), para não perder frações de dia)
+            // Avançar timestamp por dias completos (preserva fração de dia para próximo resgate)
             $newClaimedAt = date('Y-m-d H:i:s', strtotime($lastClaimed) + ($pendingDays * 86400));
             $pdo->prepare("UPDATE users SET credits = credits + ?, premium_credits_claimed_at = ?, updated_at = NOW() WHERE id = ?")
                 ->execute([$pendingCredits, $newClaimedAt, $user['id']]);
@@ -269,7 +291,9 @@ try {
                 "Créditos diários premium: {$pendingCredits} créditos ({$pendingDays} dias)"
             ]);
 
-            $newBalance = (int)($user['credits'] ?? 0) + $pendingCredits;
+            $pdo->commit();
+
+            $newBalance = (int)($locked['credits'] ?? 0) + $pendingCredits;
 
             secureLog("PREMIUM_DAILY_CLAIM | UID: {$googleUid} | Credits: {$pendingCredits} ({$pendingDays}d) | NewBalance: {$newBalance}");
 
