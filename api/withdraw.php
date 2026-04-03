@@ -91,29 +91,21 @@ try {
         exit;
     }
 
-    // Verificar cooldown de 24h entre saques
-    $cooldownHours = defined('WITHDRAW_COOLDOWN_HOURS') ? WITHDRAW_COOLDOWN_HOURS : 24;
-    $stmtCooldown = $pdo->prepare("SELECT created_at FROM withdrawals WHERE user_id = ? ORDER BY created_at DESC LIMIT 1");
-    $stmtCooldown->execute([(int)$player['id']]);
-    $lastWithdraw = $stmtCooldown->fetch();
+    // Bloquear nova solicitação enquanto houver saque pendente/em processamento
+    $stmtPending = $pdo->prepare("SELECT id, amount_brl, created_at FROM withdrawals WHERE user_id = ? AND status IN ('pending', 'processing') LIMIT 1");
+    $stmtPending->execute([(int)$player['id']]);
+    $pendingWithdraw = $stmtPending->fetch();
 
-    if ($lastWithdraw) {
-        $lastTime = strtotime($lastWithdraw['created_at']);
-        $nextAllowed = $lastTime + ($cooldownHours * 3600);
-        $now = time();
-        if ($now < $nextAllowed) {
-            $pdo->rollBack();
-            $remaining = $nextAllowed - $now;
-            $hours = floor($remaining / 3600);
-            $minutes = floor(($remaining % 3600) / 60);
-            $nextFormatted = date('d/m/Y \à\s H:i', $nextAllowed);
-            echo json_encode([
-                'success' => false,
-                'error' => "Limite de 1 saque por dia. Próximo saque disponível em {$hours}h{$minutes}min ({$nextFormatted}).",
-                'next_withdraw_at' => date('c', $nextAllowed)
-            ]);
-            exit;
-        }
+    if ($pendingWithdraw) {
+        $pdo->rollBack();
+        $amountFmt = 'R$ ' . number_format((float)$pendingWithdraw['amount_brl'], 2, ',', '.');
+        echo json_encode([
+            'success'              => false,
+            'error'                => "Você já tem um saque de {$amountFmt} aguardando processamento. Aguarde a conclusão antes de solicitar outro.",
+            'has_pending'          => true,
+            'pending_withdrawal_id'=> (int)$pendingWithdraw['id']
+        ]);
+        exit;
     }
 
     $balance = (float)$player['balance_brl'];
