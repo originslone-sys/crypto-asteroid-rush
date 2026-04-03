@@ -786,6 +786,30 @@ try {
             $response = ["success" => true, "message" => "✅ {$creditsToAdd} crédito(s) adicionado(s)!"];
             break;
 
+        case "toggle_withdrawals":
+            $weStmt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'withdrawals_enabled' LIMIT 1");
+            $current = $weStmt ? $weStmt->fetchColumn() : false;
+            // Default: ativos. Toggle inverte.
+            $isEnabled = ($current === false || ($current !== 'false' && $current !== '0'));
+            $newVal = $isEnabled ? 'false' : 'true';
+            $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at)
+                           VALUES ('withdrawals_enabled', ?, 0, NOW())
+                           ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()")
+                ->execute([$newVal, $newVal]);
+            $response = [
+                'success' => true,
+                'enabled' => ($newVal === 'true'),
+                'message' => ($newVal === 'true') ? 'Saques reativados.' : 'Saques desativados.'
+            ];
+            break;
+
+        case "get_withdrawals_status":
+            $weStmt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'withdrawals_enabled' LIMIT 1");
+            $current = $weStmt ? $weStmt->fetchColumn() : false;
+            $isEnabled = ($current === false || ($current !== 'false' && $current !== '0'));
+            $response = ['success' => true, 'enabled' => $isEnabled];
+            break;
+
         default:
             $response = ["success" => false, "message" => "Ação não reconhecida: " . htmlspecialchars($action)];
             break;
