@@ -50,6 +50,19 @@ try {
             $existingUser->execute([$googleUid]);
             $isExisting = (bool)$existingUser->fetchColumn();
 
+            // Bloquear novos cadastros se desativado pelo admin
+            if (!$isExisting) {
+                $regSt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'registrations_enabled' LIMIT 1");
+                $regVal = $regSt ? $regSt->fetchColumn() : false;
+                if ($regVal !== false && ($regVal === 'false' || $regVal === '0')) {
+                    jsonResponse([
+                        'success' => false,
+                        'error'   => 'O cadastro de novas contas está temporariamente desativado. Tente novamente mais tarde.',
+                        'registrations_disabled' => true
+                    ], 403);
+                }
+            }
+
             if ($clientIP) {
                 $blockSetting = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'block_multiple_ip_accounts' LIMIT 1");
                 $blockEnabled = $blockSetting ? (int)$blockSetting->fetchColumn() : 1;
