@@ -11,6 +11,7 @@ RUN apk add --no-cache \
     supervisor \
     bash \
     curl \
+    gettext \
     && docker-php-ext-install pdo_mysql mysqli \
     && rm -rf /var/cache/apk/*
 
