@@ -810,6 +810,22 @@ try {
             $response = ['success' => true, 'enabled' => $isEnabled];
             break;
 
+        case "toggle_credits_purchase":
+            $cpStmt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'credits_purchase_enabled' LIMIT 1");
+            $current = $cpStmt ? $cpStmt->fetchColumn() : false;
+            $isEnabled = ($current === false || ($current !== 'false' && $current !== '0'));
+            $newVal = $isEnabled ? 'false' : 'true';
+            $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at)
+                           VALUES ('credits_purchase_enabled', ?, 0, NOW())
+                           ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()")
+                ->execute([$newVal, $newVal]);
+            $response = [
+                'success' => true,
+                'enabled' => ($newVal === 'true'),
+                'message' => ($newVal === 'true') ? 'Compra de créditos reativada.' : 'Compra de créditos desativada.'
+            ];
+            break;
+
         case "toggle_registrations":
             $reStmt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'registrations_enabled' LIMIT 1");
             $current = $reStmt ? $reStmt->fetchColumn() : false;

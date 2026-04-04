@@ -626,6 +626,7 @@ try {
             ['exploration_max_rentals_per_user','3',    0],
             ['withdrawals_enabled',            'true',  0],
             ['registrations_enabled',          'true',  0],
+            ['credits_purchase_enabled',       'true',  0],
         ];
         $ins = $pdo->prepare("INSERT IGNORE INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES (?, ?, ?, NOW())");
         foreach ($defaults as $d) {
