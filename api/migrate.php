@@ -636,6 +636,70 @@ try {
     } catch (Exception $e) { /* game_settings pode não existir */ }
 
     // ============================================
+    // PVP - TABELAS E COLUNAS
+    // ============================================
+    output("\n--- PvP: Tabelas e colunas ---");
+
+    // Tabela principal de partidas PvP
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS pvp_matches (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            match_id VARCHAR(64) NOT NULL UNIQUE,
+            player1_google_uid VARCHAR(128) NOT NULL,
+            player2_google_uid VARCHAR(128) NOT NULL,
+            winner_google_uid VARCHAR(128) DEFAULT NULL,
+            status ENUM('waiting','countdown','active','completed','cancelled') NOT NULL DEFAULT 'waiting',
+            entry_fee_credits INT NOT NULL DEFAULT 2,
+            winner_prize_credits INT NOT NULL DEFAULT 3,
+            player1_lives TINYINT NOT NULL DEFAULT 6,
+            player2_lives TINYINT NOT NULL DEFAULT 6,
+            player1_asteroids_destroyed INT NOT NULL DEFAULT 0,
+            player2_asteroids_destroyed INT NOT NULL DEFAULT 0,
+            player1_shots_fired INT NOT NULL DEFAULT 0,
+            player2_shots_fired INT NOT NULL DEFAULT 0,
+            player1_hits INT NOT NULL DEFAULT 0,
+            player2_hits INT NOT NULL DEFAULT 0,
+            win_condition VARCHAR(30) DEFAULT NULL COMMENT 'elimination, time_lives, time_asteroids, disconnect, draw',
+            game_duration INT DEFAULT NULL COMMENT 'Duracao real da partida em segundos',
+            started_at DATETIME DEFAULT NULL,
+            ended_at DATETIME DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_player1 (player1_google_uid),
+            INDEX idx_player2 (player2_google_uid),
+            INDEX idx_winner (winner_google_uid),
+            INDEX idx_status (status),
+            INDEX idx_created (created_at),
+            INDEX idx_pvp_ranking (status, ended_at, winner_google_uid)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'pvp_matches:create';
+    output("  [OK] Tabela pvp_matches criada/verificada");
+
+    // Tabela de ranking PvP semanal (cache)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS pvp_ranking_cache (
+            cache_key VARCHAR(50) NOT NULL PRIMARY KEY,
+            cache_value MEDIUMTEXT NOT NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'pvp_ranking_cache:create';
+    output("  [OK] Tabela pvp_ranking_cache criada/verificada");
+
+    // Adicionar game_type na tabela game_sessions (separar single-player de pvp)
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM game_sessions LIKE 'game_type'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE game_sessions ADD COLUMN game_type VARCHAR(20) NOT NULL DEFAULT 'singleplayer' AFTER google_uid");
+            $pdo->exec("ALTER TABLE game_sessions ADD COLUMN pvp_match_id VARCHAR(64) DEFAULT NULL AFTER game_type");
+            $pdo->exec("ALTER TABLE game_sessions ADD INDEX idx_game_type (game_type)");
+            $pdo->exec("ALTER TABLE game_sessions ADD INDEX idx_pvp_match_id (pvp_match_id)");
+            $results['migrations'][] = 'game_sessions.game_type+pvp_match_id';
+            output("  [OK] game_sessions: colunas game_type e pvp_match_id adicionadas");
+        }
+    } catch (Exception $e) { /* já existe */ }
+
+    // ============================================
     // LIMPEZA
     // ============================================
     $flagFiles = glob(sys_get_temp_dir() . '/unobix_*.flag');
