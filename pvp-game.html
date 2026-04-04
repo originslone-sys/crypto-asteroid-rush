@@ -298,16 +298,12 @@
 <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 
 <!-- PvP Scripts -->
-<script src="js/pvp/pvp-game-config.js"></script>
+<script src="js/pvp/pvp-game-config.js?v=3"></script>
 <script src="js/pvp/pvp-session-manager.js"></script>
 <script src="js/pvp/pvp-game-renderer.js"></script>
 <script src="js/pvp/pvp-game-engine.js"></script>
 
 <script>
-    // ============================================
-    // PvP Page Controller
-    // ============================================
-
     async function startMatchmaking() {
         const btn = document.getElementById('pvpSearchBtn');
         const cancelBtn = document.getElementById('pvpCancelBtn');
@@ -318,25 +314,16 @@
         status.textContent = 'Autorizando...';
 
         try {
-            // 1. Autorizar com backend PHP
             const authData = await PvPSessionManager.authorize();
-
             document.getElementById('pvpEntryFee').textContent = authData.entry_fee;
             updatePrizeDisplay(authData.winner_prize_brl);
-
             status.textContent = 'Conectando ao servidor PvP...';
-
-            // 2. Conectar ao Game Server
             await PvPSessionManager.connect();
-
             status.textContent = 'Buscando oponente...';
             spinner.style.display = 'block';
             btn.style.display = 'none';
             cancelBtn.style.display = 'inline-flex';
-
-            // 3. Entrar na fila
             PvPSessionManager.joinQueue();
-
         } catch (err) {
             status.textContent = err.message;
             btn.disabled = false;
@@ -349,12 +336,10 @@
     function cancelMatchmaking() {
         PvPSessionManager.leaveQueue();
         PvPSessionManager.disconnect();
-
         const btn = document.getElementById('pvpSearchBtn');
         const cancelBtn = document.getElementById('pvpCancelBtn');
         const spinner = document.getElementById('pvpSpinner');
         const status = document.getElementById('pvpQueueStatus');
-
         btn.style.display = 'inline-flex';
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-crosshairs"></i> BUSCAR OPONENTE';
@@ -365,18 +350,13 @@
 
     function playAgain() {
         PvPSessionManager.disconnect();
-
-        // Reset state
         pvpState.serverState = null;
         pvpState.previousState = null;
         pvpState.result = null;
         pvpState.mySlot = null;
         pvpState.inMatch = false;
-
-        // Mostrar lobby
         document.getElementById('pvpResult').style.display = 'none';
         document.getElementById('pvpLobby').style.display = 'flex';
-
         const btn = document.getElementById('pvpSearchBtn');
         btn.style.display = 'inline-flex';
         btn.disabled = false;
@@ -390,35 +370,27 @@
         if (!prizeBrl || parseFloat(prizeBrl) <= 0) {
             el.textContent = 'ranking';
         } else {
-            const formatted = parseFloat(prizeBrl).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            el.textContent = formatted;
+            el.textContent = parseFloat(prizeBrl).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
     }
 
-    // Carregar configurações públicas ao abrir a página
     (async function loadPvpInfo() {
         try {
             const res = await fetch('/api/pvp-info.php');
             const data = await res.json();
             if (!data.success) return;
-
             document.getElementById('pvpEntryFee').textContent = data.entry_fee;
             updatePrizeDisplay(data.winner_prize_brl);
-
             if (!data.pvp_enabled) {
                 const btn = document.getElementById('pvpSearchBtn');
                 if (btn) { btn.disabled = true; btn.textContent = 'PvP Desativado'; }
                 document.getElementById('pvpQueueStatus').textContent = 'O modo PvP está temporariamente desativado.';
             }
-        } catch(e) { /* ignora silenciosamente */ }
+        } catch(e) {}
     })();
 
-    // Verificar login
     (function checkAuth() {
-        const uid = localStorage.getItem('googleUid');
-        if (!uid) {
-            window.location.href = 'game.html';
-        }
+        if (!localStorage.getItem('googleUid')) window.location.href = 'game.html';
     })();
 </script>
 
