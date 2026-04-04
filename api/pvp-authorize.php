@@ -81,12 +81,12 @@ try {
 
     // Carregar entry fee e prize do game_settings (admin pode alterar)
     $entryFee = PVP_ENTRY_FEE_CREDITS;
-    $winnerPrize = PVP_WINNER_PRIZE_CREDITS;
+    $winnerPrizeBrl = 0;
     try {
-        $settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN ('pvp_entry_fee_credits', 'pvp_winner_prize_credits', 'pvp_enabled')");
+        $settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN ('pvp_entry_fee_credits', 'pvp_winner_prize_brl', 'pvp_enabled')");
         while ($row = $settingsStmt->fetch()) {
             if ($row['setting_key'] === 'pvp_entry_fee_credits') $entryFee = (int)$row['setting_value'];
-            if ($row['setting_key'] === 'pvp_winner_prize_credits') $winnerPrize = (int)$row['setting_value'];
+            if ($row['setting_key'] === 'pvp_winner_prize_brl') $winnerPrizeBrl = (float)$row['setting_value'];
             if ($row['setting_key'] === 'pvp_enabled' && $row['setting_value'] === 'false') {
                 echo json_encode(['success' => false, 'error' => 'Modo PvP está desativado no momento.']);
                 exit;
@@ -152,7 +152,7 @@ try {
         'display_name' => $displayName,
         'credits' => $remainingCredits,
         'entry_fee' => $entryFee,
-        'winner_prize' => $winnerPrize,
+        'winner_prize_brl' => $winnerPrizeBrl,
         'game_duration' => PVP_GAME_DURATION,
         'lives' => PVP_LIVES
     ]);
