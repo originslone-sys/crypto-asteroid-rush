@@ -212,9 +212,9 @@
     <div class="pvp-title">MODO PvP</div>
     <div class="pvp-subtitle">NAVE vs NAVE</div>
     <div class="pvp-entry-fee">
-        <i class="fas fa-coins"></i> Custo: <span id="pvpEntryFee">2</span> créditos
+        <i class="fas fa-coins"></i> Custo: <span id="pvpEntryFee">—</span> créditos
         &nbsp;|&nbsp;
-        <i class="fas fa-trophy"></i> Prêmio: <span id="pvpPrize">3</span> créditos
+        <i class="fas fa-trophy"></i> Prêmio: <span id="pvpPrize">—</span>
     </div>
     <div class="pvp-spinner" id="pvpSpinner" style="display:none;"></div>
     <div id="pvpQueueStatus" class="pvp-subtitle">Pronto para batalha?</div>
@@ -322,7 +322,7 @@
             const authData = await PvPSessionManager.authorize();
 
             document.getElementById('pvpEntryFee').textContent = authData.entry_fee;
-            document.getElementById('pvpPrize').textContent = authData.winner_prize;
+            updatePrizeDisplay(authData.winner_prize_brl);
 
             status.textContent = 'Conectando ao servidor PvP...';
 
@@ -383,6 +383,35 @@
         btn.innerHTML = '<i class="fas fa-crosshairs"></i> BUSCAR OPONENTE';
         document.getElementById('pvpQueueStatus').textContent = 'Pronto para batalha?';
     }
+
+    function updatePrizeDisplay(prizeBrl) {
+        const el = document.getElementById('pvpPrize');
+        if (!el) return;
+        if (!prizeBrl || parseFloat(prizeBrl) <= 0) {
+            el.textContent = 'ranking';
+        } else {
+            const formatted = parseFloat(prizeBrl).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            el.textContent = formatted;
+        }
+    }
+
+    // Carregar configurações públicas ao abrir a página
+    (async function loadPvpInfo() {
+        try {
+            const res = await fetch('/api/pvp-info.php');
+            const data = await res.json();
+            if (!data.success) return;
+
+            document.getElementById('pvpEntryFee').textContent = data.entry_fee;
+            updatePrizeDisplay(data.winner_prize_brl);
+
+            if (!data.pvp_enabled) {
+                const btn = document.getElementById('pvpSearchBtn');
+                if (btn) { btn.disabled = true; btn.textContent = 'PvP Desativado'; }
+                document.getElementById('pvpQueueStatus').textContent = 'O modo PvP está temporariamente desativado.';
+            }
+        } catch(e) { /* ignora silenciosamente */ }
+    })();
 
     // Verificar login
     (function checkAuth() {

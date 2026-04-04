@@ -3,10 +3,10 @@
 // ============================================
 
 const PVP_CONFIG = {
-    // Servidor
+    // Servidor — usa proxy nginx /pvp-ws/ em produção (resolve mixed-content HTTPS→WS)
     GAME_SERVER_URL: window.location.hostname === 'localhost'
         ? 'http://localhost:3000'
-        : (window.PVP_SERVER_URL || 'http://34.138.147.143:3000'),
+        : (window.PVP_SERVER_URL || (window.location.origin + '/pvp-ws')),
 
     // Arena
     ARENA_WIDTH: 1024,
