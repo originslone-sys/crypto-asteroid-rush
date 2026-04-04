@@ -568,9 +568,12 @@
             document.getElementById('countRejected').textContent = data.counts.rejected;
 
             // Monitor
-            document.getElementById('monitorSpeed').textContent = data.monitor.avg_per_hour + '/h';
+            var isPaused = data.withdrawals_enabled === false;
+            document.getElementById('monitorSpeed').textContent = isPaused ? '—' : data.monitor.avg_per_hour + '/h';
             document.getElementById('monitorCompleted24h').textContent = data.monitor.completed_24h;
-            document.getElementById('monitorEstimate').textContent = formatEstimate(data.monitor.estimated_hours);
+            var estimateEl = document.getElementById('monitorEstimate');
+            estimateEl.textContent = isPaused ? 'Pausado' : formatEstimate(data.monitor.estimated_hours);
+            estimateEl.style.color = isPaused ? '#ffaa00' : '';
 
             // Banner de posição na fila (quando buscou por ID)
             var positionBanner = document.getElementById('positionBanner');
