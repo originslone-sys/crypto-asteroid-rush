@@ -214,92 +214,114 @@ try {
     <div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?></div>
 <?php endif; ?>
 
+<div class="page-header">
+    <h1 class="page-title"><i class="fas fa-crosshairs" style="color: #ff6600;"></i> Modo PvP</h1>
+</div>
+
 <!-- Status do Servidor -->
-<div class="panel" style="margin-bottom: 25px; border-color: <?php echo $serverOnline ? 'var(--success)' : 'var(--danger)'; ?>;">
-    <div class="panel-header">
-        <h3 class="panel-title">
+<div class="panel" style="margin-bottom: 20px; border-color: <?php echo $serverOnline ? 'var(--success)' : 'var(--danger)'; ?>;">
+    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="panel-title" style="margin: 0;">
             <i class="fas fa-server" style="color: <?php echo $serverOnline ? 'var(--success)' : 'var(--danger)'; ?>;"></i>
             Status do Servidor PvP
         </h3>
-        <span style="color: <?php echo $serverOnline ? 'var(--success)' : 'var(--danger)'; ?>; font-weight: 700;">
+        <span style="color: <?php echo $serverOnline ? 'var(--success)' : 'var(--danger)'; ?>; font-weight: 700; font-size: 0.9rem;">
             <?php echo $serverOnline ? '● ONLINE' : '● OFFLINE'; ?>
         </span>
     </div>
     <div class="panel-body">
         <?php if ($serverOnline && $serverStatus): ?>
-            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
-                <div class="stat-card">
-                    <div class="icon" style="background: rgba(0,240,255,0.1); color: var(--primary);"><i class="fas fa-users"></i></div>
-                    <div class="value"><?php echo (int)($serverStatus['queueSize'] ?? 0); ?></div>
-                    <div class="label">Na Fila</div>
+            <style>.pvp-server-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; } @media (max-width: 900px) { .pvp-server-grid { grid-template-columns: repeat(2, 1fr); } }</style>
+            <div class="pvp-server-grid">
+                <div style="text-align: center; padding: 12px; background: rgba(0,240,255,0.05); border-radius: 10px; border: 1px solid rgba(0,240,255,0.1);">
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);"><?php echo (int)($serverStatus['queueSize'] ?? 0); ?></div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">Na Fila</div>
                 </div>
-                <div class="stat-card">
-                    <div class="icon" style="background: rgba(5,255,161,0.1); color: var(--success);"><i class="fas fa-fire"></i></div>
-                    <div class="value"><?php echo (int)($serverStatus['activeMatches'] ?? 0); ?></div>
-                    <div class="label">Partidas Ativas</div>
+                <div style="text-align: center; padding: 12px; background: rgba(5,255,161,0.05); border-radius: 10px; border: 1px solid rgba(5,255,161,0.1);">
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--success);"><?php echo (int)($serverStatus['activeMatches'] ?? 0); ?></div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">Partidas Ativas</div>
                 </div>
-                <div class="stat-card">
-                    <div class="icon" style="background: rgba(255,209,102,0.1); color: var(--warning);"><i class="fas fa-door-open"></i></div>
-                    <div class="value"><?php echo (int)($serverStatus['totalRooms'] ?? 0); ?></div>
-                    <div class="label">Salas Total</div>
+                <div style="text-align: center; padding: 12px; background: rgba(255,209,102,0.05); border-radius: 10px; border: 1px solid rgba(255,209,102,0.1);">
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--warning);"><?php echo (int)($serverStatus['totalRooms'] ?? 0); ?></div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">Salas Total</div>
                 </div>
-                <div class="stat-card">
-                    <div class="icon" style="background: rgba(0,240,255,0.1); color: var(--primary);"><i class="fas fa-clock"></i></div>
-                    <div class="value"><?php echo gmdate('H:i:s', (int)($serverStatus['uptime'] ?? 0)); ?></div>
-                    <div class="label">Uptime</div>
+                <div style="text-align: center; padding: 12px; background: rgba(0,240,255,0.05); border-radius: 10px; border: 1px solid rgba(0,240,255,0.1);">
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);"><?php echo gmdate('H:i:s', (int)($serverStatus['uptime'] ?? 0)); ?></div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">Uptime</div>
                 </div>
             </div>
-            <small style="color: var(--text-dim);">Servidor: <?php echo htmlspecialchars($gameServerUrl); ?></small>
+            <div style="margin-top: 10px;"><small style="color: var(--text-dim);">Servidor: <?php echo htmlspecialchars($gameServerUrl); ?></small></div>
         <?php else: ?>
-            <p style="color: var(--danger);">
-                <i class="fas fa-exclamation-triangle"></i> O servidor PvP não está respondendo em <code><?php echo htmlspecialchars($gameServerUrl); ?></code>
+            <p style="color: var(--danger); margin: 0;">
+                <i class="fas fa-exclamation-triangle"></i> Servidor PvP não respondendo em <code><?php echo htmlspecialchars($gameServerUrl); ?></code>
             </p>
-            <p style="color: var(--text-dim); font-size: 0.9rem;">Verifique se a VM está rodando e o PM2 está ativo: <code>sudo pm2 status</code></p>
+            <p style="color: var(--text-dim); font-size: 0.85rem; margin: 8px 0 0;">Verifique: <code>sudo pm2 status</code> na VM</p>
         <?php endif; ?>
     </div>
 </div>
 
 <!-- Métricas PvP -->
-<div class="stats-grid" style="margin-bottom: 25px;">
-    <div class="stat-card">
-        <div class="icon" style="background: rgba(0,240,255,0.1); color: var(--primary);"><i class="fas fa-gamepad"></i></div>
-        <div class="value"><?php echo number_format($pvpStats['total_matches']); ?></div>
-        <div class="label">Total Partidas</div>
-        <div class="change"><?php echo $pvpStats['matches_today']; ?> hoje</div>
+<style>.pvp-metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; } @media (max-width: 1100px) { .pvp-metrics-grid { grid-template-columns: repeat(2, 1fr); } } @media (max-width: 768px) { .pvp-metrics-grid { grid-template-columns: 1fr; } }</style>
+<div class="pvp-metrics-grid" style="margin-bottom: 20px;">
+    <div style="padding: 18px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(0,240,255,0.1); color: var(--primary); font-size: 1.1rem;"><i class="fas fa-gamepad"></i></div>
+            <div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: var(--text-light);"><?php echo number_format($pvpStats['total_matches']); ?></div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">Total Partidas <span style="color: var(--primary);">(<?php echo $pvpStats['matches_today']; ?> hoje)</span></div>
+            </div>
+        </div>
     </div>
-    <div class="stat-card">
-        <div class="icon" style="background: rgba(5,255,161,0.1); color: var(--success);"><i class="fas fa-check-circle"></i></div>
-        <div class="value"><?php echo number_format($pvpStats['completed_matches']); ?></div>
-        <div class="label">Completadas</div>
-        <div class="change"><?php echo $pvpStats['matches_week']; ?> esta semana</div>
+    <div style="padding: 18px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(5,255,161,0.1); color: var(--success); font-size: 1.1rem;"><i class="fas fa-check-circle"></i></div>
+            <div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: var(--text-light);"><?php echo number_format($pvpStats['completed_matches']); ?></div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">Completadas <span style="color: var(--success);">(<?php echo $pvpStats['matches_week']; ?> semana)</span></div>
+            </div>
+        </div>
     </div>
-    <div class="stat-card">
-        <div class="icon" style="background: rgba(255,209,102,0.1); color: var(--warning);"><i class="fas fa-user-friends"></i></div>
-        <div class="value"><?php echo $pvpStats['unique_players_today']; ?> / <?php echo $pvpStats['unique_players_week']; ?></div>
-        <div class="label">Jogadores PvP</div>
-        <div class="change">hoje / semana</div>
+    <div style="padding: 18px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(255,209,102,0.1); color: var(--warning); font-size: 1.1rem;"><i class="fas fa-user-friends"></i></div>
+            <div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: var(--text-light);"><?php echo $pvpStats['unique_players_today']; ?> / <?php echo $pvpStats['unique_players_week']; ?></div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">Jogadores PvP <span style="color: var(--text-dim);">(hoje / semana)</span></div>
+            </div>
+        </div>
     </div>
-    <div class="stat-card">
-        <div class="icon" style="background: rgba(0,240,255,0.1); color: var(--primary);"><i class="fas fa-stopwatch"></i></div>
-        <div class="value"><?php echo $pvpStats['avg_duration']; ?>s</div>
-        <div class="label">Duração Média</div>
+    <div style="padding: 18px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(0,240,255,0.1); color: var(--primary); font-size: 1.1rem;"><i class="fas fa-stopwatch"></i></div>
+            <div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: var(--text-light);"><?php echo $pvpStats['avg_duration']; ?>s</div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">Duração Média</div>
+            </div>
+        </div>
     </div>
-    <div class="stat-card">
-        <div class="icon" style="background: rgba(255,42,109,0.1); color: var(--danger);"><i class="fas fa-coins"></i></div>
-        <div class="value"><?php echo number_format($pvpStats['total_credits_spent']); ?></div>
-        <div class="label">Créditos Gastos</div>
-        <div class="change"><?php echo number_format($pvpStats['total_credits_awarded']); ?> premiados</div>
+    <div style="padding: 18px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(255,42,109,0.1); color: var(--danger); font-size: 1.1rem;"><i class="fas fa-coins"></i></div>
+            <div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: var(--text-light);"><?php echo number_format($pvpStats['total_credits_spent']); ?></div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">Créditos Gastos <span style="color: var(--success);">(<?php echo number_format($pvpStats['total_credits_awarded']); ?> premiados)</span></div>
+            </div>
+        </div>
     </div>
-    <div class="stat-card">
-        <div class="icon" style="background: rgba(255,42,109,0.1); color: var(--danger);"><i class="fas fa-skull-crossbones"></i></div>
-        <div class="value"><?php echo $pvpStats['eliminations']; ?></div>
-        <div class="label">Eliminações</div>
-        <div class="change"><?php echo $pvpStats['time_wins']; ?> por tempo | <?php echo $pvpStats['disconnects']; ?> W.O. | <?php echo $pvpStats['draws']; ?> empates</div>
+    <div style="padding: 18px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(255,42,109,0.1); color: var(--danger); font-size: 1.1rem;"><i class="fas fa-skull-crossbones"></i></div>
+            <div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: var(--text-light);"><?php echo $pvpStats['eliminations']; ?></div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">Eliminações | <?php echo $pvpStats['time_wins']; ?> tempo | <?php echo $pvpStats['disconnects']; ?> W.O. | <?php echo $pvpStats['draws']; ?> empates</div>
+            </div>
+        </div>
     </div>
 </div>
 
 <!-- Configurações + Ranking -->
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px;">
+<style>.pvp-config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } @media (max-width: 1100px) { .pvp-config-grid { grid-template-columns: 1fr; } }</style>
+<div class="pvp-config-grid" style="margin-bottom: 20px;">
 
     <!-- Configurações PvP -->
     <div class="panel">
@@ -421,8 +443,8 @@ try {
                 Nenhuma partida PvP registrada ainda.
             </p>
         <?php else: ?>
-            <div class="table-container">
-                <table>
+            <div class="table-container" style="overflow-x: auto;">
+                <table style="min-width: 700px;">
                     <thead>
                         <tr>
                             <th>Data</th>
