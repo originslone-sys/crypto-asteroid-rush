@@ -21,8 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'update_pvp_settings':
                 $pvpSettings = [
                     'pvp_enabled'             => isset($_POST['pvp_enabled']) ? 'true' : 'false',
-                    'pvp_entry_fee_credits'   => max(1, (int)($_POST['pvp_entry_fee_credits'] ?? 2)),
-                    'pvp_winner_prize_credits' => max(1, (int)($_POST['pvp_winner_prize_credits'] ?? 3)),
+                    'pvp_entry_fee_credits'   => max(0, (int)($_POST['pvp_entry_fee_credits'] ?? 2)),
+                    'pvp_winner_prize_credits' => max(0, (int)($_POST['pvp_winner_prize_credits'] ?? 3)),
                     'pvp_game_duration'       => max(60, (int)($_POST['pvp_game_duration'] ?? 180)),
                     'pvp_lives'               => max(1, (int)($_POST['pvp_lives'] ?? 6)),
                     'pvp_max_bullets'         => max(1, (int)($_POST['pvp_max_bullets'] ?? 5)),
@@ -319,12 +319,14 @@ try {
 
                 <div class="form-group">
                     <label class="form-label">Custo de Entrada (créditos)</label>
-                    <input type="number" name="pvp_entry_fee_credits" class="form-control" value="<?php echo $entryFeeCredits; ?>" min="1" max="50">
+                    <input type="number" name="pvp_entry_fee_credits" class="form-control" value="<?php echo $entryFeeCredits; ?>" min="0" max="50">
+                    <small style="color: var(--text-dim);">0 = modo gratuito</small>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Prêmio do Vencedor (créditos)</label>
-                    <input type="number" name="pvp_winner_prize_credits" class="form-control" value="<?php echo $winnerPrizeCredits; ?>" min="1" max="100">
+                    <input type="number" name="pvp_winner_prize_credits" class="form-control" value="<?php echo $winnerPrizeCredits; ?>" min="0" max="100">
+                    <small style="color: var(--text-dim);">0 = sem prêmio (apenas ranking)</small>
                 </div>
 
                 <div class="form-group">

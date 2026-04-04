@@ -54,6 +54,17 @@ try {
         exit;
     }
 
+    // Carregar valores dinâmicos do admin
+    $entryFee = $entryFee;
+    $winnerPrize = $winnerPrize;
+    try {
+        $settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN ('pvp_entry_fee_credits', 'pvp_winner_prize_credits')");
+        while ($row = $settingsStmt->fetch()) {
+            if ($row['setting_key'] === 'pvp_entry_fee_credits') $entryFee = (int)$row['setting_value'];
+            if ($row['setting_key'] === 'pvp_winner_prize_credits') $winnerPrize = (int)$row['setting_value'];
+        }
+    } catch (Exception $e) { /* usa constantes padrão */ }
+
     // Verificar se match já foi processado
     $stmt = $pdo->prepare("SELECT id, status FROM pvp_matches WHERE match_id = ?");
     $stmt->execute([$matchId]);
@@ -108,17 +119,17 @@ try {
             $stmt->execute([
                 $matchId, $player1Uid, $player2Uid,
                 $winnerUid, $status, $winCondition,
-                PVP_ENTRY_FEE_CREDITS, PVP_WINNER_PRIZE_CREDITS,
+                $entryFee, $winnerPrize,
                 $p1Lives, $p2Lives, $p1Asteroids, $p2Asteroids,
                 $p1Shots, $p2Shots, $p1Hits, $p2Hits,
                 $gameDuration, $gameDuration
             ]);
         }
 
-        // Creditar prêmio ao vencedor (se houve vencedor e partida completada)
-        if ($status === 'completed' && $winnerUid && $winCondition !== 'draw') {
+        // Creditar prêmio ao vencedor (se houve vencedor, partida completada, e prêmio > 0)
+        if ($status === 'completed' && $winnerUid && $winCondition !== 'draw' && $winnerPrize > 0) {
             $stmt = $pdo->prepare("UPDATE users SET credits = credits + ? WHERE google_uid = ?");
-            $stmt->execute([PVP_WINNER_PRIZE_CREDITS, $winnerUid]);
+            $stmt->execute([$winnerPrize, $winnerUid]);
 
             // Registrar transação do vencedor
             $loserUid = ($winnerUid === $player1Uid) ? $player2Uid : $player1Uid;
@@ -127,7 +138,7 @@ try {
                 VALUES (?, 'pvp_win', ?, 0, ?, 'completed', NOW())
             ")->execute([
                 $winnerUid,
-                PVP_WINNER_PRIZE_CREDITS,
+                $winnerPrize,
                 "PvP vitória (match: " . substr($matchId, 0, 8) . ")"
             ]);
 
@@ -137,14 +148,14 @@ try {
                 VALUES (?, 'pvp_loss', ?, 0, ?, 'completed', NOW())
             ")->execute([
                 $loserUid,
-                -PVP_ENTRY_FEE_CREDITS,
+                -$entryFee,
                 "PvP derrota (match: " . substr($matchId, 0, 8) . ")"
             ]);
         }
 
         // Em caso de empate, reembolsar ambos (metade do entry fee)
-        if ($status === 'completed' && $winCondition === 'draw') {
-            $refund = max(1, intdiv(PVP_ENTRY_FEE_CREDITS, 2));
+        if ($status === 'completed' && $winCondition === 'draw' && $entryFee > 0) {
+            $refund = max(1, intdiv($entryFee, 2));
             $pdo->prepare("UPDATE users SET credits = credits + ? WHERE google_uid = ?")->execute([$refund, $player1Uid]);
             $pdo->prepare("UPDATE users SET credits = credits + ? WHERE google_uid = ?")->execute([$refund, $player2Uid]);
 
@@ -156,9 +167,9 @@ try {
         }
 
         // Se cancelado (disconnect antes de começar), reembolsar ambos
-        if ($status === 'cancelled') {
-            $pdo->prepare("UPDATE users SET credits = credits + ? WHERE google_uid = ?")->execute([PVP_ENTRY_FEE_CREDITS, $player1Uid]);
-            $pdo->prepare("UPDATE users SET credits = credits + ? WHERE google_uid = ?")->execute([PVP_ENTRY_FEE_CREDITS, $player2Uid]);
+        if ($status === 'cancelled' && $entryFee > 0) {
+            $pdo->prepare("UPDATE users SET credits = credits + ? WHERE google_uid = ?")->execute([$entryFee, $player1Uid]);
+            $pdo->prepare("UPDATE users SET credits = credits + ? WHERE google_uid = ?")->execute([$entryFee, $player2Uid]);
         }
 
         // Se disconnect durante partida, reembolsar quem ficou (vencedor ganha prêmio)
@@ -177,7 +188,7 @@ try {
             'winner_uid' => $winnerUid,
             'status' => $status,
             'win_condition' => $winCondition,
-            'prize_credited' => ($status === 'completed' && $winnerUid && $winCondition !== 'draw') ? PVP_WINNER_PRIZE_CREDITS : 0
+            'prize_credited' => ($status === 'completed' && $winnerUid && $winCondition !== 'draw') ? $winnerPrize : 0
         ]);
 
     } catch (Exception $e) {
