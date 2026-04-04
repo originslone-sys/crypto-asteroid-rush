@@ -103,6 +103,7 @@ $stmt = $pdo->prepare("
     WHERE gs.status = 'completed'
       AND gs.started_at >= ?
       AND gs.started_at <= ?
+      AND (gs.game_type = 'singleplayer' OR gs.game_type IS NULL)
     GROUP BY gs.google_uid
     HAVING total_asteroids > 0
     ORDER BY total_asteroids DESC
@@ -160,6 +161,7 @@ if (!$prevCached) {
         WHERE gs.status = 'completed'
           AND gs.started_at >= ?
           AND gs.started_at <= ?
+          AND (gs.game_type = 'singleplayer' OR gs.game_type IS NULL)
         GROUP BY gs.google_uid
         HAVING total_asteroids > 0
         ORDER BY total_asteroids DESC
