@@ -8,6 +8,16 @@ $pageTitle = 'Saques';
 $statusFilter = $_GET['status'] ?? 'pending';
 $searchQuery = trim($_GET['q'] ?? '');
 
+// Ler configuração de saques
+$withdrawalsEnabled = true;
+try {
+    $weSt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'withdrawals_enabled' LIMIT 1");
+    if ($weSt) {
+        $weVal = $weSt->fetchColumn();
+        if ($weVal !== false) $withdrawalsEnabled = ($weVal !== 'false' && $weVal !== '0');
+    }
+} catch (Exception $e) {}
+
 // Processar ações
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -17,6 +27,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare("UPDATE withdrawals SET status = 'completed', processed_at = NOW() WHERE id = ?");
             $stmt->execute([(int)$_POST['withdrawal_id']]);
             $message = "Saque aprovado!";
+        } elseif ($action === 'reject_all_pending') {
+            // Cancelar todos os saques pendentes e estornar saldo
+            $reason = trim($_POST['reason'] ?? 'Cancelamento em massa pelo administrador');
+            $pending = $pdo->query("SELECT w.id, w.user_id, w.amount_brl, u.google_uid
+                FROM withdrawals w LEFT JOIN users u ON u.id = w.user_id
+                WHERE w.status = 'pending'")->fetchAll();
+            $count = 0;
+            foreach ($pending as $w) {
+                $pdo->beginTransaction();
+                try {
+                    $pdo->prepare("UPDATE users SET balance_brl = balance_brl + ? WHERE id = ?")
+                        ->execute([$w['amount_brl'], $w['user_id']]);
+                    $pdo->prepare("UPDATE withdrawals SET status = 'rejected', processed_at = NOW(), admin_notes = ? WHERE id = ?")
+                        ->execute([$reason, $w['id']]);
+                    if ($w['google_uid']) {
+                        $pdo->prepare("INSERT INTO transactions (google_uid, type, amount_brl, description, status, created_at) VALUES (?, 'withdraw_reject', ?, ?, 'completed', NOW())")
+                            ->execute([$w['google_uid'], $w['amount_brl'], "Saque #{$w['id']} cancelado - saldo devolvido. Motivo: {$reason}"]);
+                    }
+                    $pdo->commit();
+                    $count++;
+                } catch (Exception $e) {
+                    $pdo->rollBack();
+                }
+            }
+            $message = "✓ {$count} saque(s) cancelado(s) e saldo estornado nas contas.";
         } elseif ($action === 'reject') {
             // Devolver saldo ao jogador
             $stmt = $pdo->prepare("SELECT w.user_id, w.amount_brl FROM withdrawals w WHERE w.id = ?");
@@ -92,9 +127,67 @@ try {
 ?>
 
 <div class="main-content">
-    <div class="page-header">
-        <h1 class="page-title"><i class="fas fa-money-bill-wave"></i> Gerenciamento de Saques</h1>
-        <p class="page-subtitle">Aprovar, rejeitar e acompanhar solicitações</p>
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+        <div>
+            <h1 class="page-title"><i class="fas fa-money-bill-wave"></i> Gerenciamento de Saques</h1>
+            <p class="page-subtitle">Aprovar, rejeitar e acompanhar solicitações</p>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:6px;">
+            <!-- Toggle saques via AJAX -->
+            <button id="toggleWithdrawalsBtn" type="button" onclick="toggleWithdrawals()"
+                    class="btn btn-sm"
+                    style="background:<?php echo $withdrawalsEnabled ? 'rgba(5,255,161,0.15)' : 'rgba(255,51,102,0.15)'; ?>;color:<?php echo $withdrawalsEnabled ? '#05ffa1' : '#ff3366'; ?>;border:1px solid <?php echo $withdrawalsEnabled ? 'rgba(5,255,161,0.4)' : 'rgba(255,51,102,0.4)'; ?>;"
+                    data-enabled="<?php echo $withdrawalsEnabled ? '1' : '0'; ?>">
+                <i class="fas fa-<?php echo $withdrawalsEnabled ? 'toggle-on' : 'toggle-off'; ?>"></i>
+                Saques: <?php echo $withdrawalsEnabled ? 'ATIVOS' : 'DESATIVADOS'; ?>
+            </button>
+            <?php if (($stats['pending'] ?? 0) > 0): ?>
+            <button onclick="document.getElementById('modalCancelAll').style.display='flex'"
+                    class="btn btn-danger btn-sm">
+                <i class="fas fa-ban"></i> Cancelar todos pendentes (<?php echo (int)$stats['pending']; ?>)
+            </button>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <?php if (!$withdrawalsEnabled): ?>
+    <div style="background:rgba(255,51,102,0.1);border:1px solid rgba(255,51,102,0.4);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <i class="fas fa-ban" style="color:#ff3366;font-size:1.3rem;"></i>
+        <div>
+            <strong style="color:#ff3366;">Saques desativados</strong>
+            <span style="color:var(--text-dim);font-size:0.85rem;margin-left:8px;">Nenhum novo saque pode ser solicitado pelos usuários até que você reative.</span>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Modal de confirmação -->
+    <div id="modalCancelAll" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:var(--card-bg,#1a1a2e);border:1px solid rgba(255,51,102,0.4);border-radius:14px;padding:28px;max-width:460px;width:90%;">
+            <h3 style="font-family:'Orbitron',monospace;color:#ff3366;margin:0 0 12px;font-size:1rem;">
+                <i class="fas fa-exclamation-triangle"></i> Cancelar todos os saques pendentes?
+            </h3>
+            <p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:16px;line-height:1.5;">
+                Isso vai <strong style="color:#fff;">rejeitar <?php echo (int)$stats['pending']; ?> saque(s)</strong>
+                (total de <strong style="color:#ff3366;"><?php echo formatBRL($stats['pending_amount'] ?? 0); ?></strong>)
+                e estornar o saldo de volta para cada conta. Essa ação não pode ser desfeita.
+            </p>
+            <form method="POST">
+                <input type="hidden" name="action" value="reject_all_pending">
+                <div style="margin-bottom:14px;">
+                    <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:6px;">Motivo (aparece no histórico de cada usuário)</label>
+                    <input type="text" name="reason" class="form-control"
+                           value="Cancelamento administrativo — saldo devolvido à conta"
+                           style="font-size:0.85rem;">
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button type="button" onclick="document.getElementById('modalCancelAll').style.display='none'"
+                            class="btn btn-secondary">Voltar</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-ban"></i> Confirmar cancelamento
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
     
     <?php if (isset($message)): ?>
@@ -477,5 +570,38 @@ function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(function() {
         alert('Copiado!');
     });
+}
+
+async function toggleWithdrawals() {
+    const btn = document.getElementById('toggleWithdrawalsBtn');
+    const isEnabled = btn.dataset.enabled === '1';
+    const confirmMsg = isEnabled
+        ? 'Desativar saques? Nenhum novo saque poderá ser solicitado pelos usuários.'
+        : 'Reativar saques para todos os usuários?';
+    if (!confirm(confirmMsg)) return;
+
+    btn.disabled = true;
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aguarde...';
+
+    try {
+        const resp = await fetch('../api/admin-ajax.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'toggle_withdrawals' })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.error || data.message));
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    } catch (e) {
+        alert('Erro de conexão.');
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+    }
 }
 </script>

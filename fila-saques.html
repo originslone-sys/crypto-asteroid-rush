@@ -213,6 +213,28 @@
         <p class="page-subtitle">Acompanhe em tempo real o processamento de saques</p>
     </section>
 
+    <!-- Banner: saques pausados -->
+    <div id="pausedBanner" style="display:none;background:linear-gradient(135deg,rgba(255,170,0,0.12),rgba(255,100,0,0.08));border:1px solid rgba(255,170,0,0.4);border-radius:12px;padding:18px 22px;margin-bottom:20px;display:none;align-items:center;gap:16px;">
+        <i class="fas fa-pause-circle" style="color:#ffaa00;font-size:1.8rem;flex-shrink:0;"></i>
+        <div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:0.88rem;font-weight:700;color:#ffaa00;margin-bottom:4px;">Saques pausados temporariamente</div>
+            <div style="font-size:0.83rem;color:var(--text-secondary,#ccc);line-height:1.5;">O processamento de novos saques está temporariamente suspenso. Os saques já na fila continuarão sendo processados assim que o serviço for retomado.</div>
+        </div>
+    </div>
+
+    <!-- Alerta anti-fraude -->
+    <div style="background:linear-gradient(135deg, rgba(255,51,102,0.08), rgba(255,170,0,0.06));border:1px solid rgba(255,51,102,0.25);border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:flex-start;gap:14px;">
+        <i class="fas fa-shield-alt" style="color:#ff3366;font-size:1.3rem;margin-top:2px;flex-shrink:0;"></i>
+        <div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:0.82rem;font-weight:700;color:#ff3366;margin-bottom:6px;">
+                <i class="fas fa-ban" style="margin-right:4px;"></i> AVISO IMPORTANTE
+            </div>
+            <p style="font-size:0.82rem;color:var(--text-secondary,#ccc);line-height:1.5;margin:0;">
+                <strong style="color:#fff;">Proibido:</strong> Usar quaisquer cheats, bots, exploits, ferramentas de automação, manipular, explorar bugs ou hackear o Jogo. Risco de <strong style="color:#ff3366;">cancelamento de saques e banimento permanente de conta</strong>. Todas as solicitações passam por <strong style="color:#ffaa00;">análise rigorosa</strong>.
+            </p>
+        </div>
+    </div>
+
     <!-- Stats -->
     <div class="stats-grid" id="statsGrid">
         <div class="stat-card pending">
@@ -527,6 +549,18 @@
             const data = await res.json();
             if (!data.success) return;
 
+            // Banner de saques pausados
+            var pausedBanner = document.getElementById('pausedBanner');
+            if (data.withdrawals_enabled === false) {
+                pausedBanner.style.display = 'flex';
+                document.querySelector('.refresh-dot').style.background = '#ffaa00';
+                document.querySelector('.page-subtitle').textContent = 'Saques pausados temporariamente — fila visível apenas para consulta';
+            } else {
+                pausedBanner.style.display = 'none';
+                document.querySelector('.refresh-dot').style.background = '';
+                document.querySelector('.page-subtitle').textContent = 'Acompanhe em tempo real o processamento de saques';
+            }
+
             // Stats
             document.getElementById('countPending').textContent = data.counts.pending;
             document.getElementById('countProcessing').textContent = data.counts.processing;
@@ -534,9 +568,12 @@
             document.getElementById('countRejected').textContent = data.counts.rejected;
 
             // Monitor
-            document.getElementById('monitorSpeed').textContent = data.monitor.avg_per_hour + '/h';
+            var isPaused = data.withdrawals_enabled === false;
+            document.getElementById('monitorSpeed').textContent = isPaused ? '—' : data.monitor.avg_per_hour + '/h';
             document.getElementById('monitorCompleted24h').textContent = data.monitor.completed_24h;
-            document.getElementById('monitorEstimate').textContent = formatEstimate(data.monitor.estimated_hours);
+            var estimateEl = document.getElementById('monitorEstimate');
+            estimateEl.textContent = isPaused ? 'Pausado' : formatEstimate(data.monitor.estimated_hours);
+            estimateEl.style.color = isPaused ? '#ffaa00' : '';
 
             // Banner de posição na fila (quando buscou por ID)
             var positionBanner = document.getElementById('positionBanner');

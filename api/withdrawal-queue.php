@@ -155,6 +155,11 @@ try {
 
     $response = [
         'success' => true,
+        'withdrawals_enabled' => (function() use ($pdo) {
+            $st = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'withdrawals_enabled' LIMIT 1");
+            $v = $st ? $st->fetchColumn() : false;
+            return !($v !== false && ($v === 'false' || $v === '0'));
+        })(),
         'counts' => [
             'pending' => (int)$counts['pending'],
             'processing' => (int)$counts['processing'],

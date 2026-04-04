@@ -16,21 +16,10 @@ $paymentDetails = trim($input['payment_details'] ?? $input['pix_key'] ?? '');
 $paymentMethod = strtolower(trim($input['payment_method'] ?? 'pix'));
 $pixKeyType = strtolower(trim($input['pix_key_type'] ?? ''));
 
-// Auto-detectar tipo de chave PIX se não informado
-if ($paymentMethod === 'pix' && empty($pixKeyType)) {
-    $pixKeyType = detectPixKeyType($paymentDetails);
-}
-
-// Para chave tipo telefone, garantir prefixo +55
-if ($pixKeyType === 'phone' || $pixKeyType === 'celular') {
-    $phoneDigits = preg_replace('/\D/', '', $paymentDetails);
-    if (!str_starts_with($phoneDigits, '55')) {
-        $paymentDetails = '+55' . $phoneDigits;
-    } elseif (!str_starts_with($paymentDetails, '+')) {
-        $paymentDetails = '+' . $phoneDigits;
-    }
-    $pixKeyType = 'phone';
-}
+// Apenas CPF é aceito
+$pixKeyType = 'cpf';
+// Normalizar CPF: remover pontuação
+$paymentDetails = preg_replace('/\D/', '', $paymentDetails);
 
 // Validar google_uid
 if (!$googleUid || !validateGoogleUid($googleUid)) {
@@ -43,6 +32,21 @@ if (!in_array($paymentMethod, WITHDRAW_METHODS)) {
     echo json_encode(['success' => false, 'error' => 'Método de pagamento inválido. Use: ' . implode(', ', WITHDRAW_METHODS)]);
     exit;
 }
+
+// Verificar se saques estão habilitados
+try {
+    $pdoCheck2 = getDatabaseConnection();
+    if ($pdoCheck2) {
+        $weSt = $pdoCheck2->query("SELECT setting_value FROM game_settings WHERE setting_key = 'withdrawals_enabled' LIMIT 1");
+        if ($weSt) {
+            $weVal = $weSt->fetchColumn();
+            if ($weVal !== false && ($weVal === 'false' || $weVal === '0')) {
+                echo json_encode(['success' => false, 'error' => 'Saques estão temporariamente desativados. Tente novamente em breve.', 'withdrawals_disabled' => true]);
+                exit;
+            }
+        }
+    }
+} catch (Throwable $e) { /* não bloquear por falha de leitura */ }
 
 // Validar valor mínimo
 if ($amount < MIN_WITHDRAW_BRL) {
@@ -57,8 +61,28 @@ if (empty($paymentDetails)) {
 }
 
 if (!validatePixKey($paymentDetails, $pixKeyType)) {
-    echo json_encode(['success' => false, 'error' => 'Chave PIX inválida para o tipo selecionado']);
+    echo json_encode(['success' => false, 'error' => 'CPF inválido. Verifique o número informado.']);
     exit;
+}
+
+// Verificar se este CPF já está sendo usado por outra conta
+try {
+    $pdoCheck = getDatabaseConnection();
+    if ($pdoCheck) {
+        $cpfCheck = $pdoCheck->prepare("
+            SELECT spk.user_id FROM saved_pix_keys spk
+            INNER JOIN users u ON u.id = spk.user_id
+            WHERE spk.pix_key = ? AND spk.pix_key_type = 'cpf' AND u.google_uid != ?
+            LIMIT 1
+        ");
+        $cpfCheck->execute([$paymentDetails, $googleUid]);
+        if ($cpfCheck->fetch()) {
+            echo json_encode(['success' => false, 'error' => 'Este CPF já está cadastrado em outra conta. Cada CPF só pode ser vinculado a uma conta.']);
+            exit;
+        }
+    }
+} catch (Throwable $e) {
+    // não bloquear saque por falha de checagem de CPF duplicado
 }
 
 try {
@@ -82,29 +106,21 @@ try {
         exit;
     }
 
-    // Verificar cooldown de 24h entre saques
-    $cooldownHours = defined('WITHDRAW_COOLDOWN_HOURS') ? WITHDRAW_COOLDOWN_HOURS : 24;
-    $stmtCooldown = $pdo->prepare("SELECT created_at FROM withdrawals WHERE user_id = ? ORDER BY created_at DESC LIMIT 1");
-    $stmtCooldown->execute([(int)$player['id']]);
-    $lastWithdraw = $stmtCooldown->fetch();
+    // Bloquear nova solicitação enquanto houver saque pendente/em processamento
+    $stmtPending = $pdo->prepare("SELECT id, amount_brl, created_at FROM withdrawals WHERE user_id = ? AND status IN ('pending', 'processing') LIMIT 1");
+    $stmtPending->execute([(int)$player['id']]);
+    $pendingWithdraw = $stmtPending->fetch();
 
-    if ($lastWithdraw) {
-        $lastTime = strtotime($lastWithdraw['created_at']);
-        $nextAllowed = $lastTime + ($cooldownHours * 3600);
-        $now = time();
-        if ($now < $nextAllowed) {
-            $pdo->rollBack();
-            $remaining = $nextAllowed - $now;
-            $hours = floor($remaining / 3600);
-            $minutes = floor(($remaining % 3600) / 60);
-            $nextFormatted = date('d/m/Y \à\s H:i', $nextAllowed);
-            echo json_encode([
-                'success' => false,
-                'error' => "Limite de 1 saque por dia. Próximo saque disponível em {$hours}h{$minutes}min ({$nextFormatted}).",
-                'next_withdraw_at' => date('c', $nextAllowed)
-            ]);
-            exit;
-        }
+    if ($pendingWithdraw) {
+        $pdo->rollBack();
+        $amountFmt = 'R$ ' . number_format((float)$pendingWithdraw['amount_brl'], 2, ',', '.');
+        echo json_encode([
+            'success'              => false,
+            'error'                => "Você já tem um saque de {$amountFmt} aguardando processamento. Aguarde a conclusão antes de solicitar outro.",
+            'has_pending'          => true,
+            'pending_withdrawal_id'=> (int)$pendingWithdraw['id']
+        ]);
+        exit;
     }
 
     $balance = (float)$player['balance_brl'];
@@ -161,6 +177,20 @@ try {
     $stmt->execute([$googleUid, -abs($amount), -abs($amount), "Saque $methodLabel #$withdrawalId"]);
 
     $pdo->commit();
+
+    // Auto-registrar CPF em saved_pix_keys (garante checagem de duplicidade cross-account futura)
+    try {
+        $existsKey = $pdo->prepare("SELECT id FROM saved_pix_keys WHERE user_id = ? AND pix_key_type = 'cpf' LIMIT 1");
+        $existsKey->execute([(int)$player['id']]);
+        if (!$existsKey->fetch()) {
+            $pdo->prepare("
+                INSERT IGNORE INTO saved_pix_keys (user_id, pix_key, pix_key_type, created_at)
+                VALUES (?, ?, 'cpf', NOW())
+            ")->execute([(int)$player['id'], $paymentDetails]);
+        }
+    } catch (Throwable $e) {
+        // não bloquear o saque por falha no auto-save
+    }
 
     secureLog("WITHDRAW_REQUEST | UID: $googleUid | Amount: R$$amount | ID: $withdrawalId");
 

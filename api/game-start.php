@@ -64,11 +64,11 @@ try {
         exit;
     }
 
-    // Verificar se já tem sessão ativa (impedir partidas simultâneas)
+    // Verificar se já tem sessão ativa de singleplayer (impedir partidas simultâneas)
     $stmt = $pdo->prepare("
         SELECT id, started_at, TIMESTAMPDIFF(SECOND, started_at, NOW()) as elapsed
         FROM game_sessions
-        WHERE google_uid = ? AND status = 'active'
+        WHERE google_uid = ? AND status = 'active' AND game_type = 'singleplayer'
         ORDER BY started_at DESC
         LIMIT 1
     ");
@@ -168,22 +168,34 @@ try {
         secureLog("CREDIT_REFUND_LOOP | User: $userId | Reason: abandoned session with 0 score within 30s");
     }
 
-    // Debitar crédito do usuário
-    $stmt = $pdo->prepare("UPDATE users SET credits = credits - ? WHERE id = ? AND credits >= ?");
-    $stmt->execute([CREDITS_PER_GAME, $userId, CREDITS_PER_GAME]);
+    // Debitar crédito do usuário com lock para evitar race condition
+    $pdo->beginTransaction();
+    try {
+        $lockStmt = $pdo->prepare("SELECT credits FROM users WHERE id = ? FOR UPDATE");
+        $lockStmt->execute([$userId]);
+        $lockedUser = $lockStmt->fetch();
+        $lockedCredits = (int)($lockedUser['credits'] ?? 0);
 
-    if ($stmt->rowCount() === 0) {
-        // Race condition: crédito foi usado por outra sessão simultânea
+        if ($lockedCredits < CREDITS_PER_GAME) {
+            $pdo->rollBack();
+            $pdo->prepare("UPDATE game_sessions SET status = 'abandoned' WHERE id = ?")->execute([$sessionId]);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Créditos insuficientes! Compre créditos na Carteira.',
+                'error_code' => 'NO_CREDITS'
+            ]);
+            exit;
+        }
+
+        $pdo->prepare("UPDATE users SET credits = credits - ? WHERE id = ?")->execute([CREDITS_PER_GAME, $userId]);
+        $pdo->commit();
+    } catch (Exception $e) {
+        $pdo->rollBack();
         $pdo->prepare("UPDATE game_sessions SET status = 'abandoned' WHERE id = ?")->execute([$sessionId]);
-        echo json_encode([
-            'success' => false,
-            'error' => 'Créditos insuficientes! Compre créditos na Carteira.',
-            'error_code' => 'NO_CREDITS'
-        ]);
-        exit;
+        throw $e;
     }
 
-    $remainingCredits = $userCredits - CREDITS_PER_GAME;
+    $remainingCredits = $lockedCredits - CREDITS_PER_GAME;
 
     secureLog("GAME_START | Session: $sessionId | User: $userId | Mission: $missionNumber | HardMode: " . ($isHardMode ? 'YES' : 'NO') . " | Credits: $remainingCredits");
     

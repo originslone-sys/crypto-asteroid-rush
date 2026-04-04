@@ -45,14 +45,69 @@ try {
 
             $clientIP = getClientIP();
 
+            // ── Verificar limite de contas por IP (novos E existentes) ──
+            $existingUser = $pdo->prepare("SELECT id FROM users WHERE google_uid = ? LIMIT 1");
+            $existingUser->execute([$googleUid]);
+            $isExisting = (bool)$existingUser->fetchColumn();
+
+            // Bloquear novos cadastros se desativado pelo admin
+            if (!$isExisting) {
+                $regSt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'registrations_enabled' LIMIT 1");
+                $regVal = $regSt ? $regSt->fetchColumn() : false;
+                if ($regVal !== false && ($regVal === 'false' || $regVal === '0')) {
+                    jsonResponse([
+                        'success' => false,
+                        'error'   => 'O cadastro de novas contas está temporariamente desativado. Tente novamente mais tarde.',
+                        'registrations_disabled' => true
+                    ], 403);
+                }
+            }
+
+            if ($clientIP) {
+                $blockSetting = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'block_multiple_ip_accounts' LIMIT 1");
+                $blockEnabled = $blockSetting ? (int)$blockSetting->fetchColumn() : 1;
+
+                if ($blockEnabled) {
+                    if (!$isExisting) {
+                        // Novo usuário: checar registration_ip
+                        $ipCheck = $pdo->prepare("SELECT COUNT(*) FROM users WHERE registration_ip = ? LIMIT 1");
+                        $ipCheck->execute([$clientIP]);
+                        if ((int)$ipCheck->fetchColumn() > 0) {
+                            jsonResponse([
+                                'success'  => false,
+                                'error'    => 'Já existe uma conta cadastrada neste dispositivo/rede. Cada IP permite apenas uma conta.',
+                                'ip_limit' => true
+                            ], 403);
+                        }
+                    } else {
+                        // Usuário existente: checar se outro google_uid usou este IP nas últimas 24h
+                        $ipActive = $pdo->prepare("
+                            SELECT COUNT(*) FROM users
+                            WHERE last_login_ip = ?
+                              AND google_uid != ?
+                              AND last_login >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                            LIMIT 1
+                        ");
+                        $ipActive->execute([$clientIP, $googleUid]);
+                        if ((int)$ipActive->fetchColumn() > 0) {
+                            jsonResponse([
+                                'success'  => false,
+                                'error'    => 'Outra conta está ativa neste dispositivo/rede. Cada IP permite apenas uma conta por vez.',
+                                'ip_limit' => true
+                            ], 403);
+                        }
+                    }
+                }
+            }
+
             // UPSERT
             $stmt = $pdo->prepare("
                 INSERT INTO users (
                     google_uid, email, display_name,
                     balance_brl, total_played, total_earned_brl,
-                    last_login_ip,
+                    last_login_ip, registration_ip,
                     created_at, updated_at, last_login
-                ) VALUES (?, ?, ?, 0, 0, 0, ?, NOW(), NOW(), NOW())
+                ) VALUES (?, ?, ?, 0, 0, 0, ?, ?, NOW(), NOW(), NOW())
                 ON DUPLICATE KEY UPDATE
                     email = COALESCE(VALUES(email), email),
                     display_name = COALESCE(VALUES(display_name), display_name),
@@ -60,7 +115,7 @@ try {
                     last_login = NOW(),
                     updated_at = NOW()
             ");
-            $stmt->execute([$googleUid, $email, $displayName, $clientIP]);
+            $stmt->execute([$googleUid, $email, $displayName, $clientIP, $clientIP]);
             
             // Detectar se é novo usuário (INSERT vs UPDATE)
             $isNewUser = ($stmt->rowCount() === 1);

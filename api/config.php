@@ -133,6 +133,29 @@ if (!defined('CREDITS_PER_GAME')) {
 }
 
 // ============================================
+// PVP - CONFIGURAÇÕES DO MODO PVP
+// ============================================
+if (!defined('PVP_ENTRY_FEE_CREDITS')) {
+    define('PVP_ENTRY_FEE_CREDITS', 2);       // Custo para entrar numa partida PvP
+    define('PVP_WINNER_PRIZE_CREDITS', 3);     // Prêmio do vencedor
+    define('PVP_GAME_DURATION', 180);          // Duração da partida PvP (segundos)
+    define('PVP_LIVES', 6);                    // Vidas por jogador
+    define('PVP_MAX_BULLETS_PER_PLAYER', 5);   // Máximo de balas simultâneas por jogador
+    define('PVP_FIRE_RATE_MS', 350);           // Intervalo mínimo entre tiros (ms)
+    define('PVP_BULLET_SPEED', 15);            // Velocidade das balas (px/frame)
+    define('PVP_SHIP_SPEED_X', 18);            // Velocidade horizontal da nave
+    define('PVP_SHIP_SPEED_Y', 12);            // Velocidade vertical da nave
+    define('PVP_ASTEROID_SPAWN_INTERVAL', 700);// Intervalo de spawn de asteroides (ms)
+    define('PVP_MAX_ASTEROIDS', 10);           // Máximo de asteroides na tela
+    define('PVP_MATCHMAKING_TIMEOUT', 60);     // Tempo máximo esperando oponente (segundos)
+    define('PVP_COUNTDOWN_SECONDS', 3);        // Countdown antes da partida
+    define('PVP_DISCONNECT_TIMEOUT', 10);      // Tempo para considerar desconexão (segundos)
+    define('PVP_INVINCIBILITY_FRAMES', 60);    // Frames de invencibilidade pós-dano
+    define('PVP_JWT_SECRET', getenv('PVP_JWT_SECRET') ?: 'pvp_secret_key_change_in_production_2025');
+    define('PVP_GAME_SERVER_INTERNAL_URL', getenv('PVP_GAME_SERVER_URL') ?: 'http://10.0.0.2:3000'); // IP interno VPC
+}
+
+// ============================================
 // ZETTPAY - GATEWAY PIX
 // ============================================
 if (!defined('ZETTPAY_BASE_URL')) {

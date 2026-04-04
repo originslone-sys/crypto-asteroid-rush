@@ -711,9 +711,22 @@
                     <div style="color: var(--text-dim); font-size: 0.85rem;">Sem anuncios e sem CAPTCHA</div>
                 </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 10px;">
                 <i class="fas fa-clock" style="color: var(--warning);"></i>
                 <span style="color: var(--text-dim); font-size: 0.85rem;">Expira em: <strong id="premiumExpiresText" style="color: #fff;">-</strong></span>
+            </div>
+            <!-- Créditos Diários Premium -->
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; background: rgba(255,215,0,0.07); border: 1px solid rgba(255,215,0,0.25); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-coins" style="color: #ffd700; font-size: 1.1rem;"></i>
+                    <div>
+                        <div style="color: #ffd700; font-size: 0.8rem; font-weight: 700;">CRÉDITOS DIÁRIOS</div>
+                        <div style="color: var(--text-dim); font-size: 0.78rem;"><span id="premiumDailyCreditsCount" style="color: #fff; font-weight: 700;">0</span> crédito(s) disponíveis <span style="color: rgba(255,255,255,0.4);">(+2/dia)</span></div>
+                    </div>
+                </div>
+                <button id="premiumClaimBtn" onclick="claimPremiumCredits()" disabled style="padding: 8px 16px; background: linear-gradient(135deg, #ffd700, #ff8c00); color: #000; font-family: 'Orbitron', sans-serif; font-size: 0.7rem; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap; opacity: 0.5; transition: opacity 0.2s;">
+                    <i class="fas fa-gift"></i> Resgatar
+                </button>
             </div>
         </div>
 
@@ -730,6 +743,7 @@
                     <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 12px;">
                         <span style="background: rgba(255,215,0,0.15); color: #ffd700; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem;"><i class="fas fa-ban"></i> Sem Ads</span>
                         <span style="background: rgba(255,215,0,0.15); color: #ffd700; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem;"><i class="fas fa-shield-alt"></i> Sem CAPTCHA</span>
+                        <span style="background: rgba(255,215,0,0.15); color: #ffd700; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem;"><i class="fas fa-coins"></i> +2 créditos/dia</span>
                     </div>
                     <div style="font-family: 'Orbitron', sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--success); background: rgba(5,255,161,0.1); padding: 8px 16px; border-radius: 8px; display: inline-block;" id="premiumPriceText">R$ 9,90</div>
                     <button style="display: block; margin: 12px auto 0; padding: 10px 24px; background: linear-gradient(135deg, #ffd700, #ff8c00); color: #000; font-family: 'Orbitron', sans-serif; font-size: 0.75rem; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;" id="premiumBuyBtn"><i class="fas fa-crown"></i> Assinar Premium</button>
@@ -783,15 +797,15 @@
     <section class="withdraw-section">
         <h3><i class="fas fa-paper-plane"></i> Solicitar Saque via PIX</h3>
 
-        <!-- Chaves PIX Salvas -->
+        <!-- Chave PIX CPF Salva -->
         <div class="saved-pix-section" id="savedPixSection" style="display: none;">
             <div class="saved-pix-header">
-                <label><i class="fas fa-key"></i> Chaves PIX Salvas</label>
+                <label><i class="fas fa-id-card"></i> CPF cadastrado para saque</label>
                 <span class="saved-pix-count" id="savedPixCount"></span>
             </div>
             <div class="saved-pix-list" id="savedPixList"></div>
-            <button type="button" class="use-new-key-btn" id="useNewKeyBtn" onclick="toggleNewPixKey()">
-                <i class="fas fa-plus"></i> Usar outra chave
+            <button type="button" class="use-new-key-btn" id="useNewKeyBtn" onclick="toggleNewPixKey()" style="display:none;">
+                <i class="fas fa-plus"></i> Usar outro CPF
             </button>
         </div>
 
@@ -801,20 +815,10 @@
                 <input type="number" class="withdraw-input" id="withdrawAmount" placeholder="0,00" step="0.01" min="20.00">
             </div>
             <div class="form-group visible" id="paymentDetailsGroup">
-                <label id="paymentDetailsLabel">Chave PIX</label>
-                <input type="text" class="withdraw-input" id="paymentDetails" placeholder="CPF, e-mail, celular ou chave aleatória" oninput="checkPixKeyType()">
+                <label id="paymentDetailsLabel">Chave PIX (CPF)</label>
+                <input type="text" class="withdraw-input" id="paymentDetails" placeholder="Digite seu CPF (somente números)" oninput="checkPixKeyType()" maxlength="14" inputmode="numeric">
             </div>
-            <div class="pix-type-selector" id="pixTypeSelector" style="display: none;">
-                <label style="font-size: 0.85rem; margin-bottom: 6px; display: block;">Qual o tipo da chave?</label>
-                <div class="pix-type-options">
-                    <button type="button" class="pix-type-btn" data-type="cpf" onclick="selectPixType('cpf')">
-                        <i class="fas fa-id-card"></i> CPF
-                    </button>
-                    <button type="button" class="pix-type-btn" data-type="phone" onclick="selectPixType('phone')">
-                        <i class="fas fa-phone"></i> Telefone
-                    </button>
-                </div>
-            </div>
+            <div class="pix-type-selector" id="pixTypeSelector" style="display: none;"></div>
             <div class="pix-type-detected" id="pixTypeDetected" style="display: none;">
                 <i class="fas fa-check-circle"></i> <span id="pixTypeDetectedText"></span>
             </div>
@@ -826,9 +830,21 @@
             </button>
         </div>
         
+        <!-- Aviso saques pausados -->
+        <div id="withdrawsPausedNotice" class="withdraw-info warning" style="display: none; background: rgba(255,170,0,0.08); border-color: rgba(255,170,0,0.35);">
+            <i class="fas fa-pause-circle"></i>
+            <span>Saques pausados temporariamente. Novos saques não podem ser solicitados neste momento. <a href="fila-saques.html" style="color:var(--warning);text-decoration:underline;">Ver fila</a></span>
+        </div>
+
+        <!-- Aviso saque pendente -->
+        <div id="pendingWithdrawNotice" class="withdraw-info warning" style="display: none;">
+            <i class="fas fa-clock"></i>
+            <span>Você tem um saque de <strong id="pendingWithdrawAmount"></strong> em processamento. Aguarde a conclusão antes de solicitar outro. <a href="fila-saques.html" style="color:var(--warning);text-decoration:underline;">Ver fila</a></span>
+        </div>
+
         <div class="withdraw-info">
             <i class="fas fa-info-circle"></i>
-            <span>Mínimo: R$ 20,00 • 1 saque por dia • Sem taxas • <a href="fila-saques.html" style="color:var(--primary);text-decoration:underline;">Acompanhe em tempo real</a></span>
+            <span>Mínimo: R$ 20,00 • 1 saque por vez (aguarde o processamento) • Sem taxas • <a href="fila-saques.html" style="color:var(--primary);text-decoration:underline;">Acompanhe em tempo real</a></span>
         </div>
         
         <div class="withdraw-info warning" id="withdrawWarning" style="display: none;">
@@ -926,6 +942,36 @@ async function loadWalletData() {
             document.getElementById('walletEarned').textContent = formatBRL(data.total_earned_brl);
             document.getElementById('walletWithdrawn').textContent = formatBRL(data.total_withdrawn_brl);
             document.getElementById('walletPending').textContent = formatBRL(data.pending_withdrawal_brl || 0);
+
+            // Verificar se saques estão pausados
+            const pausedNotice = document.getElementById('withdrawsPausedNotice');
+            const withdrawBtn = document.getElementById('withdrawBtn');
+            let withdrawalsPaused = false;
+            try {
+                const queueRes = await fetch('api/withdrawal-queue.php?page=1&status=pending');
+                const queueData = await queueRes.json();
+                if (queueData.success && queueData.withdrawals_enabled === false) {
+                    withdrawalsPaused = true;
+                    if (pausedNotice) pausedNotice.style.display = 'flex';
+                    if (withdrawBtn) { withdrawBtn.disabled = true; withdrawBtn.style.opacity = '0.5'; }
+                } else {
+                    if (pausedNotice) pausedNotice.style.display = 'none';
+                }
+            } catch(e) { /* ignora */ }
+
+            // Bloquear formulário de saque se houver saque pendente
+            const pendingBrl = parseFloat(data.pending_withdrawal_brl) || 0;
+            const pendingNotice = document.getElementById('pendingWithdrawNotice');
+            if (pendingBrl > 0) {
+                if (withdrawBtn) { withdrawBtn.disabled = true; withdrawBtn.style.opacity = '0.5'; }
+                if (pendingNotice) {
+                    pendingNotice.style.display = 'flex';
+                    document.getElementById('pendingWithdrawAmount').textContent = formatBRL(pendingBrl);
+                }
+            } else {
+                if (!withdrawalsPaused && withdrawBtn) { withdrawBtn.disabled = false; withdrawBtn.style.opacity = ''; }
+                if (pendingNotice) pendingNotice.style.display = 'none';
+            }
 
             // Premium status
             window._userIsPremium = !!data.is_premium;
@@ -1054,6 +1100,7 @@ function renderSavedPixKeys() {
     const countEl = document.getElementById('savedPixCount');
     const detailsGroup = document.getElementById('paymentDetailsGroup');
     const saveToggle = document.getElementById('savePixToggle');
+    const useNewBtn = document.getElementById('useNewKeyBtn');
 
     if (savedPixKeys.length === 0) {
         section.style.display = 'none';
@@ -1063,7 +1110,9 @@ function renderSavedPixKeys() {
     }
 
     section.style.display = 'block';
-    countEl.textContent = savedPixKeys.length + '/3';
+    countEl.textContent = '1/1';
+    // Quando já tem 1 chave salva, esconder botão "usar outro CPF"
+    if (useNewBtn) useNewBtn.style.display = 'none';
 
     const typeIcons = {
         cpf: 'fa-id-card', cnpj: 'fa-building', email: 'fa-envelope',
@@ -1164,8 +1213,8 @@ function toggleNewPixKey() {
         detailsGroup.classList.add('visible');
         detailsGroup.removeAttribute('style');
         btn.innerHTML = '<i class="fas fa-list"></i> Usar chave salva';
-        // Mostrar opção de salvar se ainda tem espaço
-        if (savedPixKeys.length < 3) {
+        // Mostrar opção de salvar se ainda não tem chave salva
+        if (savedPixKeys.length < 1) {
             saveToggle.style.display = 'flex';
         }
     } else {
@@ -1210,6 +1259,8 @@ async function deleteSavedKey(id) {
 async function saveCurrentPixKey(pixKey, pixKeyType) {
     const user = window.authManager?.currentUser;
     if (!user || !pixKey || !pixKeyType) return;
+    // Já tem chave salva — não tentar salvar outra
+    if (savedPixKeys.length >= 1) return;
 
     try {
         const response = await fetch('api/saved-pix-keys.php', {
@@ -1237,62 +1288,42 @@ async function saveCurrentPixKey(pixKey, pixKeyType) {
 // ============================================
 let selectedPixKeyType = '';
 
+function applyCpfMask(value) {
+    const d = value.replace(/\D/g, '').substring(0, 11);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return d.substring(0,3) + '.' + d.substring(3);
+    if (d.length <= 9) return d.substring(0,3) + '.' + d.substring(3,6) + '.' + d.substring(6);
+    return d.substring(0,3) + '.' + d.substring(3,6) + '.' + d.substring(6,9) + '-' + d.substring(9);
+}
+
 function checkPixKeyType() {
-    const input = document.getElementById('paymentDetails').value.trim();
-    const selector = document.getElementById('pixTypeSelector');
+    const inputEl = document.getElementById('paymentDetails');
+    const raw = inputEl.value;
     const detected = document.getElementById('pixTypeDetected');
     const detectedText = document.getElementById('pixTypeDetectedText');
-    const digits = input.replace(/\D/g, '');
 
+    // Apply CPF mask
+    const masked = applyCpfMask(raw);
+    if (inputEl.value !== masked) inputEl.value = masked;
+
+    const digits = masked.replace(/\D/g, '');
     selectedPixKeyType = '';
-    selector.style.display = 'none';
     detected.style.display = 'none';
     document.getElementById('savePixToggle').style.display = 'none';
 
-    if (!input) return;
-
-    function setDetected(type, label) {
-        selectedPixKeyType = type;
-        detectedText.textContent = 'Tipo detectado: ' + label;
-        detected.style.display = 'block';
-        if (savedPixKeys.length < 3) {
-            document.getElementById('savePixToggle').style.display = 'flex';
-        }
-    }
-
-    // Email
-    if (input.includes('@') && input.includes('.')) { setDetected('email', 'E-mail'); return; }
-
-    // Chave aleatória (UUID)
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input)) { setDetected('evp', 'Chave aleatória'); return; }
-
-    // CNPJ (14 dígitos)
-    if (digits.length === 14) { setDetected('cnpj', 'CNPJ'); return; }
-
-    // 10 dígitos = telefone fixo
-    if (digits.length === 10) { setDetected('phone', 'Telefone'); return; }
-
-    // 13 dígitos (com +55) = telefone
-    if (digits.length === 13 && digits.startsWith('55')) { setDetected('phone', 'Telefone'); return; }
-
-    // 11 dígitos = ambíguo (CPF ou celular) - perguntar ao usuário
     if (digits.length === 11) {
-        selector.style.display = 'block';
-        document.querySelectorAll('.pix-type-btn').forEach(b => b.classList.remove('active'));
-        if (savedPixKeys.length < 3) {
+        selectedPixKeyType = 'cpf';
+        detectedText.textContent = 'Tipo: CPF';
+        detected.style.display = 'block';
+        if (savedPixKeys.length < 1) {
             document.getElementById('savePixToggle').style.display = 'flex';
         }
-        return;
     }
-
-    // 12 dígitos (55 + DDD + 8 dígitos fixo)
-    if (digits.length === 12 && digits.startsWith('55')) { setDetected('phone', 'Telefone'); return; }
 }
 
 function selectPixType(type) {
+    // mantido por compatibilidade, não usado (CPF único)
     selectedPixKeyType = type;
-    document.querySelectorAll('.pix-type-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector(`.pix-type-btn[data-type="${type}"]`).classList.add('active');
 }
 
 async function requestWithdraw() {
@@ -1323,24 +1354,24 @@ async function requestWithdraw() {
         pixKeyType = savedKey.pix_key_type;
     } else {
         paymentDetails = document.getElementById('paymentDetails').value.trim();
-        pixKeyType = selectedPixKeyType;
+        pixKeyType = 'cpf';
         shouldSaveKey = document.getElementById('savePixCheckbox').checked;
 
         if (!paymentDetails) {
-            showWarning('Preencha a chave PIX ou selecione uma chave salva');
+            showWarning('Preencha seu CPF para o saque via PIX');
             return;
         }
 
-        // Verificar se precisa selecionar tipo (11 dígitos)
+        // Extrair apenas dígitos do CPF
         const digits = paymentDetails.replace(/\D/g, '');
-        if (digits.length === 11 && !pixKeyType) {
-            showWarning('Selecione se a chave é CPF ou Telefone');
+        if (digits.length !== 11) {
+            showWarning('CPF inválido. Digite os 11 dígitos do CPF.');
             return;
         }
+        paymentDetails = digits;
     }
 
-    // Adicionar +55 para telefone se não tiver
-    if (pixKeyType === 'phone') {
+    if (false) {  // bloco removido — apenas CPF
         const phoneDigits = paymentDetails.replace(/\D/g, '');
         if (!phoneDigits.startsWith('55')) {
             paymentDetails = '+55' + phoneDigits;
@@ -1686,9 +1717,74 @@ async function loadPremiumPrice() {
             const price = 'R$ ' + parseFloat(data.price_brl).toFixed(2).replace('.', ',');
             document.getElementById('premiumPriceText').textContent = price;
             document.getElementById('premiumDurationText').textContent = data.duration_days || 30;
+
+            // Atualizar contador de créditos diários
+            const countEl = document.getElementById('premiumDailyCreditsCount');
+            const claimBtn = document.getElementById('premiumClaimBtn');
+            if (countEl && claimBtn) {
+                const pending = data.pending_daily_credits || 0;
+                countEl.textContent = pending;
+                if (pending > 0) {
+                    claimBtn.disabled = false;
+                    claimBtn.style.opacity = '1';
+                    claimBtn.style.cursor = 'pointer';
+                } else {
+                    claimBtn.disabled = true;
+                    claimBtn.style.opacity = '0.5';
+                    claimBtn.style.cursor = 'default';
+                }
+            }
         }
     } catch (e) {
         console.error('Erro ao carregar preco premium:', e);
+    }
+}
+
+async function claimPremiumCredits() {
+    const user = window.authManager?.currentUser;
+    if (!user) return;
+
+    const btn = document.getElementById('premiumClaimBtn');
+    const origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.style.opacity = '0.7';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    try {
+        const response = await fetch('api/premium-purchase.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ google_uid: user.uid, action: 'claim_daily_credits' })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            // Atualizar saldo de créditos na tela
+            const credEl = document.getElementById('creditsBalance');
+            if (credEl) credEl.textContent = data.new_credits_balance;
+
+            // Zerar contador pendente e bloquear botão
+            document.getElementById('premiumDailyCreditsCount').textContent = '0';
+            btn.innerHTML = '<i class="fas fa-check"></i> Resgatado!';
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'default';
+
+            // Feedback visual breve
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-gift"></i> Resgatar';
+            }, 3000);
+        } else {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.innerHTML = origHtml;
+            showWarning(data.error || 'Erro ao resgatar créditos');
+        }
+    } catch (e) {
+        console.error('Erro ao resgatar créditos:', e);
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.innerHTML = origHtml;
+        showWarning('Erro de conexão. Tente novamente.');
     }
 }
 

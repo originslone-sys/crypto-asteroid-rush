@@ -48,12 +48,33 @@ try {
             $durationStmt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'premium_duration_days'");
             $duration = $durationStmt ? (int)($durationStmt->fetchColumn() ?: 30) : 30;
 
+            // Calcular créditos diários pendentes
+            $pendingDailyCredits = 0;
+            if ($isPremium) {
+                $lastClaimed = $user['premium_credits_claimed_at'] ?? null;
+
+                // Usuário tem premium mas ainda não tem timestamp (ativou antes da feature existir)
+                // Inicializar agora para que comece a acumular a partir deste momento
+                if (!$lastClaimed) {
+                    $pdo->prepare("UPDATE users SET premium_credits_claimed_at = NOW() WHERE id = ?")->execute([$user['id']]);
+                    $lastClaimed = date('Y-m-d H:i:s');
+                }
+
+                $capTime = min(time(), strtotime($expiresAt));
+                $elapsed = $capTime - strtotime($lastClaimed);
+                if ($elapsed > 0) {
+                    $pendingDailyCredits = (int)floor($elapsed / 86400) * 2;
+                }
+            }
+
             echo json_encode([
                 'success' => true,
                 'is_premium' => $isPremium,
                 'expires_at' => $expiresAt,
                 'price_brl' => $price,
-                'duration_days' => $duration
+                'duration_days' => $duration,
+                'pending_daily_credits' => $pendingDailyCredits,
+                'current_credits' => (int)($user['credits'] ?? 0)
             ]);
             break;
 
@@ -200,6 +221,88 @@ try {
                 'qr_code' => $pixCode,
                 'pix_copy_paste' => $pixCode,
                 'expires_at' => $apiData['expires_at'] ?? null
+            ]);
+            break;
+
+        // ============================================
+        // RESGATAR CRÉDITOS DIÁRIOS PREMIUM
+        // ============================================
+        case 'claim_daily_credits':
+            $user = findPlayer($pdo, $googleUid);
+            if (!$user) {
+                echo json_encode(['success' => false, 'error' => 'Usuário não encontrado']);
+                exit;
+            }
+
+            $isPremium = !empty($user['is_premium']) && !empty($user['premium_expires_at']) && strtotime($user['premium_expires_at']) > time();
+            if (!$isPremium) {
+                echo json_encode(['success' => false, 'error' => 'Apenas usuários premium podem resgatar créditos diários.']);
+                exit;
+            }
+
+            // Abrir transação com lock para evitar double-claim
+            $pdo->beginTransaction();
+
+            // Re-ler usuário com lock exclusivo
+            $lockedStmt = $pdo->prepare("SELECT credits, premium_expires_at, is_premium, premium_credits_claimed_at FROM users WHERE id = ? FOR UPDATE");
+            $lockedStmt->execute([$user['id']]);
+            $locked = $lockedStmt->fetch();
+
+            if (!$locked || empty($locked['is_premium']) || empty($locked['premium_expires_at']) || strtotime($locked['premium_expires_at']) <= time()) {
+                $pdo->rollBack();
+                echo json_encode(['success' => false, 'error' => 'Premium não está ativo.']);
+                exit;
+            }
+
+            $expiresAt = $locked['premium_expires_at'];
+            $lastClaimed = $locked['premium_credits_claimed_at'] ?? null;
+
+            if (!$lastClaimed) {
+                // Fallback: inicializar agora com 0 pendentes
+                $pdo->prepare("UPDATE users SET premium_credits_claimed_at = NOW() WHERE id = ?")->execute([$user['id']]);
+                $pdo->commit();
+                echo json_encode(['success' => false, 'error' => 'Nenhum crédito disponível ainda. Volte amanhã!']);
+                exit;
+            }
+
+            $capTime = min(time(), strtotime($expiresAt));
+            $elapsed = $capTime - strtotime($lastClaimed);
+            $pendingDays = (int)floor($elapsed / 86400);
+            $pendingCredits = $pendingDays * 2;
+
+            if ($pendingCredits <= 0) {
+                $pdo->rollBack();
+                echo json_encode(['success' => false, 'error' => 'Nenhum crédito disponível ainda. Volte amanhã!']);
+                exit;
+            }
+
+            // Avançar timestamp por dias completos (preserva fração de dia para próximo resgate)
+            $newClaimedAt = date('Y-m-d H:i:s', strtotime($lastClaimed) + ($pendingDays * 86400));
+            $pdo->prepare("UPDATE users SET credits = credits + ?, premium_credits_claimed_at = ?, updated_at = NOW() WHERE id = ?")
+                ->execute([$pendingCredits, $newClaimedAt, $user['id']]);
+
+            // Registrar na tabela de transações
+            $pdo->prepare("
+                INSERT INTO transactions (google_uid, type, amount, amount_brl, description, status, created_at)
+                VALUES (?, 'premium_daily_credits', ?, 0, ?, 'completed', NOW())
+            ")->execute([
+                $googleUid,
+                $pendingCredits,
+                "Créditos diários premium: {$pendingCredits} créditos ({$pendingDays} dias)"
+            ]);
+
+            $pdo->commit();
+
+            $newBalance = (int)($locked['credits'] ?? 0) + $pendingCredits;
+
+            secureLog("PREMIUM_DAILY_CLAIM | UID: {$googleUid} | Credits: {$pendingCredits} ({$pendingDays}d) | NewBalance: {$newBalance}");
+
+            echo json_encode([
+                'success' => true,
+                'claimed_credits' => $pendingCredits,
+                'pending_days' => $pendingDays,
+                'new_credits_balance' => $newBalance,
+                'message' => "Você resgatou {$pendingCredits} créditos!"
             ]);
             break;
 

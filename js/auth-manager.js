@@ -298,6 +298,12 @@ class AuthManager {
             } else {
                 console.warn('⚠️ Aviso do backend:', result.error);
 
+                if (result.ip_limit) {
+                    await this.signOut();
+                    this._showIPLimitAlert();
+                    return;
+                }
+
                 if (result.error && result.error.includes('suspensa')) {
                     alert('Sua conta foi suspensa. Entre em contato com o suporte.');
                     await this.signOut();
@@ -364,6 +370,48 @@ class AuthManager {
         localStorage.removeItem('referralTimestamp');
     }
     
+    _showIPLimitAlert() {
+        // Remover modal anterior se existir
+        const existing = document.getElementById('_ipLimitModal');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = '_ipLimitModal';
+        modal.style.cssText = `
+            position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;
+            display:flex;align-items:center;justify-content:center;padding:20px;
+        `;
+        modal.innerHTML = `
+            <div style="
+                background:#0d0d1a;border:1px solid rgba(255,51,102,0.4);border-radius:16px;
+                padding:32px 28px;max-width:420px;width:100%;text-align:center;
+                box-shadow:0 0 40px rgba(255,51,102,0.15);
+            ">
+                <div style="font-size:2.5rem;margin-bottom:16px;">🚫</div>
+                <h2 style="
+                    font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:800;
+                    color:#ff3366;margin:0 0 14px;
+                ">Acesso Negado</h2>
+                <p style="color:#ccc;font-size:0.9rem;line-height:1.6;margin:0 0 10px;">
+                    <strong style="color:#fff;">Já existe uma conta cadastrada neste dispositivo ou rede.</strong>
+                </p>
+                <p style="color:#aaa;font-size:0.82rem;line-height:1.6;margin:0 0 24px;">
+                    Nossa plataforma permite apenas <strong style="color:#ffaa00;">uma conta por IP</strong>.
+                    Se você acredita que isso é um engano, entre em contato com o suporte.
+                </p>
+                <button onclick="document.getElementById('_ipLimitModal').remove()" style="
+                    background:rgba(255,51,102,0.15);border:1px solid rgba(255,51,102,0.4);
+                    color:#ff3366;padding:10px 28px;border-radius:8px;font-size:0.88rem;
+                    cursor:pointer;font-family:inherit;
+                ">Fechar</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
+
     dispatchAuthEvent(user) {
         const event = new CustomEvent('authStateChanged', {
             detail: { user: user }

@@ -102,6 +102,11 @@ try {
                 <?php endif; ?>
             </a>
 
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=pvp" class="nav-item <?php echo $currentPage === 'pvp' ? 'active' : ''; ?>">
+                <i class="fas fa-crosshairs" style="color: #ff6600;"></i>
+                <span>Modo PvP</span>
+            </a>
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=exploration" class="nav-item <?php echo $currentPage === 'exploration' ? 'active' : ''; ?>">
                 <i class="fas fa-compass"></i>
                 <span>Exploração</span>
@@ -140,6 +145,11 @@ try {
         <div class="nav-section">
             <div class="nav-section-title">Sistema</div>
 
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=revenue" class="nav-item <?php echo $currentPage === 'revenue' ? 'active' : ''; ?>">
+                <i class="fas fa-chart-line"></i>
+                <span>Receita</span>
+            </a>
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=metrics" class="nav-item <?php echo $currentPage === 'metrics' ? 'active' : ''; ?>">
                 <i class="fas fa-tachometer-alt"></i>
                 <span>Metricas</span>
@@ -148,6 +158,11 @@ try {
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=suspect-analysis" class="nav-item <?php echo $currentPage === 'suspect-analysis' ? 'active' : ''; ?>">
                 <i class="fas fa-robot"></i>
                 <span>Análise de Suspeitas</span>
+            </a>
+
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=account-analysis" class="nav-item <?php echo $currentPage === 'account-analysis' ? 'active' : ''; ?>">
+                <i class="fas fa-microscope"></i>
+                <span>Análise de Conta</span>
             </a>
 
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=security" class="nav-item <?php echo $currentPage === 'security' ? 'active' : ''; ?>">

@@ -197,6 +197,11 @@ try {
 }
 
 // formatBRL() já definida em config.php
+
+// Ler estado de novas contas
+$reStmt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'registrations_enabled' LIMIT 1");
+$regVal = $reStmt ? $reStmt->fetchColumn() : false;
+$registrationsEnabled = ($regVal === false || ($regVal !== 'false' && $regVal !== '0'));
 ?>
 
 <div class="main-content">
@@ -239,6 +244,36 @@ try {
             <div class="value"><?php echo $stats['banned'] ?? 0; ?></div>
             <div class="label">Banidos</div>
             <div class="change"><?php echo $stats['inactive'] ?? 0; ?> inativos</div>
+        </div>
+    </div>
+
+    <!-- Toggle: Novas Contas -->
+    <?php if (!$registrationsEnabled): ?>
+    <div class="alert alert-danger" style="display:flex;align-items:center;gap:12px;">
+        <i class="fas fa-user-slash" style="font-size:1.2rem;"></i>
+        <span style="flex:1;"><strong>Cadastro de novas contas está DESATIVADO.</strong> Usuários novos não conseguirão criar conta.</span>
+        <button type="button" class="btn btn-success btn-sm" onclick="toggleRegistrations()"><i class="fas fa-user-check"></i> Reativar</button>
+    </div>
+    <?php endif; ?>
+
+    <div class="panel" style="margin-bottom: 20px;">
+        <div class="panel-body" style="padding: 14px 20px; display: flex; align-items: center; gap: 16px;">
+            <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 2px;">Cadastro de Novas Contas</div>
+                <div style="font-size: 0.82rem; color: var(--text-dim);">
+                    <?php if ($registrationsEnabled): ?>
+                        <span style="color: var(--success);"><i class="fas fa-circle" style="font-size:0.6rem;"></i> Ativado</span> — novos usuários podem se cadastrar normalmente.
+                    <?php else: ?>
+                        <span style="color: #ff3366;"><i class="fas fa-circle" style="font-size:0.6rem;"></i> Desativado</span> — cadastro bloqueado para novos usuários.
+                    <?php endif; ?>
+                </div>
+            </div>
+            <button type="button" onclick="toggleRegistrations()"
+                    class="btn <?php echo $registrationsEnabled ? 'btn-danger' : 'btn-success'; ?> btn-sm"
+                    id="btnToggleRegistrations">
+                <i class="fas <?php echo $registrationsEnabled ? 'fa-user-slash' : 'fa-user-check'; ?>"></i>
+                <?php echo $registrationsEnabled ? 'Desativar Novas Contas' : 'Ativar Novas Contas'; ?>
+            </button>
         </div>
     </div>
 
@@ -689,5 +724,25 @@ document.getElementById('deleteConfirmInput').addEventListener('input', function
 
 function closeModal(id) {
     document.getElementById(id).classList.remove('active');
+}
+
+function toggleRegistrations() {
+    const btn = document.getElementById('btnToggleRegistrations');
+    btn.disabled = true;
+    fetch('../api/admin-ajax.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'toggle_registrations'})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.message || data.error || 'Falha desconhecida'));
+            btn.disabled = false;
+        }
+    })
+    .catch(() => { alert('Erro de conexão.'); btn.disabled = false; });
 }
 </script>

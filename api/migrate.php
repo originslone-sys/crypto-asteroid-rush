@@ -43,6 +43,7 @@ try {
     // ============================================
     // TABELAS PRINCIPAIS
     // ============================================
+    output("\n--- Tabelas principais ---");
 
     // zettpay_transactions
     $pdo->exec("
@@ -164,7 +165,7 @@ try {
     $results['migrations'][] = 'api_metrics';
     output("  [OK] api_metrics");
 
-    // ranking_cache (cache compartilhado entre instâncias)
+    // ranking_cache
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS ranking_cache (
             cache_key VARCHAR(50) NOT NULL PRIMARY KEY,
@@ -175,7 +176,7 @@ try {
     $results['migrations'][] = 'ranking_cache';
     output("  [OK] ranking_cache");
 
-    // admin_login_log (histórico de login do admin)
+    // admin_login_log
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS admin_login_log (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -253,7 +254,7 @@ try {
     $results['migrations'][] = 'premium_subscriptions';
     output("  [OK] premium_subscriptions");
 
-    // saved_pix_keys (chaves PIX salvas do usuário)
+    // saved_pix_keys
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS saved_pix_keys (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -263,142 +264,133 @@ try {
             label VARCHAR(50) DEFAULT NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_user_id (user_id),
-            CONSTRAINT fk_saved_pix_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            INDEX idx_pix_key_type (pix_key, pix_key_type)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
     $results['migrations'][] = 'saved_pix_keys';
     output("  [OK] saved_pix_keys");
 
-    // ============================================
-    // COLUNAS EXTRAS EM TABELAS EXISTENTES
-    // ============================================
+    // referral_codes
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS referral_codes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            google_uid VARCHAR(128) NOT NULL,
+            wallet_address VARCHAR(42) NOT NULL DEFAULT '',
+            code VARCHAR(10) NOT NULL UNIQUE,
+            uses_count INT NOT NULL DEFAULT 0,
+            max_uses INT NOT NULL DEFAULT 0,
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_google_uid (google_uid),
+            INDEX idx_code (code)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'referral_codes';
+    output("  [OK] referral_codes");
 
-    // users.credits
-    $col = $pdo->query("SHOW COLUMNS FROM users LIKE 'credits'")->fetch();
-    if (!$col) {
-        $pdo->exec("ALTER TABLE users ADD COLUMN credits INT NOT NULL DEFAULT 0");
-        $results['migrations'][] = 'users.credits';
-        output("  [OK] users.credits adicionada");
-    }
+    // referrals
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS referrals (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            referrer_google_uid VARCHAR(128) NOT NULL,
+            referrer_wallet VARCHAR(42) NOT NULL DEFAULT '',
+            referred_google_uid VARCHAR(128) NOT NULL,
+            referred_wallet VARCHAR(42) NOT NULL DEFAULT '',
+            referral_code VARCHAR(10) NOT NULL,
+            missions_at_register INT NOT NULL DEFAULT 0,
+            missions_completed INT NOT NULL DEFAULT 0,
+            missions_required INT NOT NULL DEFAULT 20,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            commission_brl DECIMAL(10,6) NOT NULL DEFAULT 0,
+            commission_paid_at DATETIME DEFAULT NULL,
+            qualified_at DATETIME DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_referrer (referrer_google_uid),
+            INDEX idx_referred (referred_google_uid),
+            INDEX idx_status (status),
+            INDEX idx_code (referral_code)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'referrals';
+    output("  [OK] referrals");
 
-    // users.is_premium
-    $col = $pdo->query("SHOW COLUMNS FROM users LIKE 'is_premium'")->fetch();
-    if (!$col) {
-        $pdo->exec("ALTER TABLE users ADD COLUMN is_premium TINYINT(1) NOT NULL DEFAULT 0");
-        $results['migrations'][] = 'users.is_premium';
-        output("  [OK] users.is_premium adicionada");
-    }
+    // suspicious_activity
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS suspicious_activity (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            google_uid VARCHAR(128) DEFAULT NULL,
+            wallet_address VARCHAR(42) DEFAULT NULL,
+            session_id INT DEFAULT NULL,
+            activity_type VARCHAR(50) NOT NULL,
+            activity_data TEXT DEFAULT NULL,
+            ip_address VARCHAR(45) DEFAULT NULL,
+            user_agent VARCHAR(500) DEFAULT NULL,
+            screen_width INT DEFAULT NULL,
+            screen_height INT DEFAULT NULL,
+            devtools_detected TINYINT(1) DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_google_uid (google_uid),
+            INDEX idx_wallet (wallet_address),
+            INDEX idx_type (activity_type),
+            INDEX idx_created (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'suspicious_activity';
+    output("  [OK] suspicious_activity");
 
-    // users.premium_expires_at
-    $col = $pdo->query("SHOW COLUMNS FROM users LIKE 'premium_expires_at'")->fetch();
-    if (!$col) {
-        $pdo->exec("ALTER TABLE users ADD COLUMN premium_expires_at DATETIME DEFAULT NULL");
-        $results['migrations'][] = 'users.premium_expires_at';
-        output("  [OK] users.premium_expires_at adicionada");
-    }
+    // support_tickets
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS support_tickets (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            google_uid VARCHAR(255) NOT NULL,
+            subject VARCHAR(255) NOT NULL,
+            category ENUM('account','payment','game','bug','other') DEFAULT 'other',
+            status ENUM('open','in_progress','resolved','closed') DEFAULT 'open',
+            priority ENUM('low','normal','high') DEFAULT 'normal',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_user (google_uid),
+            INDEX idx_status (status),
+            INDEX idx_created (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'support_tickets';
+    output("  [OK] support_tickets");
 
-    // transactions.amount_brl
-    try {
-        $col = $pdo->query("SHOW COLUMNS FROM transactions LIKE 'amount_brl'")->fetch();
-        if (!$col) {
-            $pdo->exec("ALTER TABLE transactions ADD COLUMN amount_brl DECIMAL(15,2) DEFAULT 0 AFTER amount");
-            $results['migrations'][] = 'transactions.amount_brl';
-            output("  [OK] transactions.amount_brl adicionada");
-        }
-    } catch (Exception $e) { /* tabela pode não existir */ }
+    // support_messages
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS support_messages (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ticket_id INT NOT NULL,
+            sender_type ENUM('user','admin') NOT NULL,
+            message TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_ticket (ticket_id),
+            FOREIGN KEY (ticket_id) REFERENCES support_tickets(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'support_messages';
+    output("  [OK] support_messages");
 
-    // transactions.type → VARCHAR(30) (converter de ENUM se necessário)
-    try {
-        $colInfo = $pdo->query("SHOW COLUMNS FROM transactions WHERE Field = 'type'")->fetch();
-        if ($colInfo && stripos($colInfo['Type'], 'enum') !== false) {
-            $pdo->exec("ALTER TABLE transactions MODIFY COLUMN type VARCHAR(30) NOT NULL");
-            $results['migrations'][] = 'transactions.type→varchar';
-            output("  [OK] transactions.type convertida para VARCHAR");
-        }
-    } catch (Exception $e) { /* tabela pode não existir */ }
-
-    // withdrawals — colunas ZettPay
-    try {
-        $col = $pdo->query("SHOW COLUMNS FROM withdrawals LIKE 'zettpay_external_id'")->fetch();
-        if (!$col) {
-            $pdo->exec("ALTER TABLE withdrawals ADD COLUMN zettpay_external_id VARCHAR(100) DEFAULT NULL");
-            $pdo->exec("ALTER TABLE withdrawals ADD COLUMN zettpay_status VARCHAR(30) DEFAULT NULL");
-            $pdo->exec("ALTER TABLE withdrawals ADD INDEX idx_zettpay_ext_id (zettpay_external_id)");
-            $results['migrations'][] = 'withdrawals.zettpay_columns';
-            output("  [OK] withdrawals: colunas ZettPay adicionadas");
-        }
-    } catch (Exception $e) { /* tabela pode não existir */ }
-
-    // game_sessions — coluna total_spawned
-    try {
-        $col = $pdo->query("SHOW COLUMNS FROM game_sessions LIKE 'total_spawned'")->fetch();
-        if (!$col) {
-            $pdo->exec("ALTER TABLE game_sessions ADD COLUMN total_spawned INT NOT NULL DEFAULT 0 AFTER legendary_asteroids");
-            $results['migrations'][] = 'game_sessions.total_spawned';
-            output("  [OK] game_sessions: coluna total_spawned adicionada");
-        }
-    } catch (Exception $e) { /* tabela pode não existir */ }
-
-    // ============================================
-    // ÍNDICES CRÍTICOS
-    // ============================================
-    $indexes = [
-        ["users", "ALTER TABLE users ADD UNIQUE INDEX idx_google_uid (google_uid)"],
-        ["game_sessions", "ALTER TABLE game_sessions ADD INDEX idx_status_started_uid (status, started_at, google_uid)"],
-        ["game_sessions", "ALTER TABLE game_sessions ADD INDEX idx_google_uid_status (google_uid, status)"],
-        ["game_sessions", "ALTER TABLE game_sessions ADD INDEX idx_ranking (status, started_at, google_uid, asteroids_destroyed)"],
-        ["transactions", "ALTER TABLE transactions ADD INDEX idx_uid_created (google_uid, created_at DESC)"],
-        ["transactions", "ALTER TABLE transactions ADD INDEX idx_uid_type_created (google_uid, type, created_at DESC)"],
-        ["zettpay_transactions", "ALTER TABLE zettpay_transactions ADD INDEX idx_ext_user (external_id, user_id)"],
-    ];
-
-    foreach ($indexes as [$table, $sql]) {
-        try {
-            $pdo->exec($sql);
-            $results['migrations'][] = "index:{$table}";
-            output("  [OK] Índice em {$table}");
-        } catch (Exception $e) {
-            // Índice já existe — ok
-        }
-    }
-
-    // ============================================
-    // DADOS PADRÃO
-    // ============================================
-
-    // Pacotes de créditos padrão
-    $count = $pdo->query("SELECT COUNT(*) FROM credit_packages")->fetchColumn();
-    if ($count == 0) {
-        $pdo->exec("
-            INSERT INTO credit_packages (name, credits, bonus_credits, price_brl, is_featured) VALUES
-            ('Iniciante', 5, 0, 1.00, 0),
-            ('Explorador', 15, 2, 2.50, 0),
-            ('Comandante', 30, 5, 4.50, 1),
-            ('Elite', 60, 15, 8.00, 0),
-            ('Lendário', 120, 40, 14.00, 0)
-        ");
-        $results['migrations'][] = 'credit_packages:defaults';
-        output("  [OK] Pacotes de créditos padrão inseridos");
-    }
-
-    // Configurações premium padrão
-    try {
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM game_settings WHERE setting_key = 'premium_price_brl'");
-        $stmt->execute();
-        if ((int)$stmt->fetchColumn() === 0) {
-            $defaults = [
-                ['premium_price_brl', '19.90', 1],
-                ['premium_duration_days', '30', 1],
-                ['premium_enabled', 'true', 1],
-            ];
-            $ins = $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES (?, ?, ?, NOW())");
-            foreach ($defaults as $d) {
-                $ins->execute($d);
-            }
-            $results['migrations'][] = 'game_settings:premium_defaults';
-            output("  [OK] Configurações premium padrão inseridas");
-        }
-    } catch (Exception $e) { /* game_settings pode não existir */ }
+    // notifications
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(255) NOT NULL,
+            message TEXT NOT NULL,
+            type ENUM('info','warning','success','promo') DEFAULT 'info',
+            is_active TINYINT(1) DEFAULT 1,
+            starts_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            expires_at DATETIME NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_active (is_active),
+            INDEX idx_dates (starts_at, expires_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'notifications';
+    output("  [OK] notifications");
 
     // ============================================
     // EXPLORAÇÃO DE NAVES
@@ -422,8 +414,8 @@ try {
             INDEX idx_ship_key (ship_key)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
-    $results['migrations'][] = 'exploration_ships:create';
-    output("  [OK] Tabela exploration_ships");
+    $results['migrations'][] = 'exploration_ships';
+    output("  [OK] exploration_ships");
 
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS exploration_rentals (
@@ -449,81 +441,282 @@ try {
             INDEX idx_expires (expires_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
-    $results['migrations'][] = 'exploration_rentals:create';
-    output("  [OK] Tabela exploration_rentals");
+    $results['migrations'][] = 'exploration_rentals';
+    output("  [OK] exploration_rentals");
 
-    // Seed: naves padrão
+    // ============================================
+    // COLUNAS EXTRAS EM TABELAS EXISTENTES
+    // ============================================
+    output("\n--- Colunas extras ---");
+
+    // --- users ---
+    $userCols = [
+        'credits'                    => "ALTER TABLE users ADD COLUMN credits INT NOT NULL DEFAULT 0",
+        'is_premium'                 => "ALTER TABLE users ADD COLUMN is_premium TINYINT(1) NOT NULL DEFAULT 0",
+        'premium_expires_at'         => "ALTER TABLE users ADD COLUMN premium_expires_at DATETIME DEFAULT NULL",
+        'premium_credits_claimed_at' => "ALTER TABLE users ADD COLUMN premium_credits_claimed_at DATETIME DEFAULT NULL",
+        'registration_ip'            => "ALTER TABLE users ADD COLUMN registration_ip VARCHAR(45) DEFAULT NULL",
+        'last_login_ip'              => "ALTER TABLE users ADD COLUMN last_login_ip VARCHAR(45) DEFAULT NULL",
+        'last_login'                 => "ALTER TABLE users ADD COLUMN last_login DATETIME DEFAULT NULL",
+        'is_banned'                  => "ALTER TABLE users ADD COLUMN is_banned TINYINT(1) NOT NULL DEFAULT 0",
+        'ban_reason'                 => "ALTER TABLE users ADD COLUMN ban_reason VARCHAR(255) DEFAULT NULL",
+        'total_withdrawn_brl'        => "ALTER TABLE users ADD COLUMN total_withdrawn_brl DECIMAL(15,6) NOT NULL DEFAULT 0",
+        'staked_balance_brl'         => "ALTER TABLE users ADD COLUMN staked_balance_brl DECIMAL(15,6) NOT NULL DEFAULT 0",
+        'whatsapp'                   => "ALTER TABLE users ADD COLUMN whatsapp VARCHAR(20) DEFAULT NULL",
+    ];
+    foreach ($userCols as $col => $sql) {
+        $exists = $pdo->query("SHOW COLUMNS FROM users LIKE '{$col}'")->fetch();
+        if (!$exists) {
+            $pdo->exec($sql);
+            $results['migrations'][] = "users.{$col}";
+            output("  [OK] users.{$col} adicionada");
+        }
+    }
+
+    // --- transactions ---
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM transactions LIKE 'amount_brl'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE transactions ADD COLUMN amount_brl DECIMAL(15,2) DEFAULT 0 AFTER amount");
+            $results['migrations'][] = 'transactions.amount_brl';
+            output("  [OK] transactions.amount_brl adicionada");
+        }
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
+    // transactions.type → VARCHAR(30) (converter de ENUM se necessário)
+    try {
+        $colInfo = $pdo->query("SHOW COLUMNS FROM transactions WHERE Field = 'type'")->fetch();
+        if ($colInfo && stripos($colInfo['Type'], 'enum') !== false) {
+            $pdo->exec("ALTER TABLE transactions MODIFY COLUMN type VARCHAR(30) NOT NULL");
+            $results['migrations'][] = 'transactions.type→varchar';
+            output("  [OK] transactions.type convertida para VARCHAR(30)");
+        }
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
+    // --- withdrawals ---
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM withdrawals LIKE 'zettpay_external_id'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE withdrawals ADD COLUMN zettpay_external_id VARCHAR(100) DEFAULT NULL");
+            $pdo->exec("ALTER TABLE withdrawals ADD COLUMN zettpay_status VARCHAR(30) DEFAULT NULL");
+            $pdo->exec("ALTER TABLE withdrawals ADD INDEX idx_zettpay_ext_id (zettpay_external_id)");
+            $results['migrations'][] = 'withdrawals.zettpay_columns';
+            output("  [OK] withdrawals: colunas ZettPay adicionadas");
+        }
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
+    // --- game_sessions ---
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM game_sessions LIKE 'total_spawned'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE game_sessions ADD COLUMN total_spawned INT NOT NULL DEFAULT 0 AFTER legendary_asteroids");
+            $results['migrations'][] = 'game_sessions.total_spawned';
+            output("  [OK] game_sessions.total_spawned adicionada");
+        }
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
+    // --- referrals: colunas extras ---
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM referrals LIKE 'commission_paid_at'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE referrals ADD COLUMN commission_paid_at DATETIME DEFAULT NULL");
+            $results['migrations'][] = 'referrals.commission_paid_at';
+            output("  [OK] referrals.commission_paid_at adicionada");
+        }
+        $col = $pdo->query("SHOW COLUMNS FROM referrals LIKE 'qualified_at'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE referrals ADD COLUMN qualified_at DATETIME DEFAULT NULL");
+            $results['migrations'][] = 'referrals.qualified_at';
+            output("  [OK] referrals.qualified_at adicionada");
+        }
+        // Garantir que status é VARCHAR (não ENUM) para aceitar todos os valores
+        $colInfo = $pdo->query("SHOW COLUMNS FROM referrals WHERE Field = 'status'")->fetch();
+        if ($colInfo && stripos($colInfo['Type'], 'enum') !== false) {
+            $pdo->exec("ALTER TABLE referrals MODIFY COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending'");
+            $results['migrations'][] = 'referrals.status→varchar';
+            output("  [OK] referrals.status convertida para VARCHAR(20)");
+        }
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
+    // --- suspicious_activity: coluna google_uid ---
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM suspicious_activity LIKE 'google_uid'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE suspicious_activity ADD COLUMN google_uid VARCHAR(128) DEFAULT NULL");
+            $results['migrations'][] = 'suspicious_activity.google_uid';
+            output("  [OK] suspicious_activity.google_uid adicionada");
+        }
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
+    // ============================================
+    // ÍNDICES CRÍTICOS
+    // ============================================
+    output("\n--- Índices ---");
+
+    $indexes = [
+        ["users",              "ALTER TABLE users ADD UNIQUE INDEX idx_google_uid (google_uid)"],
+        ["game_sessions",      "ALTER TABLE game_sessions ADD INDEX idx_status_started_uid (status, started_at, google_uid)"],
+        ["game_sessions",      "ALTER TABLE game_sessions ADD INDEX idx_google_uid_status (google_uid, status)"],
+        ["game_sessions",      "ALTER TABLE game_sessions ADD INDEX idx_ranking (status, started_at, google_uid, asteroids_destroyed)"],
+        ["transactions",       "ALTER TABLE transactions ADD INDEX idx_uid_created (google_uid, created_at DESC)"],
+        ["transactions",       "ALTER TABLE transactions ADD INDEX idx_uid_type_created (google_uid, type, created_at DESC)"],
+        ["zettpay_transactions","ALTER TABLE zettpay_transactions ADD INDEX idx_ext_user (external_id, user_id)"],
+        ["saved_pix_keys",     "ALTER TABLE saved_pix_keys ADD INDEX idx_pix_key_lookup (pix_key, pix_key_type)"],
+    ];
+
+    foreach ($indexes as [$table, $sql]) {
+        try {
+            $pdo->exec($sql);
+            $results['migrations'][] = "index:{$table}";
+            output("  [OK] Índice em {$table}");
+        } catch (Exception $e) {
+            // Índice já existe — ok
+        }
+    }
+
+    // ============================================
+    // DADOS PADRÃO
+    // ============================================
+    output("\n--- Dados padrão ---");
+
+    // Pacotes de créditos padrão
+    $count = $pdo->query("SELECT COUNT(*) FROM credit_packages")->fetchColumn();
+    if ($count == 0) {
+        $pdo->exec("
+            INSERT INTO credit_packages (name, credits, bonus_credits, price_brl, is_featured) VALUES
+            ('Iniciante',  5,   0,  1.00, 0),
+            ('Explorador', 15,  2,  2.50, 0),
+            ('Comandante', 30,  5,  4.50, 1),
+            ('Elite',      60,  15, 8.00, 0),
+            ('Lendário',   120, 40, 14.00, 0)
+        ");
+        $results['migrations'][] = 'credit_packages:defaults';
+        output("  [OK] Pacotes de créditos padrão inseridos");
+    }
+
+    // Naves padrão
     try {
         $shipCount = (int)$pdo->query("SELECT COUNT(*) FROM exploration_ships")->fetchColumn();
         if ($shipCount === 0) {
             $pdo->exec("
                 INSERT INTO exploration_ships (ship_key, name, description, rental_price_brl, rental_duration_hours, credits_per_day, is_active, sort_order) VALUES
-                ('PHOENIX', 'Phoenix Crimson', 'Explorador equilibrado com boa coleta', 2.00, 24, 5, 1, 1),
-                ('GUARDIAN', 'Forest Guardian', 'Casco resistente para missões longas', 3.00, 48, 8, 1, 2),
-                ('THUNDER', 'Thunder Strike', 'Coletor de alta velocidade', 5.00, 72, 12, 1, 3),
-                ('INFERNO', 'Inferno Blaze', 'Motores potentes aceleram a coleta', 4.00, 48, 10, 1, 4),
-                ('NEBULA', 'Nebula Phantom', 'Explorador ágil e eficiente', 6.00, 72, 15, 1, 5),
-                ('VIPER', 'Toxic Viper', 'Serpente ágil coletora', 3.50, 48, 9, 1, 6),
-                ('WOLF', 'Steel Wolf', 'Coletor pesado de assalto', 8.00, 96, 20, 1, 7)
+                ('PHOENIX',  'Phoenix Crimson',  'Explorador equilibrado com boa coleta',    2.00, 24, 5,  1, 1),
+                ('GUARDIAN', 'Forest Guardian',  'Casco resistente para missões longas',     3.00, 48, 8,  1, 2),
+                ('THUNDER',  'Thunder Strike',   'Coletor de alta velocidade',               5.00, 72, 12, 1, 3),
+                ('INFERNO',  'Inferno Blaze',    'Motores potentes aceleram a coleta',       4.00, 48, 10, 1, 4),
+                ('NEBULA',   'Nebula Phantom',   'Explorador ágil e eficiente',              6.00, 72, 15, 1, 5),
+                ('VIPER',    'Toxic Viper',      'Serpente ágil coletora',                   3.50, 48, 9,  1, 6),
+                ('WOLF',     'Steel Wolf',       'Coletor pesado de assalto',                8.00, 96, 20, 1, 7)
             ");
             $results['migrations'][] = 'exploration_ships:seed';
             output("  [OK] Naves padrão inseridas (7)");
         }
     } catch (Exception $e) {}
 
-    // Settings de exploração
+    // Configurações padrão do game_settings
     try {
-        $expSettings = (int)$pdo->query("SELECT COUNT(*) FROM game_settings WHERE setting_key LIKE 'exploration_%'")->fetchColumn();
-        if ($expSettings === 0) {
-            $ins = $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES (?, ?, ?, NOW())");
-            $ins->execute(['exploration_enabled', 'true', 0]);
-            $ins->execute(['exploration_max_rentals_per_user', '3', 0]);
-            $results['migrations'][] = 'game_settings:exploration_defaults';
-            output("  [OK] Configurações de exploração padrão inseridas");
+        $defaults = [
+            ['premium_price_brl',              '19.90', 1],
+            ['premium_duration_days',          '30',    1],
+            ['premium_enabled',                'true',  1],
+            ['block_multiple_ip_accounts',     '1',     0],
+            ['referral_missions_required',     '20',    0],
+            ['referral_bonus_brl',             '5.00',  0],
+            ['exploration_enabled',            'true',  0],
+            ['exploration_max_rentals_per_user','3',    0],
+            ['withdrawals_enabled',            'true',  0],
+            ['registrations_enabled',          'true',  0],
+            ['credits_purchase_enabled',       'true',  0],
+        ];
+        $ins = $pdo->prepare("INSERT IGNORE INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES (?, ?, ?, NOW())");
+        foreach ($defaults as $d) {
+            $ins->execute($d);
         }
-    } catch (Exception $e) {}
+        $results['migrations'][] = 'game_settings:defaults';
+        output("  [OK] Configurações padrão inseridas/ignoradas");
+    } catch (Exception $e) { /* game_settings pode não existir */ }
 
     // ============================================
-    // TABELA: notifications (avisos globais do admin)
+    // PVP - TABELAS E COLUNAS
     // ============================================
+    output("\n--- PvP: Tabelas e colunas ---");
+
+    // Tabela principal de partidas PvP
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS pvp_matches (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            match_id VARCHAR(64) NOT NULL UNIQUE,
+            player1_google_uid VARCHAR(128) NOT NULL,
+            player2_google_uid VARCHAR(128) NOT NULL,
+            winner_google_uid VARCHAR(128) DEFAULT NULL,
+            status ENUM('waiting','countdown','active','completed','cancelled') NOT NULL DEFAULT 'waiting',
+            entry_fee_credits INT NOT NULL DEFAULT 2,
+            winner_prize_credits INT NOT NULL DEFAULT 3,
+            player1_lives TINYINT NOT NULL DEFAULT 6,
+            player2_lives TINYINT NOT NULL DEFAULT 6,
+            player1_asteroids_destroyed INT NOT NULL DEFAULT 0,
+            player2_asteroids_destroyed INT NOT NULL DEFAULT 0,
+            player1_shots_fired INT NOT NULL DEFAULT 0,
+            player2_shots_fired INT NOT NULL DEFAULT 0,
+            player1_hits INT NOT NULL DEFAULT 0,
+            player2_hits INT NOT NULL DEFAULT 0,
+            win_condition VARCHAR(30) DEFAULT NULL COMMENT 'elimination, time_lives, time_asteroids, disconnect, draw',
+            game_duration INT DEFAULT NULL COMMENT 'Duracao real da partida em segundos',
+            started_at DATETIME DEFAULT NULL,
+            ended_at DATETIME DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_player1 (player1_google_uid),
+            INDEX idx_player2 (player2_google_uid),
+            INDEX idx_winner (winner_google_uid),
+            INDEX idx_status (status),
+            INDEX idx_created (created_at),
+            INDEX idx_pvp_ranking (status, ended_at, winner_google_uid)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'pvp_matches:create';
+    output("  [OK] Tabela pvp_matches criada/verificada");
+
+    // Tabela de ranking PvP semanal (cache)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS pvp_ranking_cache (
+            cache_key VARCHAR(50) NOT NULL PRIMARY KEY,
+            cache_value MEDIUMTEXT NOT NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'pvp_ranking_cache:create';
+    output("  [OK] Tabela pvp_ranking_cache criada/verificada");
+
+    // Adicionar game_type na tabela game_sessions (separar single-player de pvp)
     try {
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS notifications (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                title VARCHAR(255) NOT NULL,
-                message TEXT NOT NULL,
-                type ENUM('info','warning','success','promo') DEFAULT 'info',
-                is_active TINYINT(1) DEFAULT 1,
-                starts_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                expires_at DATETIME NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_active (is_active),
-                INDEX idx_dates (starts_at, expires_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        ");
-        $results['migrations'][] = 'notifications:create';
-        output("  [OK] Tabela notifications");
-    } catch (Exception $e) {}
+        $col = $pdo->query("SHOW COLUMNS FROM game_sessions LIKE 'game_type'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE game_sessions ADD COLUMN game_type VARCHAR(20) NOT NULL DEFAULT 'singleplayer' AFTER google_uid");
+            $pdo->exec("ALTER TABLE game_sessions ADD COLUMN pvp_match_id VARCHAR(64) DEFAULT NULL AFTER game_type");
+            $pdo->exec("ALTER TABLE game_sessions ADD INDEX idx_game_type (game_type)");
+            $pdo->exec("ALTER TABLE game_sessions ADD INDEX idx_pvp_match_id (pvp_match_id)");
+            $results['migrations'][] = 'game_sessions.game_type+pvp_match_id';
+            output("  [OK] game_sessions: colunas game_type e pvp_match_id adicionadas");
+        }
+    } catch (Exception $e) { /* já existe */ }
 
     // ============================================
-    // LIMPEZA: Remover flag files antigos
+    // LIMPEZA
     // ============================================
     $flagFiles = glob(sys_get_temp_dir() . '/unobix_*.flag');
-    foreach ($flagFiles as $f) {
+    foreach ($flagFiles ?? [] as $f) {
         @unlink($f);
     }
     $results['migrations'][] = 'cleanup:flag_files';
-    output("  [OK] Flag files removidos");
 
-    output("\nMigração concluída com sucesso! " . count($results['migrations']) . " operações.");
+    output("\n✅ Migração concluída! " . count($results['migrations']) . " operações executadas.");
 
 } catch (Exception $e) {
     $results['success'] = false;
     $results['errors'][] = $e->getMessage();
-    output("ERRO: " . $e->getMessage());
+    output("ERRO FATAL: " . $e->getMessage());
 }
 
 if (!$isCli) {
-    echo json_encode($results);
+    echo json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 }

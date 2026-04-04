@@ -186,8 +186,11 @@ $allowedPages = [
     'premium',
     'metrics',
     'suspect-analysis',
+    'account-analysis',
+    'revenue',
     'exploration',
-    'notifications'
+    'notifications',
+    'pvp'
 ];
 
 if (!in_array($page, $allowedPages)) {

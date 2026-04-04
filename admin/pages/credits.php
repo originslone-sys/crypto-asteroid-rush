@@ -24,6 +24,11 @@ try {
 
     $packages = $pdo->query("SELECT * FROM credit_packages ORDER BY credits ASC")->fetchAll();
 
+    // Estado da compra de créditos
+    $cpStmt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'credits_purchase_enabled' LIMIT 1");
+    $cpVal = $cpStmt ? $cpStmt->fetchColumn() : false;
+    $creditsPurchaseEnabled = ($cpVal === false || ($cpVal !== 'false' && $cpVal !== '0'));
+
     // Estatísticas
     $hasCreditsCol = $pdo->query("SHOW COLUMNS FROM users LIKE 'credits'")->fetch();
     $creditStats = [];
@@ -69,6 +74,36 @@ try {
     <?php if (isset($error)): ?>
         <div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> <?php echo $error; ?></div>
     <?php endif; ?>
+
+    <!-- Toggle: Compra de Créditos -->
+    <?php if (!$creditsPurchaseEnabled): ?>
+    <div class="alert alert-danger" style="display:flex;align-items:center;gap:12px;">
+        <i class="fas fa-cart-arrow-down" style="font-size:1.2rem;"></i>
+        <span style="flex:1;"><strong>Compra de créditos está DESATIVADA.</strong> Jogadores não conseguirão comprar pacotes de créditos.</span>
+        <button type="button" class="btn btn-success btn-sm" onclick="toggleCreditsPurchase()"><i class="fas fa-shopping-cart"></i> Reativar</button>
+    </div>
+    <?php endif; ?>
+
+    <div class="panel" style="margin-bottom: 20px;">
+        <div class="panel-body" style="padding: 14px 20px; display: flex; align-items: center; gap: 16px;">
+            <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 2px;">Compra de Créditos</div>
+                <div style="font-size: 0.82rem; color: var(--text-dim);">
+                    <?php if ($creditsPurchaseEnabled): ?>
+                        <span style="color: var(--success);"><i class="fas fa-circle" style="font-size:0.6rem;"></i> Ativada</span> — jogadores podem comprar pacotes normalmente.
+                    <?php else: ?>
+                        <span style="color: #ff3366;"><i class="fas fa-circle" style="font-size:0.6rem;"></i> Desativada</span> — compra de pacotes bloqueada para todos os jogadores.
+                    <?php endif; ?>
+                </div>
+            </div>
+            <button type="button" onclick="toggleCreditsPurchase()"
+                    class="btn <?php echo $creditsPurchaseEnabled ? 'btn-danger' : 'btn-success'; ?> btn-sm"
+                    id="btnToggleCreditsPurchase">
+                <i class="fas <?php echo $creditsPurchaseEnabled ? 'fa-cart-arrow-down' : 'fa-shopping-cart'; ?>"></i>
+                <?php echo $creditsPurchaseEnabled ? 'Desativar Compras' : 'Ativar Compras'; ?>
+            </button>
+        </div>
+    </div>
 
     <!-- Estatísticas -->
     <div class="stats-grid">
@@ -483,5 +518,25 @@ async function bulkDistribute() {
         resultDiv.innerHTML = '<i class="fas fa-times-circle" style="color: var(--danger);"></i> Erro: ' + e.message;
         showToast('Erro: ' + e.message, 'error');
     }
+}
+
+function toggleCreditsPurchase() {
+    const btn = document.getElementById('btnToggleCreditsPurchase');
+    btn.disabled = true;
+    fetch('../api/admin-ajax.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'toggle_credits_purchase'})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.message || data.error || 'Falha desconhecida'));
+            btn.disabled = false;
+        }
+    })
+    .catch(() => { alert('Erro de conexão.'); btn.disabled = false; });
 }
 </script>
