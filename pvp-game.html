@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UNOBIX | PvP - NAVE vs NAVE</title>
+    <meta name="description" content="Modo PvP - Destrua a nave inimiga e sobreviva aos asteroides!">
+
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&family=Audiowide&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/game.css?v=2.0">
+
+    <style>
+        /* PvP Specific Styles */
+        .pvp-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(5, 5, 20, 0.95);
+            z-index: 100;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .pvp-overlay.hidden { display: none; }
+
+        .pvp-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #00aaff, #ff6600);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+        }
+
+        .pvp-subtitle {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.1rem;
+            color: #888;
+            text-align: center;
+        }
+
+        .pvp-spinner {
+            width: 50px; height: 50px;
+            border: 3px solid #333;
+            border-top-color: #00aaff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .pvp-btn {
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            font-weight: 700;
+            padding: 14px 32px;
+            border: 2px solid #00aaff;
+            background: linear-gradient(135deg, rgba(0,170,255,0.2), rgba(0,170,255,0.05));
+            color: #00aaff;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .pvp-btn:hover { background: rgba(0,170,255,0.3); box-shadow: 0 0 20px rgba(0,170,255,0.3); }
+        .pvp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .pvp-btn-danger {
+            border-color: #ff4444;
+            color: #ff4444;
+            background: linear-gradient(135deg, rgba(255,68,68,0.2), rgba(255,68,68,0.05));
+        }
+
+        .pvp-btn-danger:hover { background: rgba(255,68,68,0.3); }
+
+        .pvp-countdown-number {
+            font-family: 'Orbitron', monospace;
+            font-size: 6rem;
+            font-weight: 900;
+            color: #ffffff;
+            text-shadow: 0 0 40px rgba(0,170,255,0.5);
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .pvp-vs {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            color: #ff6600;
+            font-weight: 800;
+        }
+
+        /* Arena */
+        #pvpArena {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 50;
+        }
+
+        #pvpCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Mobile Controls PvP */
+        .pvp-mobile-controls {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            z-index: 60;
+            pointer-events: none;
+        }
+
+        .pvp-mobile-controls .control-group {
+            display: flex;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        .pvp-ctrl-btn {
+            width: 55px; height: 55px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+        }
+
+        .pvp-ctrl-btn.fire {
+            width: 70px; height: 70px;
+            border-color: #ff4444;
+            color: #ff4444;
+            font-size: 22px;
+        }
+
+        /* Result Screen */
+        .pvp-result-grid {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 10px;
+            width: 90%;
+            max-width: 500px;
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        .pvp-result-grid .label {
+            text-align: center;
+            color: #888;
+            font-size: 0.85rem;
+        }
+
+        .pvp-result-grid .my-val {
+            text-align: right;
+            color: #00aaff;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .pvp-result-grid .op-val {
+            text-align: left;
+            color: #ff6600;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .pvp-result-win {
+            color: #00ff88 !important;
+            text-shadow: 0 0 20px rgba(0,255,136,0.3);
+        }
+
+        .pvp-result-lose {
+            color: #ff4444 !important;
+            text-shadow: 0 0 20px rgba(255,68,68,0.3);
+        }
+
+        .pvp-result-draw {
+            color: #ffaa00 !important;
+        }
+
+        .pvp-entry-fee {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.95rem;
+            color: #ffaa00;
+            padding: 8px 16px;
+            border: 1px solid rgba(255,170,0,0.3);
+            border-radius: 6px;
+            background: rgba(255,170,0,0.08);
+        }
+    </style>
+</head>
+<body>
+
+<!-- LOBBY: Buscando oponente -->
+<div id="pvpLobby" class="pvp-overlay">
+    <div class="pvp-title">MODO PvP</div>
+    <div class="pvp-subtitle">NAVE vs NAVE</div>
+    <div class="pvp-entry-fee">
+        <i class="fas fa-coins"></i> Custo: <span id="pvpEntryFee">2</span> créditos
+        &nbsp;|&nbsp;
+        <i class="fas fa-trophy"></i> Prêmio: <span id="pvpPrize">3</span> créditos
+    </div>
+    <div class="pvp-spinner" id="pvpSpinner" style="display:none;"></div>
+    <div id="pvpQueueStatus" class="pvp-subtitle">Pronto para batalha?</div>
+    <button id="pvpSearchBtn" class="pvp-btn" onclick="startMatchmaking()">
+        <i class="fas fa-crosshairs"></i> BUSCAR OPONENTE
+    </button>
+    <button id="pvpCancelBtn" class="pvp-btn pvp-btn-danger" style="display:none;" onclick="cancelMatchmaking()">
+        <i class="fas fa-times"></i> CANCELAR
+    </button>
+    <a href="index.html" class="pvp-btn pvp-btn-danger" style="font-size:0.85rem; text-decoration:none;">
+        <i class="fas fa-arrow-left"></i> VOLTAR
+    </a>
+</div>
+
+<!-- COUNTDOWN: Oponente encontrado -->
+<div id="pvpCountdown" class="pvp-overlay" style="display:none;">
+    <div class="pvp-subtitle">OPONENTE ENCONTRADO</div>
+    <div class="pvp-title" id="pvpOpponentName">Oponente</div>
+    <div class="pvp-vs">VS</div>
+    <div class="pvp-title" style="font-size:1.2rem;">VOCÊ</div>
+    <div id="pvpCountdownNumber" class="pvp-countdown-number">3</div>
+</div>
+
+<!-- ARENA: Jogo PvP -->
+<div id="pvpArena">
+    <canvas id="pvpCanvas"></canvas>
+
+    <!-- Mobile Controls -->
+    <div class="pvp-mobile-controls" id="pvpMobileControls">
+        <div class="control-group">
+            <div class="pvp-ctrl-btn" id="pvpLeftBtn"><i class="fas fa-chevron-left"></i></div>
+            <div class="pvp-ctrl-btn" id="pvpUpBtn"><i class="fas fa-chevron-up"></i></div>
+            <div class="pvp-ctrl-btn" id="pvpDownBtn"><i class="fas fa-chevron-down"></i></div>
+            <div class="pvp-ctrl-btn" id="pvpRightBtn"><i class="fas fa-chevron-right"></i></div>
+        </div>
+        <div class="control-group">
+            <div class="pvp-ctrl-btn fire" id="pvpFireBtn"><i class="fas fa-bolt"></i></div>
+        </div>
+    </div>
+</div>
+
+<!-- RESULTADO -->
+<div id="pvpResult" class="pvp-overlay" style="display:none;">
+    <div id="pvpResultIcon" style="font-size: 3rem;"></div>
+    <div id="pvpResultTitle" class="pvp-title">RESULTADO</div>
+    <div id="pvpWinCondition" class="pvp-subtitle"></div>
+
+    <div class="pvp-result-grid">
+        <div class="my-val">VOCÊ</div>
+        <div class="label"></div>
+        <div class="op-val">OPONENTE</div>
+
+        <div class="my-val" id="pvpMyLives">0</div>
+        <div class="label">♥ Vidas</div>
+        <div class="op-val" id="pvpOpLives">0</div>
+
+        <div class="my-val" id="pvpMyAsteroids">0</div>
+        <div class="label">☄ Asteroides</div>
+        <div class="op-val" id="pvpOpAsteroids">0</div>
+
+        <div class="my-val" id="pvpMyShots">0</div>
+        <div class="label">🔫 Tiros</div>
+        <div class="op-val" id="pvpOpShots">0</div>
+
+        <div class="my-val" id="pvpMyHits">0</div>
+        <div class="label">🎯 Acertos</div>
+        <div class="op-val" id="pvpOpHits">0</div>
+    </div>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <button class="pvp-btn" onclick="playAgain()">
+            <i class="fas fa-redo"></i> JOGAR NOVAMENTE
+        </button>
+        <a href="index.html" class="pvp-btn pvp-btn-danger" style="text-decoration:none;">
+            <i class="fas fa-home"></i> MENU
+        </a>
+    </div>
+</div>
+
+<!-- Socket.io client -->
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+
+<!-- PvP Scripts -->
+<script src="js/pvp/pvp-game-config.js"></script>
+<script src="js/pvp/pvp-session-manager.js"></script>
+<script src="js/pvp/pvp-game-renderer.js"></script>
+<script src="js/pvp/pvp-game-engine.js"></script>
+
+<script>
+    // ============================================
+    // PvP Page Controller
+    // ============================================
+
+    async function startMatchmaking() {
+        const btn = document.getElementById('pvpSearchBtn');
+        const cancelBtn = document.getElementById('pvpCancelBtn');
+        const spinner = document.getElementById('pvpSpinner');
+        const status = document.getElementById('pvpQueueStatus');
+
+        btn.disabled = true;
+        status.textContent = 'Autorizando...';
+
+        try {
+            // 1. Autorizar com backend PHP
+            const authData = await PvPSessionManager.authorize();
+
+            document.getElementById('pvpEntryFee').textContent = authData.entry_fee;
+            document.getElementById('pvpPrize').textContent = authData.winner_prize;
+
+            status.textContent = 'Conectando ao servidor PvP...';
+
+            // 2. Conectar ao Game Server
+            await PvPSessionManager.connect();
+
+            status.textContent = 'Buscando oponente...';
+            spinner.style.display = 'block';
+            btn.style.display = 'none';
+            cancelBtn.style.display = 'inline-flex';
+
+            // 3. Entrar na fila
+            PvPSessionManager.joinQueue();
+
+        } catch (err) {
+            status.textContent = err.message;
+            btn.disabled = false;
+            btn.textContent = 'TENTAR NOVAMENTE';
+            spinner.style.display = 'none';
+            console.error('PvP Error:', err);
+        }
+    }
+
+    function cancelMatchmaking() {
+        PvPSessionManager.leaveQueue();
+        PvPSessionManager.disconnect();
+
+        const btn = document.getElementById('pvpSearchBtn');
+        const cancelBtn = document.getElementById('pvpCancelBtn');
+        const spinner = document.getElementById('pvpSpinner');
+        const status = document.getElementById('pvpQueueStatus');
+
+        btn.style.display = 'inline-flex';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-crosshairs"></i> BUSCAR OPONENTE';
+        cancelBtn.style.display = 'none';
+        spinner.style.display = 'none';
+        status.textContent = 'Busca cancelada.';
+    }
+
+    function playAgain() {
+        PvPSessionManager.disconnect();
+
+        // Reset state
+        pvpState.serverState = null;
+        pvpState.previousState = null;
+        pvpState.result = null;
+        pvpState.mySlot = null;
+        pvpState.inMatch = false;
+
+        // Mostrar lobby
+        document.getElementById('pvpResult').style.display = 'none';
+        document.getElementById('pvpLobby').style.display = 'flex';
+
+        const btn = document.getElementById('pvpSearchBtn');
+        btn.style.display = 'inline-flex';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-crosshairs"></i> BUSCAR OPONENTE';
+        document.getElementById('pvpQueueStatus').textContent = 'Pronto para batalha?';
+    }
+
+    // Verificar login
+    (function checkAuth() {
+        const uid = localStorage.getItem('googleUid');
+        if (!uid) {
+            window.location.href = 'game.html';
+        }
+    })();
+</script>
+
+</body>
+</html>
