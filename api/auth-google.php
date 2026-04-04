@@ -64,8 +64,10 @@ try {
             }
 
             if ($clientIP) {
-                $blockSetting = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'block_multiple_ip_accounts' LIMIT 1");
-                $blockEnabled = $blockSetting ? (int)$blockSetting->fetchColumn() : 1;
+                // TEMPORARIAMENTE DESATIVADO - bloqueio por IP
+                $blockEnabled = 0;
+                // $blockSetting = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'block_multiple_ip_accounts' LIMIT 1");
+                // $blockEnabled = $blockSetting ? (int)$blockSetting->fetchColumn() : 1;
 
                 if ($blockEnabled) {
                     if (!$isExisting) {
