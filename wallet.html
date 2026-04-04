@@ -830,6 +830,12 @@
             </button>
         </div>
         
+        <!-- Aviso saques pausados -->
+        <div id="withdrawsPausedNotice" class="withdraw-info warning" style="display: none; background: rgba(255,170,0,0.08); border-color: rgba(255,170,0,0.35);">
+            <i class="fas fa-pause-circle"></i>
+            <span>Saques pausados temporariamente. Novos saques não podem ser solicitados neste momento. <a href="fila-saques.html" style="color:var(--warning);text-decoration:underline;">Ver fila</a></span>
+        </div>
+
         <!-- Aviso saque pendente -->
         <div id="pendingWithdrawNotice" class="withdraw-info warning" style="display: none;">
             <i class="fas fa-clock"></i>
@@ -937,9 +943,24 @@ async function loadWalletData() {
             document.getElementById('walletWithdrawn').textContent = formatBRL(data.total_withdrawn_brl);
             document.getElementById('walletPending').textContent = formatBRL(data.pending_withdrawal_brl || 0);
 
+            // Verificar se saques estão pausados
+            const pausedNotice = document.getElementById('withdrawsPausedNotice');
+            const withdrawBtn = document.getElementById('withdrawBtn');
+            let withdrawalsPaused = false;
+            try {
+                const queueRes = await fetch('api/withdrawal-queue.php?page=1&status=pending');
+                const queueData = await queueRes.json();
+                if (queueData.success && queueData.withdrawals_enabled === false) {
+                    withdrawalsPaused = true;
+                    if (pausedNotice) pausedNotice.style.display = 'flex';
+                    if (withdrawBtn) { withdrawBtn.disabled = true; withdrawBtn.style.opacity = '0.5'; }
+                } else {
+                    if (pausedNotice) pausedNotice.style.display = 'none';
+                }
+            } catch(e) { /* ignora */ }
+
             // Bloquear formulário de saque se houver saque pendente
             const pendingBrl = parseFloat(data.pending_withdrawal_brl) || 0;
-            const withdrawBtn = document.getElementById('withdrawBtn');
             const pendingNotice = document.getElementById('pendingWithdrawNotice');
             if (pendingBrl > 0) {
                 if (withdrawBtn) { withdrawBtn.disabled = true; withdrawBtn.style.opacity = '0.5'; }
@@ -948,7 +969,7 @@ async function loadWalletData() {
                     document.getElementById('pendingWithdrawAmount').textContent = formatBRL(pendingBrl);
                 }
             } else {
-                if (withdrawBtn) { withdrawBtn.disabled = false; withdrawBtn.style.opacity = ''; }
+                if (!withdrawalsPaused && withdrawBtn) { withdrawBtn.disabled = false; withdrawBtn.style.opacity = ''; }
                 if (pendingNotice) pendingNotice.style.display = 'none';
             }
 
