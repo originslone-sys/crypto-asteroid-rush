@@ -161,12 +161,12 @@ try {
     <div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?></div>
 <?php endif; ?>
 
-<!-- Stat Cards (mesmo padrão de sessions.php) -->
+<!-- Stat Cards -->
 <div class="stats-grid">
     <div class="stat-card">
         <div class="icon primary"><i class="fas fa-gamepad"></i></div>
         <div class="value"><?php echo number_format($pvpStats['matches_today']); ?></div>
-        <div class="label">Hoje</div>
+        <div class="label">Partidas Hoje</div>
     </div>
     <div class="stat-card">
         <div class="icon success"><i class="fas fa-check"></i></div>
@@ -198,29 +198,19 @@ try {
     </div>
     <div class="panel-body">
         <?php if ($serverOnline && $serverStatus): ?>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="icon primary"><i class="fas fa-users"></i></div>
-                    <div class="value"><?php echo (int)($serverStatus['queueSize'] ?? 0); ?></div>
-                    <div class="label">Na Fila</div>
-                </div>
-                <div class="stat-card">
-                    <div class="icon success"><i class="fas fa-fire"></i></div>
-                    <div class="value"><?php echo (int)($serverStatus['activeMatches'] ?? 0); ?></div>
-                    <div class="label">Partidas Ativas</div>
-                </div>
-                <div class="stat-card">
-                    <div class="icon warning"><i class="fas fa-door-open"></i></div>
-                    <div class="value"><?php echo (int)($serverStatus['totalRooms'] ?? 0); ?></div>
-                    <div class="label">Salas</div>
-                </div>
-                <div class="stat-card">
-                    <div class="icon primary"><i class="fas fa-clock"></i></div>
-                    <div class="value"><?php echo gmdate('H:i:s', (int)($serverStatus['uptime'] ?? 0)); ?></div>
-                    <div class="label">Uptime</div>
-                </div>
-            </div>
-            <small style="color: var(--text-dim); display: block; margin-top: 10px;"><?php echo htmlspecialchars($gameServerUrl); ?> | Média partida: <?php echo $pvpStats['avg_duration']; ?>s | <?php echo $pvpStats['time_wins']; ?> por tempo | <?php echo $pvpStats['disconnects']; ?> W.O. | <?php echo $pvpStats['draws']; ?> empates</small>
+            <p style="margin: 0; color: var(--text-light);">
+                <strong>Na Fila:</strong> <?php echo (int)($serverStatus['queueSize'] ?? 0); ?> &nbsp;|&nbsp;
+                <strong>Partidas Ativas:</strong> <?php echo (int)($serverStatus['activeMatches'] ?? 0); ?> &nbsp;|&nbsp;
+                <strong>Salas:</strong> <?php echo (int)($serverStatus['totalRooms'] ?? 0); ?> &nbsp;|&nbsp;
+                <strong>Uptime:</strong> <?php echo gmdate('H:i:s', (int)($serverStatus['uptime'] ?? 0)); ?>
+            </p>
+            <p style="margin: 8px 0 0; color: var(--text-dim); font-size: 0.85rem;">
+                <?php echo htmlspecialchars($gameServerUrl); ?> &nbsp;|&nbsp;
+                Duração média: <?php echo $pvpStats['avg_duration']; ?>s &nbsp;|&nbsp;
+                <?php echo $pvpStats['time_wins']; ?> por tempo &nbsp;|&nbsp;
+                <?php echo $pvpStats['disconnects']; ?> W.O. &nbsp;|&nbsp;
+                <?php echo $pvpStats['draws']; ?> empates
+            </p>
         <?php else: ?>
             <div class="alert alert-danger" style="margin: 0;">
                 <i class="fas fa-exclamation-triangle"></i> Servidor PvP não respondendo em <code><?php echo htmlspecialchars($gameServerUrl); ?></code>
@@ -230,18 +220,16 @@ try {
     </div>
 </div>
 
-<!-- Configurações + Ranking (2 colunas como settings.php) -->
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+<!-- Configurações PvP -->
+<div class="panel">
+    <div class="panel-header">
+        <h3 class="panel-title"><i class="fas fa-cog"></i> Configurações PvP</h3>
+    </div>
+    <div class="panel-body">
+        <form method="POST">
+            <input type="hidden" name="action" value="update_pvp_settings">
 
-    <!-- Configurações PvP -->
-    <div class="panel">
-        <div class="panel-header">
-            <h3 class="panel-title"><i class="fas fa-cog"></i> Configurações PvP</h3>
-        </div>
-        <div class="panel-body">
-            <form method="POST">
-                <input type="hidden" name="action" value="update_pvp_settings">
-
+            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px 30px;">
                 <div class="form-group">
                     <label class="form-label" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                         <input type="checkbox" name="pvp_enabled" <?php echo $pvpEnabled ? 'checked' : ''; ?>>
@@ -285,59 +273,55 @@ try {
                     <label class="form-label">Timeout Matchmaking (segundos)</label>
                     <input type="number" name="pvp_matchmaking_timeout" class="form-control" value="<?php echo $matchmakingTimeout; ?>" min="10" max="300">
                 </div>
+            </div>
 
-                <button type="submit" class="btn btn-primary btn-block">
-                    <i class="fas fa-save"></i> Salvar Configurações
-                </button>
-            </form>
-        </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Salvar Configurações
+            </button>
+        </form>
     </div>
+</div>
 
-    <!-- Prêmios do Ranking Semanal -->
-    <div class="panel">
-        <div class="panel-header">
-            <h3 class="panel-title"><i class="fas fa-trophy" style="color: #ffd700;"></i> Prêmios Ranking Semanal (R$)</h3>
-        </div>
-        <div class="panel-body">
-            <form method="POST">
-                <input type="hidden" name="action" value="update_pvp_ranking_prizes">
+<!-- Prêmios do Ranking Semanal -->
+<div class="panel">
+    <div class="panel-header">
+        <h3 class="panel-title"><i class="fas fa-trophy" style="color: #ffd700;"></i> Prêmios Ranking Semanal (R$)</h3>
+    </div>
+    <div class="panel-body">
+        <form method="POST">
+            <input type="hidden" name="action" value="update_pvp_ranking_prizes">
 
+            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 15px;">
                 <div class="form-group">
-                    <label class="form-label">1º Lugar (R$)</label>
+                    <label class="form-label">1º Lugar</label>
                     <input type="number" name="pvp_ranking_prize_1_brl" class="form-control" value="<?php echo $rankingPrize1; ?>" min="0" step="0.01">
                 </div>
-
                 <div class="form-group">
-                    <label class="form-label">2º Lugar (R$)</label>
+                    <label class="form-label">2º Lugar</label>
                     <input type="number" name="pvp_ranking_prize_2_brl" class="form-control" value="<?php echo $rankingPrize2; ?>" min="0" step="0.01">
                 </div>
-
                 <div class="form-group">
-                    <label class="form-label">3º Lugar (R$)</label>
+                    <label class="form-label">3º Lugar</label>
                     <input type="number" name="pvp_ranking_prize_3_brl" class="form-control" value="<?php echo $rankingPrize3; ?>" min="0" step="0.01">
                 </div>
-
                 <div class="form-group">
-                    <label class="form-label">4º Lugar (R$)</label>
+                    <label class="form-label">4º Lugar</label>
                     <input type="number" name="pvp_ranking_prize_4_brl" class="form-control" value="<?php echo $rankingPrize4; ?>" min="0" step="0.01">
                 </div>
-
                 <div class="form-group">
-                    <label class="form-label">5º Lugar (R$)</label>
+                    <label class="form-label">5º Lugar</label>
                     <input type="number" name="pvp_ranking_prize_5_brl" class="form-control" value="<?php echo $rankingPrize5; ?>" min="0" step="0.01">
                 </div>
-
-                <button type="submit" class="btn btn-primary btn-block">
-                    <i class="fas fa-save"></i> Salvar Prêmios
-                </button>
-            </form>
-
-            <div style="margin-top: 20px; padding: 15px; background: rgba(255,209,102,0.05); border: 1px solid rgba(255,209,102,0.2); border-radius: 8px;">
-                <small style="color: var(--warning);">
-                    <i class="fas fa-info-circle"></i> Prêmios em R$ creditados no saldo do jogador. Distribuídos ao final da semana (domingo 22h) para os top 5 por vitórias.
-                </small>
             </div>
-        </div>
+
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Salvar Prêmios
+            </button>
+
+            <small style="color: var(--text-dim); display: block; margin-top: 10px;">
+                <i class="fas fa-info-circle"></i> Valores em R$ creditados no saldo do jogador. Distribuídos domingo 22h para os top 5 por vitórias.
+            </small>
+        </form>
     </div>
 </div>
 
