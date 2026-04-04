@@ -46,8 +46,9 @@ const PvPSessionManager = {
                 return;
             }
 
-            // Socket.io será carregado dinamicamente
+            // Socket.io — URL é o host, path é /pvp-ws/socket.io em produção
             this.socket = io(PVP_CONFIG.GAME_SERVER_URL, {
+                path: PVP_CONFIG.GAME_SERVER_PATH,
                 transports: ['websocket'],
                 reconnection: true,
                 reconnectionAttempts: 3,

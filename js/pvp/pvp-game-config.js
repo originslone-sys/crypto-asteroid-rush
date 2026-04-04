@@ -6,9 +6,15 @@ const PVP_CONFIG = {
     // Servidor — sempre usa proxy nginx /pvp-ws/ em produção
     // (evita mixed content: HTTPS página → nginx → HTTP game server internamente)
     // Não usa window.PVP_SERVER_URL pois pvp.unobix.com não tem SSL configurado
+    // URL do host (sem path — o path é passado via GAME_SERVER_PATH)
     GAME_SERVER_URL: window.location.hostname === 'localhost'
         ? 'http://localhost:3000'
-        : (window.location.origin + '/pvp-ws'),
+        : window.location.origin,
+
+    // Path do Socket.io — nginx proxia /pvp-ws/ para o game server
+    GAME_SERVER_PATH: window.location.hostname === 'localhost'
+        ? '/socket.io'
+        : '/pvp-ws/socket.io',
 
     // Arena
     ARENA_WIDTH: 1024,
