@@ -5,6 +5,9 @@
 // v2.0 - Google Auth + Wallet híbrido
 // ============================================
 
+// TEMPORARIAMENTE DESATIVADO - Mudar para false para reativar
+define('RATE_LIMIT_DISABLED', true);
+
 // Configurações de Rate Limit
 define('RATE_LIMIT_GAME_INTERVAL', 180);     // 3 minutos entre jogos
 define('RATE_LIMIT_REQUESTS_PER_MINUTE', 100); // 60 requests por minuto por IP
@@ -98,6 +101,7 @@ class RateLimiter {
     // ============================================
     
     public function checkRequestsPerMinute() {
+        if (RATE_LIMIT_DISABLED) return ['allowed' => true];
         $stmt = $this->pdo->prepare("
             SELECT COUNT(*) as count FROM rate_limits
             WHERE ip_address = ?
@@ -118,6 +122,7 @@ class RateLimiter {
     }
     
     public function checkRequestsPerHour() {
+        if (RATE_LIMIT_DISABLED) return ['allowed' => true];
         $stmt = $this->pdo->prepare("
             SELECT COUNT(*) as count FROM rate_limits
             WHERE ip_address = ?
@@ -141,11 +146,12 @@ class RateLimiter {
      * Verificar intervalo entre jogos (por google_uid ou wallet)
      */
     public function checkGameInterval() {
+        if (RATE_LIMIT_DISABLED) return ['allowed' => true];
         $user = $this->getUserIdentifier();
         if (!$user) {
             return ['allowed' => true];
         }
-        
+
         $stmt = $this->pdo->prepare("
             SELECT created_at FROM rate_limits
             WHERE {$user['column']} = ?
@@ -207,6 +213,7 @@ class RateLimiter {
      * Verificar se IP está na blacklist
      */
     public function checkIPBlacklist() {
+        if (RATE_LIMIT_DISABLED) return ['allowed' => true];
         // Tabela ip_blacklist criada via migrate.php no deploy
 
         $stmt = $this->pdo->prepare("
@@ -232,11 +239,12 @@ class RateLimiter {
      * Verificar eventos por segundo
      */
     public function checkEventsPerSecond($sessionId) {
+        if (RATE_LIMIT_DISABLED) return ['allowed' => true];
         $user = $this->getUserIdentifier();
         if (!$user) {
             return ['allowed' => true];
         }
-        
+
         $stmt = $this->pdo->prepare("
             SELECT COUNT(*) as count FROM rate_limits
             WHERE {$user['column']} = ?
