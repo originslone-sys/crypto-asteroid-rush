@@ -2,6 +2,7 @@
 // UNOBIX PvP Server - Entry Point
 // Node.js + Socket.io WebSocket Server
 // ============================================
+require('dotenv').config();
 
 const http = require('http');
 const { Server } = require('socket.io');
