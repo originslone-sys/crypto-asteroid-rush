@@ -52,7 +52,7 @@ try {
     // Tentar ler do cache (60 segundos)
     $cacheStmt = $pdo->prepare("
         SELECT cache_value, updated_at FROM pvp_ranking_cache
-        WHERE cache_key = 'pvp_weekly_ranking' AND updated_at > DATE_SUB(NOW(), INTERVAL 60 SECOND)
+        WHERE cache_key = 'pvp_weekly_ranking' AND updated_at > DATE_SUB(NOW(), INTERVAL 300 SECOND)
         LIMIT 1
     ");
     $cacheStmt->execute();
@@ -126,7 +126,22 @@ try {
     }
     unset($row);
 
-    $prizes = [150, 80, 50, 30, 20]; // Prêmios semanais PvP (créditos)
+    // Carregar prêmios configurados pelo admin (em BRL)
+    $prizes = [];
+    try {
+        $prizeStmt = $pdo->query("SELECT setting_key, setting_value FROM game_settings WHERE setting_key LIKE 'pvp_ranking_prize_%_brl' ORDER BY setting_key");
+        $prizeMap = [];
+        while ($row = $prizeStmt->fetch()) { $prizeMap[$row['setting_key']] = (float)$row['setting_value']; }
+        $prizes = [
+            $prizeMap['pvp_ranking_prize_1_brl'] ?? 50,
+            $prizeMap['pvp_ranking_prize_2_brl'] ?? 30,
+            $prizeMap['pvp_ranking_prize_3_brl'] ?? 20,
+            $prizeMap['pvp_ranking_prize_4_brl'] ?? 10,
+            $prizeMap['pvp_ranking_prize_5_brl'] ?? 5,
+        ];
+    } catch (Exception $e) {
+        $prizes = [50, 30, 20, 10, 5];
+    }
 
     $response = json_encode([
         'success' => true,
