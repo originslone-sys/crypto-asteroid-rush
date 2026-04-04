@@ -10,7 +10,9 @@ $pageTitle = 'Análise de Suspeitas';
 $days = min(max((int)($_GET['days'] ?? 7), 1), 30);
 $minSessions = max((int)($_GET['min_sessions'] ?? 5), 3);
 $filterLevel = $_GET['level'] ?? 'all';
-// Análise individual movida para account-analysis.php
+
+// Análise individual REMOVIDA - agora em account-analysis.php
+// (bloco removido para evitar conflitos)
 if (false) { try {
         // Buscar usuário pelo email
         $userStmt = $pdo->prepare("
@@ -637,7 +639,8 @@ try {
     <!-- Filtros -->
     <div class="panel" style="margin-bottom: 20px;">
         <div class="panel-body" style="padding: 16px 20px;">
-            <form method="GET" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;">
+                <form method="GET" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
                 <input type="hidden" name="page" value="suspect-analysis">
                 <div>
                     <label class="form-label" style="font-size: 0.8rem;">Período</label>

@@ -9,25 +9,22 @@
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
-// Rate limit simples por IP - máx 30 requisições por minuto
-$clientIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-$rateLimitFile = sys_get_temp_dir() . '/rate_wr_' . md5($clientIp);
-$now = time();
-$requests = [];
-
-if (file_exists($rateLimitFile)) {
-    $requests = json_decode(file_get_contents($rateLimitFile), true) ?: [];
-    $requests = array_filter($requests, fn($t) => $t > $now - 60);
-}
-
-if (count($requests) >= 30) {
-    http_response_code(429);
-    echo json_encode(['success' => false, 'error' => 'Muitas requisições. Tente novamente em 1 minuto.']);
-    exit;
-}
-
-$requests[] = $now;
-file_put_contents($rateLimitFile, json_encode($requests));
+// Rate limit simples por IP - TEMPORARIAMENTE DESATIVADO
+// $clientIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+// $rateLimitFile = sys_get_temp_dir() . '/rate_wr_' . md5($clientIp);
+// $now = time();
+// $requests = [];
+// if (file_exists($rateLimitFile)) {
+//     $requests = json_decode(file_get_contents($rateLimitFile), true) ?: [];
+//     $requests = array_filter($requests, fn($t) => $t > $now - 60);
+// }
+// if (count($requests) >= 30) {
+//     http_response_code(429);
+//     echo json_encode(['success' => false, 'error' => 'Muitas requisições. Tente novamente em 1 minuto.']);
+//     exit;
+// }
+// $requests[] = $now;
+// file_put_contents($rateLimitFile, json_encode($requests));
 
 require_once __DIR__ . '/config.php';
 
