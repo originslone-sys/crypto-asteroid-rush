@@ -105,6 +105,14 @@ try {
                 exit;
             }
 
+            // Verificar se compra de créditos está habilitada
+            $cpSt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'credits_purchase_enabled' LIMIT 1");
+            $cpVal = $cpSt ? $cpSt->fetchColumn() : false;
+            if ($cpVal !== false && ($cpVal === 'false' || $cpVal === '0')) {
+                echo json_encode(['success' => false, 'error' => 'A compra de créditos está temporariamente desativada.', 'purchase_disabled' => true]);
+                exit;
+            }
+
             // Buscar pacote
             $stmt = $pdo->prepare("SELECT * FROM credit_packages WHERE id = ? AND is_active = 1 LIMIT 1");
             $stmt->execute([$packageId]);
