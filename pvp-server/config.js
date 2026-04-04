@@ -46,6 +46,6 @@ module.exports = {
     ASTEROID_DAMAGE: 1,                 // Vidas perdidas por colisão
 
     // Matchmaking
-    MATCHMAKING_TIMEOUT: 60,            // Segundos esperando oponente
-    DISCONNECT_TIMEOUT: 10,             // Segundos para considerar desconexão
+    MATCHMAKING_TIMEOUT: 120,           // Segundos esperando oponente
+    DISCONNECT_TIMEOUT: 30,             // Segundos para considerar desconexão
 };

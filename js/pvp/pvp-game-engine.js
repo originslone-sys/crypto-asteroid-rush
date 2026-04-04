@@ -99,9 +99,8 @@ const PvPEngine = {
 // ============================================
 
 function onMatchFound(data) {
-    pvpState.opponentName = pvpState.mySlot === 1
-        ? data.player2.displayName
-        : data.player1.displayName;
+    // Guardar dados do match — mySlot pode ainda não estar definido aqui
+    pvpState._matchData = data;
 
     // Mostrar tela de countdown
     const lobby = document.getElementById('pvpLobby');
@@ -109,8 +108,9 @@ function onMatchFound(data) {
     if (lobby) lobby.style.display = 'none';
     if (countdown) countdown.style.display = 'flex';
 
+    // Nome do oponente será atualizado quando your_slot chegar
     const opponentEl = document.getElementById('pvpOpponentName');
-    if (opponentEl) opponentEl.textContent = pvpState.opponentName || 'Oponente';
+    if (opponentEl) opponentEl.textContent = 'Oponente';
 }
 
 function onCountdown(data) {
