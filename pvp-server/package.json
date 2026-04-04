@@ -1,0 +1,13 @@
+{
+  "name": "unobix-pvp-server",
+  "version": "1.0.0",
+  "description": "PvP Game Server for Unobix - Crypto Asteroid Rush",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.7.4"
+  }
+}
