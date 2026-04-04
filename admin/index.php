@@ -189,7 +189,8 @@ $allowedPages = [
     'account-analysis',
     'revenue',
     'exploration',
-    'notifications'
+    'notifications',
+    'pvp'
 ];
 
 if (!in_array($page, $allowedPages)) {

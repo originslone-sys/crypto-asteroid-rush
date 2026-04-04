@@ -102,6 +102,11 @@ try {
                 <?php endif; ?>
             </a>
 
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=pvp" class="nav-item <?php echo $currentPage === 'pvp' ? 'active' : ''; ?>">
+                <i class="fas fa-crosshairs" style="color: #ff6600;"></i>
+                <span>Modo PvP</span>
+            </a>
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=exploration" class="nav-item <?php echo $currentPage === 'exploration' ? 'active' : ''; ?>">
                 <i class="fas fa-compass"></i>
                 <span>Exploração</span>
