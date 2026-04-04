@@ -79,35 +79,52 @@ try {
         }
     }
 
-    // Verificar créditos com lock
-    $pdo->beginTransaction();
+    // Carregar entry fee e prize do game_settings (admin pode alterar)
+    $entryFee = PVP_ENTRY_FEE_CREDITS;
+    $winnerPrize = PVP_WINNER_PRIZE_CREDITS;
     try {
-        $lockStmt = $pdo->prepare("SELECT credits FROM users WHERE id = ? FOR UPDATE");
-        $lockStmt->execute([$userId]);
-        $lockedUser = $lockStmt->fetch();
-        $lockedCredits = (int)($lockedUser['credits'] ?? 0);
-
-        if ($lockedCredits < PVP_ENTRY_FEE_CREDITS) {
-            $pdo->rollBack();
-            echo json_encode([
-                'success' => false,
-                'error' => 'Créditos insuficientes! Você precisa de ' . PVP_ENTRY_FEE_CREDITS . ' crédito(s) para o modo PvP.',
-                'error_code' => 'NO_CREDITS',
-                'credits' => $lockedCredits,
-                'credits_required' => PVP_ENTRY_FEE_CREDITS
-            ]);
-            exit;
+        $settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN ('pvp_entry_fee_credits', 'pvp_winner_prize_credits', 'pvp_enabled')");
+        while ($row = $settingsStmt->fetch()) {
+            if ($row['setting_key'] === 'pvp_entry_fee_credits') $entryFee = (int)$row['setting_value'];
+            if ($row['setting_key'] === 'pvp_winner_prize_credits') $winnerPrize = (int)$row['setting_value'];
+            if ($row['setting_key'] === 'pvp_enabled' && $row['setting_value'] === 'false') {
+                echo json_encode(['success' => false, 'error' => 'Modo PvP está desativado no momento.']);
+                exit;
+            }
         }
+    } catch (Exception $e) { /* usa constantes padrão */ }
 
-        // Debitar créditos
-        $pdo->prepare("UPDATE users SET credits = credits - ? WHERE id = ?")->execute([PVP_ENTRY_FEE_CREDITS, $userId]);
-        $pdo->commit();
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        throw $e;
+    // Verificar e debitar créditos (pula se entry fee = 0, modo gratuito)
+    $lockedCredits = (int)($user['credits'] ?? 0);
+    if ($entryFee > 0) {
+        $pdo->beginTransaction();
+        try {
+            $lockStmt = $pdo->prepare("SELECT credits FROM users WHERE id = ? FOR UPDATE");
+            $lockStmt->execute([$userId]);
+            $lockedUser = $lockStmt->fetch();
+            $lockedCredits = (int)($lockedUser['credits'] ?? 0);
+
+            if ($lockedCredits < $entryFee) {
+                $pdo->rollBack();
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Créditos insuficientes! Você precisa de ' . $entryFee . ' crédito(s) para o modo PvP.',
+                    'error_code' => 'NO_CREDITS',
+                    'credits' => $lockedCredits,
+                    'credits_required' => $entryFee
+                ]);
+                exit;
+            }
+
+            $pdo->prepare("UPDATE users SET credits = credits - ? WHERE id = ?")->execute([$entryFee, $userId]);
+            $pdo->commit();
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
     }
 
-    $remainingCredits = $lockedCredits - PVP_ENTRY_FEE_CREDITS;
+    $remainingCredits = $lockedCredits - $entryFee;
 
     // Gerar token JWT para o Game Server
     $now = time();
@@ -134,8 +151,8 @@ try {
         'google_uid' => $realGoogleUid,
         'display_name' => $displayName,
         'credits' => $remainingCredits,
-        'entry_fee' => PVP_ENTRY_FEE_CREDITS,
-        'winner_prize' => PVP_WINNER_PRIZE_CREDITS,
+        'entry_fee' => $entryFee,
+        'winner_prize' => $winnerPrize,
         'game_duration' => PVP_GAME_DURATION,
         'lives' => PVP_LIVES
     ]);
