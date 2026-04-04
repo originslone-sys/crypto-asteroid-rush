@@ -55,13 +55,13 @@ try {
     }
 
     // Carregar valores dinâmicos do admin
-    $entryFee = $entryFee;
-    $winnerPrize = $winnerPrize;
+    $entryFee = PVP_ENTRY_FEE_CREDITS;
+    $winnerPrizeBrl = 0;
     try {
-        $settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN ('pvp_entry_fee_credits', 'pvp_winner_prize_credits')");
+        $settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN ('pvp_entry_fee_credits', 'pvp_winner_prize_brl')");
         while ($row = $settingsStmt->fetch()) {
             if ($row['setting_key'] === 'pvp_entry_fee_credits') $entryFee = (int)$row['setting_value'];
-            if ($row['setting_key'] === 'pvp_winner_prize_credits') $winnerPrize = (int)$row['setting_value'];
+            if ($row['setting_key'] === 'pvp_winner_prize_brl') $winnerPrizeBrl = (float)$row['setting_value'];
         }
     } catch (Exception $e) { /* usa constantes padrão */ }
 
@@ -126,29 +126,28 @@ try {
             ]);
         }
 
-        // Creditar prêmio ao vencedor (se houve vencedor, partida completada, e prêmio > 0)
-        if ($status === 'completed' && $winnerUid && $winCondition !== 'draw' && $winnerPrize > 0) {
-            $stmt = $pdo->prepare("UPDATE users SET credits = credits + ? WHERE google_uid = ?");
-            $stmt->execute([$winnerPrize, $winnerUid]);
+        // Creditar prêmio em BRL ao vencedor (se houve vencedor, partida completada, e prêmio > 0)
+        if ($status === 'completed' && $winnerUid && $winCondition !== 'draw' && $winnerPrizeBrl > 0) {
+            $stmt = $pdo->prepare("UPDATE users SET balance_brl = balance_brl + ?, total_earned_brl = total_earned_brl + ? WHERE google_uid = ?");
+            $stmt->execute([$winnerPrizeBrl, $winnerPrizeBrl, $winnerUid]);
 
             // Registrar transação do vencedor
             $loserUid = ($winnerUid === $player1Uid) ? $player2Uid : $player1Uid;
             $pdo->prepare("
                 INSERT INTO transactions (google_uid, type, amount, amount_brl, description, status, created_at)
-                VALUES (?, 'pvp_win', ?, 0, ?, 'completed', NOW())
+                VALUES (?, 'pvp_win', 0, ?, ?, 'completed', NOW())
             ")->execute([
                 $winnerUid,
-                $winnerPrize,
-                "PvP vitória (match: " . substr($matchId, 0, 8) . ")"
+                $winnerPrizeBrl,
+                "PvP vitória R$ " . number_format($winnerPrizeBrl, 2, ',', '.') . " (match: " . substr($matchId, 0, 8) . ")"
             ]);
 
-            // Registrar transação do perdedor (entry fee já foi debitado no authorize)
+            // Registrar transação do perdedor (entry fee em créditos já foi debitado no authorize)
             $pdo->prepare("
                 INSERT INTO transactions (google_uid, type, amount, amount_brl, description, status, created_at)
-                VALUES (?, 'pvp_loss', ?, 0, ?, 'completed', NOW())
+                VALUES (?, 'pvp_loss', 0, 0, ?, 'completed', NOW())
             ")->execute([
                 $loserUid,
-                -$entryFee,
                 "PvP derrota (match: " . substr($matchId, 0, 8) . ")"
             ]);
         }
