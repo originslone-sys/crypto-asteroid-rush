@@ -55,6 +55,9 @@ const PvPRenderer = {
     },
 
     render() {
+        // Predição local sincronizada com o frame — evita dessincronismo de setInterval
+        if (PvPEngine.gameActive) PvPEngine.stepLocalPrediction();
+
         const ctx = this.ctx;
         const w = this.canvas.width;
         const h = this.canvas.height;

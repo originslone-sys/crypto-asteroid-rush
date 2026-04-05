@@ -120,18 +120,18 @@ const PvPSessionManager = {
                 pvpState.previousState = pvpState.serverState;
                 pvpState.serverState = state;
 
-                // Reconciliação mínima: só corrige divergências grandes (>120px)
-                // Diferenças pequenas são lag normal — corrigi-las causa o efeito de estilingue
+                // Reconciliação conservadora: só corrige se > 200px de divergência
+                // (lag de rede normal cria diferenças de 50-150px — não tocar)
                 if (pvpState.localPrediction && pvpState.mySlot) {
                     const srv = pvpState.mySlot === 1 ? state.player1 : state.player2;
                     if (srv) {
                         const dx = srv.x - pvpState.localPrediction.x;
                         const dy = srv.y - pvpState.localPrediction.y;
-                        if ((dx * dx + dy * dy) > 14400) { // 120px²
-                            pvpState.localPrediction.x += dx * 0.4;
-                            pvpState.localPrediction.y += dy * 0.4;
-                            pvpState.localPrediction.vx *= 0.5;
-                            pvpState.localPrediction.vy *= 0.5;
+                        if ((dx * dx + dy * dy) > 40000) { // >200px
+                            pvpState.localPrediction.x = srv.x;
+                            pvpState.localPrediction.y = srv.y;
+                            pvpState.localPrediction.vx = 0;
+                            pvpState.localPrediction.vy = 0;
                         }
                     }
                 }

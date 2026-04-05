@@ -5,33 +5,23 @@
 
 const PvPEngine = {
     inputSendInterval: null,
-    predictionInterval: null,
     gameActive: false,
 
-    /**
-     * Inicia captura de input, envio ao servidor e predição local
-     */
     startInputLoop() {
         this.gameActive = true;
 
-        // Captura teclado
         document.addEventListener('keydown', this.handleKeyDown);
         document.addEventListener('keyup', this.handleKeyUp);
-
-        // Setup mobile controls
         this.setupMobileControls();
 
-        // Enviar input a cada 16ms (~60fps)
+        // Enviar input ao servidor a cada 16ms
         this.inputSendInterval = setInterval(() => {
             if (!this.gameActive) return;
             PvPSessionManager.sendInput(pvpState.keys);
         }, 16);
 
-        // Predição local — aplica física localmente para resposta imediata
-        this.predictionInterval = setInterval(() => {
-            if (!this.gameActive) return;
-            this.stepLocalPrediction();
-        }, 16);
+        // Predição local roda dentro do requestAnimationFrame do renderer
+        // para ficar em perfeita sincronia com cada frame renderizado
     },
 
     stopInputLoop() {
@@ -39,10 +29,6 @@ const PvPEngine = {
         if (this.inputSendInterval) {
             clearInterval(this.inputSendInterval);
             this.inputSendInterval = null;
-        }
-        if (this.predictionInterval) {
-            clearInterval(this.predictionInterval);
-            this.predictionInterval = null;
         }
         document.removeEventListener('keydown', this.handleKeyDown);
         document.removeEventListener('keyup', this.handleKeyUp);
@@ -52,8 +38,8 @@ const PvPEngine = {
     },
 
     /**
-     * Simula física da nave localmente (espelha pvp-server/player.js)
-     * Renderizamos a nossa nave usando esta posição, sem esperar o servidor.
+     * Simula física da nave localmente — chamado pelo render loop (RAF) a cada frame.
+     * Roda em sincronia com o desenho para evitar tremor/estilingue.
      */
     stepLocalPrediction() {
         if (!pvpState.localPrediction || !pvpState.mySlot) return;
