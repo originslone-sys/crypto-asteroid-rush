@@ -206,8 +206,46 @@ function processDeposit($pdo, $data, $rawBody) {
             // Verificar tipo de depósito pelo prefixo do external_id
             $isCreditPurchase = strpos($externalId, 'CRD-') === 0;
             $isPremiumPurchase = strpos($externalId, 'PRM-') === 0;
+            $isExplorationRent = strpos($externalId, 'EXP-') === 0;
 
-            if ($isPremiumPurchase) {
+            if ($isExplorationRent) {
+                // ALUGUEL DE NAVE: ativar rental pendente
+                $rentalStmt = $pdo->prepare("SELECT * FROM exploration_rentals WHERE external_id = ? AND status = 'pending_payment' LIMIT 1");
+                $rentalStmt->execute([$externalId]);
+                $rental = $rentalStmt->fetch();
+
+                if (!$rental) {
+                    // Verificar se já foi ativado
+                    $activeCheck = $pdo->prepare("SELECT id FROM exploration_rentals WHERE external_id = ? AND status = 'active' LIMIT 1");
+                    $activeCheck->execute([$externalId]);
+                    if ($activeCheck->fetch()) {
+                        secureLog("EXPLORATION_RENT_ALREADY_ACTIVE | external_id: {$externalId}");
+                    } else {
+                        $pdo->rollBack();
+                        secureLog("EXPLORATION_RENT_NOT_FOUND | external_id: {$externalId} | user_id: {$user['id']} | PAGAMENTO RECEBIDO MAS SEM REGISTRO DE ALUGUEL");
+                        return;
+                    }
+                } else {
+                    $durationHours = 0;
+                    // Buscar duração da nave
+                    $shipStmt = $pdo->prepare("SELECT rental_duration_hours FROM exploration_ships WHERE id = ? LIMIT 1");
+                    $shipStmt->execute([$rental['ship_id']]);
+                    $shipData = $shipStmt->fetch();
+                    $durationHours = $shipData ? (int)$shipData['rental_duration_hours'] : 72;
+
+                    // Ativar aluguel: started_at = agora, expires_at = agora + duração
+                    $pdo->prepare("
+                        UPDATE exploration_rentals
+                        SET status = 'active',
+                            started_at = NOW(),
+                            expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR),
+                            last_accumulation_at = NOW()
+                        WHERE id = ?
+                    ")->execute([$durationHours, $rental['id']]);
+
+                    secureLog("EXPLORATION_RENT_ACTIVATED | external_id: {$externalId} | user_id: {$user['id']} | ship_id: {$rental['ship_id']} | duration: {$durationHours}h | amount: R\${$depositAmount}");
+                }
+            } elseif ($isPremiumPurchase) {
                 // COMPRA DE PREMIUM: ativar assinatura
                 $premiumStmt = $pdo->prepare("SELECT * FROM premium_subscriptions WHERE external_id = ? LIMIT 1");
                 $premiumStmt->execute([$externalId]);
@@ -301,7 +339,7 @@ function processDeposit($pdo, $data, $rawBody) {
             $stmt = $pdo->prepare("
                 UPDATE transactions
                 SET status = 'completed'
-                WHERE google_uid = ? AND type IN ('deposit', 'credit_purchase', 'premium_purchase') AND description LIKE ? AND status = 'pending'
+                WHERE google_uid = ? AND type IN ('deposit', 'credit_purchase', 'premium_purchase', 'exploration_rent') AND description LIKE ? AND status = 'pending'
                 LIMIT 1
             ");
             $stmt->execute([$user['google_uid'], '%' . $externalId . '%']);

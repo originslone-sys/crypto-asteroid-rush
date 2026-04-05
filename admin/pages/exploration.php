@@ -45,7 +45,7 @@ try {
                 credits_per_day INT NOT NULL DEFAULT 10,
                 credits_accumulated INT DEFAULT 0,
                 credits_claimed INT DEFAULT 0,
-                status ENUM('active','expired','cancelled') DEFAULT 'active',
+                status ENUM('pending_payment','active','expired','cancelled') DEFAULT 'active',
                 started_at DATETIME NOT NULL,
                 expires_at DATETIME NOT NULL,
                 claimed_at DATETIME NULL,
