@@ -173,10 +173,9 @@
 
         grid.innerHTML = ships.map(ship => {
             const isRented = ship.is_rented;
-            const canRent = !isRented && activeRentals < maxRentals && balance >= ship.rental_price_brl;
+            const canRent = !isRented && activeRentals < maxRentals;
             const reason = isRented ? 'Já alugada' :
-                           activeRentals >= maxRentals ? 'Limite atingido' :
-                           balance < ship.rental_price_brl ? 'Saldo insuficiente' : '';
+                           activeRentals >= maxRentals ? 'Limite atingido' : '';
 
             return `
                 <div class="ship-card ${isRented ? 'rented' : ''}">
@@ -190,7 +189,7 @@
                         <div class="stat"><div class="stat-val">${formatBRL(ship.rental_price_brl)}</div><div class="stat-lbl">preço</div></div>
                     </div>
                     ${isRented ? '<button class="rent-btn disabled" disabled>Em exploração</button>' :
-                      canRent ? `<button class="rent-btn available" onclick="window._rentShip(${ship.id})"><i class="fas fa-rocket"></i> Alugar por ${formatBRL(ship.rental_price_brl)}</button>` :
+                      canRent ? `<button class="rent-btn available" onclick="window._rentShip(${ship.id})"><i class="fas fa-qrcode"></i> Pagar PIX ${formatBRL(ship.rental_price_brl)}</button>` :
                       `<button class="rent-btn disabled" disabled>${reason}</button>`}
                 </div>`;
         }).join('');
@@ -309,26 +308,94 @@
     }
 
     // ============================================
-    // ALUGAR NAVE
+    // ALUGAR NAVE (PIX)
     // ============================================
+    let pixCheckInterval = null;
+
     window._rentShip = async function(shipId) {
         const ship = shipsData.find(s => s.id === shipId);
         if (!ship) return;
 
-        if (!confirm(`Alugar ${ship.name} por ${formatBRL(ship.rental_price_brl)}?\n\nDuração: ${formatDuration(ship.rental_duration_hours)}\nColeta: ${ship.credits_per_day} créditos/dia`)) {
+        if (!confirm(`Alugar ${ship.name} por ${formatBRL(ship.rental_price_brl)} via PIX?\n\nDuração: ${formatDuration(ship.rental_duration_hours)}\nColeta: ${ship.credits_per_day} créditos/dia`)) {
             return;
         }
 
         try {
             const result = await apiCall('rent_ship', { ship_id: shipId });
-            if (result.success) {
-                showToast(result.message, 'success');
+            if (result.success && result.payment_required) {
+                showPixModal(result);
+            } else if (result.success) {
+                showToast('Nave alugada com sucesso!', 'success');
                 loadExploration();
             } else {
                 showToast(result.error || 'Erro ao alugar', 'error');
             }
         } catch (e) {
             showToast('Erro de conexão', 'error');
+        }
+    };
+
+    function showPixModal(data) {
+        const modal = document.getElementById('pixModal');
+        if (!modal) return;
+
+        document.getElementById('pixShipName').textContent = data.ship_name;
+        document.getElementById('pixAmount').textContent = formatBRL(data.amount_brl);
+        document.getElementById('pixDuration').textContent = formatDuration(data.duration_hours);
+        document.getElementById('pixCreditsDay').textContent = data.credits_per_day + ' créditos/dia';
+        document.getElementById('pixCode').value = data.pix_copy_paste;
+
+        modal.style.display = 'flex';
+
+        // Iniciar polling para verificar pagamento
+        if (pixCheckInterval) clearInterval(pixCheckInterval);
+        const externalId = data.external_id;
+        let checks = 0;
+
+        pixCheckInterval = setInterval(async () => {
+            checks++;
+            if (checks > 120) { // 10 min max (5s * 120)
+                clearInterval(pixCheckInterval);
+                pixCheckInterval = null;
+                return;
+            }
+            try {
+                const status = await apiCall('check_payment', { external_id: externalId });
+                if (status.success && status.paid) {
+                    clearInterval(pixCheckInterval);
+                    pixCheckInterval = null;
+                    modal.style.display = 'none';
+                    showToast('Pagamento confirmado! Nave ativada!', 'success');
+                    loadExploration();
+                }
+            } catch (e) { /* retry */ }
+        }, 5000);
+    }
+
+    window._closePixModal = function() {
+        const modal = document.getElementById('pixModal');
+        if (modal) modal.style.display = 'none';
+        if (pixCheckInterval) {
+            clearInterval(pixCheckInterval);
+            pixCheckInterval = null;
+        }
+        loadExploration();
+    };
+
+    window._copyPixCode = function() {
+        const input = document.getElementById('pixCode');
+        if (!input) return;
+        input.select();
+        try {
+            navigator.clipboard.writeText(input.value).then(() => {
+                showToast('Código PIX copiado!', 'success');
+            }).catch(() => {
+                document.execCommand('copy');
+                showToast('Código PIX copiado!', 'success');
+            });
+        } catch (e) {
+            document.execCommand('copy');
+            showToast('Código PIX copiado!', 'success');
         }
     };
 

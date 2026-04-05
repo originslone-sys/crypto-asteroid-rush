@@ -426,7 +426,8 @@ try {
             ship_key VARCHAR(20) NOT NULL,
             rental_price_brl DECIMAL(10,2) NOT NULL,
             credits_per_day INT NOT NULL,
-            status ENUM('active','expired','cancelled') NOT NULL DEFAULT 'active',
+            status ENUM('pending_payment','active','expired','cancelled') NOT NULL DEFAULT 'active',
+            external_id VARCHAR(100) DEFAULT NULL,
             credits_accumulated INT NOT NULL DEFAULT 0,
             credits_claimed INT NOT NULL DEFAULT 0,
             started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -438,11 +439,28 @@ try {
             INDEX idx_google_uid (google_uid),
             INDEX idx_status (status),
             INDEX idx_user_status (user_id, status),
-            INDEX idx_expires (expires_at)
+            INDEX idx_expires (expires_at),
+            INDEX idx_external_id (external_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
     $results['migrations'][] = 'exploration_rentals';
     output("  [OK] exploration_rentals");
+
+    // Adicionar coluna external_id e status pending_payment em exploration_rentals
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM exploration_rentals LIKE 'external_id'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE exploration_rentals ADD COLUMN external_id VARCHAR(100) DEFAULT NULL AFTER status");
+            $pdo->exec("ALTER TABLE exploration_rentals ADD INDEX idx_external_id (external_id)");
+            output("  [OK] exploration_rentals.external_id adicionada");
+        }
+    } catch (Exception $e) { /* já existe */ }
+
+    // Atualizar ENUM de status para incluir pending_payment
+    try {
+        $pdo->exec("ALTER TABLE exploration_rentals MODIFY COLUMN status ENUM('pending_payment','active','expired','cancelled') NOT NULL DEFAULT 'active'");
+        output("  [OK] exploration_rentals.status atualizado com pending_payment");
+    } catch (Exception $e) { /* ok */ }
 
     // ============================================
     // COLUNAS EXTRAS EM TABELAS EXISTENTES

@@ -6,6 +6,7 @@
 // ============================================
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/zettpay-client.php';
 
 setCorsHeaders();
 
@@ -62,10 +63,10 @@ try {
                 ORDER BY sort_order ASC
             ")->fetchAll(PDO::FETCH_ASSOC);
 
-            // Aluguéis ativos do usuário
+            // Aluguéis ativos do usuário (inclui pendentes de pagamento)
             $activeRentals = $pdo->prepare("
                 SELECT ship_id FROM exploration_rentals
-                WHERE user_id = ? AND status = 'active'
+                WHERE user_id = ? AND status IN ('active', 'pending_payment')
             ");
             $activeRentals->execute([$userId]);
             $rentedShipIds = $activeRentals->fetchAll(PDO::FETCH_COLUMN);
@@ -98,7 +99,7 @@ try {
             break;
 
         // ============================================
-        // ALUGAR NAVE
+        // ALUGAR NAVE (PAGAMENTO VIA PIX)
         // ============================================
         case 'rent_ship':
             $shipId = (int)($input['ship_id'] ?? 0);
@@ -107,107 +108,191 @@ try {
                 exit;
             }
 
-            $pdo->beginTransaction();
+            // Buscar nave
+            $shipStmt = $pdo->prepare("SELECT * FROM exploration_ships WHERE id = ? AND is_active = 1 LIMIT 1");
+            $shipStmt->execute([$shipId]);
+            $ship = $shipStmt->fetch();
 
+            if (!$ship) {
+                echo json_encode(['success' => false, 'error' => 'Nave não encontrada ou desativada']);
+                exit;
+            }
+
+            $price = (float)$ship['rental_price_brl'];
+
+            // Verificar limite de aluguéis ativos
+            $maxRentals = 3;
             try {
-                // Lock no usuário
-                $userLock = $pdo->prepare("SELECT id, balance_brl, credits FROM users WHERE id = ? FOR UPDATE");
-                $userLock->execute([$userId]);
-                $freshUser = $userLock->fetch();
-                $balance = (float)$freshUser['balance_brl'];
+                $maxStmt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'exploration_max_rentals_per_user' LIMIT 1");
+                $maxRow = $maxStmt->fetch();
+                if ($maxRow) $maxRentals = (int)$maxRow['setting_value'];
+            } catch (Exception $e) {}
 
-                // Buscar nave
-                $shipStmt = $pdo->prepare("SELECT * FROM exploration_ships WHERE id = ? AND is_active = 1 LIMIT 1");
-                $shipStmt->execute([$shipId]);
-                $ship = $shipStmt->fetch();
+            $activeStmt = $pdo->prepare("SELECT COUNT(*) FROM exploration_rentals WHERE user_id = ? AND status = 'active'");
+            $activeStmt->execute([$userId]);
+            $activeCount = (int)$activeStmt->fetchColumn();
 
-                if (!$ship) {
-                    $pdo->rollBack();
-                    echo json_encode(['success' => false, 'error' => 'Nave não encontrada ou desativada']);
-                    exit;
-                }
+            if ($activeCount >= $maxRentals) {
+                echo json_encode(['success' => false, 'error' => "Limite de $maxRentals aluguéis ativos atingido"]);
+                exit;
+            }
 
-                $price = (float)$ship['rental_price_brl'];
+            // Verificar se já alugou esta nave (ativa ou pagamento pendente)
+            $alreadyRented = $pdo->prepare("SELECT COUNT(*) FROM exploration_rentals WHERE user_id = ? AND ship_id = ? AND status IN ('active', 'pending_payment')");
+            $alreadyRented->execute([$userId, $shipId]);
+            if ((int)$alreadyRented->fetchColumn() > 0) {
+                echo json_encode(['success' => false, 'error' => 'Você já tem esta nave alugada ou com pagamento pendente']);
+                exit;
+            }
 
-                // Verificar saldo
-                if ($balance < $price) {
-                    $pdo->rollBack();
-                    echo json_encode(['success' => false, 'error' => 'Saldo insuficiente. Necessário: R$ ' . number_format($price, 2, ',', '.')]);
-                    exit;
-                }
+            // Garantir que tabela zettpay_transactions existe
+            ensureZettpayTable($pdo);
 
-                // Verificar limite de aluguéis ativos
-                $maxRentals = 3;
-                try {
-                    $maxStmt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'exploration_max_rentals_per_user' LIMIT 1");
-                    $maxRow = $maxStmt->fetch();
-                    if ($maxRow) $maxRentals = (int)$maxRow['setting_value'];
-                } catch (Exception $e) {}
+            // Expirar pendentes antigos (>30 min) sem qr_code
+            $pdo->prepare("
+                UPDATE zettpay_transactions SET status = 'expired'
+                WHERE user_id = ? AND type = 'deposit' AND status = 'pending'
+                AND external_id LIKE 'EXP-%'
+                AND (created_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE) OR qr_code IS NULL OR qr_code = '')
+            ")->execute([$userId]);
 
-                $activeStmt = $pdo->prepare("SELECT COUNT(*) FROM exploration_rentals WHERE user_id = ? AND status = 'active'");
-                $activeStmt->execute([$userId]);
-                $activeCount = (int)$activeStmt->fetchColumn();
+            // Expirar aluguéis pendentes de pagamento antigos (>30 min)
+            $pdo->prepare("
+                UPDATE exploration_rentals SET status = 'expired'
+                WHERE user_id = ? AND status = 'pending_payment'
+                AND created_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+            ")->execute([$userId]);
 
-                if ($activeCount >= $maxRentals) {
-                    $pdo->rollBack();
-                    echo json_encode(['success' => false, 'error' => "Limite de $maxRentals aluguéis ativos atingido"]);
-                    exit;
-                }
+            // Gerar external_id com prefixo EXP-
+            $externalId = 'EXP-' . $userId . '-SHIP' . $shipId . '-' . time() . '-' . bin2hex(random_bytes(4));
+            $durationHours = (int)$ship['rental_duration_hours'];
 
-                // Verificar se já alugou esta nave
-                $alreadyRented = $pdo->prepare("SELECT COUNT(*) FROM exploration_rentals WHERE user_id = ? AND ship_id = ? AND status = 'active'");
-                $alreadyRented->execute([$userId, $shipId]);
-                if ((int)$alreadyRented->fetchColumn() > 0) {
-                    $pdo->rollBack();
-                    echo json_encode(['success' => false, 'error' => 'Você já tem esta nave alugada']);
-                    exit;
-                }
+            // Chamar ZettPay para gerar PIX
+            $result = zettpayCreateDeposit(
+                $price,
+                $externalId,
+                "Aluguel de nave: {$ship['name']} ({$durationHours}h)",
+                [
+                    'name' => $user['display_name'] ?? '',
+                    'email' => $user['email'] ?? ''
+                ],
+                [
+                    'user_id' => (string)$userId,
+                    'ship_id' => (string)$shipId,
+                    'type' => 'exploration_rent'
+                ]
+            );
 
-                // Deduzir saldo
-                $pdo->prepare("UPDATE users SET balance_brl = balance_brl - ?, updated_at = NOW() WHERE id = ?")
-                    ->execute([$price, $userId]);
+            if (!$result['success']) {
+                echo json_encode(['success' => false, 'error' => 'Erro ao gerar PIX: ' . $result['error']]);
+                exit;
+            }
 
-                // Criar aluguel
-                $durationHours = (int)$ship['rental_duration_hours'];
-                $pdo->prepare("
-                    INSERT INTO exploration_rentals (user_id, google_uid, ship_id, ship_key, rental_price_brl, credits_per_day, started_at, expires_at, last_accumulation_at)
-                    VALUES (?, ?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL ? HOUR), NOW())
-                ")->execute([
-                    $userId, $googleUid, $shipId, $ship['ship_key'],
-                    $price, (int)$ship['credits_per_day'], $durationHours
-                ]);
+            $apiData = $result['data'];
+            $pixCode = $apiData['qr_code'] ?? null;
 
-                $rentalId = (int)$pdo->lastInsertId();
+            if (empty($pixCode)) {
+                secureLog("ZETTPAY_EXP_NO_QRCODE | external_id: {$externalId} | response: " . json_encode($apiData));
+                echo json_encode(['success' => false, 'error' => 'PIX gerado sem QR Code']);
+                exit;
+            }
 
-                // Registrar transação
+            // Salvar transação ZettPay
+            $pdo->prepare("
+                INSERT INTO zettpay_transactions (
+                    user_id, external_id, zettpay_id, type, amount_brl, fee_brl,
+                    status, qr_code, pix_copy_paste, expires_at, created_at
+                ) VALUES (?, ?, ?, 'deposit', ?, ?, 'pending', ?, ?, ?, NOW())
+            ")->execute([
+                $userId,
+                $externalId,
+                $apiData['id'] ?? null,
+                $price,
+                (float)($apiData['fee_amount'] ?? 0),
+                $pixCode,
+                $pixCode,
+                $apiData['expires_at'] ?? null
+            ]);
+
+            // Criar aluguel com status pending_payment (ativado pelo webhook)
+            $pdo->prepare("
+                INSERT INTO exploration_rentals (
+                    user_id, google_uid, ship_id, ship_key,
+                    rental_price_brl, credits_per_day,
+                    status, external_id,
+                    started_at, expires_at, last_accumulation_at
+                ) VALUES (?, ?, ?, ?, ?, ?, 'pending_payment', ?, NOW(), DATE_ADD(NOW(), INTERVAL ? HOUR), NOW())
+            ")->execute([
+                $userId, $googleUid, $shipId, $ship['ship_key'],
+                $price, (int)$ship['credits_per_day'],
+                $externalId, $durationHours
+            ]);
+
+            // Registrar transação pendente no histórico
+            try {
                 $pdo->prepare("
                     INSERT INTO transactions (google_uid, type, amount, amount_brl, description, status, created_at)
-                    VALUES (?, 'exploration_rent', ?, ?, ?, 'completed', NOW())
+                    VALUES (?, 'exploration_rent', ?, ?, ?, 'pending', NOW())
                 ")->execute([
-                    $googleUid, -$price, -$price,
-                    "Aluguel: {$ship['name']} ({$durationHours}h)"
+                    $googleUid, $price, $price,
+                    "Aluguel: {$ship['name']} ({$durationHours}h) [{$externalId}]"
                 ]);
-
-                $pdo->commit();
-
-                // Novo saldo
-                $newBalance = $balance - $price;
-
-                echo json_encode([
-                    'success' => true,
-                    'rental_id' => $rentalId,
-                    'ship_name' => $ship['name'],
-                    'duration_hours' => $durationHours,
-                    'credits_per_day' => (int)$ship['credits_per_day'],
-                    'price_paid' => $price,
-                    'new_balance' => round($newBalance, 2),
-                    'message' => "{$ship['name']} alugada com sucesso!"
+            } catch (Throwable $txErr) {
+                $pdo->prepare("
+                    INSERT INTO transactions (google_uid, type, amount, description, status, created_at)
+                    VALUES (?, 'exploration_rent', ?, ?, 'pending', NOW())
+                ")->execute([
+                    $googleUid, $price,
+                    "Aluguel: {$ship['name']} ({$durationHours}h) [{$externalId}]"
                 ]);
-
-            } catch (Exception $e) {
-                $pdo->rollBack();
-                throw $e;
             }
+
+            secureLog("EXPLORATION_PIX | uid: {$googleUid} | ship: {$shipId} | price: R\${$price} | external_id: {$externalId}");
+
+            echo json_encode([
+                'success' => true,
+                'payment_required' => true,
+                'external_id' => $externalId,
+                'amount_brl' => $price,
+                'ship_name' => $ship['name'],
+                'duration_hours' => $durationHours,
+                'credits_per_day' => (int)$ship['credits_per_day'],
+                'qr_code' => $pixCode,
+                'pix_copy_paste' => $pixCode,
+                'expires_at' => $apiData['expires_at'] ?? null
+            ]);
+            break;
+
+        // ============================================
+        // VERIFICAR STATUS DO PAGAMENTO
+        // ============================================
+        case 'check_payment':
+            $externalId = trim($input['external_id'] ?? '');
+            if (empty($externalId)) {
+                echo json_encode(['success' => false, 'error' => 'external_id obrigatório']);
+                exit;
+            }
+
+            // Buscar o aluguel pelo external_id
+            $rentalStmt = $pdo->prepare("
+                SELECT status FROM exploration_rentals
+                WHERE user_id = ? AND external_id = ? LIMIT 1
+            ");
+            $rentalStmt->execute([$userId, $externalId]);
+            $rental = $rentalStmt->fetch();
+
+            if (!$rental) {
+                echo json_encode(['success' => false, 'error' => 'Aluguel não encontrado']);
+                exit;
+            }
+
+            $paid = ($rental['status'] === 'active');
+
+            echo json_encode([
+                'success' => true,
+                'status' => $rental['status'],
+                'paid' => $paid
+            ]);
             break;
 
         // ============================================

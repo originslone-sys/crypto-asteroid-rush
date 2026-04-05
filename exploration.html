@@ -140,6 +140,46 @@
     </main>
 </div>
 
+<!-- PIX Payment Modal -->
+<div id="pixModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9998;justify-content:center;align-items:center;padding:20px;">
+    <div style="background:linear-gradient(135deg,#0a1628,#0d1f3c);border:1px solid rgba(0,200,255,0.2);border-radius:16px;padding:28px;max-width:420px;width:100%;position:relative;">
+        <button onclick="window._closePixModal()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:#8899aa;font-size:1.3rem;cursor:pointer;">&times;</button>
+        <div style="text-align:center;margin-bottom:20px;">
+            <i class="fas fa-qrcode" style="font-size:2rem;color:#00c8ff;"></i>
+            <h3 style="font-family:'Orbitron',sans-serif;color:#fff;font-size:1rem;margin:8px 0 4px;">Pagamento PIX</h3>
+            <div style="color:#00ff88;font-family:'Orbitron',sans-serif;font-size:0.85rem;" id="pixShipName"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:0.8rem;">
+            <div style="text-align:center;flex:1;">
+                <div style="color:#00c8ff;font-family:'Orbitron',sans-serif;font-size:1.1rem;" id="pixAmount"></div>
+                <div style="color:#667788;font-size:0.65rem;">Valor</div>
+            </div>
+            <div style="text-align:center;flex:1;">
+                <div style="color:#fff;font-family:'Orbitron',sans-serif;font-size:0.9rem;" id="pixDuration"></div>
+                <div style="color:#667788;font-size:0.65rem;">Duração</div>
+            </div>
+            <div style="text-align:center;flex:1;">
+                <div style="color:#00ff88;font-family:'Orbitron',sans-serif;font-size:0.9rem;" id="pixCreditsDay"></div>
+                <div style="color:#667788;font-size:0.65rem;">Rendimento</div>
+            </div>
+        </div>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:0.75rem;color:#8899aa;display:block;margin-bottom:4px;">Código PIX Copia e Cola:</label>
+            <div style="display:flex;gap:8px;">
+                <input type="text" id="pixCode" readonly style="flex:1;background:rgba(0,20,40,0.8);border:1px solid rgba(0,200,255,0.2);border-radius:8px;padding:10px;color:#fff;font-size:0.75rem;font-family:monospace;">
+                <button onclick="window._copyPixCode()" style="background:linear-gradient(135deg,#00c8ff,#0088ff);border:none;border-radius:8px;padding:10px 16px;color:#fff;font-weight:600;cursor:pointer;font-size:0.8rem;white-space:nowrap;">
+                    <i class="fas fa-copy"></i> Copiar
+                </button>
+            </div>
+        </div>
+        <div style="text-align:center;padding:12px;background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.15);border-radius:8px;margin-top:12px;">
+            <i class="fas fa-spinner fa-spin" style="color:#00ff88;margin-right:6px;"></i>
+            <span style="color:#00ff88;font-size:0.8rem;font-weight:600;">Aguardando pagamento...</span>
+            <div style="color:#667788;font-size:0.65rem;margin-top:4px;">A nave será ativada automaticamente após a confirmação</div>
+        </div>
+    </div>
+</div>
+
 <!-- Toast -->
 <div id="toast" style="display:none;position:fixed;bottom:30px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999;font-family:'Exo 2',sans-serif;"></div>
 
@@ -149,6 +189,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="js/auth-manager.js"></script>
-<script src="js/exploration.js?v=1.0"></script>
+<script src="js/exploration.js?v=2.0"></script>
 </body>
 </html>
