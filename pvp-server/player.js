@@ -60,11 +60,11 @@ class Player {
     }
 
     updatePosition() {
-        const ACCEL_X  = 4.5;   // px/frame² horizontal
-        const ACCEL_Y  = 3.0;   // px/frame² vertical
+        const ACCEL_X  = 8.0;   // px/frame² horizontal
+        const ACCEL_Y  = 6.0;   // px/frame² vertical
         const MAX_VX   = config.SHIP_SPEED_X;  // 18
         const MAX_VY   = config.SHIP_SPEED_Y;  // 12
-        const FRICTION = 0.72;  // amortecimento quando sem input (~4 frames pra parar)
+        const FRICTION = 0.76;  // amortecimento quando sem input (~3 frames pra parar)
 
         // Aceleração horizontal
         if (this.input.left)       this.vx -= ACCEL_X;
