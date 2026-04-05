@@ -5,10 +5,11 @@
 
 const PvPEngine = {
     inputSendInterval: null,
+    predictionInterval: null,
     gameActive: false,
 
     /**
-     * Inicia captura de input e envio ao servidor
+     * Inicia captura de input, envio ao servidor e predição local
      */
     startInputLoop() {
         this.gameActive = true;
@@ -25,6 +26,12 @@ const PvPEngine = {
             if (!this.gameActive) return;
             PvPSessionManager.sendInput(pvpState.keys);
         }, 16);
+
+        // Predição local — aplica física localmente para resposta imediata
+        this.predictionInterval = setInterval(() => {
+            if (!this.gameActive) return;
+            this.stepLocalPrediction();
+        }, 16);
     },
 
     stopInputLoop() {
@@ -33,11 +40,51 @@ const PvPEngine = {
             clearInterval(this.inputSendInterval);
             this.inputSendInterval = null;
         }
+        if (this.predictionInterval) {
+            clearInterval(this.predictionInterval);
+            this.predictionInterval = null;
+        }
         document.removeEventListener('keydown', this.handleKeyDown);
         document.removeEventListener('keyup', this.handleKeyUp);
 
-        // Reset keys
         pvpState.keys = { left: false, right: false, up: false, down: false, fire: false };
+        pvpState.localPrediction = null;
+    },
+
+    /**
+     * Simula física da nave localmente (espelha pvp-server/player.js)
+     * Renderizamos a nossa nave usando esta posição, sem esperar o servidor.
+     */
+    stepLocalPrediction() {
+        if (!pvpState.localPrediction || !pvpState.mySlot) return;
+
+        const C = PVP_CONFIG;
+        const pred = pvpState.localPrediction;
+        const keys = pvpState.keys;
+
+        if (keys.left)       pred.vx -= C.SHIP_ACCEL_X;
+        else if (keys.right) pred.vx += C.SHIP_ACCEL_X;
+        else                 pred.vx *= C.SHIP_FRICTION;
+
+        if (keys.up)         pred.vy -= C.SHIP_ACCEL_Y;
+        else if (keys.down)  pred.vy += C.SHIP_ACCEL_Y;
+        else                 pred.vy *= C.SHIP_FRICTION;
+
+        pred.vx = Math.max(-C.SHIP_MAX_VX, Math.min(C.SHIP_MAX_VX, pred.vx));
+        pred.vy = Math.max(-C.SHIP_MAX_VY, Math.min(C.SHIP_MAX_VY, pred.vy));
+
+        pred.x += pred.vx;
+        pred.y += pred.vy;
+
+        const W = C.ARENA_WIDTH, H = C.ARENA_HEIGHT;
+        const slot = pvpState.mySlot;
+        const yMin = slot === 1 ? H * 0.5 : 50;
+        const yMax = slot === 1 ? H - 50 : H * 0.5;
+
+        if (pred.x <= 50)      { pred.x = 50;      pred.vx = 0; }
+        if (pred.x >= W - 50)  { pred.x = W - 50;  pred.vx = 0; }
+        if (pred.y <= yMin)    { pred.y = yMin;     pred.vy = 0; }
+        if (pred.y >= yMax)    { pred.y = yMax;     pred.vy = 0; }
     },
 
     handleKeyDown(e) {
@@ -189,6 +236,16 @@ function onGameStart(data) {
     const arena = document.getElementById('pvpArena');
     if (countdown) countdown.style.display = 'none';
     if (arena) arena.style.display = 'block';
+
+    // Inicializar predição local na posição de spawn
+    const slot = pvpState.mySlot;
+    const H = PVP_CONFIG.ARENA_HEIGHT;
+    pvpState.localPrediction = {
+        x: PVP_CONFIG.ARENA_WIDTH / 2,
+        y: slot === 1 ? H - 120 : 120,
+        vx: 0,
+        vy: 0
+    };
 
     // Iniciar rendering e input
     PvPRenderer.init('pvpCanvas');

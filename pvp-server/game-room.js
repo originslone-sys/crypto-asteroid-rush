@@ -5,7 +5,7 @@
 
 const config = require('./config');
 const Player = require('./player');
-const { spawnAsteroid, updateAsteroids, processCollisions } = require('./physics');
+const { processCollisions } = require('./physics');
 const crypto = require('crypto');
 
 class GameRoom {
@@ -32,9 +32,6 @@ class GameRoom {
         this.status = 'countdown'; // countdown → active → ended
         this.timeLeft = config.GAME_DURATION;
         this.countdownLeft = config.COUNTDOWN_SECONDS;
-        this.asteroids = [];
-        this.asteroidIdCounter = 0;
-        this.lastAsteroidSpawn = 0;
 
         // Timers
         this.gameLoopInterval = null;
@@ -132,19 +129,8 @@ class GameRoom {
         this.player1.updateBullets();
         this.player2.updateBullets();
 
-        // Spawnar asteroides
-        if (now - this.lastAsteroidSpawn >= config.ASTEROID_SPAWN_INTERVAL &&
-            this.asteroids.length < config.MAX_ASTEROIDS) {
-            this.asteroidIdCounter++;
-            this.asteroids.push(spawnAsteroid(this.asteroidIdCounter));
-            this.lastAsteroidSpawn = now;
-        }
-
-        // Atualizar asteroides
-        updateAsteroids(this.asteroids);
-
-        // Processar colisões
-        const events = processCollisions(this.player1, this.player2, this.asteroids);
+        // Processar colisões (sem asteroides)
+        const events = processCollisions(this.player1, this.player2, []);
 
         // Verificar morte
         if (this.player1.isDead() && this.player2.isDead()) {
@@ -171,15 +157,6 @@ class GameRoom {
             player2: this.player2.getState(),
             player1Bullets: this.player1.getBulletsState(),
             player2Bullets: this.player2.getBulletsState(),
-            asteroids: this.asteroids.map(a => ({
-                id: a.id,
-                x: Math.round(a.x),
-                y: Math.round(a.y),
-                size: Math.round(a.size),
-                rotation: a.rotation,
-                vx: a.vx,
-                vy: a.vy
-            })),
             events
         };
 
@@ -259,12 +236,6 @@ class GameRoom {
         } else if (this.player2.lives > this.player1.lives) {
             winnerUid = this.player2.googleUid;
             winCondition = 'time_lives';
-        } else if (this.player1.asteroidsDestroyed > this.player2.asteroidsDestroyed) {
-            winnerUid = this.player1.googleUid;
-            winCondition = 'time_asteroids';
-        } else if (this.player2.asteroidsDestroyed > this.player1.asteroidsDestroyed) {
-            winnerUid = this.player2.googleUid;
-            winCondition = 'time_asteroids';
         }
 
         this.endGame('completed', winCondition, winnerUid);

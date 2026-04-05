@@ -9,7 +9,6 @@ const PvPRenderer = {
     animationFrameId: null,
     starsCache: null,
     dynamicStars: [],
-    asteroidShapes: {},   // cache de shapes por asteroid ID
 
     init(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -83,20 +82,22 @@ const PvPRenderer = {
         const scaleX = w / PVP_CONFIG.ARENA_WIDTH;
         const scaleY = h / PVP_CONFIG.ARENA_HEIGHT;
 
-        // Asteroides
-        this.renderAsteroids(ctx, state.asteroids, scaleX, scaleY);
-
-        // Balas Player 1 (verde)
+        // Balas Player 1
         this.renderBullets(ctx, state.player1Bullets, PVP_CONFIG.PLAYER_BULLET_COLOR,
             PVP_CONFIG.OPPONENT_BULLET_COLOR, scaleX, scaleY);
 
-        // Balas Player 2 (vermelho)
+        // Balas Player 2
         this.renderBullets(ctx, state.player2Bullets, PVP_CONFIG.PLAYER_BULLET_COLOR,
             PVP_CONFIG.OPPONENT_BULLET_COLOR, scaleX, scaleY);
 
-        // Naves
-        const myPlayer = pvpState.mySlot === 1 ? state.player1 : state.player2;
+        // Naves — minha nave usa predição local para resposta imediata
+        const myPlayerServer = pvpState.mySlot === 1 ? state.player1 : state.player2;
         const opponent = pvpState.mySlot === 1 ? state.player2 : state.player1;
+
+        // Sobrepõe posição do servidor com predição local (lives/invincible vêm do servidor)
+        const myPlayer = (pvpState.localPrediction && myPlayerServer)
+            ? { ...myPlayerServer, x: pvpState.localPrediction.x, y: pvpState.localPrediction.y }
+            : myPlayerServer;
 
         this.renderShip(ctx, myPlayer, PVP_CONFIG.PLAYER_COLOR, false, scaleX, scaleY);
         this.renderShip(ctx, opponent, PVP_CONFIG.OPPONENT_COLOR, true, scaleX, scaleY);
@@ -123,60 +124,6 @@ const PvPRenderer = {
             ctx.beginPath();
             ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
             ctx.fill();
-        }
-    },
-
-    getAsteroidShape(id, points) {
-        if (!this.asteroidShapes[id]) {
-            // Seeded random usando o ID para forma consistente por asteroide
-            const seed = id * 9301 + 49297;
-            const rng = (i) => (((seed + i * 1234567) * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
-            this.asteroidShapes[id] = Array.from({ length: points }, (_, i) => 0.65 + rng(i) * 0.35);
-        }
-        return this.asteroidShapes[id];
-    },
-
-    renderAsteroids(ctx, asteroids, sx, sy) {
-        if (!asteroids) return;
-        // Limpar shapes de asteroides que não existem mais
-        const activeIds = new Set(asteroids.map(a => a.id));
-        for (const id of Object.keys(this.asteroidShapes)) {
-            if (!activeIds.has(parseInt(id))) delete this.asteroidShapes[id];
-        }
-
-        for (const a of asteroids) {
-            const x = a.x * sx;
-            const y = a.y * sy;
-            const size = a.size * Math.min(sx, sy);
-            const points = 8;
-            const shape = this.getAsteroidShape(a.id, points);
-
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(a.rotation || 0);
-
-            const gradient = ctx.createRadialGradient(0, 0, size * 0.1, 0, 0, size * 0.5);
-            gradient.addColorStop(0, '#8B7355');
-            gradient.addColorStop(0.5, '#6B5340');
-            gradient.addColorStop(1, '#4A3728');
-
-            ctx.beginPath();
-            for (let i = 0; i < points; i++) {
-                const angle = (i / points) * Math.PI * 2;
-                const radius = size * 0.45 * shape[i];
-                const px = Math.cos(angle) * radius;
-                const py = Math.sin(angle) * radius;
-                if (i === 0) ctx.moveTo(px, py);
-                else ctx.lineTo(px, py);
-            }
-            ctx.closePath();
-            ctx.fillStyle = gradient;
-            ctx.fill();
-            ctx.strokeStyle = '#3A2718';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-
-            ctx.restore();
         }
     },
 
@@ -372,23 +319,15 @@ const PvPRenderer = {
         ctx.fillText(opponent?.displayName || 'Oponente', 15, 25);
 
         // Vidas do oponente
-        this.renderLives(ctx, 15, 35, opponent?.lives || 0, PVP_CONFIG.OPPONENT_COLOR);
-
-        // Asteroides do oponente
-        ctx.fillStyle = '#aaaaaa';
-        ctx.fillText(`☄ ${opponent?.asteroidsDestroyed || 0}`, 15, 62);
+        this.renderLives(ctx, 15, 40, opponent?.lives || 0, PVP_CONFIG.OPPONENT_COLOR);
 
         // Info do jogador (base)
         ctx.textAlign = 'left';
         ctx.fillStyle = PVP_CONFIG.PLAYER_COLOR;
-        ctx.fillText(myPlayer?.displayName || 'Você', 15, h - 55);
+        ctx.fillText(myPlayer?.displayName || 'Você', 15, h - 40);
 
         // Vidas do jogador
-        this.renderLives(ctx, 15, h - 45, myPlayer?.lives || 0, PVP_CONFIG.PLAYER_COLOR);
-
-        // Asteroides do jogador
-        ctx.fillStyle = '#aaaaaa';
-        ctx.fillText(`☄ ${myPlayer?.asteroidsDestroyed || 0}`, 15, h - 18);
+        this.renderLives(ctx, 15, h - 25, myPlayer?.lives || 0, PVP_CONFIG.PLAYER_COLOR);
     },
 
     renderLives(ctx, x, y, lives, color) {
