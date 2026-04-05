@@ -36,8 +36,12 @@ const PVP_CONFIG = {
     PLAYER_COLOR: '#00aaff',
     OPPONENT_COLOR: '#ff6600',
 
-    // Interpolação
-    INTERPOLATION_FACTOR: 0.3,
+    // Física da nave (deve espelhar pvp-server/player.js)
+    SHIP_ACCEL_X: 8.0,
+    SHIP_ACCEL_Y: 6.0,
+    SHIP_FRICTION: 0.76,
+    SHIP_MAX_VX: 18,
+    SHIP_MAX_VY: 12,
 };
 
 // Estado do jogo PvP (client-side)
@@ -69,5 +73,8 @@ const pvpState = {
         up: false,
         down: false,
         fire: false
-    }
+    },
+
+    // Predição local (client-side prediction para minha nave)
+    localPrediction: null,  // { x, y, vx, vy }
 };
