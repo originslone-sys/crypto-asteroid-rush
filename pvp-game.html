@@ -112,43 +112,10 @@
             display: block;
         }
 
-        /* Mobile Controls PvP */
-        .pvp-mobile-controls {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            display: flex;
-            justify-content: space-between;
-            padding: 10px;
-            z-index: 60;
-            pointer-events: none;
-        }
+        /* Mobile Controls PvP - virtual joystick (see inline elements) */
 
-        .pvp-mobile-controls .control-group {
-            display: flex;
-            gap: 8px;
-            pointer-events: auto;
-        }
-
-        .pvp-ctrl-btn {
-            width: 55px; height: 55px;
-            border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.2);
-            background: rgba(255,255,255,0.08);
-            color: #fff;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: none;
-        }
-
-        .pvp-ctrl-btn.fire {
-            width: 70px; height: 70px;
-            border-color: #ff4444;
-            color: #ff4444;
-            font-size: 22px;
-        }
+        /* Arena touch */
+        #pvpArena { touch-action: none; }
 
         /* Result Screen */
         .pvp-result-grid {
@@ -242,18 +209,45 @@
 <div id="pvpArena">
     <canvas id="pvpCanvas"></canvas>
 
-    <!-- Mobile Controls -->
-    <div class="pvp-mobile-controls" id="pvpMobileControls">
-        <div class="control-group">
-            <div class="pvp-ctrl-btn" id="pvpLeftBtn"><i class="fas fa-chevron-left"></i></div>
-            <div class="pvp-ctrl-btn" id="pvpUpBtn"><i class="fas fa-chevron-up"></i></div>
-            <div class="pvp-ctrl-btn" id="pvpDownBtn"><i class="fas fa-chevron-down"></i></div>
-            <div class="pvp-ctrl-btn" id="pvpRightBtn"><i class="fas fa-chevron-right"></i></div>
-        </div>
-        <div class="control-group">
-            <div class="pvp-ctrl-btn fire" id="pvpFireBtn"><i class="fas fa-bolt"></i></div>
-        </div>
+    <!-- Virtual Joystick Overlay (mobile only) -->
+    <div id="pvpJoystick" style="
+        position: fixed;
+        width: 120px; height: 120px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.08);
+        border: 2px solid rgba(255,255,255,0.2);
+        display: flex; align-items: center; justify-content: center;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.1s;
+        z-index: 65;
+    ">
+        <div id="pvpJoystickKnob" style="
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0,170,255,0.8), rgba(0,170,255,0.3));
+            border: 2px solid rgba(0,170,255,0.6);
+            box-shadow: 0 0 15px rgba(0,170,255,0.4);
+            transition: transform 0.05s;
+            pointer-events: none;
+        "></div>
     </div>
+
+    <!-- Fire button (right side, mobile) -->
+    <div id="pvpFireBtn" style="
+        position: fixed;
+        right: 30px; bottom: 80px;
+        width: 75px; height: 75px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255,68,68,0.6), rgba(255,68,68,0.2));
+        border: 2px solid rgba(255,68,68,0.8);
+        box-shadow: 0 0 20px rgba(255,68,68,0.3);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 28px; color: #ff4444;
+        z-index: 65;
+        pointer-events: auto;
+        -webkit-tap-highlight-color: transparent;
+    ">&#x26A1;</div>
 </div>
 
 <!-- RESULTADO -->
@@ -300,8 +294,8 @@
 <!-- PvP Scripts -->
 <script src="js/pvp/pvp-game-config.js?v=4"></script>
 <script src="js/pvp/pvp-session-manager.js?v=3"></script>
-<script src="js/pvp/pvp-game-renderer.js?v=2"></script>
-<script src="js/pvp/pvp-game-engine.js?v=2"></script>
+<script src="js/pvp/pvp-game-renderer.js?v=3"></script>
+<script src="js/pvp/pvp-game-engine.js?v=3"></script>
 
 <script>
     async function startMatchmaking() {

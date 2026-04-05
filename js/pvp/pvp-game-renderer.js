@@ -210,54 +210,96 @@ const PvPRenderer = {
 
         const x = player.x * sx;
         const y = player.y * sy;
-        const size = 20 * Math.min(sx, sy);
+        const size = Math.max(22, 22 * Math.min(sx, sy));
 
-        // Flashing se invencível
         if (player.invincible && Math.floor(Date.now() / 100) % 2 === 0) {
-            ctx.globalAlpha = 0.4;
+            ctx.globalAlpha = 0.3;
         }
 
         ctx.save();
         ctx.translate(x, y);
         if (inverted) ctx.rotate(Math.PI);
 
-        // Corpo da nave
+        // Engine trail glow
+        const trailGrad = ctx.createRadialGradient(0, size * 0.7, 0, 0, size * 0.7, size * 0.6);
+        trailGrad.addColorStop(0, color + 'cc');
+        trailGrad.addColorStop(0.4, color + '55');
+        trailGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = trailGrad;
         ctx.beginPath();
-        ctx.moveTo(0, -size);
-        ctx.lineTo(-size * 0.7, size * 0.6);
-        ctx.lineTo(-size * 0.3, size * 0.4);
-        ctx.lineTo(0, size * 0.5);
-        ctx.lineTo(size * 0.3, size * 0.4);
-        ctx.lineTo(size * 0.7, size * 0.6);
-        ctx.closePath();
-
-        const gradient = ctx.createLinearGradient(0, -size, 0, size);
-        gradient.addColorStop(0, color);
-        gradient.addColorStop(1, color + '88');
-        ctx.fillStyle = gradient;
+        ctx.ellipse(0, size * 0.7, size * 0.25, size * 0.55, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Contorno
+        // Left wing
+        ctx.beginPath();
+        ctx.moveTo(0, -size * 0.3);
+        ctx.lineTo(-size * 1.1, size * 0.5);
+        ctx.lineTo(-size * 0.6, size * 0.6);
+        ctx.lineTo(-size * 0.2, size * 0.1);
+        ctx.closePath();
+        const wingGradL = ctx.createLinearGradient(-size, 0, 0, 0);
+        wingGradL.addColorStop(0, color + '66');
+        wingGradL.addColorStop(1, color + 'cc');
+        ctx.fillStyle = wingGradL;
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Right wing
+        ctx.beginPath();
+        ctx.moveTo(0, -size * 0.3);
+        ctx.lineTo(size * 1.1, size * 0.5);
+        ctx.lineTo(size * 0.6, size * 0.6);
+        ctx.lineTo(size * 0.2, size * 0.1);
+        ctx.closePath();
+        const wingGradR = ctx.createLinearGradient(0, 0, size, 0);
+        wingGradR.addColorStop(0, color + 'cc');
+        wingGradR.addColorStop(1, color + '66');
+        ctx.fillStyle = wingGradR;
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Main body
+        ctx.beginPath();
+        ctx.moveTo(0, -size);
+        ctx.lineTo(-size * 0.35, -size * 0.2);
+        ctx.lineTo(-size * 0.3, size * 0.6);
+        ctx.lineTo(0, size * 0.75);
+        ctx.lineTo(size * 0.3, size * 0.6);
+        ctx.lineTo(size * 0.35, -size * 0.2);
+        ctx.closePath();
+        const bodyGrad = ctx.createLinearGradient(0, -size, 0, size);
+        bodyGrad.addColorStop(0, '#ffffff');
+        bodyGrad.addColorStop(0.2, color);
+        bodyGrad.addColorStop(1, color + '88');
+        ctx.fillStyle = bodyGrad;
+        ctx.fill();
         ctx.strokeStyle = '#ffffff44';
         ctx.lineWidth = 1;
         ctx.stroke();
 
         // Cockpit
         ctx.beginPath();
-        ctx.arc(0, -size * 0.2, size * 0.2, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff66';
+        ctx.ellipse(0, -size * 0.25, size * 0.18, size * 0.28, 0, 0, Math.PI * 2);
+        const cockpitGrad = ctx.createRadialGradient(-size*0.05, -size*0.3, 0, 0, -size*0.25, size*0.18);
+        cockpitGrad.addColorStop(0, '#ffffff');
+        cockpitGrad.addColorStop(0.5, color + 'aa');
+        cockpitGrad.addColorStop(1, '#00000088');
+        ctx.fillStyle = cockpitGrad;
         ctx.fill();
 
-        // Engine glow
-        const glowSize = size * 0.3 + Math.sin(Date.now() * 0.01) * 3;
+        // Engine core
+        const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.008);
         ctx.beginPath();
-        ctx.arc(0, size * 0.5, glowSize, 0, Math.PI * 2);
-        const engineGradient = ctx.createRadialGradient(0, size * 0.5, 0, 0, size * 0.5, glowSize);
-        engineGradient.addColorStop(0, '#ffffffcc');
-        engineGradient.addColorStop(0.5, color + 'aa');
-        engineGradient.addColorStop(1, color + '00');
-        ctx.fillStyle = engineGradient;
+        ctx.ellipse(0, size * 0.65, size * 0.12 * pulse, size * 0.12 * pulse, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 12;
         ctx.fill();
+        ctx.shadowBlur = 0;
 
         ctx.restore();
         ctx.globalAlpha = 1;

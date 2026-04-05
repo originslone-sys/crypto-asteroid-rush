@@ -71,27 +71,92 @@ const PvPEngine = {
     },
 
     setupMobileControls() {
-        const bind = (id, key) => {
-            const el = document.getElementById(id);
-            if (!el) return;
+        const joystickEl = document.getElementById('pvpJoystick');
+        const knobEl = document.getElementById('pvpJoystickKnob');
+        const fireBtn = document.getElementById('pvpFireBtn');
+        const gameArea = document.getElementById('pvpArena');
+        if (!gameArea) return;
 
-            const start = () => { pvpState.keys[key] = true; };
-            const stop = () => { pvpState.keys[key] = false; };
+        let joyActive = false;
+        let joyOriginX = 0, joyOriginY = 0;
+        const MAX_RADIUS = 55;
+        const DEADZONE = 18;
 
-            el.addEventListener('touchstart', (e) => { e.preventDefault(); start(); });
-            el.addEventListener('touchend', (e) => { e.preventDefault(); stop(); });
-            el.addEventListener('touchcancel', (e) => { e.preventDefault(); stop(); });
-            el.addEventListener('mousedown', start);
-            el.addEventListener('mouseup', stop);
-            el.addEventListener('mouseleave', stop);
+        const updateJoy = (cx, cy) => {
+            const dx = cx - joyOriginX;
+            const dy = cy - joyOriginY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const clamped = Math.min(dist, MAX_RADIUS);
+            const angle = Math.atan2(dy, dx);
+            const kx = Math.cos(angle) * clamped;
+            const ky = Math.sin(angle) * clamped;
+            if (knobEl) knobEl.style.transform = `translate(${kx}px, ${ky}px)`;
+            pvpState.keys.left  = dx < -DEADZONE;
+            pvpState.keys.right = dx > DEADZONE;
+            pvpState.keys.up    = dy < -DEADZONE;
+            pvpState.keys.down  = dy > DEADZONE;
         };
 
-        bind('pvpLeftBtn', 'left');
-        bind('pvpRightBtn', 'right');
-        bind('pvpUpBtn', 'up');
-        bind('pvpDownBtn', 'down');
-        bind('pvpFireBtn', 'fire');
-    }
+        const endJoy = () => {
+            joyActive = false;
+            pvpState.keys.left = pvpState.keys.right = pvpState.keys.up = pvpState.keys.down = false;
+            if (knobEl) knobEl.style.transform = 'translate(0,0)';
+            if (joystickEl) joystickEl.style.opacity = '0';
+        };
+
+        gameArea.addEventListener('touchstart', (e) => {
+            for (const touch of e.changedTouches) {
+                // Left 60% of screen = joystick, right 40% = fire
+                if (touch.clientX < window.innerWidth * 0.6) {
+                    if (!joyActive) {
+                        joyActive = true;
+                        joyOriginX = touch.clientX;
+                        joyOriginY = touch.clientY;
+                        if (joystickEl) {
+                            joystickEl.style.left = (touch.clientX - 60) + 'px';
+                            joystickEl.style.top  = (touch.clientY - 60) + 'px';
+                            joystickEl.style.opacity = '1';
+                        }
+                        if (knobEl) knobEl.style.transform = 'translate(0,0)';
+                    }
+                } else {
+                    pvpState.keys.fire = true;
+                }
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        gameArea.addEventListener('touchmove', (e) => {
+            for (const touch of e.changedTouches) {
+                if (joyActive && touch.clientX < window.innerWidth * 0.6) {
+                    updateJoy(touch.clientX, touch.clientY);
+                }
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        gameArea.addEventListener('touchend', (e) => {
+            for (const touch of e.changedTouches) {
+                if (touch.clientX >= window.innerWidth * 0.6) {
+                    pvpState.keys.fire = false;
+                } else {
+                    endJoy();
+                }
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        gameArea.addEventListener('touchcancel', () => {
+            endJoy();
+            pvpState.keys.fire = false;
+        }, { passive: false });
+
+        // Fire button fallback (mouse)
+        if (fireBtn) {
+            fireBtn.addEventListener('mousedown', () => { pvpState.keys.fire = true; });
+            fireBtn.addEventListener('mouseup',   () => { pvpState.keys.fire = false; });
+        }
+    },
 };
 
 // ============================================
