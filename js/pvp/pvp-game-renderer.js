@@ -99,8 +99,13 @@ const PvPRenderer = {
             ? { ...myPlayerServer, x: pvpState.localPrediction.x, y: pvpState.localPrediction.y }
             : myPlayerServer;
 
-        this.renderShip(ctx, myPlayer, PVP_CONFIG.PLAYER_COLOR, false, scaleX, scaleY);
-        this.renderShip(ctx, opponent, PVP_CONFIG.OPPONENT_COLOR, true, scaleX, scaleY);
+        // Slot 1 (baixo) aponta para cima (não invertido)
+        // Slot 2 (cima) aponta para baixo (invertido)
+        const myInverted = pvpState.mySlot === 2;
+        const opInverted = pvpState.mySlot === 1;
+
+        this.renderShip(ctx, myPlayer,  PVP_CONFIG.PLAYER_COLOR,  myInverted, scaleX, scaleY);
+        this.renderShip(ctx, opponent,  PVP_CONFIG.OPPONENT_COLOR, opInverted, scaleX, scaleY);
 
         // Eventos (explosões)
         if (state.events) {
