@@ -15,13 +15,13 @@ if (!empty($searchEmail)) {
         $userStmt = $pdo->prepare("
             SELECT u.*,
                    DATEDIFF(NOW(), u.created_at) as account_age_days,
-                   (SELECT COUNT(*) FROM game_sessions gs WHERE gs.google_uid = u.google_uid) as total_sessions,
-                   (SELECT COUNT(*) FROM game_sessions gs WHERE gs.google_uid = u.google_uid AND gs.status = 'completed') as completed_sessions,
-                   (SELECT COUNT(*) FROM game_sessions gs WHERE gs.google_uid = u.google_uid AND gs.status = 'abandoned') as abandoned_sessions,
-                   (SELECT COUNT(*) FROM game_sessions gs WHERE gs.google_uid = u.google_uid AND gs.status = 'flagged') as flagged_sessions,
+                   (SELECT COUNT(*) FROM game_sessions gs WHERE gs.google_uid = u.google_uid AND gs.game_mode = 'extreme') as total_sessions,
+                   (SELECT COUNT(*) FROM game_sessions gs WHERE gs.google_uid = u.google_uid AND gs.status = 'completed' AND gs.game_mode = 'extreme') as completed_sessions,
+                   (SELECT COUNT(*) FROM game_sessions gs WHERE gs.google_uid = u.google_uid AND gs.status = 'abandoned' AND gs.game_mode = 'extreme') as abandoned_sessions,
+                   (SELECT COUNT(*) FROM game_sessions gs WHERE gs.google_uid = u.google_uid AND gs.status = 'flagged' AND gs.game_mode = 'extreme') as flagged_sessions,
                    (SELECT COALESCE(SUM(w.amount_brl), 0) FROM withdrawals w WHERE w.user_id = u.id AND w.status = 'approved') as total_withdrawn,
                    (SELECT COUNT(*) FROM withdrawals w WHERE w.user_id = u.id AND w.status = 'pending') as pending_withdrawals,
-                   (SELECT COUNT(DISTINCT gs.ip_address) FROM game_sessions gs WHERE gs.google_uid = u.google_uid) as distinct_ips
+                   (SELECT COUNT(DISTINCT gs.ip_address) FROM game_sessions gs WHERE gs.google_uid = u.google_uid AND gs.game_mode = 'extreme') as distinct_ips
             FROM users u
             WHERE u.email = ? OR u.google_uid = ?
             LIMIT 1
@@ -63,7 +63,7 @@ if (!empty($searchEmail)) {
                     COUNT(DISTINCT user_agent)        as distinct_uas
                 FROM game_sessions
                 WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                  AND status IN ('completed','flagged','abandoned')
+                  AND status IN ('completed','flagged','abandoned') AND game_mode = 'extreme'
             ");
             $s30Stmt->execute([$uid]);
             $s30 = $s30Stmt->fetch();
@@ -107,7 +107,7 @@ if (!empty($searchEmail)) {
                     SELECT earnings_brl / NULLIF(asteroids_destroyed,0) as eff
                     FROM game_sessions
                     WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                      AND status = 'completed' AND asteroids_destroyed > 10
+                      AND status = 'completed' AND asteroids_destroyed > 10 AND game_mode = 'extreme'
                     LIMIT 100
                 ");
                 $effStmt->execute([$uid]);
@@ -161,7 +161,7 @@ if (!empty($searchEmail)) {
                         SELECT legendary_asteroids / NULLIF(asteroids_destroyed,0) as ratio
                         FROM game_sessions
                         WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                          AND status = 'completed' AND asteroids_destroyed > 10
+                          AND status = 'completed' AND asteroids_destroyed > 10 AND game_mode = 'extreme'
                         LIMIT 100
                     ");
                     $legRatioStmt->execute([$uid]);
@@ -180,7 +180,7 @@ if (!empty($searchEmail)) {
                 $uaStmt = $pdo->prepare("
                     SELECT user_agent, COUNT(*) as cnt
                     FROM game_sessions
-                    WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                    WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND game_mode = 'extreme'
                     GROUP BY user_agent ORDER BY cnt DESC LIMIT 10
                 ");
                 $uaStmt->execute([$uid]);
@@ -214,7 +214,7 @@ if (!empty($searchEmail)) {
                     WHERE gs1.google_uid = ?
                       AND gs1.ended_at IS NOT NULL
                       AND gs1.started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                      AND gs1.status IN ('completed','flagged')
+                      AND gs1.status IN ('completed','flagged') AND gs1.game_mode = 'extreme'
                     ORDER BY gs1.started_at ASC LIMIT 60
                 ");
                 $restartStmt->execute([$uid]);
@@ -234,7 +234,7 @@ if (!empty($searchEmail)) {
                     SELECT HOUR(started_at) as hr, COUNT(*) as cnt
                     FROM game_sessions
                     WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                      AND status IN ('completed','flagged')
+                      AND status IN ('completed','flagged') AND game_mode = 'extreme'
                     GROUP BY hr
                 ");
                 $hourStmt->execute([$uid]);
@@ -257,7 +257,7 @@ if (!empty($searchEmail)) {
                 $missionStmt = $pdo->prepare("
                     SELECT mission_number FROM game_sessions
                     WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                      AND status IN ('completed','flagged','abandoned')
+                      AND status IN ('completed','flagged','abandoned') AND game_mode = 'extreme'
                     ORDER BY started_at ASC LIMIT 100
                 ");
                 $missionStmt->execute([$uid]);
@@ -280,7 +280,7 @@ if (!empty($searchEmail)) {
                 $gapStmt = $pdo->prepare("
                     SELECT started_at FROM game_sessions
                     WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                      AND status IN ('completed','flagged')
+                      AND status IN ('completed','flagged') AND game_mode = 'extreme'
                     ORDER BY started_at ASC LIMIT 100
                 ");
                 $gapStmt->execute([$uid]);
@@ -303,7 +303,7 @@ if (!empty($searchEmail)) {
                 $hrStmt = $pdo->prepare("
                     SELECT COUNT(*) as cnt FROM game_sessions
                     WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                      AND status IN ('completed','flagged')
+                      AND status IN ('completed','flagged') AND game_mode = 'extreme'
                     GROUP BY DATE_FORMAT(started_at,'%Y-%m-%d %H:00')
                     ORDER BY cnt DESC LIMIT 1
                 ");
@@ -320,7 +320,7 @@ if (!empty($searchEmail)) {
                 $nightStmt = $pdo->prepare("
                     SELECT COUNT(*) FROM game_sessions
                     WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                      AND HOUR(started_at) BETWEEN 2 AND 5 AND status IN ('completed','flagged')
+                      AND HOUR(started_at) BETWEEN 2 AND 5 AND status IN ('completed','flagged') AND game_mode = 'extreme'
                 ");
                 $nightStmt->execute([$uid]);
                 $nightSessions = (int)$nightStmt->fetchColumn();
@@ -331,7 +331,7 @@ if (!empty($searchEmail)) {
                 $streakStmt = $pdo->prepare("
                     SELECT status FROM game_sessions
                     WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                      AND status IN ('completed','abandoned')
+                      AND status IN ('completed','abandoned') AND game_mode = 'extreme'
                     ORDER BY started_at DESC LIMIT 100
                 ");
                 $streakStmt->execute([$uid]);
@@ -352,6 +352,7 @@ if (!empty($searchEmail)) {
                     INNER JOIN game_sessions gs2 ON gs1.ip_address = gs2.ip_address AND gs2.google_uid != gs1.google_uid
                     WHERE gs1.google_uid = ? AND gs1.started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
                       AND gs2.started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                      AND gs1.game_mode = 'extreme'
                     LIMIT 1
                 ");
                 $multiStmt->execute([$uid]);
@@ -366,18 +367,7 @@ if (!empty($searchEmail)) {
                 if ($avgHoursDay >= 10)    { $score += 15; $signals[] = round($avgHoursDay,1) . 'h/dia jogando (inumano)'; }
                 elseif ($avgHoursDay >= 6) { $score += 8;  $signals[] = round($avgHoursDay,1) . 'h/dia'; }
 
-                // ── 20. Modo único extremo ────────────────────────────────────
-                $modeStmt = $pdo->prepare("
-                    SELECT game_mode, COUNT(*) as cnt FROM game_sessions
-                    WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                      AND status IN ('completed','flagged')
-                    GROUP BY game_mode ORDER BY cnt DESC
-                ");
-                $modeStmt->execute([$uid]);
-                $modes = $modeStmt->fetchAll();
-                if (count($modes) === 1 && $modes[0]['game_mode'] === 'extreme' && $sessions30 >= 10) {
-                    $score += 10; $signals[] = '100% Extreme (' . $sessions30 . ' sessões) — sem variação de modo';
-                }
+                // ── 20. (Removido - análise já filtra apenas modo Extreme)
 
                 // ── 21. Saque rápido após ganho ───────────────────────────────
                 $totalWithdrawn = (float)$acctUser['total_withdrawn'];
@@ -446,7 +436,7 @@ if (!empty($searchEmail)) {
 <div class="main-content">
     <div class="page-header">
         <h1 class="page-title"><i class="fas fa-microscope"></i> Análise Individual de Conta</h1>
-        <p class="page-subtitle">Insira o email ou Google UID para analisar padrões de comportamento e risco de fraude.</p>
+        <p class="page-subtitle">Insira o email ou Google UID para analisar padrões de comportamento e risco de fraude — Modo Extreme.</p>
     </div>
 
     <div class="panel" style="margin-bottom:20px;">
