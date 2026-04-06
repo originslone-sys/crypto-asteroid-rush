@@ -323,6 +323,7 @@ try {
         INNER JOIN game_sessions gs ON gs.google_uid = u.google_uid
         WHERE gs.started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
           AND gs.status IN ('completed', 'flagged', 'abandoned')
+          AND gs.game_mode = 'extreme'
         GROUP BY u.id
         HAVING sessions_count >= ?
         ORDER BY sessions_count DESC
@@ -348,7 +349,7 @@ try {
         $stmtGap = $pdo->prepare("
             SELECT started_at FROM game_sessions
             WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-              AND status IN ('completed', 'flagged')
+              AND status IN ('completed', 'flagged') AND game_mode = 'extreme'
             ORDER BY started_at ASC LIMIT 100
         ");
         $stmtGap->execute([$uid, $days]);
@@ -371,7 +372,7 @@ try {
         $stmtH = $pdo->prepare("
             SELECT COUNT(*) AS cnt FROM game_sessions
             WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-              AND status IN ('completed', 'flagged')
+              AND status IN ('completed', 'flagged') AND game_mode = 'extreme'
             GROUP BY DATE_FORMAT(started_at, '%Y-%m-%d %H:00')
             ORDER BY cnt DESC LIMIT 1
         ");
@@ -461,7 +462,7 @@ try {
             $stmtAstStd = $pdo->prepare("
                 SELECT STDDEV(asteroids_destroyed) FROM game_sessions
                 WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-                  AND status IN ('completed', 'flagged')
+                  AND status IN ('completed', 'flagged') AND game_mode = 'extreme'
             ");
             $stmtAstStd->execute([$uid, $days]);
             $stddevAst = (float)$stmtAstStd->fetchColumn();
@@ -473,25 +474,14 @@ try {
             }
         }
 
-        // 12. Joga exclusivamente Extreme
-        $stmtModes = $pdo->prepare("
-            SELECT game_mode, COUNT(*) as cnt FROM game_sessions
-            WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-              AND status IN ('completed', 'flagged')
-            GROUP BY game_mode ORDER BY cnt DESC
-        ");
-        $stmtModes->execute([$uid, $days]);
-        $modes = $stmtModes->fetchAll();
-        if (count($modes) === 1 && $modes[0]['game_mode'] === 'extreme' && $sessions >= 10) {
-            $score += 10; $signals[] = '100% Extreme (' . $sessions . ' sessões)';
-        }
+        // 12. (Removido - análise já filtra apenas modo Extreme)
 
         // 13. Sessões na madrugada (2h-6h)
         $stmtNight = $pdo->prepare("
             SELECT COUNT(*) FROM game_sessions
             WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
               AND HOUR(started_at) BETWEEN 2 AND 5
-              AND status IN ('completed', 'flagged')
+              AND status IN ('completed', 'flagged') AND game_mode = 'extreme'
         ");
         $stmtNight->execute([$uid, $days]);
         $nightSessions = (int)$stmtNight->fetchColumn();
@@ -506,7 +496,7 @@ try {
         $stmtStreak = $pdo->prepare("
             SELECT status FROM game_sessions
             WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-              AND status IN ('completed', 'abandoned')
+              AND status IN ('completed', 'abandoned') AND game_mode = 'extreme'
             ORDER BY started_at DESC LIMIT 100
         ");
         $stmtStreak->execute([$uid, $days]);
@@ -560,7 +550,7 @@ try {
         $stmtHrP = $pdo->prepare("
             SELECT HOUR(started_at) as hr, COUNT(*) as cnt FROM game_sessions
             WHERE google_uid = ? AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-              AND status IN ('completed', 'abandoned')
+              AND status IN ('completed', 'abandoned') AND game_mode = 'extreme'
             GROUP BY hr ORDER BY cnt DESC
         ");
         $stmtHrP->execute([$uid, $days]);
@@ -629,7 +619,7 @@ try {
 <div class="main-content">
     <div class="page-header">
         <h1 class="page-title"><i class="fas fa-robot"></i> Análise de Suspeitas</h1>
-        <p class="page-subtitle">Detecção passiva de macro/bot — Score de 0 a 100%</p>
+        <p class="page-subtitle">Detecção passiva de macro/bot — Modo Extreme — Score de 0 a 100%</p>
     </div>
 
     <?php if ($error): ?>
