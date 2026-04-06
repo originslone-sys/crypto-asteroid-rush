@@ -50,6 +50,41 @@ try {
     $pdo->prepare("UPDATE exploration_rentals SET status = 'expired' WHERE user_id = ? AND status = 'active' AND expires_at <= NOW()")
         ->execute([$userId]);
 
+    // Função auxiliar: ativar rental pendente
+    function activatePendingRental($pdo, $userId, $externalId) {
+        // Tentar por external_id
+        $rental = null;
+        try {
+            $stmt = $pdo->prepare("SELECT * FROM exploration_rentals WHERE user_id = ? AND external_id = ? AND status = 'pending_payment' LIMIT 1");
+            $stmt->execute([$userId, $externalId]);
+            $rental = $stmt->fetch();
+        } catch (Throwable $e) {}
+
+        // Fallback: mais recente pendente do user
+        if (!$rental) {
+            $stmt = $pdo->prepare("SELECT * FROM exploration_rentals WHERE user_id = ? AND status = 'pending_payment' ORDER BY created_at DESC LIMIT 1");
+            $stmt->execute([$userId]);
+            $rental = $stmt->fetch();
+        }
+
+        if (!$rental) return false;
+
+        // Buscar duração da nave
+        $shipStmt = $pdo->prepare("SELECT rental_duration_hours FROM exploration_ships WHERE id = ? LIMIT 1");
+        $shipStmt->execute([$rental['ship_id']]);
+        $shipData = $shipStmt->fetch();
+        $hours = $shipData ? (int)$shipData['rental_duration_hours'] : 72;
+
+        $pdo->prepare("
+            UPDATE exploration_rentals
+            SET status = 'active', started_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR), last_accumulation_at = NOW()
+            WHERE id = ? AND status = 'pending_payment'
+        ")->execute([$hours, $rental['id']]);
+
+        secureLog("EXPLORATION_ACTIVATED | user_id: {$userId} | rental_id: {$rental['id']} | ship_id: {$rental['ship_id']} | hours: {$hours}");
+        return true;
+    }
+
     switch ($action) {
 
         // ============================================
@@ -288,7 +323,7 @@ try {
             break;
 
         // ============================================
-        // VERIFICAR STATUS DO PAGAMENTO
+        // VERIFICAR STATUS DO PAGAMENTO (consulta ZettPay)
         // ============================================
         case 'check_payment':
             $externalId = trim($input['external_id'] ?? '');
@@ -297,65 +332,69 @@ try {
                 exit;
             }
 
-            // Buscar o aluguel pelo external_id
-            $rental = null;
-            try {
-                $rentalStmt = $pdo->prepare("
-                    SELECT status FROM exploration_rentals
-                    WHERE user_id = ? AND external_id = ? LIMIT 1
-                ");
-                $rentalStmt->execute([$userId, $externalId]);
-                $rental = $rentalStmt->fetch();
-            } catch (Throwable $e) {
-                // Coluna external_id pode não existir
+            // 1. Buscar transação ZettPay no banco
+            $ztStmt = $pdo->prepare("SELECT * FROM zettpay_transactions WHERE external_id = ? AND user_id = ? AND type = 'deposit' LIMIT 1");
+            $ztStmt->execute([$externalId, $userId]);
+            $zt = $ztStmt->fetch();
+
+            if (!$zt) {
+                echo json_encode(['success' => false, 'error' => 'Transação não encontrada']);
+                exit;
             }
 
-            // Fallback: verificar pela zettpay_transactions
-            if (!$rental) {
-                $ztStmt = $pdo->prepare("
-                    SELECT zt.status as zt_status FROM zettpay_transactions zt
-                    WHERE zt.external_id = ? AND zt.user_id = ? LIMIT 1
-                ");
-                $ztStmt->execute([$externalId, $userId]);
-                $ztRow = $ztStmt->fetch();
+            // 2. Se já confirmado no banco, garantir que rental está ativo
+            if ($zt['status'] === 'confirmed') {
+                activatePendingRental($pdo, $userId, $externalId);
+                echo json_encode(['success' => true, 'status' => 'active', 'paid' => true]);
+                exit;
+            }
 
-                if ($ztRow && $ztRow['zt_status'] === 'confirmed') {
-                    // Pagamento confirmado no zettpay mas rental pode não ter external_id
-                    // Buscar rental pendente mais recente deste user e ativar
-                    $pendingRental = $pdo->prepare("SELECT * FROM exploration_rentals WHERE user_id = ? AND status = 'pending_payment' ORDER BY created_at DESC LIMIT 1");
-                    $pendingRental->execute([$userId]);
-                    $pr = $pendingRental->fetch();
-                    if ($pr) {
-                        $shipStmt = $pdo->prepare("SELECT rental_duration_hours FROM exploration_ships WHERE id = ? LIMIT 1");
-                        $shipStmt->execute([$pr['ship_id']]);
-                        $shipData = $shipStmt->fetch();
-                        $durationHours = $shipData ? (int)$shipData['rental_duration_hours'] : 72;
+            // 3. Consultar ZettPay diretamente
+            $apiResult = zettpayLookupDeposit($externalId);
 
-                        $pdo->prepare("UPDATE exploration_rentals SET status = 'active', started_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR), last_accumulation_at = NOW() WHERE id = ?")->execute([$durationHours, $pr['id']]);
-                        echo json_encode(['success' => true, 'status' => 'active', 'paid' => true]);
-                        exit;
-                    }
-                    echo json_encode(['success' => true, 'status' => 'active', 'paid' => true]);
-                    exit;
-                }
-
-                // Zettpay ainda pending
+            if (!$apiResult['success'] || empty($apiResult['data'])) {
                 echo json_encode(['success' => true, 'status' => 'pending_payment', 'paid' => false]);
                 exit;
             }
 
-            if (!$rental) {
-                echo json_encode(['success' => false, 'error' => 'Aluguel não encontrado']);
+            $apiData = $apiResult['data'];
+            if (isset($apiData['data']) && is_array($apiData['data'])) {
+                $apiData = $apiData['data'];
+            }
+
+            $apiStatus = strtoupper($apiData['status'] ?? '');
+
+            if (in_array($apiStatus, ['PAID', 'COMPLETED', 'APPROVED'])) {
+                // Pagamento confirmado! Atualizar tudo
+                $zettpayId = $apiData['provider_transaction_id'] ?? $apiData['id'] ?? '';
+
+                $pdo->prepare("
+                    UPDATE zettpay_transactions
+                    SET status = 'confirmed', zettpay_id = ?, confirmed_at = NOW()
+                    WHERE id = ? AND status = 'pending'
+                ")->execute([$zettpayId, $zt['id']]);
+
+                // Atualizar histórico
+                $pdo->prepare("
+                    UPDATE transactions SET status = 'completed'
+                    WHERE google_uid = ? AND description LIKE ? AND status = 'pending' LIMIT 1
+                ")->execute([$googleUid, '%' . $externalId . '%']);
+
+                // Ativar rental
+                activatePendingRental($pdo, $userId, $externalId);
+
+                echo json_encode(['success' => true, 'status' => 'active', 'paid' => true]);
                 exit;
             }
 
-            $paid = ($rental['status'] === 'active');
+            if (in_array($apiStatus, ['EXPIRED', 'FAILED', 'CANCELLED', 'CANCELED'])) {
+                $pdo->prepare("UPDATE zettpay_transactions SET status = 'expired' WHERE id = ? AND status = 'pending'")->execute([$zt['id']]);
+                echo json_encode(['success' => true, 'status' => 'expired', 'paid' => false]);
+                exit;
+            }
 
-            echo json_encode([
-                'success' => true,
-                'status' => $rental['status'],
-                'paid' => $paid
-            ]);
+            // Ainda pendente
+            echo json_encode(['success' => true, 'status' => 'pending_payment', 'paid' => false]);
             break;
 
         // ============================================
