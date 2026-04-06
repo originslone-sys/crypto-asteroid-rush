@@ -217,7 +217,8 @@ try {
         $params[] = $statusFilter;
     }
     if ($search) {
-        $filterSql .= " AND (t.google_uid LIKE ? OR p.display_name LIKE ? OR t.description LIKE ?)";
+        $filterSql .= " AND (t.google_uid LIKE ? OR p.display_name LIKE ? OR p.email LIKE ? OR t.description LIKE ?)";
+        $params[] = "%$search%";
         $params[] = "%$search%";
         $params[] = "%$search%";
         $params[] = "%$search%";
@@ -310,7 +311,7 @@ $debitTypes = ['withdraw', 'withdrawal', 'stake'];
         <div class="panel-body">
             <form method="GET" class="filters">
                 <input type="hidden" name="page" value="transactions">
-                <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Buscar jogador ou descrição..." class="form-control" style="width: 250px;">
+                <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Buscar por email, jogador ou descrição..." class="form-control" style="width: 280px;">
                 <select name="type" class="form-control">
                     <option value="all">Todos</option>
                     <option value="game_reward" <?php echo $typeFilter === 'game_reward' ? 'selected' : ''; ?>>Ganhos Jogo</option>

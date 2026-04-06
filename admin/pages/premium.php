@@ -109,6 +109,7 @@ $totalPremium = 0;
 $activePremium = 0;
 $totalRevenue = 0;
 $recentSubscriptions = [];
+$premiumSearch = trim($_GET['search'] ?? '');
 
 try {
     $tableCheck = $pdo->query("SHOW TABLES LIKE 'premium_subscriptions'")->fetch();
@@ -123,13 +124,25 @@ try {
         $stmt = $pdo->query("SELECT COALESCE(SUM(price_brl), 0) FROM premium_subscriptions WHERE status IN ('active', 'expired')");
         $totalRevenue = (float)$stmt->fetchColumn();
 
-        $stmt = $pdo->query("
-            SELECT ps.*, u.display_name, u.email, u.is_premium, u.premium_expires_at
-            FROM premium_subscriptions ps
-            LEFT JOIN users u ON ps.user_id = u.id
-            ORDER BY ps.created_at DESC
-            LIMIT 50
-        ");
+        if ($premiumSearch) {
+            $stmt = $pdo->prepare("
+                SELECT ps.*, u.display_name, u.email, u.is_premium, u.premium_expires_at
+                FROM premium_subscriptions ps
+                LEFT JOIN users u ON ps.user_id = u.id
+                WHERE u.email LIKE ? OR u.display_name LIKE ?
+                ORDER BY ps.created_at DESC
+                LIMIT 50
+            ");
+            $stmt->execute(["%{$premiumSearch}%", "%{$premiumSearch}%"]);
+        } else {
+            $stmt = $pdo->query("
+                SELECT ps.*, u.display_name, u.email, u.is_premium, u.premium_expires_at
+                FROM premium_subscriptions ps
+                LEFT JOIN users u ON ps.user_id = u.id
+                ORDER BY ps.created_at DESC
+                LIMIT 50
+            ");
+        }
         $recentSubscriptions = $stmt->fetchAll();
     }
 
@@ -249,8 +262,16 @@ try {
 
 <!-- Recent Subscriptions -->
 <div class="panel">
-    <div class="panel-header">
-        <h3 class="panel-title"><i class="fas fa-list"></i> Assinaturas Recentes</h3>
+    <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <h3 class="panel-title" style="margin:0;"><i class="fas fa-list"></i> Assinaturas <?php echo $premiumSearch ? '- Resultado para "' . htmlspecialchars($premiumSearch) . '"' : 'Recentes'; ?></h3>
+        <form method="GET" style="display:flex;gap:6px;align-items:center;">
+            <input type="hidden" name="page" value="premium">
+            <input type="text" name="search" value="<?php echo htmlspecialchars($premiumSearch); ?>" placeholder="Buscar por email ou nome..." class="form-control" style="width:250px;padding:6px 12px;font-size:0.82rem;">
+            <button type="submit" class="btn btn-primary" style="padding:6px 12px;font-size:0.82rem;"><i class="fas fa-search"></i></button>
+            <?php if ($premiumSearch): ?>
+                <a href="?page=premium" class="btn" style="padding:6px 12px;font-size:0.82rem;background:rgba(255,255,255,0.06);"><i class="fas fa-times"></i></a>
+            <?php endif; ?>
+        </form>
     </div>
     <div class="panel-body">
         <?php if (count($recentSubscriptions) > 0): ?>
@@ -275,7 +296,7 @@ try {
                                 <td>#<?php echo $sub['id']; ?></td>
                                 <td>
                                     <div style="font-weight: 600;"><?php echo htmlspecialchars($sub['display_name'] ?? 'N/A'); ?></div>
-                                    <small style="color: var(--text-dim);">ID: <?php echo $sub['user_id']; ?></small>
+                                    <div style="font-size:0.72rem;color:var(--text-dim);"><?php echo htmlspecialchars($sub['email'] ?? ''); ?></div>
                                 </td>
                                 <td style="font-weight: 600; color: var(--success);">R$ <?php echo number_format($sub['price_brl'], 2, ',', '.'); ?></td>
                                 <td><?php echo $sub['duration_days']; ?> dias</td>
