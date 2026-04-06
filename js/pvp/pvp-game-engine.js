@@ -242,6 +242,7 @@ function onGameStart(data) {
 function onGameEnd(result) {
     PvPEngine.stopInputLoop();
     PvPRenderer.stopLoop();
+    pvpState.opponentLerp = null;
 
     const myUid = PvPSessionManager.googleUid;
     const isWinner = result.winnerUid === myUid;

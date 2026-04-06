@@ -119,22 +119,8 @@ const PvPSessionManager = {
             this.socket.on('game_state', (state) => {
                 pvpState.previousState = pvpState.serverState;
                 pvpState.serverState = state;
-
-                // Reconciliação conservadora: só corrige se > 200px de divergência
-                // (lag de rede normal cria diferenças de 50-150px — não tocar)
-                if (pvpState.localPrediction && pvpState.mySlot) {
-                    const srv = pvpState.mySlot === 1 ? state.player1 : state.player2;
-                    if (srv) {
-                        const dx = srv.x - pvpState.localPrediction.x;
-                        const dy = srv.y - pvpState.localPrediction.y;
-                        if ((dx * dx + dy * dy) > 40000) { // >200px
-                            pvpState.localPrediction.x = srv.x;
-                            pvpState.localPrediction.y = srv.y;
-                            pvpState.localPrediction.vx = 0;
-                            pvpState.localPrediction.vy = 0;
-                        }
-                    }
-                }
+                // Sem reconciliação — predição local é autoritativa para minha nave.
+                // Oponente é interpolado no renderer frame a frame.
             });
 
             this.socket.on('game_end', (result) => {

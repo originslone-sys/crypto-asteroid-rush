@@ -93,17 +93,28 @@ const PvPRenderer = {
         this.renderBullets(ctx, state.player2Bullets, PVP_CONFIG.PLAYER_BULLET_COLOR,
             PVP_CONFIG.OPPONENT_BULLET_COLOR, scaleX, scaleY);
 
-        // Naves — minha nave usa predição local para resposta imediata
+        // Minha nave: posição da predição local (sem lag), dados vitais do servidor
         const myPlayerServer = pvpState.mySlot === 1 ? state.player1 : state.player2;
-        const opponent = pvpState.mySlot === 1 ? state.player2 : state.player1;
+        const opponentServer = pvpState.mySlot === 1 ? state.player2 : state.player1;
 
-        // Sobrepõe posição do servidor com predição local (lives/invincible vêm do servidor)
         const myPlayer = (pvpState.localPrediction && myPlayerServer)
             ? { ...myPlayerServer, x: pvpState.localPrediction.x, y: pvpState.localPrediction.y }
             : myPlayerServer;
 
-        // Slot 1 (baixo) aponta para cima (não invertido)
-        // Slot 2 (cima) aponta para baixo (invertido)
+        // Oponente: interpolar posição suavemente frame a frame (evita saltos entre pacotes)
+        if (opponentServer) {
+            if (!pvpState.opponentLerp) {
+                pvpState.opponentLerp = { x: opponentServer.x, y: opponentServer.y };
+            } else {
+                pvpState.opponentLerp.x += (opponentServer.x - pvpState.opponentLerp.x) * 0.25;
+                pvpState.opponentLerp.y += (opponentServer.y - pvpState.opponentLerp.y) * 0.25;
+            }
+        }
+        const opponent = (opponentServer && pvpState.opponentLerp)
+            ? { ...opponentServer, x: pvpState.opponentLerp.x, y: pvpState.opponentLerp.y }
+            : opponentServer;
+
+        // Slot 1 (baixo) aponta para cima; Slot 2 (cima) aponta para baixo
         const myInverted = pvpState.mySlot === 2;
         const opInverted = pvpState.mySlot === 1;
 
