@@ -78,6 +78,8 @@ const pvpState = {
     // Predição local (client-side prediction para minha nave)
     localPrediction: null,  // { x, y, vx, vy }
 
-    // Interpolação da nave do oponente (suaviza saltos entre pacotes do servidor)
-    opponentLerp: null,     // { x, y } — posição interpolada para renderizar
+    // Interpolação do oponente (entity interpolation entre pacotes do servidor)
+    opponentPrev: null,       // posição no pacote anterior
+    opponentCurr: null,       // posição no pacote mais recente
+    opponentUpdatedAt: 0,     // timestamp do último pacote
 };

@@ -119,8 +119,18 @@ const PvPSessionManager = {
             this.socket.on('game_state', (state) => {
                 pvpState.previousState = pvpState.serverState;
                 pvpState.serverState = state;
-                // Sem reconciliação — predição local é autoritativa para minha nave.
-                // Oponente é interpolado no renderer frame a frame.
+
+                // Salvar prev/curr do oponente para entity interpolation no renderer
+                if (pvpState.mySlot) {
+                    const opp = pvpState.mySlot === 1 ? state.player2 : state.player1;
+                    if (opp) {
+                        pvpState.opponentPrev = pvpState.opponentCurr
+                            ? { x: pvpState.opponentCurr.x, y: pvpState.opponentCurr.y }
+                            : { x: opp.x, y: opp.y };
+                        pvpState.opponentCurr = { x: opp.x, y: opp.y };
+                        pvpState.opponentUpdatedAt = Date.now();
+                    }
+                }
             });
 
             this.socket.on('game_end', (result) => {

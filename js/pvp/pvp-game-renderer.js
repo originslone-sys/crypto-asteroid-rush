@@ -101,18 +101,18 @@ const PvPRenderer = {
             ? { ...myPlayerServer, x: pvpState.localPrediction.x, y: pvpState.localPrediction.y }
             : myPlayerServer;
 
-        // Oponente: interpolar posição suavemente frame a frame (evita saltos entre pacotes)
-        if (opponentServer) {
-            if (!pvpState.opponentLerp) {
-                pvpState.opponentLerp = { x: opponentServer.x, y: opponentServer.y };
-            } else {
-                pvpState.opponentLerp.x += (opponentServer.x - pvpState.opponentLerp.x) * 0.25;
-                pvpState.opponentLerp.y += (opponentServer.y - pvpState.opponentLerp.y) * 0.25;
-            }
+        // Oponente: entity interpolation entre pacote anterior e atual
+        // Renderiza no passado (1 tick atrás) mas de forma completamente suave
+        let opponent = opponentServer;
+        if (opponentServer && pvpState.opponentPrev && pvpState.opponentCurr) {
+            const elapsed = Date.now() - pvpState.opponentUpdatedAt;
+            const t = Math.min(1, elapsed / 16); // 16ms = 1 server tick
+            opponent = {
+                ...opponentServer,
+                x: pvpState.opponentPrev.x + (pvpState.opponentCurr.x - pvpState.opponentPrev.x) * t,
+                y: pvpState.opponentPrev.y + (pvpState.opponentCurr.y - pvpState.opponentPrev.y) * t,
+            };
         }
-        const opponent = (opponentServer && pvpState.opponentLerp)
-            ? { ...opponentServer, x: pvpState.opponentLerp.x, y: pvpState.opponentLerp.y }
-            : opponentServer;
 
         // Slot 1 (baixo) aponta para cima; Slot 2 (cima) aponta para baixo
         const myInverted = pvpState.mySlot === 2;
