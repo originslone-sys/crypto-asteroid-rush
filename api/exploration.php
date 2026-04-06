@@ -50,22 +50,12 @@ try {
     $pdo->prepare("UPDATE exploration_rentals SET status = 'expired' WHERE user_id = ? AND status = 'active' AND expires_at <= NOW()")
         ->execute([$userId]);
 
-    // Função auxiliar: ativar rental pendente
+    // Função auxiliar: ativar rental pendente (SOMENTE por external_id, sem fallback)
     function activatePendingRental($pdo, $userId, $externalId) {
-        // Tentar por external_id
-        $rental = null;
-        try {
-            $stmt = $pdo->prepare("SELECT * FROM exploration_rentals WHERE user_id = ? AND external_id = ? AND status = 'pending_payment' LIMIT 1");
-            $stmt->execute([$userId, $externalId]);
-            $rental = $stmt->fetch();
-        } catch (Throwable $e) {}
-
-        // Fallback: mais recente pendente do user
-        if (!$rental) {
-            $stmt = $pdo->prepare("SELECT * FROM exploration_rentals WHERE user_id = ? AND status = 'pending_payment' ORDER BY created_at DESC LIMIT 1");
-            $stmt->execute([$userId]);
-            $rental = $stmt->fetch();
-        }
+        // Buscar APENAS por external_id exato - nunca ativar outro rental
+        $stmt = $pdo->prepare("SELECT * FROM exploration_rentals WHERE user_id = ? AND external_id = ? AND status = 'pending_payment' LIMIT 1");
+        $stmt->execute([$userId, $externalId]);
+        $rental = $stmt->fetch();
 
         if (!$rental) return false;
 
@@ -342,9 +332,18 @@ try {
                 exit;
             }
 
-            // 2. Se já confirmado no banco, garantir que rental está ativo
+            // 2. Se já confirmado no banco, verificar se rental já está ativo
             if ($zt['status'] === 'confirmed') {
-                activatePendingRental($pdo, $userId, $externalId);
+                // Verificar se o rental já foi ativado para este external_id
+                $rentalCheck = $pdo->prepare("SELECT status FROM exploration_rentals WHERE external_id = ? AND user_id = ? LIMIT 1");
+                $rentalCheck->execute([$externalId, $userId]);
+                $rentalRow = $rentalCheck->fetch();
+
+                if ($rentalRow && $rentalRow['status'] === 'pending_payment') {
+                    // Pagamento confirmado mas rental ainda pendente - ativar agora
+                    activatePendingRental($pdo, $userId, $externalId);
+                }
+                // Se já active ou não encontrado, não fazer nada extra
                 echo json_encode(['success' => true, 'status' => 'active', 'paid' => true]);
                 exit;
             }
