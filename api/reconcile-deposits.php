@@ -225,27 +225,13 @@ function confirmPendingDeposit($pdo, $tx, $zettpayId, $rawPayload) {
         }
 
         if ($isExplorationRent) {
-            // ALUGUEL DE NAVE: ativar rental pendente
-            $rental = null;
-
-            // Tentar buscar por external_id
-            try {
-                $rentalStmt = $pdo->prepare("SELECT * FROM exploration_rentals WHERE external_id = ? AND status = 'pending_payment' LIMIT 1");
-                $rentalStmt->execute([$externalId]);
-                $rental = $rentalStmt->fetch();
-            } catch (Throwable $colErr) {
-                secureLog("RECONCILE_EXP_EXTERNAL_ID_ERROR | " . $colErr->getMessage());
-            }
-
-            // Fallback: buscar por user_id + pending
-            if (!$rental) {
-                $rentalStmt2 = $pdo->prepare("SELECT * FROM exploration_rentals WHERE user_id = ? AND status = 'pending_payment' ORDER BY created_at DESC LIMIT 1");
-                $rentalStmt2->execute([$tx['user_id']]);
-                $rental = $rentalStmt2->fetch();
-            }
+            // ALUGUEL DE NAVE: ativar rental pendente (SOMENTE por external_id exato)
+            $rentalStmt = $pdo->prepare("SELECT * FROM exploration_rentals WHERE external_id = ? AND status = 'pending_payment' LIMIT 1");
+            $rentalStmt->execute([$externalId]);
+            $rental = $rentalStmt->fetch();
 
             if (!$rental) {
-                // Pode já estar ativado
+                // Pode já estar ativado ou não existir
                 secureLog("RECONCILE_EXPLORATION_NOT_FOUND_OR_ACTIVE | external_id: {$externalId} | user_id: {$user['id']}");
                 // Continuar para marcar zettpay_transactions como confirmed
             } else {
@@ -262,7 +248,7 @@ function confirmPendingDeposit($pdo, $tx, $zettpayId, $rawPayload) {
                         started_at = NOW(),
                         expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR),
                         last_accumulation_at = NOW()
-                    WHERE id = ?
+                    WHERE id = ? AND status = 'pending_payment'
                 ")->execute([$durationHours, $rental['id']]);
 
                 secureLog("RECONCILE_EXPLORATION_ACTIVATED | external_id: {$externalId} | user_id: {$user['id']} | ship_id: {$rental['ship_id']} | duration: {$durationHours}h");
