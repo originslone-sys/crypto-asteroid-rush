@@ -70,8 +70,16 @@ try {
             ");
             $activeRentals->execute([$userId]);
             $rentalRows = $activeRentals->fetchAll(PDO::FETCH_ASSOC);
-            $rentedShipIds = array_column(array_filter($rentalRows, fn($r) => $r['status'] === 'active'), 'ship_id');
-            $pendingShipIds = array_column(array_filter($rentalRows, fn($r) => $r['status'] === 'pending_payment'), 'ship_id');
+            $rentedShipIds = [];
+            $pendingShipIds = [];
+            foreach ($rentalRows as $row) {
+                $sid = (int)$row['ship_id'];
+                if ($row['status'] === 'active') {
+                    $rentedShipIds[] = $sid;
+                } elseif ($row['status'] === 'pending_payment') {
+                    $pendingShipIds[] = $sid;
+                }
+            }
 
             // Limite de aluguéis
             $maxRentals = 3;
@@ -445,6 +453,46 @@ try {
                 $pdo->rollBack();
                 throw $e;
             }
+            break;
+
+        // ============================================
+        // CANCELAR ALUGUEL PENDENTE
+        // ============================================
+        case 'cancel_rental':
+            $rentalId = (int)($input['rental_id'] ?? 0);
+            if (!$rentalId) {
+                echo json_encode(['success' => false, 'error' => 'rental_id obrigatório']);
+                exit;
+            }
+
+            $rentalStmt = $pdo->prepare("
+                SELECT * FROM exploration_rentals
+                WHERE id = ? AND user_id = ? AND status = 'pending_payment' LIMIT 1
+            ");
+            $rentalStmt->execute([$rentalId, $userId]);
+            $rental = $rentalStmt->fetch();
+
+            if (!$rental) {
+                echo json_encode(['success' => false, 'error' => 'Aluguel pendente não encontrado']);
+                exit;
+            }
+
+            // Cancelar rental
+            $pdo->prepare("UPDATE exploration_rentals SET status = 'cancelled' WHERE id = ?")
+                ->execute([$rentalId]);
+
+            // Cancelar transação zettpay se existir
+            if (!empty($rental['external_id'])) {
+                $pdo->prepare("UPDATE zettpay_transactions SET status = 'expired', error_message = 'Cancelado pelo usuário' WHERE external_id = ? AND status = 'pending'")
+                    ->execute([$rental['external_id']]);
+                $pdo->prepare("UPDATE transactions SET status = 'failed' WHERE google_uid = ? AND description LIKE ? AND status = 'pending' LIMIT 1")
+                    ->execute([$googleUid, '%' . $rental['external_id'] . '%']);
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Aluguel cancelado'
+            ]);
             break;
 
         default:
