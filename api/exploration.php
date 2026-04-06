@@ -64,20 +64,32 @@ try {
             ")->fetchAll(PDO::FETCH_ASSOC);
 
             // Aluguéis ativos do usuário
-            $activeRentals = $pdo->prepare("
-                SELECT ship_id, status FROM exploration_rentals
-                WHERE user_id = ? AND status IN ('active', 'pending_payment')
-            ");
-            $activeRentals->execute([$userId]);
-            $rentalRows = $activeRentals->fetchAll(PDO::FETCH_ASSOC);
             $rentedShipIds = [];
             $pendingShipIds = [];
-            foreach ($rentalRows as $row) {
-                $sid = (int)$row['ship_id'];
-                if ($row['status'] === 'active') {
-                    $rentedShipIds[] = $sid;
-                } elseif ($row['status'] === 'pending_payment') {
-                    $pendingShipIds[] = $sid;
+            try {
+                $activeRentals = $pdo->prepare("
+                    SELECT ship_id, status FROM exploration_rentals
+                    WHERE user_id = ? AND status IN ('active', 'pending_payment')
+                ");
+                $activeRentals->execute([$userId]);
+                $rentalRows = $activeRentals->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($rentalRows as $row) {
+                    $sid = (int)$row['ship_id'];
+                    if ($row['status'] === 'active') {
+                        $rentedShipIds[] = $sid;
+                    } elseif ($row['status'] === 'pending_payment') {
+                        $pendingShipIds[] = $sid;
+                    }
+                }
+            } catch (Throwable $e) {
+                // Fallback: tentar sem pending_payment (ENUM pode não estar atualizado)
+                error_log("exploration list_ships rental query error: " . $e->getMessage());
+                try {
+                    $activeRentals = $pdo->prepare("SELECT ship_id FROM exploration_rentals WHERE user_id = ? AND status = 'active'");
+                    $activeRentals->execute([$userId]);
+                    $rentedShipIds = array_map('intval', $activeRentals->fetchAll(PDO::FETCH_COLUMN));
+                } catch (Throwable $e2) {
+                    error_log("exploration list_ships fallback error: " . $e2->getMessage());
                 }
             }
 
