@@ -210,15 +210,42 @@ function processDeposit($pdo, $data, $rawBody) {
 
             if ($isExplorationRent) {
                 // ALUGUEL DE NAVE: ativar rental pendente
-                $rentalStmt = $pdo->prepare("SELECT * FROM exploration_rentals WHERE external_id = ? AND status = 'pending_payment' LIMIT 1");
-                $rentalStmt->execute([$externalId]);
-                $rental = $rentalStmt->fetch();
+                $rental = null;
+
+                // Tentar buscar por external_id primeiro
+                try {
+                    $rentalStmt = $pdo->prepare("SELECT * FROM exploration_rentals WHERE external_id = ? AND status = 'pending_payment' LIMIT 1");
+                    $rentalStmt->execute([$externalId]);
+                    $rental = $rentalStmt->fetch();
+                } catch (Throwable $colErr) {
+                    // Coluna external_id pode não existir
+                    secureLog("EXPLORATION_RENT_EXTERNAL_ID_COL_ERROR | " . $colErr->getMessage());
+                }
+
+                // Fallback: buscar por user_id + status pending (mais recente)
+                if (!$rental) {
+                    $rentalStmt2 = $pdo->prepare("SELECT * FROM exploration_rentals WHERE user_id = ? AND status = 'pending_payment' ORDER BY created_at DESC LIMIT 1");
+                    $rentalStmt2->execute([$user['id']]);
+                    $rental = $rentalStmt2->fetch();
+                }
 
                 if (!$rental) {
                     // Verificar se já foi ativado
-                    $activeCheck = $pdo->prepare("SELECT id FROM exploration_rentals WHERE external_id = ? AND status = 'active' LIMIT 1");
-                    $activeCheck->execute([$externalId]);
-                    if ($activeCheck->fetch()) {
+                    $alreadyActive = false;
+                    try {
+                        $activeCheck = $pdo->prepare("SELECT id FROM exploration_rentals WHERE external_id = ? AND status = 'active' LIMIT 1");
+                        $activeCheck->execute([$externalId]);
+                        $alreadyActive = (bool)$activeCheck->fetch();
+                    } catch (Throwable $e) {}
+
+                    if (!$alreadyActive) {
+                        // Último fallback: buscar por user_id + active recente
+                        $activeCheck2 = $pdo->prepare("SELECT id FROM exploration_rentals WHERE user_id = ? AND status = 'active' AND created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE) LIMIT 1");
+                        $activeCheck2->execute([$user['id']]);
+                        $alreadyActive = (bool)$activeCheck2->fetch();
+                    }
+
+                    if ($alreadyActive) {
                         secureLog("EXPLORATION_RENT_ALREADY_ACTIVE | external_id: {$externalId}");
                     } else {
                         $pdo->rollBack();
@@ -226,7 +253,6 @@ function processDeposit($pdo, $data, $rawBody) {
                         return;
                     }
                 } else {
-                    $durationHours = 0;
                     // Buscar duração da nave
                     $shipStmt = $pdo->prepare("SELECT rental_duration_hours FROM exploration_ships WHERE id = ? LIMIT 1");
                     $shipStmt->execute([$rental['ship_id']]);
@@ -244,6 +270,7 @@ function processDeposit($pdo, $data, $rawBody) {
                     ")->execute([$durationHours, $rental['id']]);
 
                     secureLog("EXPLORATION_RENT_ACTIVATED | external_id: {$externalId} | user_id: {$user['id']} | ship_id: {$rental['ship_id']} | duration: {$durationHours}h | amount: R\${$depositAmount}");
+                }
                 }
             } elseif ($isPremiumPurchase) {
                 // COMPRA DE PREMIUM: ativar assinatura
