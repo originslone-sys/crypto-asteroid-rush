@@ -264,7 +264,9 @@ $typeLabels = [
     'referral_bonus'       => ['Bônus Indicação', 'success'],
     'referral_commission'  => ['Comissão Indicação', 'success'],
     'welcome_bonus'        => ['Bônus Boas-vindas', 'success'],
-    'admin_adjust'         => ['Ajuste Admin', 'warning']
+    'admin_adjust'         => ['Ajuste Admin', 'warning'],
+    'exploration_rent'     => ['Aluguel Nave', 'info'],
+    'exploration_credits'  => ['Créditos Exploração', 'success'],
 ];
 
 // Tipos que são saída de dinheiro (devem aparecer como negativo)
@@ -318,6 +320,8 @@ $debitTypes = ['withdraw', 'withdrawal', 'stake'];
                     <option value="referral_commission" <?php echo $typeFilter === 'referral_commission' ? 'selected' : ''; ?>>Indicações</option>
                     <option value="withdraw_reject" <?php echo $typeFilter === 'withdraw_reject' ? 'selected' : ''; ?>>Saques Devolvidos</option>
                     <option value="admin_adjust" <?php echo $typeFilter === 'admin_adjust' ? 'selected' : ''; ?>>Ajustes Admin</option>
+                    <option value="exploration_rent" <?php echo $typeFilter === 'exploration_rent' ? 'selected' : ''; ?>>Aluguel Nave</option>
+                    <option value="exploration_credits" <?php echo $typeFilter === 'exploration_credits' ? 'selected' : ''; ?>>Créditos Exploração</option>
                     <option value="stake" <?php echo $typeFilter === 'stake' ? 'selected' : ''; ?>>Stakes</option>
                     <option value="unstake" <?php echo $typeFilter === 'unstake' ? 'selected' : ''; ?>>Unstakes</option>
                 </select>

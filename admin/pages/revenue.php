@@ -2,7 +2,7 @@
 // ============================================
 // UNOBIX - Métricas de Receita
 // admin/pages/revenue.php
-// Créditos · Premium · Saques
+// Créditos · Premium · Exploração · Saques
 // ============================================
 
 $pageTitle = 'Receita';
@@ -32,6 +32,15 @@ try {
         FROM premium_subscriptions WHERE status = 'active'")->fetch();
     $kpi['premium'] = $r;
 
+    // Exploração: soma de rentals ativos (pagos via PIX)
+    $r = $pdo->query("SELECT
+        COALESCE(SUM(rental_price_brl),0) as total_all,
+        COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL {$days} DAY) THEN rental_price_brl ELSE 0 END),0) as total_period,
+        COUNT(*) as count_all,
+        COUNT(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL {$days} DAY) THEN 1 END) as count_period
+        FROM exploration_rentals WHERE status = 'active'")->fetch();
+    $kpi['exploration'] = $r;
+
     // Saques pagos
     $r = $pdo->query("SELECT
         COALESCE(SUM(amount_brl),0) as total_all,
@@ -41,32 +50,37 @@ try {
         FROM withdrawals WHERE status = 'completed'")->fetch();
     $kpi['withdrawals'] = $r;
 
-    $kpi['net_period']  = (float)$kpi['credits']['total_period']  + (float)$kpi['premium']['total_period']  - (float)$kpi['withdrawals']['total_period'];
-    $kpi['net_all']     = (float)$kpi['credits']['total_all']     + (float)$kpi['premium']['total_all']     - (float)$kpi['withdrawals']['total_all'];
+    $kpi['net_period']  = (float)$kpi['credits']['total_period']  + (float)$kpi['premium']['total_period']  + (float)$kpi['exploration']['total_period']  - (float)$kpi['withdrawals']['total_period'];
+    $kpi['net_all']     = (float)$kpi['credits']['total_all']     + (float)$kpi['premium']['total_all']     + (float)$kpi['exploration']['total_all']     - (float)$kpi['withdrawals']['total_all'];
 
     // ── Receita diária (créditos + premium + saques) ──────────────────────────
     $dailyStmt = $pdo->prepare("
         SELECT day,
-               SUM(credits_brl)     as credits_brl,
-               SUM(premium_brl)     as premium_brl,
-               SUM(withdrawal_brl)  as withdrawal_brl,
-               SUM(credits_cnt)     as credits_cnt,
-               SUM(premium_cnt)     as premium_cnt,
-               SUM(withdrawal_cnt)  as withdrawal_cnt
+               SUM(credits_brl)      as credits_brl,
+               SUM(premium_brl)      as premium_brl,
+               SUM(exploration_brl)  as exploration_brl,
+               SUM(withdrawal_brl)   as withdrawal_brl,
+               SUM(credits_cnt)      as credits_cnt,
+               SUM(premium_cnt)      as premium_cnt,
+               SUM(exploration_cnt)  as exploration_cnt,
+               SUM(withdrawal_cnt)   as withdrawal_cnt
         FROM (
-            SELECT DATE(created_at) as day, price_brl as credits_brl, 0 as premium_brl, 0 as withdrawal_brl,
-                   1 as credits_cnt, 0 as premium_cnt, 0 as withdrawal_cnt
+            SELECT DATE(created_at) as day, price_brl as credits_brl, 0 as premium_brl, 0 as exploration_brl, 0 as withdrawal_brl,
+                   1 as credits_cnt, 0 as premium_cnt, 0 as exploration_cnt, 0 as withdrawal_cnt
             FROM credit_purchases WHERE status = 'confirmed' AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
             UNION ALL
-            SELECT DATE(created_at), 0, price_brl, 0, 0, 1, 0
+            SELECT DATE(created_at), 0, price_brl, 0, 0, 0, 1, 0, 0
             FROM premium_subscriptions WHERE status = 'active' AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
             UNION ALL
-            SELECT DATE(created_at), 0, 0, amount_brl, 0, 0, 1
+            SELECT DATE(created_at), 0, 0, rental_price_brl, 0, 0, 0, 1, 0
+            FROM exploration_rentals WHERE status = 'active' AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+            UNION ALL
+            SELECT DATE(created_at), 0, 0, 0, amount_brl, 0, 0, 0, 1
             FROM withdrawals WHERE status = 'completed' AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
         ) t
         GROUP BY day ORDER BY day ASC
     ");
-    $dailyStmt->execute([$days, $days, $days]);
+    $dailyStmt->execute([$days, $days, $days, $days]);
     $dailyData = $dailyStmt->fetchAll();
 
     // ── Créditos por pacote ───────────────────────────────────────────────────
@@ -125,7 +139,7 @@ try {
                u.email, u.display_name
         FROM transactions t
         LEFT JOIN users u ON u.google_uid = t.google_uid
-        WHERE t.type IN ('credit_purchase','premium_purchase') AND t.status = 'completed'
+        WHERE t.type IN ('credit_purchase','premium_purchase','exploration_rent') AND t.status = 'completed'
         ORDER BY t.created_at DESC LIMIT 20
     ");
     $recentSales = $recentStmt->fetchAll();
@@ -137,7 +151,7 @@ try {
                COALESCE(SUM(t.amount_brl), 0) as spent
         FROM transactions t
         JOIN users u ON u.google_uid = t.google_uid
-        WHERE t.type IN ('credit_purchase','premium_purchase') AND t.status = 'completed'
+        WHERE t.type IN ('credit_purchase','premium_purchase','exploration_rent') AND t.status = 'completed'
           AND t.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
         GROUP BY u.id ORDER BY spent DESC LIMIT 10
     ");
@@ -149,10 +163,11 @@ try {
 }
 
 // Helpers para o gráfico
-$chartDays    = array_column($dailyData, 'day');
-$chartCredits = array_column($dailyData, 'credits_brl');
-$chartPremium = array_column($dailyData, 'premium_brl');
-$chartWd      = array_column($dailyData, 'withdrawal_brl');
+$chartDays        = array_column($dailyData, 'day');
+$chartCredits     = array_column($dailyData, 'credits_brl');
+$chartPremium     = array_column($dailyData, 'premium_brl');
+$chartExploration = array_column($dailyData, 'exploration_brl');
+$chartWd          = array_column($dailyData, 'withdrawal_brl');
 
 function fmtBRL(float $v): string {
     return 'R$ ' . number_format($v, 2, ',', '.');
@@ -163,7 +178,7 @@ function fmtBRL(float $v): string {
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;">
         <div>
             <h1 class="page-title"><i class="fas fa-chart-line"></i> Métricas de Receita</h1>
-            <p class="page-subtitle">Créditos · Premium · Saques pagos</p>
+            <p class="page-subtitle">Créditos · Premium · Exploração · Saques pagos</p>
         </div>
         <!-- Filtro de período -->
         <div style="display:flex;gap:6px;">
@@ -217,6 +232,24 @@ function fmtBRL(float $v): string {
                 </div>
                 <div style="font-size:0.7rem;color:var(--text-dim);margin-top:2px;">
                     Total geral: <?php echo fmtBRL((float)$kpi['premium']['total_all']); ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- Receita Exploração -->
+        <div class="panel" style="border-top:3px solid #ff8800;">
+            <div class="panel-body" style="padding:16px 18px;">
+                <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">
+                    <i class="fas fa-rocket" style="color:#ff8800;margin-right:4px;"></i>Receita Exploração
+                </div>
+                <div style="font-family:'Orbitron',monospace;font-size:1.5rem;font-weight:900;color:#ff8800;">
+                    <?php echo fmtBRL((float)$kpi['exploration']['total_period']); ?>
+                </div>
+                <div style="font-size:0.75rem;color:var(--text-dim);margin-top:4px;">
+                    <?php echo (int)$kpi['exploration']['count_period']; ?> aluguéis · <?php echo $days; ?>d
+                </div>
+                <div style="font-size:0.7rem;color:var(--text-dim);margin-top:2px;">
+                    Total geral: <?php echo fmtBRL((float)$kpi['exploration']['total_all']); ?>
                 </div>
             </div>
         </div>
@@ -297,7 +330,7 @@ function fmtBRL(float $v): string {
             <?php if (empty($dailyData)): ?>
                 <p style="color:var(--text-dim);text-align:center;padding:30px 0;">Sem dados no período.</p>
             <?php else:
-                $maxBar = max(array_map(fn($r) => (float)$r['credits_brl'] + (float)$r['premium_brl'], $dailyData)) ?: 1;
+                $maxBar = max(array_map(fn($r) => (float)$r['credits_brl'] + (float)$r['premium_brl'] + (float)$r['exploration_brl'], $dailyData)) ?: 1;
             ?>
             <div style="overflow-x:auto;">
                 <div style="min-width:<?php echo max(600, count($dailyData)*32); ?>px;padding:0 4px;">
@@ -306,23 +339,28 @@ function fmtBRL(float $v): string {
                         <?php foreach ($dailyData as $row):
                             $cBrl = (float)$row['credits_brl'];
                             $pBrl = (float)$row['premium_brl'];
+                            $eBrl = (float)$row['exploration_brl'];
                             $wBrl = (float)$row['withdrawal_brl'];
-                            $inflow = $cBrl + $pBrl;
+                            $inflow = $cBrl + $pBrl + $eBrl;
                             $cH  = round(($cBrl / $maxBar) * 120);
                             $pH  = round(($pBrl / $maxBar) * 120);
+                            $eH  = round(($eBrl / $maxBar) * 120);
                             $wH  = round(($wBrl / $maxBar) * 120);
                         ?>
                         <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0;min-width:20px;"
-                             title="<?php echo $row['day']; ?> | Créditos: <?php echo fmtBRL($cBrl); ?> | Premium: <?php echo fmtBRL($pBrl); ?> | Saques: <?php echo fmtBRL($wBrl); ?>">
+                             title="<?php echo $row['day']; ?> | Créditos: <?php echo fmtBRL($cBrl); ?> | Premium: <?php echo fmtBRL($pBrl); ?> | Exploração: <?php echo fmtBRL($eBrl); ?> | Saques: <?php echo fmtBRL($wBrl); ?>">
                             <!-- Saques (separado, abaixo) -->
                             <div style="width:100%;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;height:<?php echo max(2,$wH); ?>px;background:rgba(255,51,102,0.5);border-radius:2px 2px 0 0;margin-bottom:1px;"></div>
                             <!-- Entradas empilhadas -->
-                            <div style="width:100%;display:flex;flex-direction:column;justify-content:flex-end;height:<?php echo max($inflow>0?2:0, $cH+$pH); ?>px;">
+                            <div style="width:100%;display:flex;flex-direction:column;justify-content:flex-end;height:<?php echo max($inflow>0?2:0, $cH+$pH+$eH); ?>px;">
                                 <?php if ($pH > 0): ?>
                                 <div style="height:<?php echo $pH; ?>px;background:#ffd700;border-radius:2px 2px 0 0;"></div>
                                 <?php endif; ?>
+                                <?php if ($eH > 0): ?>
+                                <div style="height:<?php echo $eH; ?>px;background:#ff8800;<?php echo $pH==0?'border-radius:2px 2px 0 0;':''; ?>"></div>
+                                <?php endif; ?>
                                 <?php if ($cH > 0): ?>
-                                <div style="height:<?php echo $cH; ?>px;background:#00c8ff;<?php echo $pH==0?'border-radius:2px 2px 0 0;':''; ?>"></div>
+                                <div style="height:<?php echo $cH; ?>px;background:#00c8ff;<?php echo ($pH==0&&$eH==0)?'border-radius:2px 2px 0 0;':''; ?>"></div>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -342,6 +380,7 @@ function fmtBRL(float $v): string {
             <div style="display:flex;gap:16px;margin-top:12px;font-size:0.78rem;">
                 <span><span style="display:inline-block;width:10px;height:10px;background:#00c8ff;border-radius:2px;margin-right:4px;"></span>Créditos</span>
                 <span><span style="display:inline-block;width:10px;height:10px;background:#ffd700;border-radius:2px;margin-right:4px;"></span>Premium</span>
+                <span><span style="display:inline-block;width:10px;height:10px;background:#ff8800;border-radius:2px;margin-right:4px;"></span>Exploração</span>
                 <span><span style="display:inline-block;width:10px;height:10px;background:rgba(255,51,102,0.5);border-radius:2px;margin-right:4px;"></span>Saques</span>
             </div>
             <?php endif; ?>
@@ -545,7 +584,7 @@ function fmtBRL(float $v): string {
     <!-- ══ Últimas Vendas ════════════════════════════════════════════════ -->
     <div class="panel" style="margin-bottom:20px;">
         <div class="panel-header">
-            <h3 class="panel-title"><i class="fas fa-receipt"></i> Últimas Compras (créditos + premium)</h3>
+            <h3 class="panel-title"><i class="fas fa-receipt"></i> Últimas Compras (créditos + premium + exploração)</h3>
         </div>
         <div class="panel-body" style="padding:0;">
             <?php if (empty($recentSales)): ?>
@@ -564,8 +603,9 @@ function fmtBRL(float $v): string {
                 <tbody>
                 <?php foreach ($recentSales as $sale):
                     $isCredit  = $sale['type'] === 'credit_purchase';
-                    $typeColor = $isCredit ? '#00c8ff' : '#ffd700';
-                    $typeLabel = $isCredit ? 'Créditos' : 'Premium';
+                    $isExploration = $sale['type'] === 'exploration_rent';
+                    $typeColor = $isCredit ? '#00c8ff' : ($isExploration ? '#ff8800' : '#ffd700');
+                    $typeLabel = $isCredit ? 'Créditos' : ($isExploration ? 'Exploração' : 'Premium');
                 ?>
                     <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
                         <td style="padding:10px 16px;">
