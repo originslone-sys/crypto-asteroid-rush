@@ -40,11 +40,11 @@ const PvPRenderer = {
     },
 
     startLoop() {
-        const loop = () => {
-            this.render();
+        const loop = (now) => {
+            this.render(now);
             this.animationFrameId = requestAnimationFrame(loop);
         };
-        loop();
+        requestAnimationFrame(loop);
     },
 
     stopLoop() {
@@ -54,9 +54,9 @@ const PvPRenderer = {
         }
     },
 
-    render() {
-        // Predição local sincronizada com o frame — evita dessincronismo de setInterval
-        if (PvPEngine.gameActive) PvPEngine.stepLocalPrediction();
+    render(now) {
+        // Física com delta-time — frame-rate independente
+        if (PvPEngine.gameActive) PvPEngine.stepLocalPrediction(now || performance.now());
 
         const ctx = this.ctx;
         const w = this.canvas.width;
@@ -85,12 +85,24 @@ const PvPRenderer = {
         const scaleX = w / PVP_CONFIG.ARENA_WIDTH;
         const scaleY = h / PVP_CONFIG.ARENA_HEIGHT;
 
-        // Balas Player 1
-        this.renderBullets(ctx, state.player1Bullets, PVP_CONFIG.PLAYER_BULLET_COLOR,
-            PVP_CONFIG.OPPONENT_BULLET_COLOR, scaleX, scaleY);
+        // Balas locais (predição imediata — aparecem antes da confirmação do servidor)
+        if (pvpState.localBullets && pvpState.localBullets.length) {
+            this.renderBullets(ctx, pvpState.localBullets, PVP_CONFIG.PLAYER_BULLET_COLOR,
+                PVP_CONFIG.PLAYER_BULLET_COLOR, scaleX, scaleY);
+        }
 
-        // Balas Player 2
-        this.renderBullets(ctx, state.player2Bullets, PVP_CONFIG.PLAYER_BULLET_COLOR,
+        // Balas confirmadas pelo servidor (oponente + as minhas já confirmadas)
+        const mySlot = pvpState.mySlot;
+        const myServerBullets   = mySlot === 1 ? state.player1Bullets : state.player2Bullets;
+        const oppServerBullets  = mySlot === 1 ? state.player2Bullets : state.player1Bullets;
+
+        // Renderizar balas do servidor somente se não há balas locais pendentes
+        // (evita duplicação visual enquanto a predição ainda não foi confirmada)
+        if (!pvpState.localBullets || pvpState.localBullets.length === 0) {
+            this.renderBullets(ctx, myServerBullets, PVP_CONFIG.PLAYER_BULLET_COLOR,
+                PVP_CONFIG.PLAYER_BULLET_COLOR, scaleX, scaleY);
+        }
+        this.renderBullets(ctx, oppServerBullets, PVP_CONFIG.OPPONENT_BULLET_COLOR,
             PVP_CONFIG.OPPONENT_BULLET_COLOR, scaleX, scaleY);
 
         // Minha nave: posição da predição local (sem lag), dados vitais do servidor

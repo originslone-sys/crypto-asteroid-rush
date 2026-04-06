@@ -42,6 +42,8 @@ const PVP_CONFIG = {
     SHIP_FRICTION: 0.76,
     SHIP_MAX_VX: 18,
     SHIP_MAX_VY: 12,
+    BULLET_SPEED: 15,
+    FIRE_RATE_MS: 350,
 };
 
 // Estado do jogo PvP (client-side)
@@ -75,8 +77,9 @@ const pvpState = {
         fire: false
     },
 
-    // Predição local (client-side prediction para minha nave)
+    // Predição local
     localPrediction: null,  // { x, y, vx, vy }
+    localBullets: [],       // balas disparadas localmente antes da confirmação do servidor
 
     // Interpolação do oponente (entity interpolation entre pacotes do servidor)
     opponentPrev: null,       // posição no pacote anterior
