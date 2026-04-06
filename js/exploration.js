@@ -241,8 +241,8 @@
                         <div class="credits-value" style="color:#ffaa00;">--</div>
                         <div class="credits-label">pendente</div>
                     </div>
-                    <button class="claim-btn" disabled style="background:rgba(255,170,0,0.15);color:#ffaa00;">
-                        <i class="fas fa-hourglass-half"></i> Pendente
+                    <button class="claim-btn" onclick="window._cancelRental(${r.id})" style="background:rgba(255,71,87,0.15);color:#ff4757;border:1px solid rgba(255,71,87,0.3);">
+                        <i class="fas fa-times"></i> Cancelar
                     </button>
                 </div>`;
             }
@@ -445,6 +445,25 @@
             pixCheckInterval = null;
         }
         loadExploration();
+    };
+
+    // ============================================
+    // CANCELAR ALUGUEL PENDENTE
+    // ============================================
+    window._cancelRental = async function(rentalId) {
+        if (!confirm('Cancelar este aluguel pendente?')) return;
+
+        try {
+            const result = await apiCall('cancel_rental', { rental_id: rentalId });
+            if (result.success) {
+                showToast('Aluguel cancelado', 'success');
+                loadExploration();
+            } else {
+                showToast(result.error || 'Erro ao cancelar', 'error');
+            }
+        } catch (e) {
+            showToast('Erro de conexão', 'error');
+        }
     };
 
     window._copyPixCode = function() {
