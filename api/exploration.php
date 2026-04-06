@@ -413,15 +413,16 @@ try {
 
             $result = [];
             foreach ($rows as $r) {
+                $isActive = ($r['status'] === 'active');
                 $isPending = ($r['status'] === 'pending_payment');
                 $startedAt = strtotime($r['started_at']);
                 $expiresAt = strtotime($r['expires_at']);
                 $now = time();
 
-                // Créditos só acumulam para rentals ativos (não pendentes)
+                // Créditos só acumulam para rentals ativos (não pendentes, cancelados ou expirados)
                 $totalAccumulated = 0;
                 $unclaimed = 0;
-                if (!$isPending) {
+                if ($isActive) {
                     $effectiveEnd = min($now, $expiresAt);
                     $elapsedSeconds = max(0, $effectiveEnd - $startedAt);
                     $totalAccumulated = (int)floor(($elapsedSeconds / 86400) * (int)$r['credits_per_day']);

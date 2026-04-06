@@ -214,7 +214,7 @@
         countdownTimers.forEach(t => clearInterval(t));
         countdownTimers = [];
 
-        const visibleRentals = rentals.filter(r => r.status === 'active' || r.status === 'pending_payment' || r.unclaimed > 0);
+        const visibleRentals = rentals.filter(r => r.status === 'active' || r.status === 'pending_payment');
 
         if (!visibleRentals.length) {
             section.style.display = 'none';
