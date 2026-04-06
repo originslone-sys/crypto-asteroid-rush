@@ -140,6 +140,11 @@ try {
                 <i class="fab fa-whatsapp"></i>
                 <span>WhatsApp</span>
             </a>
+
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=cashier" class="nav-item <?php echo $currentPage === 'cashier' ? 'active' : ''; ?>">
+                <i class="fas fa-cash-register" style="color: #05ffa1;"></i>
+                <span>Recarregar Caixa</span>
+            </a>
         </div>
 
         <div class="nav-section">

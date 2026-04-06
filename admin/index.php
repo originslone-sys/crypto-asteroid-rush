@@ -190,7 +190,8 @@ $allowedPages = [
     'revenue',
     'exploration',
     'notifications',
-    'pvp'
+    'pvp',
+    'cashier'
 ];
 
 if (!in_array($page, $allowedPages)) {
