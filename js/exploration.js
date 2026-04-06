@@ -343,7 +343,27 @@
         document.getElementById('pixAmount').textContent = formatBRL(data.amount_brl);
         document.getElementById('pixDuration').textContent = formatDuration(data.duration_hours);
         document.getElementById('pixCreditsDay').textContent = data.credits_per_day + ' créditos/dia';
-        document.getElementById('pixCode').value = data.pix_copy_paste;
+        document.getElementById('pixCode').value = data.pix_copy_paste || data.qr_code || '';
+
+        // Gerar imagem QR Code
+        const qrContainer = document.getElementById('pixQrImage');
+        const qrData = data.pix_copy_paste || data.qr_code;
+        if (qrData && qrContainer) {
+            const qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(qrData);
+            qrContainer.innerHTML = '<img src="' + qrImageUrl + '" alt="QR Code PIX" style="width:100%;max-width:220px;border-radius:10px;background:#fff;padding:8px;">';
+        } else if (qrContainer) {
+            qrContainer.innerHTML = '<p style="color:#667788;font-size:0.8rem;">QR Code indisponível. Use o código abaixo.</p>';
+        }
+
+        // Reset status area
+        const statusArea = document.getElementById('pixStatusArea');
+        if (statusArea) {
+            statusArea.innerHTML = '<i class="fas fa-spinner fa-spin" style="color:#00ff88;margin-right:6px;"></i>' +
+                '<span style="color:#00ff88;font-size:0.8rem;font-weight:600;">Aguardando pagamento...</span>' +
+                '<div style="color:#667788;font-size:0.65rem;margin-top:4px;">A nave será ativada automaticamente após a confirmação</div>';
+            statusArea.style.borderColor = 'rgba(0,255,136,0.15)';
+            statusArea.style.background = 'rgba(0,255,136,0.05)';
+        }
 
         modal.style.display = 'flex';
 
@@ -354,9 +374,16 @@
 
         pixCheckInterval = setInterval(async () => {
             checks++;
-            if (checks > 120) { // 10 min max (5s * 120)
+            if (checks > 180) { // 15 min max (5s * 180)
                 clearInterval(pixCheckInterval);
                 pixCheckInterval = null;
+                if (statusArea) {
+                    statusArea.innerHTML = '<i class="fas fa-clock" style="color:#ffaa00;margin-right:6px;"></i>' +
+                        '<span style="color:#ffaa00;font-size:0.8rem;font-weight:600;">PIX expirado</span>' +
+                        '<div style="color:#667788;font-size:0.65rem;margin-top:4px;">Gere um novo pagamento para alugar.</div>';
+                    statusArea.style.borderColor = 'rgba(255,170,0,0.2)';
+                    statusArea.style.background = 'rgba(255,170,0,0.05)';
+                }
                 return;
             }
             try {
@@ -364,9 +391,16 @@
                 if (status.success && status.paid) {
                     clearInterval(pixCheckInterval);
                     pixCheckInterval = null;
-                    modal.style.display = 'none';
+                    if (statusArea) {
+                        statusArea.innerHTML = '<i class="fas fa-check-circle" style="color:#00ff88;font-size:1.2rem;margin-right:6px;"></i>' +
+                            '<span style="color:#00ff88;font-size:0.9rem;font-weight:700;">Pagamento confirmado!</span>' +
+                            '<div style="color:#00ff88;font-size:0.75rem;margin-top:4px;">Nave ativada com sucesso!</div>';
+                    }
                     showToast('Pagamento confirmado! Nave ativada!', 'success');
-                    loadExploration();
+                    setTimeout(() => {
+                        modal.style.display = 'none';
+                        loadExploration();
+                    }, 2000);
                 }
             } catch (e) { /* retry */ }
         }, 5000);
