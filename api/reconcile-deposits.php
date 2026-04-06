@@ -197,6 +197,7 @@ function confirmPendingDeposit($pdo, $tx, $zettpayId, $rawPayload) {
     $depositAmount = (float)$tx['amount_brl'];
     $isCreditPurchase = strpos($externalId, 'CRD-') === 0;
     $isPremiumPurchase = strpos($externalId, 'PRM-') === 0;
+    $isExplorationRent = strpos($externalId, 'EXP-') === 0;
 
     $pdo->beginTransaction();
 
@@ -223,7 +224,42 @@ function confirmPendingDeposit($pdo, $tx, $zettpayId, $rawPayload) {
             return false;
         }
 
-        if ($isPremiumPurchase) {
+        if ($isExplorationRent) {
+            // ALUGUEL DE NAVE: ativar rental pendente
+            $rentalStmt = $pdo->prepare("SELECT * FROM exploration_rentals WHERE external_id = ? AND status = 'pending_payment' LIMIT 1");
+            $rentalStmt->execute([$externalId]);
+            $rental = $rentalStmt->fetch();
+
+            if (!$rental) {
+                // Verificar se já foi ativado
+                $activeCheck = $pdo->prepare("SELECT id FROM exploration_rentals WHERE external_id = ? AND status = 'active' LIMIT 1");
+                $activeCheck->execute([$externalId]);
+                if (!$activeCheck->fetch()) {
+                    $pdo->rollBack();
+                    secureLog("RECONCILE_EXPLORATION_NOT_FOUND | external_id: {$externalId} | user_id: {$user['id']}");
+                    return false;
+                }
+                // Já ativado, continuar para marcar zettpay_transactions como confirmed
+            } else {
+                // Buscar duração da nave
+                $shipStmt = $pdo->prepare("SELECT rental_duration_hours FROM exploration_ships WHERE id = ? LIMIT 1");
+                $shipStmt->execute([$rental['ship_id']]);
+                $shipData = $shipStmt->fetch();
+                $durationHours = $shipData ? (int)$shipData['rental_duration_hours'] : 72;
+
+                // Ativar aluguel: started_at = agora, expires_at = agora + duração
+                $pdo->prepare("
+                    UPDATE exploration_rentals
+                    SET status = 'active',
+                        started_at = NOW(),
+                        expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR),
+                        last_accumulation_at = NOW()
+                    WHERE id = ?
+                ")->execute([$durationHours, $rental['id']]);
+
+                secureLog("RECONCILE_EXPLORATION_ACTIVATED | external_id: {$externalId} | user_id: {$user['id']} | ship_id: {$rental['ship_id']} | duration: {$durationHours}h");
+            }
+        } elseif ($isPremiumPurchase) {
             // COMPRA DE PREMIUM: ativar assinatura
             $stmt = $pdo->prepare("SELECT * FROM premium_subscriptions WHERE external_id = ? LIMIT 1");
             $stmt->execute([$externalId]);
@@ -280,7 +316,7 @@ function confirmPendingDeposit($pdo, $tx, $zettpayId, $rawPayload) {
         $pdo->prepare("UPDATE zettpay_transactions SET status = 'confirmed', zettpay_id = ?, webhook_payload = ?, confirmed_at = NOW() WHERE id = ?")->execute([$zettpayId, $rawPayload, $tx['id']]);
 
         // Atualizar histórico
-        $pdo->prepare("UPDATE transactions SET status = 'completed' WHERE google_uid = ? AND type IN ('deposit', 'credit_purchase', 'premium_purchase') AND description LIKE ? AND status = 'pending' LIMIT 1")->execute([$user['google_uid'], '%' . $externalId . '%']);
+        $pdo->prepare("UPDATE transactions SET status = 'completed' WHERE google_uid = ? AND type IN ('deposit', 'credit_purchase', 'premium_purchase', 'exploration_rent') AND description LIKE ? AND status = 'pending' LIMIT 1")->execute([$user['google_uid'], '%' . $externalId . '%']);
 
         $pdo->commit();
         return true;
