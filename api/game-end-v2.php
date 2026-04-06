@@ -216,7 +216,9 @@ try {
         exit;
     }
 
-    // ANTI-EXPLOIT: Validar proporções contra spawn rates configurados no admin
+    // ANTI-EXPLOIT: Validar proporções contra spawn rates configurados no admin (DESATIVADO)
+    // Critério desativado - gerava muitos falsos positivos
+    /*
     if ($totalAsteroids >= 30 && $gameMode !== 'training') {
         $spawnPrefix = "mode_{$gameMode}_spawn_";
         $stmtSpawn = $pdo->prepare("
@@ -266,6 +268,7 @@ try {
             exit;
         }
     }
+    */
 
     // ============================================
     // 4. CALCULAR GANHOS NO SERVIDOR

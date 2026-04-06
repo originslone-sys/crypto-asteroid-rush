@@ -180,7 +180,9 @@ try {
         exit;
     }
 
-    // ANTI-EXPLOIT: Validar proporções contra spawn rates do admin
+    // ANTI-EXPLOIT: Validar proporções contra spawn rates do admin (DESATIVADO)
+    // Critério desativado - gerava muitos falsos positivos
+    /*
     $gameMode = $session['game_mode'] ?? ($session['is_hard_mode'] ? 'hard' : 'normal');
     if ($totalAsteroids >= 30 && $gameMode !== 'training') {
         $spawnPrefix = "mode_{$gameMode}_spawn_";
@@ -207,6 +209,7 @@ try {
             exit;
         }
     }
+    */
 
     // ============================================
     // 4. VALIDAÇÃO ANTI-CHEAT
