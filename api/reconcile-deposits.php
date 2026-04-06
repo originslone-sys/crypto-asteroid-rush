@@ -226,20 +226,28 @@ function confirmPendingDeposit($pdo, $tx, $zettpayId, $rawPayload) {
 
         if ($isExplorationRent) {
             // ALUGUEL DE NAVE: ativar rental pendente
-            $rentalStmt = $pdo->prepare("SELECT * FROM exploration_rentals WHERE external_id = ? AND status = 'pending_payment' LIMIT 1");
-            $rentalStmt->execute([$externalId]);
-            $rental = $rentalStmt->fetch();
+            $rental = null;
+
+            // Tentar buscar por external_id
+            try {
+                $rentalStmt = $pdo->prepare("SELECT * FROM exploration_rentals WHERE external_id = ? AND status = 'pending_payment' LIMIT 1");
+                $rentalStmt->execute([$externalId]);
+                $rental = $rentalStmt->fetch();
+            } catch (Throwable $colErr) {
+                secureLog("RECONCILE_EXP_EXTERNAL_ID_ERROR | " . $colErr->getMessage());
+            }
+
+            // Fallback: buscar por user_id + pending
+            if (!$rental) {
+                $rentalStmt2 = $pdo->prepare("SELECT * FROM exploration_rentals WHERE user_id = ? AND status = 'pending_payment' ORDER BY created_at DESC LIMIT 1");
+                $rentalStmt2->execute([$tx['user_id']]);
+                $rental = $rentalStmt2->fetch();
+            }
 
             if (!$rental) {
-                // Verificar se já foi ativado
-                $activeCheck = $pdo->prepare("SELECT id FROM exploration_rentals WHERE external_id = ? AND status = 'active' LIMIT 1");
-                $activeCheck->execute([$externalId]);
-                if (!$activeCheck->fetch()) {
-                    $pdo->rollBack();
-                    secureLog("RECONCILE_EXPLORATION_NOT_FOUND | external_id: {$externalId} | user_id: {$user['id']}");
-                    return false;
-                }
-                // Já ativado, continuar para marcar zettpay_transactions como confirmed
+                // Pode já estar ativado
+                secureLog("RECONCILE_EXPLORATION_NOT_FOUND_OR_ACTIVE | external_id: {$externalId} | user_id: {$user['id']}");
+                // Continuar para marcar zettpay_transactions como confirmed
             } else {
                 // Buscar duração da nave
                 $shipStmt = $pdo->prepare("SELECT rental_duration_hours FROM exploration_ships WHERE id = ? LIMIT 1");
@@ -247,7 +255,7 @@ function confirmPendingDeposit($pdo, $tx, $zettpayId, $rawPayload) {
                 $shipData = $shipStmt->fetch();
                 $durationHours = $shipData ? (int)$shipData['rental_duration_hours'] : 72;
 
-                // Ativar aluguel: started_at = agora, expires_at = agora + duração
+                // Ativar aluguel
                 $pdo->prepare("
                     UPDATE exploration_rentals
                     SET status = 'active',
