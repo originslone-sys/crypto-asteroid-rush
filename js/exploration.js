@@ -313,12 +313,19 @@
     // CARREGAR DADOS
     // ============================================
     async function loadExploration() {
+        // Carregar naves e rentals independentemente
         try {
-            const [shipsResp, rentalsResp] = await Promise.all([
-                apiCall('list_ships'),
-                apiCall('get_rentals')
-            ]);
+            const rentalsResp = await apiCall('get_rentals');
+            if (rentalsResp.success) {
+                rentalsData = rentalsResp.rentals;
+                renderRentals(rentalsData);
+            }
+        } catch (e) {
+            console.error('Erro ao carregar aluguéis:', e);
+        }
 
+        try {
+            const shipsResp = await apiCall('list_ships');
             if (shipsResp.success) {
                 shipsData = shipsResp.ships;
                 document.getElementById('statBalance').textContent = formatBRL(shipsResp.balance_brl);
@@ -326,14 +333,12 @@
                 document.getElementById('statActiveRentals').textContent = shipsResp.active_rentals + '/' + shipsResp.max_rentals;
 
                 renderShips(shipsData, shipsResp.active_rentals, shipsResp.max_rentals, shipsResp.balance_brl);
-            }
-
-            if (rentalsResp.success) {
-                rentalsData = rentalsResp.rentals;
-                renderRentals(rentalsData);
+            } else {
+                console.error('list_ships error:', shipsResp.error);
+                document.getElementById('shipsGrid').innerHTML = '<div class="empty-rentals" style="grid-column:1/-1;"><i class="fas fa-exclamation-triangle"></i><p>Erro ao carregar naves: ' + (shipsResp.error || '') + '</p></div>';
             }
         } catch (e) {
-            console.error('Erro ao carregar exploração:', e);
+            console.error('Erro ao carregar naves:', e);
             document.getElementById('shipsGrid').innerHTML = '<div class="empty-rentals" style="grid-column:1/-1;"><i class="fas fa-exclamation-triangle"></i><p>Erro ao carregar dados</p></div>';
         }
     }
