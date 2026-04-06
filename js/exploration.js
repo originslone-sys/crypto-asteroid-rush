@@ -173,13 +173,23 @@
 
         grid.innerHTML = ships.map(ship => {
             const isRented = ship.is_rented;
-            const canRent = !isRented && activeRentals < maxRentals;
+            const isPending = ship.is_pending_payment;
+            const canRent = !isRented && !isPending && activeRentals < maxRentals;
             const reason = isRented ? 'Já alugada' :
+                           isPending ? 'Aguardando pagamento' :
                            activeRentals >= maxRentals ? 'Limite atingido' : '';
 
+            const badgeHtml = isRented ? '<span class="rented-badge"><i class="fas fa-check"></i> ATIVA</span>' :
+                              isPending ? '<span class="rented-badge" style="background:rgba(255,170,0,0.15);color:#ffaa00;border-color:rgba(255,170,0,0.3);"><i class="fas fa-clock"></i> PAGAMENTO PENDENTE</span>' : '';
+
+            const btnHtml = isRented ? '<button class="rent-btn disabled" disabled>Em exploração</button>' :
+                            isPending ? '<button class="rent-btn disabled" disabled style="color:#ffaa00;"><i class="fas fa-clock"></i> Aguardando pagamento PIX</button>' :
+                            canRent ? `<button class="rent-btn available" onclick="window._rentShip(${ship.id})"><i class="fas fa-qrcode"></i> Pagar PIX ${formatBRL(ship.rental_price_brl)}</button>` :
+                            `<button class="rent-btn disabled" disabled>${reason}</button>`;
+
             return `
-                <div class="ship-card ${isRented ? 'rented' : ''}">
-                    ${isRented ? '<span class="rented-badge"><i class="fas fa-check"></i> ATIVA</span>' : ''}
+                <div class="ship-card ${isRented ? 'rented' : ''} ${isPending ? 'pending' : ''}">
+                    ${badgeHtml}
                     <div class="ship-visual">${getShipSVG(ship.ship_key, 120)}</div>
                     <div class="ship-name">${escapeHtml(ship.name)}</div>
                     <div class="ship-desc">${escapeHtml(ship.description || '')}</div>
@@ -188,9 +198,7 @@
                         <div class="stat"><div class="stat-val">${formatDuration(ship.rental_duration_hours)}</div><div class="stat-lbl">duração</div></div>
                         <div class="stat"><div class="stat-val">${formatBRL(ship.rental_price_brl)}</div><div class="stat-lbl">preço</div></div>
                     </div>
-                    ${isRented ? '<button class="rent-btn disabled" disabled>Em exploração</button>' :
-                      canRent ? `<button class="rent-btn available" onclick="window._rentShip(${ship.id})"><i class="fas fa-qrcode"></i> Pagar PIX ${formatBRL(ship.rental_price_brl)}</button>` :
-                      `<button class="rent-btn disabled" disabled>${reason}</button>`}
+                    ${btnHtml}
                 </div>`;
         }).join('');
     }
@@ -206,16 +214,39 @@
         countdownTimers.forEach(t => clearInterval(t));
         countdownTimers = [];
 
-        const activeRentals = rentals.filter(r => r.status === 'active' || r.unclaimed > 0);
+        const visibleRentals = rentals.filter(r => r.status === 'active' || r.status === 'pending_payment' || r.unclaimed > 0);
 
-        if (!activeRentals.length) {
+        if (!visibleRentals.length) {
             section.style.display = 'none';
             return;
         }
 
         section.style.display = 'block';
-        list.innerHTML = activeRentals.map(r => {
+        list.innerHTML = visibleRentals.map(r => {
+            const isPending = r.status === 'pending_payment';
             const isExpired = r.is_expired;
+
+            if (isPending) {
+                return `
+                <div class="rental-card" style="border-color:rgba(255,170,0,0.25);opacity:0.8;">
+                    <div class="rental-ship">${getShipSVG(r.ship_key, 60)}</div>
+                    <div class="rental-info">
+                        <div class="rental-name">${escapeHtml(r.ship_name)}</div>
+                        <div class="rental-timer" style="color:#ffaa00;">
+                            <i class="fas fa-clock"></i> Aguardando pagamento PIX
+                        </div>
+                        <div style="font-size:0.7rem;color:#667788;margin-top:2px;">${formatBRL(r.rental_price_brl)}</div>
+                    </div>
+                    <div class="rental-credits">
+                        <div class="credits-value" style="color:#ffaa00;">--</div>
+                        <div class="credits-label">pendente</div>
+                    </div>
+                    <button class="claim-btn" disabled style="background:rgba(255,170,0,0.15);color:#ffaa00;">
+                        <i class="fas fa-hourglass-half"></i> Pendente
+                    </button>
+                </div>`;
+            }
+
             return `
                 <div class="rental-card ${isExpired ? 'expired' : 'active'}">
                     <div class="rental-ship">${getShipSVG(r.ship_key, 60)}</div>
