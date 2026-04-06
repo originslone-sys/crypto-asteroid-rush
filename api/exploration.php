@@ -63,13 +63,15 @@ try {
                 ORDER BY sort_order ASC
             ")->fetchAll(PDO::FETCH_ASSOC);
 
-            // Aluguéis ativos do usuário (inclui pendentes de pagamento)
+            // Aluguéis ativos do usuário
             $activeRentals = $pdo->prepare("
-                SELECT ship_id FROM exploration_rentals
+                SELECT ship_id, status FROM exploration_rentals
                 WHERE user_id = ? AND status IN ('active', 'pending_payment')
             ");
             $activeRentals->execute([$userId]);
-            $rentedShipIds = $activeRentals->fetchAll(PDO::FETCH_COLUMN);
+            $rentalRows = $activeRentals->fetchAll(PDO::FETCH_ASSOC);
+            $rentedShipIds = array_column(array_filter($rentalRows, fn($r) => $r['status'] === 'active'), 'ship_id');
+            $pendingShipIds = array_column(array_filter($rentalRows, fn($r) => $r['status'] === 'pending_payment'), 'ship_id');
 
             // Limite de aluguéis
             $maxRentals = 3;
@@ -85,6 +87,7 @@ try {
                 $ship['rental_duration_hours'] = (int)$ship['rental_duration_hours'];
                 $ship['credits_per_day'] = (int)$ship['credits_per_day'];
                 $ship['is_rented'] = in_array($ship['id'], $rentedShipIds);
+                $ship['is_pending_payment'] = in_array($ship['id'], $pendingShipIds);
             }
             unset($ship);
 
@@ -92,6 +95,7 @@ try {
                 'success' => true,
                 'ships' => $ships,
                 'active_rentals' => count($rentedShipIds),
+                'pending_rentals' => count($pendingShipIds),
                 'max_rentals' => $maxRentals,
                 'balance_brl' => (float)$user['balance_brl'],
                 'credits' => (int)$user['credits']
@@ -304,7 +308,7 @@ try {
                 FROM exploration_rentals r
                 LEFT JOIN exploration_ships s ON s.id = r.ship_id
                 WHERE r.user_id = ?
-                ORDER BY FIELD(r.status, 'active', 'expired', 'cancelled'), r.created_at DESC
+                ORDER BY FIELD(r.status, 'active', 'pending_payment', 'expired', 'cancelled'), r.created_at DESC
                 LIMIT 20
             ");
             $rentals->execute([$userId]);
@@ -312,15 +316,20 @@ try {
 
             $result = [];
             foreach ($rows as $r) {
+                $isPending = ($r['status'] === 'pending_payment');
                 $startedAt = strtotime($r['started_at']);
                 $expiresAt = strtotime($r['expires_at']);
                 $now = time();
 
-                // Calcular créditos acumulados em tempo real
-                $effectiveEnd = min($now, $expiresAt);
-                $elapsedSeconds = max(0, $effectiveEnd - $startedAt);
-                $totalAccumulated = (int)floor(($elapsedSeconds / 86400) * (int)$r['credits_per_day']);
-                $unclaimed = max(0, $totalAccumulated - (int)$r['credits_claimed']);
+                // Créditos só acumulam para rentals ativos (não pendentes)
+                $totalAccumulated = 0;
+                $unclaimed = 0;
+                if (!$isPending) {
+                    $effectiveEnd = min($now, $expiresAt);
+                    $elapsedSeconds = max(0, $effectiveEnd - $startedAt);
+                    $totalAccumulated = (int)floor(($elapsedSeconds / 86400) * (int)$r['credits_per_day']);
+                    $unclaimed = max(0, $totalAccumulated - (int)$r['credits_claimed']);
+                }
 
                 $result[] = [
                     'id' => (int)$r['id'],
@@ -335,7 +344,7 @@ try {
                     'unclaimed' => $unclaimed,
                     'started_at' => $r['started_at'],
                     'expires_at' => $r['expires_at'],
-                    'is_expired' => $now >= $expiresAt
+                    'is_expired' => $isPending ? false : ($now >= $expiresAt)
                 ];
             }
 
@@ -371,6 +380,12 @@ try {
                 if (!$rental) {
                     $pdo->rollBack();
                     echo json_encode(['success' => false, 'error' => 'Aluguel não encontrado']);
+                    exit;
+                }
+
+                if ($rental['status'] !== 'active') {
+                    $pdo->rollBack();
+                    echo json_encode(['success' => false, 'error' => 'Aluguel não está ativo']);
                     exit;
                 }
 
