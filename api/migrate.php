@@ -446,21 +446,30 @@ try {
     $results['migrations'][] = 'exploration_rentals';
     output("  [OK] exploration_rentals");
 
-    // Adicionar coluna external_id e status pending_payment em exploration_rentals
+    // Adicionar coluna external_id em exploration_rentals
     try {
         $col = $pdo->query("SHOW COLUMNS FROM exploration_rentals LIKE 'external_id'")->fetch();
         if (!$col) {
             $pdo->exec("ALTER TABLE exploration_rentals ADD COLUMN external_id VARCHAR(100) DEFAULT NULL AFTER status");
-            $pdo->exec("ALTER TABLE exploration_rentals ADD INDEX idx_external_id (external_id)");
+            try { $pdo->exec("ALTER TABLE exploration_rentals ADD INDEX idx_external_id (external_id)"); } catch (Exception $e2) {}
+            $results['migrations'][] = 'exploration_rentals.external_id';
             output("  [OK] exploration_rentals.external_id adicionada");
         }
-    } catch (Exception $e) { /* já existe */ }
+    } catch (Exception $e) {
+        $results['errors'][] = 'exploration_rentals.external_id: ' . $e->getMessage();
+    }
 
     // Atualizar ENUM de status para incluir pending_payment
     try {
-        $pdo->exec("ALTER TABLE exploration_rentals MODIFY COLUMN status ENUM('pending_payment','active','expired','cancelled') NOT NULL DEFAULT 'active'");
-        output("  [OK] exploration_rentals.status atualizado com pending_payment");
-    } catch (Exception $e) { /* ok */ }
+        $colInfo = $pdo->query("SHOW COLUMNS FROM exploration_rentals LIKE 'status'")->fetch();
+        if ($colInfo && strpos($colInfo['Type'], 'pending_payment') === false) {
+            $pdo->exec("ALTER TABLE exploration_rentals MODIFY COLUMN status ENUM('pending_payment','active','expired','cancelled') NOT NULL DEFAULT 'active'");
+            $results['migrations'][] = 'exploration_rentals.status_enum';
+            output("  [OK] exploration_rentals.status atualizado com pending_payment");
+        }
+    } catch (Exception $e) {
+        $results['errors'][] = 'exploration_rentals.status_enum: ' . $e->getMessage();
+    }
 
     // ============================================
     // COLUNAS EXTRAS EM TABELAS EXISTENTES
