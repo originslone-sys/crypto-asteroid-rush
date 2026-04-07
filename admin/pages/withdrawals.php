@@ -113,9 +113,11 @@ try {
             SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing,
             SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as approved,
             SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
+            SUM(CASE WHEN status = 'under_review' THEN 1 ELSE 0 END) as under_review,
             SUM(CASE WHEN status = 'pending' THEN amount_brl ELSE 0 END) as pending_amount,
             SUM(CASE WHEN status = 'processing' THEN amount_brl ELSE 0 END) as processing_amount,
-            SUM(CASE WHEN status = 'completed' THEN amount_brl ELSE 0 END) as completed_amount
+            SUM(CASE WHEN status = 'completed' THEN amount_brl ELSE 0 END) as completed_amount,
+            SUM(CASE WHEN status = 'under_review' THEN amount_brl ELSE 0 END) as under_review_amount
         FROM withdrawals
     ")->fetch();
     
@@ -229,6 +231,9 @@ try {
                 <a href="?page=withdrawals&status=processing" class="tab <?php echo $statusFilter === 'processing' ? 'active' : ''; ?>">
                     <i class="fas fa-spinner"></i> Processando (<?php echo $stats['processing'] ?? 0; ?>)
                 </a>
+                <a href="?page=withdrawals&status=under_review" class="tab <?php echo $statusFilter === 'under_review' ? 'active' : ''; ?>" style="<?php echo ($stats['under_review'] ?? 0) > 0 ? 'color:#ff8800;' : ''; ?>">
+                    <i class="fas fa-search"></i> Em Análise (<?php echo $stats['under_review'] ?? 0; ?>)
+                </a>
                 <a href="?page=withdrawals&status=completed" class="tab <?php echo $statusFilter === 'completed' ? 'active' : ''; ?>">
                     <i class="fas fa-check"></i> Aprovados
                 </a>
@@ -329,8 +334,8 @@ try {
                             <td><?php echo formatBRL($w['balance_brl']); ?></td>
                             <td>
                                 <?php
-                                $statusClass = ['completed' => 'success', 'pending' => 'warning', 'processing' => 'primary', 'rejected' => 'danger'][$w['status']] ?? 'primary';
-                                $statusText = ['completed' => 'Concluido', 'pending' => 'Pendente', 'processing' => 'Processando PIX', 'rejected' => 'Rejeitado'][$w['status']] ?? $w['status'];
+                                $statusClass = ['completed' => 'success', 'pending' => 'warning', 'processing' => 'primary', 'rejected' => 'danger', 'under_review' => 'info'][$w['status']] ?? 'primary';
+                                $statusText = ['completed' => 'Concluido', 'pending' => 'Pendente', 'processing' => 'Processando PIX', 'rejected' => 'Rejeitado', 'under_review' => 'Em Análise'][$w['status']] ?? $w['status'];
                                 ?>
                                 <span class="badge badge-<?php echo $statusClass; ?>"><?php echo $statusText; ?></span>
                                 <?php if (!empty($w['zettpay_external_id'])): ?>
@@ -345,14 +350,15 @@ try {
                                 ?>
                                 <div class="btn-group">
                                     <?php if ($isPix): ?>
-                                    <!-- PIX: Aprovar via ZettPay (automático) -->
                                     <button onclick="approveWithdrawalZettpay(<?php echo $w['id']; ?>, <?php echo $w['amount_brl']; ?>)" class="btn btn-success btn-sm" title="Aprovar via PIX ZettPay">
                                         <i class="fas fa-bolt"></i> PIX
                                     </button>
                                     <?php endif; ?>
-                                    <!-- Aprovação manual (qualquer método) -->
                                     <button onclick="approveWithdrawalManual(<?php echo $w['id']; ?>, <?php echo $w['amount_brl']; ?>)" class="btn btn-success btn-sm" title="Aprovar manualmente (pagamento externo)">
                                         <i class="fas fa-check"></i>
+                                    </button>
+                                    <button onclick="sendToReview(<?php echo $w['id']; ?>)" class="btn btn-sm" style="background:rgba(255,136,0,0.15);color:#ff8800;border:1px solid rgba(255,136,0,0.3);" title="Enviar para análise manual">
+                                        <i class="fas fa-search"></i>
                                     </button>
                                     <button onclick="rejectWithdrawal(<?php echo $w['id']; ?>)" class="btn btn-danger btn-sm">
                                         <i class="fas fa-times"></i>
@@ -366,8 +372,26 @@ try {
                                     <button onclick="forceCompleteWithdrawal(<?php echo $w['id']; ?>, <?php echo $w['amount_brl']; ?>)" class="btn btn-success btn-sm" title="Confirmar manualmente como pago">
                                         <i class="fas fa-check-double"></i> Confirmar
                                     </button>
+                                    <button onclick="sendToReview(<?php echo $w['id']; ?>)" class="btn btn-sm" style="background:rgba(255,136,0,0.15);color:#ff8800;border:1px solid rgba(255,136,0,0.3);" title="Enviar para análise">
+                                        <i class="fas fa-search"></i>
+                                    </button>
                                     <button onclick="rejectWithdrawal(<?php echo $w['id']; ?>)" class="btn btn-danger btn-sm" title="Rejeitar e devolver saldo">
                                         <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <?php elseif ($w['status'] === 'under_review'): ?>
+                                <div class="btn-group">
+                                    <?php $isPix = strtoupper($w['wallet_address'] ?? '') === 'PIX'; ?>
+                                    <?php if ($isPix): ?>
+                                    <button onclick="approveWithdrawalZettpay(<?php echo $w['id']; ?>, <?php echo $w['amount_brl']; ?>)" class="btn btn-success btn-sm" title="Aprovar via PIX ZettPay">
+                                        <i class="fas fa-bolt"></i> PIX
+                                    </button>
+                                    <?php endif; ?>
+                                    <button onclick="approveWithdrawalManual(<?php echo $w['id']; ?>, <?php echo $w['amount_brl']; ?>)" class="btn btn-success btn-sm" title="Aprovar manualmente">
+                                        <i class="fas fa-check"></i> Aprovar
+                                    </button>
+                                    <button onclick="rejectWithdrawal(<?php echo $w['id']; ?>)" class="btn btn-danger btn-sm" title="Rejeitar e devolver saldo">
+                                        <i class="fas fa-times"></i> Rejeitar
                                     </button>
                                 </div>
                                 <?php else: ?>
@@ -563,6 +587,35 @@ async function forceCompleteWithdrawal(id, amount) {
         alert('Erro de conexão: ' + error.message);
         btn.disabled = false;
         btn.innerHTML = originalHtml;
+    }
+}
+
+async function sendToReview(id) {
+    if (!confirm('Enviar saque #' + id + ' para análise manual?')) return;
+
+    const btn = event.target.closest('button');
+    const origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    try {
+        const resp = await fetch('../api/admin-ajax.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'send_to_review', id: id })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.error || 'Falha'));
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    } catch (e) {
+        alert('Erro de conexão.');
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
     }
 }
 

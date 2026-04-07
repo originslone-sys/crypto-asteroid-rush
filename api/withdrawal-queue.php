@@ -40,7 +40,7 @@ try {
     $limit = 100;
     $offset = ($page - 1) * $limit;
 
-    $allowedStatuses = ['pending', 'processing', 'completed', 'rejected', 'all'];
+    $allowedStatuses = ['pending', 'processing', 'completed', 'rejected', 'under_review', 'all'];
     if (!in_array($status, $allowedStatuses)) {
         $status = 'all';
     }
@@ -51,6 +51,7 @@ try {
         SELECT
             SUM(status = 'pending') as pending,
             SUM(status = 'processing') as processing,
+            SUM(status = 'under_review') as under_review,
             SUM(status = 'completed') as completed,
             SUM(status = 'rejected') as rejected,
             COUNT(*) as total
@@ -163,6 +164,7 @@ try {
         'counts' => [
             'pending' => (int)$counts['pending'],
             'processing' => (int)$counts['processing'],
+            'under_review' => (int)$counts['under_review'],
             'completed' => (int)$counts['completed'],
             'rejected' => (int)$counts['rejected'],
             'total' => (int)$counts['total']
