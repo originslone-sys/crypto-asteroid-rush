@@ -675,6 +675,20 @@ try {
         output("  [OK] Configurações padrão inseridas/ignoradas");
     } catch (Exception $e) { /* game_settings pode não existir */ }
 
+    // Offset inicial de saldo/créditos para dashboard (zerar contagem)
+    try {
+        $hasOffset = $pdo->query("SELECT COUNT(*) FROM game_settings WHERE setting_key = 'balance_offset'")->fetchColumn();
+        if (!$hasOffset) {
+            $totals = $pdo->query("SELECT COALESCE(SUM(balance_brl),0) as b, COALESCE(SUM(credits),0) as c FROM users")->fetch();
+            $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES ('balance_offset', ?, 0, NOW())")
+                ->execute([$totals['b']]);
+            $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES ('credits_offset', ?, 0, NOW())")
+                ->execute([$totals['c']]);
+            $results['migrations'][] = 'balance_credits_offset:initial';
+            output("  [OK] Offset inicial de saldo/créditos salvo (balance: {$totals['b']}, credits: {$totals['c']})");
+        }
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
     // ============================================
     // PVP - TABELAS E COLUNAS
     // ============================================
