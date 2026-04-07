@@ -797,6 +797,14 @@ try {
             if (!$withdrawal) throw new Exception("Saque não encontrado");
             if (!in_array($withdrawal["status"], ["pending", "processing"])) throw new Exception("Só é possível enviar para análise saques pendentes ou em processamento");
 
+            // Garantir que ENUM inclui under_review
+            try {
+                $colInfo = $pdo->query("SHOW COLUMNS FROM withdrawals LIKE 'status'")->fetch();
+                if ($colInfo && strpos($colInfo['Type'], 'under_review') === false) {
+                    $pdo->exec("ALTER TABLE withdrawals MODIFY COLUMN status ENUM('pending','processing','under_review','completed','rejected','failed') NOT NULL DEFAULT 'pending'");
+                }
+            } catch (Exception $ignore) {}
+
             $pdo->prepare("UPDATE withdrawals SET status = 'under_review' WHERE id = ?")->execute([$id]);
             secureLog("WITHDRAWAL_UNDER_REVIEW | id: {$id} | user_id: {$withdrawal['user_id']} | amount: R\${$withdrawal['amount_brl']}");
 
