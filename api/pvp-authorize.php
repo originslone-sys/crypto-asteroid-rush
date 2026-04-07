@@ -94,37 +94,20 @@ try {
         }
     } catch (Exception $e) { /* usa constantes padrão */ }
 
-    // Verificar e debitar créditos (pula se entry fee = 0, modo gratuito)
+    // Verificar créditos (sem debitar — débito ocorre ao encontrar partida via pvp-debit.php)
     $lockedCredits = (int)($user['credits'] ?? 0);
-    if ($entryFee > 0) {
-        $pdo->beginTransaction();
-        try {
-            $lockStmt = $pdo->prepare("SELECT credits FROM users WHERE id = ? FOR UPDATE");
-            $lockStmt->execute([$userId]);
-            $lockedUser = $lockStmt->fetch();
-            $lockedCredits = (int)($lockedUser['credits'] ?? 0);
-
-            if ($lockedCredits < $entryFee) {
-                $pdo->rollBack();
-                echo json_encode([
-                    'success' => false,
-                    'error' => 'Créditos insuficientes! Você precisa de ' . $entryFee . ' crédito(s) para o modo PvP.',
-                    'error_code' => 'NO_CREDITS',
-                    'credits' => $lockedCredits,
-                    'credits_required' => $entryFee
-                ]);
-                exit;
-            }
-
-            $pdo->prepare("UPDATE users SET credits = credits - ? WHERE id = ?")->execute([$entryFee, $userId]);
-            $pdo->commit();
-        } catch (Exception $e) {
-            $pdo->rollBack();
-            throw $e;
-        }
+    if ($entryFee > 0 && $lockedCredits < $entryFee) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Créditos insuficientes! Você precisa de ' . $entryFee . ' crédito(s) para o modo PvP.',
+            'error_code' => 'NO_CREDITS',
+            'credits' => $lockedCredits,
+            'credits_required' => $entryFee
+        ]);
+        exit;
     }
 
-    $remainingCredits = $lockedCredits - $entryFee;
+    $remainingCredits = $lockedCredits;
 
     // Gerar token JWT para o Game Server
     $now = time();

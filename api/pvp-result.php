@@ -150,7 +150,7 @@ try {
                 "PvP vitória R$ " . number_format($winnerPrizeBrl, 2, ',', '.') . " (match: " . substr($matchId, 0, 8) . ")"
             ]);
 
-            // Registrar transação do perdedor (entry fee em créditos já foi debitado no authorize)
+            // Registrar transação do perdedor (entry fee debitado via pvp-debit.php ao iniciar partida)
             $pdo->prepare("
                 INSERT INTO transactions (google_uid, type, amount, amount_brl, description, status, created_at)
                 VALUES (?, 'pvp_loss', 0, 0, ?, 'completed', NOW())
