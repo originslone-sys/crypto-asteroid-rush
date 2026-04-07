@@ -813,6 +813,24 @@ try {
             }
             break;
 
+        // -------------------------------------------------------
+        // RESETAR CONTAGEM DE SALDO/CRÉDITOS NO DASHBOARD
+        // -------------------------------------------------------
+        case "reset_balance_credits_offset":
+            $totals = $pdo->query("SELECT COALESCE(SUM(balance_brl),0) as total_balance, COALESCE(SUM(credits),0) as total_credits FROM users")->fetch();
+
+            $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES ('balance_offset', ?, 0, NOW())
+                ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()")
+                ->execute([$totals['total_balance'], $totals['total_balance']]);
+
+            $pdo->prepare("INSERT INTO game_settings (setting_key, setting_value, is_public, updated_at) VALUES ('credits_offset', ?, 0, NOW())
+                ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()")
+                ->execute([$totals['total_credits'], $totals['total_credits']]);
+
+            secureLog("RESET_BALANCE_CREDITS_OFFSET | balance_offset: {$totals['total_balance']} | credits_offset: {$totals['total_credits']}");
+            $response = ["success" => true, "message" => "Contagem zerada! Saldo offset: R\$ " . number_format($totals['total_balance'], 2, ',', '.') . " | Créditos offset: " . $totals['total_credits']];
+            break;
+
         case "add_credits":
             $targetUid = trim($input['google_uid'] ?? '');
             $creditsToAdd = intval($input['credits'] ?? 0);
