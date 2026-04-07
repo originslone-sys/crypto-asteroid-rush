@@ -23,14 +23,32 @@ try {
         FROM users
     ")->fetch();
 
-    // Offsets para zerar contagem a partir de uma data
-    $balanceOffset = 0;
-    $creditsOffset = 0;
-    $offRow = $pdo->query("SELECT setting_key, setting_value FROM game_settings WHERE setting_key IN ('balance_offset','credits_offset')")->fetchAll(PDO::FETCH_KEY_PAIR);
-    $balanceOffset = floatval($offRow['balance_offset'] ?? 0);
-    $creditsOffset = intval($offRow['credits_offset'] ?? 0);
-    $displayBalance = max(0, ($playerStats['total_balance'] ?? 0) - $balanceOffset);
-    $displayCredits = max(0, ($playerStats['total_credits'] ?? 0) - $creditsOffset);
+    // Saldo e créditos acumulados desde a data de referência
+    $refRow = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'stats_reference_date' LIMIT 1")->fetch();
+    $refDate = $refRow ? $refRow['setting_value'] : null;
+
+    if ($refDate) {
+        // Saldo: soma de ganhos (amount_brl > 0) em transações desde a data de referência
+        $balStmt = $pdo->prepare("
+            SELECT COALESCE(SUM(amount_brl), 0)
+            FROM transactions
+            WHERE amount_brl > 0 AND status = 'completed' AND created_at >= ?
+        ");
+        $balStmt->execute([$refDate]);
+        $displayBalance = floatval($balStmt->fetchColumn());
+
+        // Créditos: soma de compras de créditos confirmadas desde a data de referência
+        $credStmt = $pdo->prepare("
+            SELECT COALESCE(SUM(t.amount_brl), 0)
+            FROM transactions t
+            WHERE t.type = 'credit_purchase' AND t.status = 'completed' AND t.created_at >= ?
+        ");
+        $credStmt->execute([$refDate]);
+        $displayCredits = intval($credStmt->fetchColumn());
+    } else {
+        $displayBalance = floatval($playerStats['total_balance'] ?? 0);
+        $displayCredits = intval($playerStats['total_credits'] ?? 0);
+    }
 
     // Estatísticas de saques — tabela: withdrawals (doc 3.4)
     $withdrawStats = $pdo->query("
@@ -172,8 +190,8 @@ if (!function_exists('formatBRLShort')) {
         <div class="stat-card">
             <div class="icon warning"><i class="fas fa-wallet"></i></div>
             <div class="value"><?php echo formatBRLShort($displayBalance); ?></div>
-            <div class="label">Saldo Total Jogadores</div>
-            <div class="change"><?php echo number_format($displayCredits); ?> créditos em conta</div>
+            <div class="label">Ganhos Acumulados<?php echo $refDate ? ' (desde ' . date('d/m', strtotime($refDate)) . ')' : ''; ?></div>
+            <div class="change">R$ <?php echo number_format($displayCredits, 2, ',', '.'); ?> em compras de créditos</div>
         </div>
 
         <div class="stat-card">
@@ -283,7 +301,7 @@ if (!function_exists('formatBRLShort')) {
                 </div>
                 <div style="padding: 15px; background: rgba(0,229,204,0.08); border-radius: 10px;">
                     <div style="color: var(--text-dim); font-size: 0.8rem;">Saldo em Jogo</div>
-                    <div style="font-size: 1.2rem; font-weight: 700; color: var(--warning);"><?php echo formatBRLShort($displayBalance); ?></div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: var(--warning);"><?php echo formatBRLShort($playerStats['total_balance']); ?></div>
                     <div style="font-size: 0.75rem; color: var(--text-dim);">Passivo total (carteiras)</div>
                 </div>
                 <div style="padding: 15px; background: rgba(0,240,255,0.08); border-radius: 10px;">
