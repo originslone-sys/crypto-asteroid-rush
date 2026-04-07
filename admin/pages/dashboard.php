@@ -169,12 +169,11 @@ if (!function_exists('formatBRLShort')) {
             <div class="change"><?php echo $sessionStats['completed'] ?? 0; ?> completadas</div>
         </div>
 
-        <div class="stat-card" style="position:relative;">
+        <div class="stat-card">
             <div class="icon warning"><i class="fas fa-wallet"></i></div>
             <div class="value"><?php echo formatBRLShort($displayBalance); ?></div>
             <div class="label">Saldo Total Jogadores</div>
             <div class="change"><?php echo number_format($displayCredits); ?> créditos em conta</div>
-            <button onclick="resetBalanceCredits()" title="Zerar contagem a partir de agora" style="position:absolute;top:8px;right:8px;background:none;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--text-dim);font-size:0.65rem;padding:3px 6px;cursor:pointer;opacity:0.5;transition:opacity 0.3s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'"><i class="fas fa-redo-alt"></i></button>
         </div>
 
         <div class="stat-card">
@@ -307,19 +306,3 @@ if (!function_exists('formatBRLShort')) {
     </div>
 </div>
 
-<script>
-async function resetBalanceCredits() {
-    if (!confirm('Zerar a contagem de saldo e créditos a partir de agora?\n\nOs valores atuais serão salvos como offset e o card passará a mostrar apenas o acumulado a partir deste momento.')) return;
-    try {
-        const res = await adminAjax({ action: 'reset_balance_credits_offset' });
-        if (res.success) {
-            showToast(res.message, 'success');
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            showToast(res.error || res.message, 'error');
-        }
-    } catch (e) {
-        showToast('Erro: ' + e.message, 'error');
-    }
-}
-</script>
