@@ -46,12 +46,14 @@ const PvPSessionManager = {
                 return;
             }
 
-            // Socket.io será carregado dinamicamente
+            // Socket.io — URL é o host, path é /pvp-ws/socket.io em produção
             this.socket = io(PVP_CONFIG.GAME_SERVER_URL, {
+                path: PVP_CONFIG.GAME_SERVER_PATH,
                 transports: ['websocket'],
                 reconnection: true,
-                reconnectionAttempts: 3,
-                reconnectionDelay: 1000
+                reconnectionAttempts: 10,
+                reconnectionDelay: 1500,
+                reconnectionDelayMax: 5000
             });
 
             // Autenticar ao conectar
@@ -94,10 +96,15 @@ const PvPSessionManager = {
 
             this.socket.on('your_slot', (data) => {
                 pvpState.mySlot = data.slot;
-                const opponent = pvpState.mySlot === 1
-                    ? pvpState.serverState?.player2?.displayName
-                    : pvpState.serverState?.player1?.displayName;
-                pvpState.opponentName = opponent;
+                // Agora que sabemos nosso slot, atualizar nome do oponente
+                const matchData = pvpState._matchData;
+                if (matchData) {
+                    pvpState.opponentName = data.slot === 1
+                        ? matchData.player2.displayName
+                        : matchData.player1.displayName;
+                    const el = document.getElementById('pvpOpponentName');
+                    if (el) el.textContent = pvpState.opponentName;
+                }
             });
 
             this.socket.on('countdown', (data) => {
@@ -112,6 +119,18 @@ const PvPSessionManager = {
             this.socket.on('game_state', (state) => {
                 pvpState.previousState = pvpState.serverState;
                 pvpState.serverState = state;
+
+                // Salvar prev/curr do oponente para entity interpolation no renderer
+                if (pvpState.mySlot) {
+                    const opp = pvpState.mySlot === 1 ? state.player2 : state.player1;
+                    if (opp) {
+                        pvpState.opponentPrev = pvpState.opponentCurr
+                            ? { x: pvpState.opponentCurr.x, y: pvpState.opponentCurr.y }
+                            : { x: opp.x, y: opp.y };
+                        pvpState.opponentCurr = { x: opp.x, y: opp.y };
+                        pvpState.opponentUpdatedAt = Date.now();
+                    }
+                }
             });
 
             this.socket.on('game_end', (result) => {

@@ -40,11 +40,11 @@ const PvPRenderer = {
     },
 
     startLoop() {
-        const loop = () => {
-            this.render();
+        const loop = (now) => {
+            this.render(now);
             this.animationFrameId = requestAnimationFrame(loop);
         };
-        loop();
+        requestAnimationFrame(loop);
     },
 
     stopLoop() {
@@ -54,7 +54,10 @@ const PvPRenderer = {
         }
     },
 
-    render() {
+    render(now) {
+        // Física com delta-time — frame-rate independente
+        if (PvPEngine.gameActive) PvPEngine.stepLocalPrediction(now || performance.now());
+
         const ctx = this.ctx;
         const w = this.canvas.width;
         const h = this.canvas.height;
@@ -82,23 +85,53 @@ const PvPRenderer = {
         const scaleX = w / PVP_CONFIG.ARENA_WIDTH;
         const scaleY = h / PVP_CONFIG.ARENA_HEIGHT;
 
-        // Asteroides
-        this.renderAsteroids(ctx, state.asteroids, scaleX, scaleY);
+        // Balas locais (predição imediata — aparecem antes da confirmação do servidor)
+        if (pvpState.localBullets && pvpState.localBullets.length) {
+            this.renderBullets(ctx, pvpState.localBullets, PVP_CONFIG.PLAYER_BULLET_COLOR,
+                PVP_CONFIG.PLAYER_BULLET_COLOR, scaleX, scaleY);
+        }
 
-        // Balas Player 1 (verde)
-        this.renderBullets(ctx, state.player1Bullets, PVP_CONFIG.PLAYER_BULLET_COLOR,
+        // Balas confirmadas pelo servidor (oponente + as minhas já confirmadas)
+        const mySlot = pvpState.mySlot;
+        const myServerBullets   = mySlot === 1 ? state.player1Bullets : state.player2Bullets;
+        const oppServerBullets  = mySlot === 1 ? state.player2Bullets : state.player1Bullets;
+
+        // Renderizar balas do servidor somente se não há balas locais pendentes
+        // (evita duplicação visual enquanto a predição ainda não foi confirmada)
+        if (!pvpState.localBullets || pvpState.localBullets.length === 0) {
+            this.renderBullets(ctx, myServerBullets, PVP_CONFIG.PLAYER_BULLET_COLOR,
+                PVP_CONFIG.PLAYER_BULLET_COLOR, scaleX, scaleY);
+        }
+        this.renderBullets(ctx, oppServerBullets, PVP_CONFIG.OPPONENT_BULLET_COLOR,
             PVP_CONFIG.OPPONENT_BULLET_COLOR, scaleX, scaleY);
 
-        // Balas Player 2 (vermelho)
-        this.renderBullets(ctx, state.player2Bullets, PVP_CONFIG.PLAYER_BULLET_COLOR,
-            PVP_CONFIG.OPPONENT_BULLET_COLOR, scaleX, scaleY);
+        // Minha nave: posição da predição local (sem lag), dados vitais do servidor
+        const myPlayerServer = pvpState.mySlot === 1 ? state.player1 : state.player2;
+        const opponentServer = pvpState.mySlot === 1 ? state.player2 : state.player1;
 
-        // Naves
-        const myPlayer = pvpState.mySlot === 1 ? state.player1 : state.player2;
-        const opponent = pvpState.mySlot === 1 ? state.player2 : state.player1;
+        const myPlayer = (pvpState.localPrediction && myPlayerServer)
+            ? { ...myPlayerServer, x: pvpState.localPrediction.x, y: pvpState.localPrediction.y }
+            : myPlayerServer;
 
-        this.renderShip(ctx, myPlayer, PVP_CONFIG.PLAYER_COLOR, false, scaleX, scaleY);
-        this.renderShip(ctx, opponent, PVP_CONFIG.OPPONENT_COLOR, true, scaleX, scaleY);
+        // Oponente: entity interpolation entre pacote anterior e atual
+        // Renderiza no passado (1 tick atrás) mas de forma completamente suave
+        let opponent = opponentServer;
+        if (opponentServer && pvpState.opponentPrev && pvpState.opponentCurr) {
+            const elapsed = Date.now() - pvpState.opponentUpdatedAt;
+            const t = Math.min(1, elapsed / 16); // 16ms = 1 server tick
+            opponent = {
+                ...opponentServer,
+                x: pvpState.opponentPrev.x + (pvpState.opponentCurr.x - pvpState.opponentPrev.x) * t,
+                y: pvpState.opponentPrev.y + (pvpState.opponentCurr.y - pvpState.opponentPrev.y) * t,
+            };
+        }
+
+        // Slot 1 (baixo) aponta para cima; Slot 2 (cima) aponta para baixo
+        const myInverted = pvpState.mySlot === 2;
+        const opInverted = pvpState.mySlot === 1;
+
+        this.renderShip(ctx, myPlayer,  PVP_CONFIG.PLAYER_COLOR,  myInverted, scaleX, scaleY);
+        this.renderShip(ctx, opponent,  PVP_CONFIG.OPPONENT_COLOR, opInverted, scaleX, scaleY);
 
         // Eventos (explosões)
         if (state.events) {
@@ -122,44 +155,6 @@ const PvPRenderer = {
             ctx.beginPath();
             ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
             ctx.fill();
-        }
-    },
-
-    renderAsteroids(ctx, asteroids, sx, sy) {
-        if (!asteroids) return;
-        for (const a of asteroids) {
-            const x = a.x * sx;
-            const y = a.y * sy;
-            const size = a.size * Math.min(sx, sy);
-
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(a.rotation || 0);
-
-            // Corpo do asteroide
-            const gradient = ctx.createRadialGradient(0, 0, size * 0.1, 0, 0, size * 0.5);
-            gradient.addColorStop(0, '#8B7355');
-            gradient.addColorStop(0.5, '#6B5340');
-            gradient.addColorStop(1, '#4A3728');
-
-            ctx.beginPath();
-            const points = 8;
-            for (let i = 0; i < points; i++) {
-                const angle = (i / points) * Math.PI * 2;
-                const radius = size * 0.45 * (0.7 + Math.random() * 0.3);
-                const px = Math.cos(angle) * radius;
-                const py = Math.sin(angle) * radius;
-                if (i === 0) ctx.moveTo(px, py);
-                else ctx.lineTo(px, py);
-            }
-            ctx.closePath();
-            ctx.fillStyle = gradient;
-            ctx.fill();
-            ctx.strokeStyle = '#3A2718';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-
-            ctx.restore();
         }
     },
 
@@ -193,54 +188,96 @@ const PvPRenderer = {
 
         const x = player.x * sx;
         const y = player.y * sy;
-        const size = 20 * Math.min(sx, sy);
+        const size = Math.max(22, 22 * Math.min(sx, sy));
 
-        // Flashing se invencível
         if (player.invincible && Math.floor(Date.now() / 100) % 2 === 0) {
-            ctx.globalAlpha = 0.4;
+            ctx.globalAlpha = 0.3;
         }
 
         ctx.save();
         ctx.translate(x, y);
         if (inverted) ctx.rotate(Math.PI);
 
-        // Corpo da nave
+        // Engine trail glow
+        const trailGrad = ctx.createRadialGradient(0, size * 0.7, 0, 0, size * 0.7, size * 0.6);
+        trailGrad.addColorStop(0, color + 'cc');
+        trailGrad.addColorStop(0.4, color + '55');
+        trailGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = trailGrad;
         ctx.beginPath();
-        ctx.moveTo(0, -size);
-        ctx.lineTo(-size * 0.7, size * 0.6);
-        ctx.lineTo(-size * 0.3, size * 0.4);
-        ctx.lineTo(0, size * 0.5);
-        ctx.lineTo(size * 0.3, size * 0.4);
-        ctx.lineTo(size * 0.7, size * 0.6);
-        ctx.closePath();
-
-        const gradient = ctx.createLinearGradient(0, -size, 0, size);
-        gradient.addColorStop(0, color);
-        gradient.addColorStop(1, color + '88');
-        ctx.fillStyle = gradient;
+        ctx.ellipse(0, size * 0.7, size * 0.25, size * 0.55, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Contorno
+        // Left wing
+        ctx.beginPath();
+        ctx.moveTo(0, -size * 0.3);
+        ctx.lineTo(-size * 1.1, size * 0.5);
+        ctx.lineTo(-size * 0.6, size * 0.6);
+        ctx.lineTo(-size * 0.2, size * 0.1);
+        ctx.closePath();
+        const wingGradL = ctx.createLinearGradient(-size, 0, 0, 0);
+        wingGradL.addColorStop(0, color + '66');
+        wingGradL.addColorStop(1, color + 'cc');
+        ctx.fillStyle = wingGradL;
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Right wing
+        ctx.beginPath();
+        ctx.moveTo(0, -size * 0.3);
+        ctx.lineTo(size * 1.1, size * 0.5);
+        ctx.lineTo(size * 0.6, size * 0.6);
+        ctx.lineTo(size * 0.2, size * 0.1);
+        ctx.closePath();
+        const wingGradR = ctx.createLinearGradient(0, 0, size, 0);
+        wingGradR.addColorStop(0, color + 'cc');
+        wingGradR.addColorStop(1, color + '66');
+        ctx.fillStyle = wingGradR;
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Main body
+        ctx.beginPath();
+        ctx.moveTo(0, -size);
+        ctx.lineTo(-size * 0.35, -size * 0.2);
+        ctx.lineTo(-size * 0.3, size * 0.6);
+        ctx.lineTo(0, size * 0.75);
+        ctx.lineTo(size * 0.3, size * 0.6);
+        ctx.lineTo(size * 0.35, -size * 0.2);
+        ctx.closePath();
+        const bodyGrad = ctx.createLinearGradient(0, -size, 0, size);
+        bodyGrad.addColorStop(0, '#ffffff');
+        bodyGrad.addColorStop(0.2, color);
+        bodyGrad.addColorStop(1, color + '88');
+        ctx.fillStyle = bodyGrad;
+        ctx.fill();
         ctx.strokeStyle = '#ffffff44';
         ctx.lineWidth = 1;
         ctx.stroke();
 
         // Cockpit
         ctx.beginPath();
-        ctx.arc(0, -size * 0.2, size * 0.2, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff66';
+        ctx.ellipse(0, -size * 0.25, size * 0.18, size * 0.28, 0, 0, Math.PI * 2);
+        const cockpitGrad = ctx.createRadialGradient(-size*0.05, -size*0.3, 0, 0, -size*0.25, size*0.18);
+        cockpitGrad.addColorStop(0, '#ffffff');
+        cockpitGrad.addColorStop(0.5, color + 'aa');
+        cockpitGrad.addColorStop(1, '#00000088');
+        ctx.fillStyle = cockpitGrad;
         ctx.fill();
 
-        // Engine glow
-        const glowSize = size * 0.3 + Math.sin(Date.now() * 0.01) * 3;
+        // Engine core
+        const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.008);
         ctx.beginPath();
-        ctx.arc(0, size * 0.5, glowSize, 0, Math.PI * 2);
-        const engineGradient = ctx.createRadialGradient(0, size * 0.5, 0, 0, size * 0.5, glowSize);
-        engineGradient.addColorStop(0, '#ffffffcc');
-        engineGradient.addColorStop(0.5, color + 'aa');
-        engineGradient.addColorStop(1, color + '00');
-        ctx.fillStyle = engineGradient;
+        ctx.ellipse(0, size * 0.65, size * 0.12 * pulse, size * 0.12 * pulse, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 12;
         ctx.fill();
+        ctx.shadowBlur = 0;
 
         ctx.restore();
         ctx.globalAlpha = 1;
@@ -313,23 +350,15 @@ const PvPRenderer = {
         ctx.fillText(opponent?.displayName || 'Oponente', 15, 25);
 
         // Vidas do oponente
-        this.renderLives(ctx, 15, 35, opponent?.lives || 0, PVP_CONFIG.OPPONENT_COLOR);
-
-        // Asteroides do oponente
-        ctx.fillStyle = '#aaaaaa';
-        ctx.fillText(`☄ ${opponent?.asteroidsDestroyed || 0}`, 15, 62);
+        this.renderLives(ctx, 15, 40, opponent?.lives || 0, PVP_CONFIG.OPPONENT_COLOR);
 
         // Info do jogador (base)
         ctx.textAlign = 'left';
         ctx.fillStyle = PVP_CONFIG.PLAYER_COLOR;
-        ctx.fillText(myPlayer?.displayName || 'Você', 15, h - 55);
+        ctx.fillText(myPlayer?.displayName || 'Você', 15, h - 40);
 
         // Vidas do jogador
-        this.renderLives(ctx, 15, h - 45, myPlayer?.lives || 0, PVP_CONFIG.PLAYER_COLOR);
-
-        // Asteroides do jogador
-        ctx.fillStyle = '#aaaaaa';
-        ctx.fillText(`☄ ${myPlayer?.asteroidsDestroyed || 0}`, 15, h - 18);
+        this.renderLives(ctx, 15, h - 25, myPlayer?.lives || 0, PVP_CONFIG.PLAYER_COLOR);
     },
 
     renderLives(ctx, x, y, lives, color) {

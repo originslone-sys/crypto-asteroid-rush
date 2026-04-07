@@ -3,10 +3,18 @@
 // ============================================
 
 const PVP_CONFIG = {
-    // Servidor — usa proxy nginx /pvp-ws/ em produção (resolve mixed-content HTTPS→WS)
+    // Servidor — sempre usa proxy nginx /pvp-ws/ em produção
+    // (evita mixed content: HTTPS página → nginx → HTTP game server internamente)
+    // Não usa window.PVP_SERVER_URL pois pvp.unobix.com não tem SSL configurado
+    // URL do host (sem path — o path é passado via GAME_SERVER_PATH)
     GAME_SERVER_URL: window.location.hostname === 'localhost'
         ? 'http://localhost:3000'
-        : (window.PVP_SERVER_URL || (window.location.origin + '/pvp-ws')),
+        : window.location.origin,
+
+    // Path do Socket.io — nginx proxia /pvp-ws/ para o game server
+    GAME_SERVER_PATH: window.location.hostname === 'localhost'
+        ? '/socket.io'
+        : '/pvp-ws/socket.io',
 
     // Arena
     ARENA_WIDTH: 1024,
@@ -28,8 +36,14 @@ const PVP_CONFIG = {
     PLAYER_COLOR: '#00aaff',
     OPPONENT_COLOR: '#ff6600',
 
-    // Interpolação
-    INTERPOLATION_FACTOR: 0.3,
+    // Física da nave (deve espelhar pvp-server/player.js)
+    SHIP_ACCEL_X: 8.0,
+    SHIP_ACCEL_Y: 6.0,
+    SHIP_FRICTION: 0.76,
+    SHIP_MAX_VX: 18,
+    SHIP_MAX_VY: 12,
+    BULLET_SPEED: 15,
+    FIRE_RATE_MS: 350,
 };
 
 // Estado do jogo PvP (client-side)
@@ -61,5 +75,14 @@ const pvpState = {
         up: false,
         down: false,
         fire: false
-    }
+    },
+
+    // Predição local
+    localPrediction: null,  // { x, y, vx, vy }
+    localBullets: [],       // balas disparadas localmente antes da confirmação do servidor
+
+    // Interpolação do oponente (entity interpolation entre pacotes do servidor)
+    opponentPrev: null,       // posição no pacote anterior
+    opponentCurr: null,       // posição no pacote mais recente
+    opponentUpdatedAt: 0,     // timestamp do último pacote
 };

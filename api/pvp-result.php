@@ -9,22 +9,12 @@ require_once __DIR__ . "/config.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
-// Autenticação do Game Server: token + whitelist de IP
+// Autenticação do Game Server via token secreto
 $serverToken = $_SERVER['HTTP_X_PVP_SERVER_TOKEN'] ?? '';
 if ($serverToken !== PVP_JWT_SECRET) {
+    error_log("❌ PVP-RESULT: Token inválido de IP: " . ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown'));
     http_response_code(403);
     echo json_encode(['success' => false, 'error' => 'Unauthorized']);
-    exit;
-}
-
-// Whitelist de IP do Game Server (aceita IP da VM ou localhost para testes)
-$pvpAllowedIps = array_filter(array_map('trim', explode(',', getenv('PVP_ALLOWED_IPS') ?: '34.138.147.143,127.0.0.1,::1')));
-$callerIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
-if (strpos($callerIp, ',') !== false) $callerIp = trim(explode(',', $callerIp)[0]);
-if (!in_array($callerIp, $pvpAllowedIps, true)) {
-    error_log("❌ PVP-RESULT: IP bloqueado: $callerIp");
-    http_response_code(403);
-    echo json_encode(['success' => false, 'error' => 'IP not allowed']);
     exit;
 }
 

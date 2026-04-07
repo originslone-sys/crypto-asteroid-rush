@@ -44,6 +44,10 @@ class Player {
             down: false,
             fire: false
         };
+
+        // Velocidade atual (aceleração/inércia)
+        this.vx = 0;
+        this.vy = 0;
     }
 
     initPosition() {
@@ -51,27 +55,44 @@ class Player {
         this.y = this.slot === 1
             ? config.ARENA_HEIGHT - 120
             : 120;
+        this.vx = 0;
+        this.vy = 0;
     }
 
     updatePosition() {
-        // Movimento horizontal
-        if (this.input.left) this.x -= config.SHIP_SPEED_X;
-        if (this.input.right) this.x += config.SHIP_SPEED_X;
+        const ACCEL_X  = 8.0;   // px/frame² horizontal
+        const ACCEL_Y  = 6.0;   // px/frame² vertical
+        const MAX_VX   = config.SHIP_SPEED_X;  // 18
+        const MAX_VY   = config.SHIP_SPEED_Y;  // 12
+        const FRICTION = 0.76;  // amortecimento quando sem input (~3 frames pra parar)
 
-        // Movimento vertical
-        if (this.input.up) this.y -= config.SHIP_SPEED_Y;
-        if (this.input.down) this.y += config.SHIP_SPEED_Y;
+        // Aceleração horizontal
+        if (this.input.left)       this.vx -= ACCEL_X;
+        else if (this.input.right) this.vx += ACCEL_X;
+        else                       this.vx *= FRICTION;
 
-        // Limites X
-        this.x = Math.max(50, Math.min(config.ARENA_WIDTH - 50, this.x));
+        // Aceleração vertical
+        if (this.input.up)         this.vy -= ACCEL_Y;
+        else if (this.input.down)  this.vy += ACCEL_Y;
+        else                       this.vy *= FRICTION;
 
-        // Limites Y (cada jogador na sua metade)
-        this.y = Math.max(this.yMin, Math.min(this.yMax, this.y));
+        // Limitar velocidade máxima
+        this.vx = Math.max(-MAX_VX, Math.min(MAX_VX, this.vx));
+        this.vy = Math.max(-MAX_VY, Math.min(MAX_VY, this.vy));
 
-        // Invencibilidade countdown
-        if (this.invincibilityFrames > 0) {
-            this.invincibilityFrames--;
-        }
+        // Aplicar velocidade
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Limites X — zerar velocidade ao bater na parede
+        if (this.x <= 50)                       { this.x = 50;                       this.vx = 0; }
+        if (this.x >= config.ARENA_WIDTH - 50)  { this.x = config.ARENA_WIDTH - 50;  this.vx = 0; }
+
+        // Limites Y — zerar velocidade ao bater no limite da metade
+        if (this.y <= this.yMin) { this.y = this.yMin; this.vy = 0; }
+        if (this.y >= this.yMax) { this.y = this.yMax; this.vy = 0; }
+
+        if (this.invincibilityFrames > 0) this.invincibilityFrames--;
     }
 
     tryFire(now) {
