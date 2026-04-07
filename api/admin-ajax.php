@@ -767,6 +767,52 @@ try {
             }
             break;
 
+        // -------------------------------------------------------
+        // REMOVER CRÉDITOS/SALDO DE TODOS OS JOGADORES
+        // -------------------------------------------------------
+        case "bulk_remove":
+            $type = trim($input['type'] ?? '');
+            $amount = floatval($input['amount'] ?? 0);
+            $reason = trim($input['reason'] ?? 'Remoção em massa pelo admin');
+
+            if (!in_array($type, ['credits', 'balance'])) throw new Exception("Tipo inválido. Use 'credits' ou 'balance'.");
+            if ($amount <= 0) throw new Exception("Quantidade deve ser maior que 0.");
+
+            $pdo->beginTransaction();
+
+            if ($type === 'credits') {
+                $creditsInt = intval($amount);
+                if ($creditsInt <= 0) throw new Exception("Créditos devem ser um número inteiro maior que 0.");
+
+                // Só afeta quem tem créditos > 0, e não deixa ficar negativo
+                $stmt = $pdo->prepare("UPDATE users SET credits = GREATEST(credits - ?, 0) WHERE credits > 0");
+                $stmt->execute([$creditsInt]);
+                $affected = $stmt->rowCount();
+
+                $pdo->prepare("INSERT INTO transactions (google_uid, type, amount_brl, description, status, created_at)
+                    SELECT google_uid, 'admin_adjust', 0, ?, 'completed', NOW() FROM users WHERE credits >= 0")
+                    ->execute(["Remoção em massa: -{$creditsInt} crédito(s) - {$reason}"]);
+
+                $pdo->commit();
+                $response = ["success" => true, "message" => "{$creditsInt} crédito(s) removido(s) de {$affected} jogadores."];
+            } else {
+                if ($amount > 100) throw new Exception("Limite de R\$ 100,00 por remoção de saldo. Ajuste o valor.");
+
+                // Só afeta quem tem saldo > 0, e não deixa ficar negativo
+                $stmt = $pdo->prepare("UPDATE users SET balance_brl = GREATEST(balance_brl - ?, 0) WHERE balance_brl > 0");
+                $stmt->execute([$amount]);
+                $affected = $stmt->rowCount();
+
+                $formatted = number_format($amount, 2, ',', '.');
+                $pdo->prepare("INSERT INTO transactions (google_uid, type, amount_brl, description, status, created_at)
+                    SELECT google_uid, 'admin_adjust', ?, ?, 'completed', NOW() FROM users WHERE balance_brl >= 0")
+                    ->execute([-$amount, "Remoção em massa: -R\$ {$formatted} - {$reason}"]);
+
+                $pdo->commit();
+                $response = ["success" => true, "message" => "R\$ {$formatted} removido(s) de {$affected} jogadores."];
+            }
+            break;
+
         case "add_credits":
             $targetUid = trim($input['google_uid'] ?? '');
             $creditsToAdd = intval($input['credits'] ?? 0);

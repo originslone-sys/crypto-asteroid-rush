@@ -241,6 +241,39 @@ try {
         </div>
     </div>
 
+    <!-- Remoção em Massa -->
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title"><i class="fas fa-minus-circle" style="color: #ff3366;"></i> Remover de Todos os Jogadores</h3>
+        </div>
+        <div class="panel-body">
+            <p style="color: var(--text-dim); margin-bottom: 15px;">
+                Remova créditos ou saldo de <strong>todos os usuários</strong> de uma vez. Nenhuma conta ficará com valor negativo.
+            </p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                <div class="form-group" style="width: 160px;">
+                    <label class="form-label">Tipo</label>
+                    <select id="bulkRemoveType" class="form-control" onchange="updateBulkRemoveLabel()">
+                        <option value="credits">Créditos</option>
+                        <option value="balance">Saldo (R$)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="width: 140px;">
+                    <label class="form-label" id="bulkRemoveAmountLabel">Créditos</label>
+                    <input type="number" id="bulkRemoveAmount" class="form-control" min="1" step="any" value="5">
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 200px;">
+                    <label class="form-label">Motivo</label>
+                    <input type="text" id="bulkRemoveReason" class="form-control" placeholder="Ex: Correção de evento, reset de bônus">
+                </div>
+                <button onclick="bulkRemove()" class="btn btn-danger">
+                    <i class="fas fa-minus-circle"></i> Remover
+                </button>
+            </div>
+            <div id="bulkRemoveResult" style="display: none; margin-top: 15px; padding: 12px; border-radius: 8px;"></div>
+        </div>
+    </div>
+
     <!-- Adicionar Créditos Manualmente -->
     <div class="panel">
         <div class="panel-header">
@@ -496,6 +529,66 @@ async function bulkDistribute() {
     try {
         const response = await adminAjax({
             action: 'bulk_distribute',
+            type: type,
+            amount: amount,
+            reason: reason
+        });
+        if (response.success) {
+            resultDiv.style.background = 'rgba(5,255,161,0.1)';
+            resultDiv.style.borderColor = 'rgba(5,255,161,0.3)';
+            resultDiv.innerHTML = '<i class="fas fa-check-circle" style="color: var(--success);"></i> ' + response.message;
+            showToast(response.message, 'success');
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            resultDiv.style.background = 'rgba(255,42,109,0.1)';
+            resultDiv.style.borderColor = 'rgba(255,42,109,0.3)';
+            resultDiv.innerHTML = '<i class="fas fa-times-circle" style="color: var(--danger);"></i> ' + (response.error || response.message);
+            showToast(response.error || response.message, 'error');
+        }
+    } catch (e) {
+        resultDiv.style.background = 'rgba(255,42,109,0.1)';
+        resultDiv.style.borderColor = 'rgba(255,42,109,0.3)';
+        resultDiv.innerHTML = '<i class="fas fa-times-circle" style="color: var(--danger);"></i> Erro: ' + e.message;
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+function updateBulkRemoveLabel() {
+    const type = document.getElementById('bulkRemoveType').value;
+    const label = document.getElementById('bulkRemoveAmountLabel');
+    const input = document.getElementById('bulkRemoveAmount');
+    if (type === 'credits') {
+        label.textContent = 'Créditos';
+        input.step = '1';
+        input.min = '1';
+        input.value = '5';
+    } else {
+        label.textContent = 'Valor (R$)';
+        input.step = '0.01';
+        input.min = '0.01';
+        input.value = '1.00';
+    }
+}
+
+async function bulkRemove() {
+    const type = document.getElementById('bulkRemoveType').value;
+    const amount = parseFloat(document.getElementById('bulkRemoveAmount').value);
+    const reason = document.getElementById('bulkRemoveReason').value.trim() || 'Remoção em massa pelo admin';
+
+    if (!amount || amount <= 0) { showToast('Quantidade inválida', 'error'); return; }
+
+    const label = type === 'credits' ? amount + ' crédito(s)' : 'R$ ' + amount.toFixed(2);
+    if (!confirm('ATENÇÃO: Tem certeza que deseja REMOVER ' + label + ' de TODOS os jogadores?\n\nNenhuma conta ficará com valor negativo.\nEssa ação não pode ser desfeita.')) return;
+
+    const resultDiv = document.getElementById('bulkRemoveResult');
+    resultDiv.style.display = 'block';
+    resultDiv.style.background = 'rgba(0,240,255,0.1)';
+    resultDiv.style.borderColor = 'rgba(0,240,255,0.3)';
+    resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando remoção...';
+
+    try {
+        const response = await adminAjax({
+            action: 'bulk_remove',
             type: type,
             amount: amount,
             reason: reason
