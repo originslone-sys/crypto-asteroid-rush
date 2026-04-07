@@ -118,6 +118,17 @@
         .mode-btn.mode-extreme .mode-name { color: #e74c3c; }
         .mode-btn.mode-extreme .mode-cost { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
 
+        /* PvP */
+        .mode-btn.mode-pvp {
+            border-color: rgba(155, 89, 182, 0.4);
+        }
+        .mode-btn.mode-pvp:hover {
+            background: rgba(155, 89, 182, 0.1);
+            border-color: rgba(155, 89, 182, 0.7);
+        }
+        .mode-btn.mode-pvp .mode-name { color: #9b59b6; }
+        .mode-btn.mode-pvp .mode-cost { background: rgba(155, 89, 182, 0.2); color: #9b59b6; }
+
         /* Treino */
         .mode-btn.mode-training {
             border-color: rgba(149, 165, 166, 0.3);
@@ -461,6 +472,14 @@
                 </div>
                 <span class="mode-cost"><i class="fas fa-ticket-alt"></i> 3 Créditos</span>
             </button>
+
+            <a href="pvp-game.html" class="mode-btn mode-pvp" style="text-decoration:none;">
+                <div class="mode-info">
+                    <span class="mode-name"><i class="fas fa-crosshairs"></i> PVP</span>
+                    <span class="mode-desc">Desafie outros jogadores em tempo real</span>
+                </div>
+                <span class="mode-cost"><i class="fas fa-ticket-alt"></i> 2 Créditos</span>
+            </a>
 
             <button class="mode-btn mode-training" id="modeTrainingBtn" data-mode="training">
                 <div class="mode-info">
