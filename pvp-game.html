@@ -327,9 +327,11 @@
         }
     }
 
-    function cancelMatchmaking() {
-        PvPSessionManager.leaveQueue();
+    // Handler de timeout do matchmaking (chamado pelo session manager)
+    window.onMatchmakingTimeout = async function() {
         PvPSessionManager.disconnect();
+        await pvpRefundCredits();
+
         const btn = document.getElementById('pvpSearchBtn');
         const cancelBtn = document.getElementById('pvpCancelBtn');
         const spinner = document.getElementById('pvpSpinner');
@@ -339,7 +341,43 @@
         btn.innerHTML = '<i class="fas fa-crosshairs"></i> BUSCAR OPONENTE';
         cancelBtn.style.display = 'none';
         spinner.style.display = 'none';
-        status.textContent = 'Busca cancelada.';
+        status.textContent = 'Nenhum oponente encontrado. Créditos devolvidos.';
+    };
+
+    async function pvpRefundCredits() {
+        try {
+            const googleUid = localStorage.getItem('googleUid');
+            if (!googleUid) return;
+            await fetch('/api/pvp-refund.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ google_uid: googleUid })
+            });
+        } catch (e) {
+            console.error('PvP refund error:', e);
+        }
+    }
+
+    async function cancelMatchmaking() {
+        PvPSessionManager.leaveQueue();
+        PvPSessionManager.disconnect();
+
+        // Reembolsar créditos (não encontrou partida)
+        if (!pvpState.inMatch) {
+            await pvpRefundCredits();
+        }
+
+        const btn = document.getElementById('pvpSearchBtn');
+        const cancelBtn = document.getElementById('pvpCancelBtn');
+        const spinner = document.getElementById('pvpSpinner');
+        const status = document.getElementById('pvpQueueStatus');
+
+        btn.style.display = 'inline-flex';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-crosshairs"></i> BUSCAR OPONENTE';
+        cancelBtn.style.display = 'none';
+        spinner.style.display = 'none';
+        status.textContent = 'Busca cancelada. Créditos devolvidos.';
     }
 
     function playAgain() {
