@@ -54,6 +54,7 @@ try {
     $statusLabels = [
         'pending' => 'Pendente',
         'processing' => 'Processando',
+        'under_review' => 'Em Análise',
         'completed' => 'Concluído',
         'rejected' => 'Rejeitado',
         'failed' => 'Falhou'

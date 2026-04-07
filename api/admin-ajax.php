@@ -103,7 +103,7 @@ try {
             $withdrawal = $stmt->fetch();
 
             if (!$withdrawal) throw new Exception("Saque não encontrado");
-            if ($withdrawal["status"] !== "pending") throw new Exception("Saque já processado");
+            if (!in_array($withdrawal["status"], ["pending", "under_review"])) throw new Exception("Saque já processado");
 
             // Atualizar status para completed (doc: status de saque)
             $stmt = $pdo->prepare("
@@ -211,7 +211,7 @@ try {
             $withdrawal = $stmt->fetch();
 
             if (!$withdrawal) throw new Exception("Saque não encontrado");
-            if ($withdrawal["status"] !== "pending") throw new Exception("Saque já processado");
+            if (!in_array($withdrawal["status"], ["pending", "under_review"])) throw new Exception("Saque já processado");
 
             // Extrair dados PIX do admin_notes
             $notes = json_decode($withdrawal['admin_notes'] ?? '{}', true);
@@ -447,7 +447,7 @@ try {
             $withdrawal = $stmt->fetch();
 
             if (!$withdrawal) throw new Exception("Saque não encontrado");
-            if ($withdrawal["status"] !== "pending") throw new Exception("Saque já processado");
+            if (!in_array($withdrawal["status"], ["pending", "under_review"])) throw new Exception("Saque já processado");
 
             // Devolver saldo ao jogador
             $userId = $withdrawal['user_id'];
@@ -784,6 +784,23 @@ try {
                 ->execute([$targetUid, "Admin adicionou {$creditsToAdd} crédito(s): {$reason}"]);
 
             $response = ["success" => true, "message" => "✅ {$creditsToAdd} crédito(s) adicionado(s)!"];
+            break;
+
+        case "send_to_review":
+            $id = intval($input["id"] ?? 0);
+            if ($id <= 0) throw new Exception("ID inválido");
+
+            $stmt = $pdo->prepare("SELECT * FROM withdrawals WHERE id = ?");
+            $stmt->execute([$id]);
+            $withdrawal = $stmt->fetch();
+
+            if (!$withdrawal) throw new Exception("Saque não encontrado");
+            if (!in_array($withdrawal["status"], ["pending", "processing"])) throw new Exception("Só é possível enviar para análise saques pendentes ou em processamento");
+
+            $pdo->prepare("UPDATE withdrawals SET status = 'under_review' WHERE id = ?")->execute([$id]);
+            secureLog("WITHDRAWAL_UNDER_REVIEW | id: {$id} | user_id: {$withdrawal['user_id']} | amount: R\${$withdrawal['amount_brl']}");
+
+            $response = ["success" => true, "message" => "Saque #{$id} enviado para análise"];
             break;
 
         case "toggle_withdrawals":

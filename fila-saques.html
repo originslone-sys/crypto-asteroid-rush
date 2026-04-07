@@ -110,6 +110,7 @@
         }
         .status-badge.pending { background: rgba(255, 209, 102, 0.15); color: var(--warning); }
         .status-badge.processing { background: rgba(0, 229, 204, 0.15); color: var(--primary); }
+        .status-badge.under_review { background: rgba(255, 136, 0, 0.15); color: #ff8800; }
         .status-badge.completed { background: rgba(0, 255, 136, 0.15); color: var(--success); }
         .status-badge.rejected { background: rgba(255, 71, 87, 0.15); color: var(--danger); }
 
@@ -437,6 +438,7 @@
         <button class="filter-btn active" data-status="all">Todos</button>
         <button class="filter-btn" data-status="pending"><i class="fas fa-clock"></i> Pendentes</button>
         <button class="filter-btn" data-status="processing"><i class="fas fa-spinner"></i> Processando</button>
+        <button class="filter-btn" data-status="under_review"><i class="fas fa-search"></i> Em Análise</button>
         <button class="filter-btn" data-status="completed"><i class="fas fa-check"></i> Completados</button>
         <button class="filter-btn" data-status="rejected"><i class="fas fa-times"></i> Rejeitados</button>
     </div>
@@ -507,6 +509,7 @@
     const statusLabels = {
         pending: 'Pendente',
         processing: 'Processando',
+        under_review: 'Em Análise',
         completed: 'Completado',
         rejected: 'Rejeitado'
     };
@@ -514,6 +517,7 @@
     const statusIcons = {
         pending: 'fas fa-clock',
         processing: 'fas fa-spinner fa-pulse',
+        under_review: 'fas fa-search',
         completed: 'fas fa-check-circle',
         rejected: 'fas fa-times-circle'
     };
@@ -599,6 +603,11 @@
                     posHtml += '<i class="fas fa-spinner fa-pulse" style="font-size:1.3rem;color:#00c8ff;"></i>';
                     posHtml += '<div><strong style="color:#fff;font-size:1rem;">Solicitação #' + item.id + '</strong>';
                     posHtml += '<div style="color:#00c8ff;font-size:0.9rem;margin-top:2px;">Em processamento</div></div>';
+                } else if (item.status === 'under_review') {
+                    posHtml += 'background:linear-gradient(135deg,rgba(255,136,0,0.12),rgba(255,170,0,0.08));border:1px solid rgba(255,136,0,0.3);">';
+                    posHtml += '<i class="fas fa-search" style="font-size:1.3rem;color:#ff8800;"></i>';
+                    posHtml += '<div><strong style="color:#fff;font-size:1rem;">Solicitação #' + item.id + '</strong>';
+                    posHtml += '<div style="color:#ff8800;font-size:0.9rem;margin-top:2px;">Em análise manual</div></div>';
                 } else {
                     var statusColor = item.status === 'completed' ? '#00ff88' : '#ff4757';
                     var statusText = item.status === 'completed' ? 'Concluído' : 'Rejeitado';
