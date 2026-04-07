@@ -532,6 +532,18 @@ try {
         }
     } catch (Exception $e) { /* tabela pode não existir */ }
 
+    // withdrawals: adicionar under_review ao ENUM de status
+    try {
+        $colInfo = $pdo->query("SHOW COLUMNS FROM withdrawals LIKE 'status'")->fetch();
+        if ($colInfo && strpos($colInfo['Type'], 'under_review') === false) {
+            $pdo->exec("ALTER TABLE withdrawals MODIFY COLUMN status ENUM('pending','processing','under_review','completed','rejected','failed') NOT NULL DEFAULT 'pending'");
+            $results['migrations'][] = 'withdrawals.status_enum_under_review';
+            output("  [OK] withdrawals.status: under_review adicionado ao ENUM");
+        }
+    } catch (Exception $e) {
+        $results['errors'][] = 'withdrawals.status_enum: ' . $e->getMessage();
+    }
+
     // --- game_sessions ---
     try {
         $col = $pdo->query("SHOW COLUMNS FROM game_sessions LIKE 'total_spawned'")->fetch();
