@@ -933,6 +933,33 @@ try {
             $response = ['success' => true, 'enabled' => $isEnabled];
             break;
 
+        // -------------------------------------------------------
+        // REVOGAR SESSÃO ADMIN ESPECÍFICA
+        // -------------------------------------------------------
+        case "revoke_admin_session":
+            $sessionId = trim($input['session_id'] ?? '');
+            if (!$sessionId) throw new Exception("session_id obrigatório");
+
+            $stmt = $pdo->prepare("UPDATE admin_active_sessions SET revoked = 1 WHERE session_id = ?");
+            $stmt->execute([$sessionId]);
+
+            secureLog("REVOKE_ADMIN_SESSION | session_id: {$sessionId}");
+            $response = ["success" => true, "message" => "Sessão desconectada"];
+            break;
+
+        // -------------------------------------------------------
+        // REVOGAR TODAS AS SESSÕES ADMIN (EXCETO ATUAL)
+        // -------------------------------------------------------
+        case "revoke_all_admin_sessions":
+            $currentSid = session_id();
+            $stmt = $pdo->prepare("UPDATE admin_active_sessions SET revoked = 1 WHERE session_id != ? AND revoked = 0");
+            $stmt->execute([$currentSid]);
+            $affected = $stmt->rowCount();
+
+            secureLog("REVOKE_ALL_ADMIN_SESSIONS | revoked: {$affected} | kept: {$currentSid}");
+            $response = ["success" => true, "message" => "{$affected} sessão(ões) desconectada(s)"];
+            break;
+
         default:
             $response = ["success" => false, "message" => "Ação não reconhecida: " . htmlspecialchars($action)];
             break;

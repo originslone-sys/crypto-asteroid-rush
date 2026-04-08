@@ -189,6 +189,11 @@ try {
         <div class="nav-section">
             <div class="nav-section-title">Conta</div>
 
+            <a href="<?php echo $ADMIN_INDEX_URL; ?>?page=admin-logins" class="nav-item <?php echo $currentPage === 'admin-logins' ? 'active' : ''; ?>">
+                <i class="fas fa-user-shield"></i>
+                <span>Logins do Admin</span>
+            </a>
+
             <a href="<?php echo $ADMIN_INDEX_URL; ?>?logout=1" class="nav-item logout">
                 <i class="fas fa-sign-out-alt"></i>
                 <span>Sair</span>
