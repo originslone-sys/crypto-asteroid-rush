@@ -106,19 +106,17 @@ try {
         exit;
     }
 
-    // Bloquear nova solicitação enquanto houver saque pendente/em processamento
-    $stmtPending = $pdo->prepare("SELECT id, amount_brl, created_at FROM withdrawals WHERE user_id = ? AND status IN ('pending', 'processing') LIMIT 1");
+    // Bloquear nova solicitação se já tiver 2 saques pendentes/em processamento
+    $stmtPending = $pdo->prepare("SELECT COUNT(*) FROM withdrawals WHERE user_id = ? AND status IN ('pending', 'processing', 'under_review')");
     $stmtPending->execute([(int)$player['id']]);
-    $pendingWithdraw = $stmtPending->fetch();
+    $pendingCount = (int)$stmtPending->fetchColumn();
 
-    if ($pendingWithdraw) {
+    if ($pendingCount >= 2) {
         $pdo->rollBack();
-        $amountFmt = 'R$ ' . number_format((float)$pendingWithdraw['amount_brl'], 2, ',', '.');
         echo json_encode([
-            'success'              => false,
-            'error'                => "Você já tem um saque de {$amountFmt} aguardando processamento. Aguarde a conclusão antes de solicitar outro.",
-            'has_pending'          => true,
-            'pending_withdrawal_id'=> (int)$pendingWithdraw['id']
+            'success'     => false,
+            'error'       => "Você já tem {$pendingCount} saques aguardando processamento. O limite é de 2 solicitações simultâneas.",
+            'has_pending' => true
         ]);
         exit;
     }
