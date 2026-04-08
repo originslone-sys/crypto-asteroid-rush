@@ -90,6 +90,22 @@ function adminRestoreSession(): bool {
         return false;
     }
 
+    // Verificar se sessão foi revogada
+    try {
+        $sid = session_id();
+        if ($sid) {
+            require_once __DIR__ . '/../../api/config.php';
+            $pdoAuth = getDatabaseConnection();
+            $chk = $pdoAuth->prepare("SELECT revoked FROM admin_active_sessions WHERE session_id = ? LIMIT 1");
+            $chk->execute([$sid]);
+            $row = $chk->fetch();
+            if ($row && $row['revoked']) {
+                adminClearAuthCookie();
+                return false;
+            }
+        }
+    } catch (Exception $e) { /* tabela pode não existir ainda */ }
+
     // Restaurar sessão
     $_SESSION['admin'] = true;
     $_SESSION['admin_name'] = $username;

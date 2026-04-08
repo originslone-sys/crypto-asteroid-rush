@@ -191,7 +191,8 @@ $allowedPages = [
     'exploration',
     'notifications',
     'pvp',
-    'cashier'
+    'cashier',
+    'admin-logins'
 ];
 
 if (!in_array($page, $allowedPages)) {
