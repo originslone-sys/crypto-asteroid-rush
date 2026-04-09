@@ -96,7 +96,7 @@ try {
     $pdo->beginTransaction();
 
     // Buscar e bloquear player
-    $stmt = $pdo->prepare("SELECT id, google_uid, balance_brl FROM users WHERE google_uid = ? FOR UPDATE");
+    $stmt = $pdo->prepare("SELECT id, google_uid, balance_brl, withdrawal_limit FROM users WHERE google_uid = ? FOR UPDATE");
     $stmt->execute([$googleUid]);
     $player = $stmt->fetch();
 
@@ -106,18 +106,30 @@ try {
         exit;
     }
 
-    // Bloquear nova solicitação se já tiver 2 saques pendentes/em processamento
+    // Determinar limite de saques simultâneos (per-user override > global > default 2)
+    $maxRequests = 2;
+    try {
+        $gRow = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'max_withdrawal_requests' LIMIT 1")->fetch();
+        if ($gRow) $maxRequests = max(0, (int)$gRow['setting_value']);
+    } catch (Exception $e) {}
+
+    $userLimit = $player['withdrawal_limit'] ?? null;
+    if ($userLimit !== null) {
+        $maxRequests = (int)$userLimit;
+    }
+
+    // Bloquear se limite atingido
     $stmtPending = $pdo->prepare("SELECT COUNT(*) FROM withdrawals WHERE user_id = ? AND status IN ('pending', 'processing', 'under_review')");
     $stmtPending->execute([(int)$player['id']]);
     $pendingCount = (int)$stmtPending->fetchColumn();
 
-    if ($pendingCount >= 2) {
+    if ($pendingCount >= $maxRequests) {
         $pdo->rollBack();
-        echo json_encode([
-            'success'     => false,
-            'error'       => "Você já tem {$pendingCount} saques aguardando processamento. O limite é de 2 solicitações simultâneas.",
-            'has_pending' => true
-        ]);
+        if ($maxRequests === 0) {
+            echo json_encode(['success' => false, 'error' => 'Seus saques estão temporariamente bloqueados. Entre em contato com o suporte.', 'has_pending' => true]);
+        } else {
+            echo json_encode(['success' => false, 'error' => "Você já tem {$pendingCount} saque(s) aguardando processamento. O limite é de {$maxRequests} solicitação(ões) simultânea(s).", 'has_pending' => true]);
+        }
         exit;
     }
 

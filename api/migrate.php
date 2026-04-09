@@ -490,6 +490,7 @@ try {
         'total_withdrawn_brl'        => "ALTER TABLE users ADD COLUMN total_withdrawn_brl DECIMAL(15,6) NOT NULL DEFAULT 0",
         'staked_balance_brl'         => "ALTER TABLE users ADD COLUMN staked_balance_brl DECIMAL(15,6) NOT NULL DEFAULT 0",
         'whatsapp'                   => "ALTER TABLE users ADD COLUMN whatsapp VARCHAR(20) DEFAULT NULL",
+        'withdrawal_limit'           => "ALTER TABLE users ADD COLUMN withdrawal_limit INT DEFAULT NULL COMMENT 'Override global max_withdrawal_requests per user (NULL = use global)'",
     ];
     foreach ($userCols as $col => $sql) {
         $exists = $pdo->query("SHOW COLUMNS FROM users LIKE '{$col}'")->fetch();
