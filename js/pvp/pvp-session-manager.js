@@ -117,13 +117,16 @@ const PvPSessionManager = {
             });
 
             this.socket.on('game_state', (state) => {
+                // Validar estrutura mínima do state para evitar crashes no renderer
+                if (!state || typeof state !== 'object') return;
+
                 pvpState.previousState = pvpState.serverState;
                 pvpState.serverState = state;
 
                 // Salvar prev/curr do oponente para entity interpolation no renderer
                 if (pvpState.mySlot) {
                     const opp = pvpState.mySlot === 1 ? state.player2 : state.player1;
-                    if (opp) {
+                    if (opp && typeof opp.x === 'number' && typeof opp.y === 'number') {
                         pvpState.opponentPrev = pvpState.opponentCurr
                             ? { x: pvpState.opponentCurr.x, y: pvpState.opponentCurr.y }
                             : { x: opp.x, y: opp.y };

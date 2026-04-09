@@ -9,18 +9,46 @@ const PvPRenderer = {
     animationFrameId: null,
     starsCache: null,
     dynamicStars: [],
+    _resizeTimer: null,
+    _resizeHandler: null,
+    _contextLost: false,
 
     init(canvasId) {
         this.canvas = document.getElementById(canvasId);
+        if (!this.canvas) return;
         this.ctx = this.canvas.getContext('2d');
+        this._contextLost = false;
+
+        // Detectar perda de contexto do canvas (mobile/tab background)
+        this.canvas.addEventListener('contextlost', () => {
+            this._contextLost = true;
+            console.warn('[PvP] Canvas context lost');
+        });
+        this.canvas.addEventListener('contextrestored', () => {
+            this._contextLost = false;
+            this.ctx = this.canvas.getContext('2d');
+            console.log('[PvP] Canvas context restored');
+        });
+
         this.resize();
         this.initStars();
-        window.addEventListener('resize', () => this.resize());
+
+        // Debounce resize para evitar race condition com render
+        if (this._resizeHandler) window.removeEventListener('resize', this._resizeHandler);
+        this._resizeHandler = () => {
+            clearTimeout(this._resizeTimer);
+            this._resizeTimer = setTimeout(() => this.resize(), 100);
+        };
+        window.addEventListener('resize', this._resizeHandler);
     },
 
     resize() {
+        if (!this.canvas) return;
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
+        // Re-adquirir contexto após resize (resize limpa o canvas)
+        this.ctx = this.canvas.getContext('2d');
+        this._contextLost = !this.ctx;
         this.starsCache = null;
         this.initStars();
     },
@@ -40,17 +68,40 @@ const PvPRenderer = {
     },
 
     startLoop() {
+        // Parar loop anterior se existir (previne loops duplicados)
+        this.stopLoop();
+
         const loop = (now) => {
-            this.render(now);
+            try {
+                // Se contexto perdido, tentar re-adquirir
+                if (this._contextLost && this.canvas) {
+                    this.ctx = this.canvas.getContext('2d');
+                    if (this.ctx) this._contextLost = false;
+                }
+                if (!this._contextLost) {
+                    this.render(now);
+                }
+            } catch (err) {
+                console.error('[PvP] Render error:', err);
+                // Tentar recuperar o contexto na próxima frame
+                if (this.canvas) {
+                    this.ctx = this.canvas.getContext('2d');
+                    this._contextLost = !this.ctx;
+                }
+            }
             this.animationFrameId = requestAnimationFrame(loop);
         };
-        requestAnimationFrame(loop);
+        this.animationFrameId = requestAnimationFrame(loop);
     },
 
     stopLoop() {
         if (this.animationFrameId) {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
+        }
+        if (this._resizeTimer) {
+            clearTimeout(this._resizeTimer);
+            this._resizeTimer = null;
         }
     },
 
@@ -59,6 +110,8 @@ const PvPRenderer = {
         if (PvPEngine.gameActive) PvPEngine.stepLocalPrediction(now || performance.now());
 
         const ctx = this.ctx;
+        if (!ctx || !this.canvas) return;
+
         const w = this.canvas.width;
         const h = this.canvas.height;
         const state = pvpState.serverState;
@@ -93,8 +146,8 @@ const PvPRenderer = {
 
         // Balas confirmadas pelo servidor (oponente + as minhas já confirmadas)
         const mySlot = pvpState.mySlot;
-        const myServerBullets   = mySlot === 1 ? state.player1Bullets : state.player2Bullets;
-        const oppServerBullets  = mySlot === 1 ? state.player2Bullets : state.player1Bullets;
+        const myServerBullets   = mySlot === 1 ? (state.player1Bullets || []) : (state.player2Bullets || []);
+        const oppServerBullets  = mySlot === 1 ? (state.player2Bullets || []) : (state.player1Bullets || []);
 
         // Renderizar balas do servidor somente se não há balas locais pendentes
         // (evita duplicação visual enquanto a predição ainda não foi confirmada)
