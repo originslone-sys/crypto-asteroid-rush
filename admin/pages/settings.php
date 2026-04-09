@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'min_withdraw_amount_brl' => (float)$_POST['min_withdraw'],
                     'referral_bonus_brl' => (float)$_POST['referral_bonus'],
                     'referral_missions_required' => (int)$_POST['referral_missions'],
+                    'max_withdrawal_requests' => max(1, (int)$_POST['max_withdrawal_requests']),
                 ];
                 
                 foreach ($settings as $key => $value) {
@@ -216,9 +217,17 @@ try {
                     
                     <div class="form-group">
                         <label class="form-label">Missões p/ Indicação</label>
-                        <input type="number" name="referral_missions" class="form-control" 
-                               value="<?php echo $settings['referral_missions_required'] ?? 20; ?>" 
+                        <input type="number" name="referral_missions" class="form-control"
+                               value="<?php echo $settings['referral_missions_required'] ?? 20; ?>"
                                min="1" max="1000">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Máx. Saques Simultâneos</label>
+                        <input type="number" name="max_withdrawal_requests" class="form-control"
+                               value="<?php echo $settings['max_withdrawal_requests'] ?? 2; ?>"
+                               min="1" max="10">
+                        <small style="color: var(--text-dim);">Limite global de solicitações pendentes por usuário</small>
                     </div>
 
                     <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar</button>

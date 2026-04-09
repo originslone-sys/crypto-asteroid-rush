@@ -64,6 +64,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = "{$credits} crédito(s) adicionado(s) com sucesso!";
                 break;
 
+            case 'set_withdrawal_limit':
+                $googleUid = $_POST['google_uid'];
+                $limit = $_POST['withdrawal_limit'];
+                if ($limit === '' || $limit === 'global') {
+                    $pdo->prepare("UPDATE users SET withdrawal_limit = NULL WHERE google_uid = ?")->execute([$googleUid]);
+                    $message = "Limite de saques resetado para o padrão global.";
+                } else {
+                    $limitVal = max(0, (int)$limit);
+                    $pdo->prepare("UPDATE users SET withdrawal_limit = ? WHERE google_uid = ?")->execute([$limitVal, $googleUid]);
+                    $message = "Limite de saques definido para {$limitVal} solicitação(ões) simultâneas.";
+                }
+                break;
+
             case 'delete_player':
                 $googleUid = $_POST['google_uid'];
                 $playerName = $_POST['player_name'] ?? 'Desconhecido';
@@ -413,6 +426,11 @@ $registrationsEnabled = ($regVal === false || ($regVal !== 'false' && $regVal !=
                                             <i class="fas fa-ticket-alt"></i>
                                         </button>
 
+                                        <button onclick="setWithdrawLimit('<?php echo $p['google_uid']; ?>', '<?php echo htmlspecialchars($p['display_name']); ?>', <?php echo $p['withdrawal_limit'] ?? 'null'; ?>)"
+                                                class="btn btn-sm" style="background: rgba(255,136,0,0.2); color: #ff8800;" title="Limite de saques">
+                                            <i class="fas fa-hand-paper"></i>
+                                        </button>
+
                                         <button onclick="deletePlayer('<?php echo $p['google_uid']; ?>', '<?php echo htmlspecialchars($p['display_name']); ?>')"
                                                 class="btn btn-outline btn-sm" style="border-color: var(--danger); color: var(--danger);" title="Excluir jogador">
                                             <i class="fas fa-trash-alt"></i>
@@ -620,6 +638,44 @@ $registrationsEnabled = ($regVal === false || ($regVal !== 'false' && $regVal !=
     </div>
 </div>
 
+<!-- Modal Limite de Saques -->
+<div id="withdrawLimitModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-hand-paper" style="color: #ff8800;"></i> Limite de Saques</h3>
+            <button onclick="closeModal('withdrawLimitModal')" class="modal-close">&times;</button>
+        </div>
+        <form method="POST">
+            <input type="hidden" name="action" value="set_withdrawal_limit">
+            <input type="hidden" name="google_uid" id="wlGoogleUid">
+
+            <div class="form-group">
+                <label class="form-label">Jogador</label>
+                <input type="text" id="wlPlayerName" class="form-control" readonly>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Máx. solicitações simultâneas</label>
+                <select name="withdrawal_limit" id="wlLimitValue" class="form-control">
+                    <option value="global">Usar padrão global</option>
+                    <option value="0">0 — Bloqueado (não pode sacar)</option>
+                    <option value="1">1 solicitação</option>
+                    <option value="2">2 solicitações</option>
+                    <option value="3">3 solicitações</option>
+                    <option value="5">5 solicitações</option>
+                    <option value="10">10 solicitações</option>
+                </select>
+                <small style="color: var(--text-dim);">Deixe "padrão global" para seguir a configuração do sistema</small>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" onclick="closeModal('withdrawLimitModal')" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <style>
 .table-compact th,
 .table-compact td {
@@ -721,6 +777,18 @@ function deletePlayer(googleUid, name) {
 document.getElementById('deleteConfirmInput').addEventListener('input', function() {
     document.getElementById('deleteSubmitBtn').disabled = this.value !== 'EXCLUIR';
 });
+
+function setWithdrawLimit(googleUid, name, currentLimit) {
+    document.getElementById('wlGoogleUid').value = googleUid;
+    document.getElementById('wlPlayerName').value = name;
+    var sel = document.getElementById('wlLimitValue');
+    if (currentLimit === null || currentLimit === undefined) {
+        sel.value = 'global';
+    } else {
+        sel.value = String(currentLimit);
+    }
+    document.getElementById('withdrawLimitModal').classList.add('active');
+}
 
 function closeModal(id) {
     document.getElementById(id).classList.remove('active');
