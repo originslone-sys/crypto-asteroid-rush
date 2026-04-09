@@ -8,6 +8,14 @@ const PvPEngine = {
     _lastFrameTime: 0,
 
     startInputLoop() {
+        // Limpar loop anterior se existir (evita intervalos duplicados)
+        if (this.inputSendInterval) {
+            clearInterval(this.inputSendInterval);
+            this.inputSendInterval = null;
+        }
+        document.removeEventListener('keydown', this.handleKeyDown);
+        document.removeEventListener('keyup',   this.handleKeyUp);
+
         this.gameActive = true;
         this._lastFrameTime = performance.now();
 
@@ -306,7 +314,23 @@ function onMatchmakingTimeout(data) {
 }
 
 function onReconnected(data) {
+    // Parar loops existentes antes de reiniciar (evita loops duplicados que causam freeze)
+    PvPEngine.stopInputLoop();
+    PvPRenderer.stopLoop();
+
     document.getElementById('pvpArena').style.display = 'block';
+
+    // Restaurar predição local se tiver slot definido
+    if (pvpState.mySlot && !pvpState.localPrediction) {
+        const H = PVP_CONFIG.ARENA_HEIGHT;
+        pvpState.localPrediction = {
+            x: PVP_CONFIG.ARENA_WIDTH / 2,
+            y: pvpState.mySlot === 1 ? H - 120 : 120,
+            vx: 0, vy: 0
+        };
+        pvpState.localBullets = [];
+    }
+
     PvPRenderer.init('pvpCanvas');
     PvPRenderer.startLoop();
     PvPEngine.startInputLoop();
