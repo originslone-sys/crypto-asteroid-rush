@@ -2,7 +2,7 @@
 // ============================================
 // UNOBIX - Recarregar Caixa (Admin)
 // admin/pages/cashier.php
-// Depositar valores via PIX no gateway ZettPay
+// Depositar e retirar valores via PIX no gateway ZettPay
 // ============================================
 
 $pageTitle = 'Recarregar Caixa';
@@ -12,12 +12,91 @@ require_once __DIR__ . '/../../api/zettpay-client.php';
 $message = '';
 $messageType = '';
 $pixData = null;
+$cashoutResult = null;
 
 // ── Processar ação POST ──────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
-    if ($action === 'generate_pix') {
+    if ($action === 'cashier_withdraw') {
+        // ════ Retirada de saldo do caixa via PIX ════
+        $amount = (float)str_replace(['.', ','], ['', '.'], $_POST['cw_amount'] ?? '0');
+        $pixKey = trim($_POST['cw_pix_key'] ?? '');
+        $pixKeyType = strtolower(trim($_POST['cw_pix_key_type'] ?? 'cpf'));
+        $confirmText = trim($_POST['cw_confirm'] ?? '');
+
+        $allowedKeyTypes = ['cpf', 'cnpj', 'email', 'phone', 'evp'];
+
+        if ($confirmText !== 'CONFIRMAR') {
+            $message = 'Para confirmar a retirada digite CONFIRMAR no campo de confirmação.';
+            $messageType = 'danger';
+        } elseif ($amount < 1) {
+            $message = 'Valor mínimo de retirada: R$ 1,00';
+            $messageType = 'danger';
+        } elseif ($amount > 50000) {
+            $message = 'Valor máximo de retirada: R$ 50.000,00';
+            $messageType = 'danger';
+        } elseif (!in_array($pixKeyType, $allowedKeyTypes)) {
+            $message = 'Tipo de chave PIX inválido.';
+            $messageType = 'danger';
+        } elseif (empty($pixKey)) {
+            $message = 'Chave PIX é obrigatória.';
+            $messageType = 'danger';
+        } else {
+            // Normalizar chave conforme tipo
+            if ($pixKeyType === 'cpf' || $pixKeyType === 'cnpj') {
+                $pixKey = preg_replace('/\D/', '', $pixKey);
+            }
+
+            try {
+                $externalId = 'CAIXA-OUT-' . time() . '-' . bin2hex(random_bytes(4));
+
+                $result = zettpayCreateCashout(
+                    $amount,
+                    $pixKey,
+                    $pixKeyType,
+                    $externalId,
+                    ['type' => 'cashier_withdraw']
+                );
+
+                if ($result['success']) {
+                    $apiData = $result['data']['data'] ?? $result['data'] ?? [];
+
+                    // Registrar na tabela zettpay_transactions
+                    $pdo->prepare("
+                        INSERT INTO zettpay_transactions (
+                            user_id, external_id, zettpay_id, type, amount_brl, fee_brl,
+                            status, pix_key, pix_key_type, created_at
+                        ) VALUES (0, ?, ?, 'cashout', ?, 0, 'processing', ?, ?, NOW())
+                    ")->execute([
+                        $externalId,
+                        $apiData['provider_transaction_id'] ?? $apiData['id'] ?? null,
+                        $amount,
+                        $pixKey,
+                        $pixKeyType
+                    ]);
+
+                    secureLog("ADMIN_CASHIER_WITHDRAW | amount: R\${$amount} | external_id: {$externalId} | pix_key: " . substr($pixKey, 0, 6) . "***");
+
+                    $cashoutResult = [
+                        'external_id' => $externalId,
+                        'amount' => $amount,
+                        'pix_key' => $pixKey,
+                        'pix_key_type' => $pixKeyType
+                    ];
+                    $message = 'Retirada de R$ ' . number_format($amount, 2, ',', '.') . ' enviada ao gateway. Acompanhe o status no histórico abaixo.';
+                    $messageType = 'success';
+                } else {
+                    $message = 'Erro ao processar retirada: ' . ($result['error'] ?? 'Resposta inválida do gateway');
+                    $messageType = 'danger';
+                    secureLog("ADMIN_CASHIER_WITHDRAW_FAIL | external_id: {$externalId} | error: " . ($result['error'] ?? 'unknown'));
+                }
+            } catch (Exception $e) {
+                $message = 'Erro: ' . $e->getMessage();
+                $messageType = 'danger';
+            }
+        }
+    } elseif ($action === 'generate_pix') {
         $amount = (float)str_replace(['.', ','], ['', '.'], $_POST['amount'] ?? '0');
 
         if ($amount < 1) {
@@ -90,20 +169,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// ── Consultar saldo disponível no gateway ZettPay ────────────────────────
+$gatewayBalance = zettpayGetBalance();
+
 // ── Buscar histórico de depósitos do caixa ───────────────────────────────
 $deposits = [];
 try {
     $stmt = $pdo->query("
         SELECT external_id, amount_brl, status, created_at, confirmed_at
         FROM zettpay_transactions
-        WHERE external_id LIKE 'CAIXA-%' AND type = 'deposit'
+        WHERE external_id LIKE 'CAIXA-%' AND external_id NOT LIKE 'CAIXA-OUT-%' AND type = 'deposit'
         ORDER BY created_at DESC
         LIMIT 50
     ");
     $deposits = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {}
 
-// Totais
+// ── Buscar histórico de retiradas do caixa ───────────────────────────────
+$cashierWithdrawals = [];
+try {
+    $stmt = $pdo->query("
+        SELECT external_id, amount_brl, status, pix_key, pix_key_type, created_at, confirmed_at
+        FROM zettpay_transactions
+        WHERE external_id LIKE 'CAIXA-OUT-%' AND type = 'cashout'
+        ORDER BY created_at DESC
+        LIMIT 50
+    ");
+    $cashierWithdrawals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {}
+
+// Totais de depósitos
 $totalConfirmed = 0;
 $totalPending = 0;
 $countConfirmed = 0;
@@ -115,6 +210,17 @@ foreach ($deposits as $d) {
     } elseif ($d['status'] === 'pending') {
         $totalPending += (float)$d['amount_brl'];
         $countPending++;
+    }
+}
+
+// Totais de retiradas do caixa
+$totalCashierWithdrawn = 0;
+$totalCashierWithdrawPending = 0;
+foreach ($cashierWithdrawals as $cw) {
+    if ($cw['status'] === 'confirmed') {
+        $totalCashierWithdrawn += (float)$cw['amount_brl'];
+    } elseif ($cw['status'] === 'processing' || $cw['status'] === 'pending') {
+        $totalCashierWithdrawPending += (float)$cw['amount_brl'];
     }
 }
 
@@ -133,7 +239,7 @@ $statusLabels = [
 <div class="main-content">
     <div class="page-header">
         <h1 class="page-title"><i class="fas fa-cash-register"></i> Recarregar Caixa</h1>
-        <p class="page-subtitle">Depositar valores via PIX no gateway ZettPay</p>
+        <p class="page-subtitle">Depositar e retirar valores via PIX no gateway ZettPay</p>
     </div>
 
     <?php if ($message): ?>
@@ -142,6 +248,50 @@ $statusLabels = [
         <?php echo htmlspecialchars($message); ?>
     </div>
     <?php endif; ?>
+
+    <!-- ══ Saldo do Gateway (ZettPay) ══════════════════════════════════════ -->
+    <div class="card" style="margin-bottom:20px;border-top:3px solid #00c8ff;">
+        <div class="card-body" style="padding:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+            <div style="display:flex;align-items:center;gap:18px;">
+                <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#00c8ff,#0084ff);display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:#fff;box-shadow:0 6px 18px rgba(0,200,255,0.25);">
+                    <i class="fas fa-wallet"></i>
+                </div>
+                <div>
+                    <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:4px;">
+                        Saldo Disponível no Gateway
+                    </div>
+                    <?php if ($gatewayBalance['success']): ?>
+                        <div style="font-family:'Orbitron',monospace;font-size:1.8rem;font-weight:900;color:#00c8ff;line-height:1;">
+                            <?php echo fmtBRL2($gatewayBalance['available']); ?>
+                        </div>
+                        <?php if ($gatewayBalance['pending'] !== null && $gatewayBalance['pending'] > 0): ?>
+                            <div style="font-size:0.74rem;color:#ffaa00;margin-top:6px;">
+                                <i class="fas fa-clock"></i> Pendente: <?php echo fmtBRL2($gatewayBalance['pending']); ?>
+                            </div>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <div style="font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:700;color:#ff6666;line-height:1;">
+                            Indisponível
+                        </div>
+                        <div style="font-size:0.7rem;color:var(--text-dim);margin-top:4px;">
+                            <?php echo htmlspecialchars($gatewayBalance['error'] ?? 'Não foi possível consultar o saldo'); ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <a href="?page=cashier" class="btn" style="padding:10px 16px;font-size:0.85rem;background:rgba(255,255,255,0.06);">
+                    <i class="fas fa-sync"></i> Atualizar
+                </a>
+                <?php if ($gatewayBalance['success'] && $gatewayBalance['available'] > 0): ?>
+                <button type="button" onclick="document.getElementById('cashierWithdrawCard').scrollIntoView({behavior:'smooth'});document.getElementById('cwAmount')?.focus();"
+                        class="btn btn-primary" style="padding:10px 18px;font-size:0.85rem;background:linear-gradient(135deg,#ff6600,#ff8800);border:none;">
+                    <i class="fas fa-money-bill-transfer"></i> Retirar via PIX
+                </button>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
 
@@ -375,5 +525,182 @@ $statusLabels = [
             </div>
         </div>
 
+    </div>
+
+    <!-- ══ Retirada de Caixa via PIX ══════════════════════════════════════ -->
+    <div class="card" id="cashierWithdrawCard" style="margin-bottom:20px;border-top:3px solid #ff6600;">
+        <div class="card-header">
+            <h3 style="margin:0;font-size:1rem;"><i class="fas fa-money-bill-transfer" style="color:#ff6600;"></i> Retirar Saldo do Caixa via PIX</h3>
+        </div>
+        <div class="card-body" style="padding:20px;">
+            <div style="background:rgba(255,102,0,0.08);border:1px solid rgba(255,102,0,0.2);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:0.82rem;color:#ffaa66;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Atenção:</strong> Esta operação retira saldo real do gateway ZettPay para a chave PIX informada. Confira os dados antes de confirmar.
+            </div>
+
+            <form method="POST" onsubmit="return confirmCashierWithdraw(event)" style="max-width:520px;margin:0 auto;">
+                <input type="hidden" name="action" value="cashier_withdraw">
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+                    <div>
+                        <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:6px;">
+                            <i class="fas fa-dollar-sign"></i> Valor (R$)
+                        </label>
+                        <input type="text" name="cw_amount" id="cwAmount" placeholder="0,00" required
+                               style="width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border-color);
+                                      background:rgba(0,0,0,0.3);color:#fff;font-size:1.15rem;font-weight:700;
+                                      font-family:'Orbitron',monospace;text-align:center;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:6px;">
+                            <i class="fas fa-key"></i> Tipo de Chave PIX
+                        </label>
+                        <select name="cw_pix_key_type" id="cwPixKeyType"
+                                style="width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border-color);
+                                       background:rgba(0,0,0,0.3);color:#fff;font-size:0.95rem;">
+                            <option value="cpf">CPF</option>
+                            <option value="cnpj">CNPJ</option>
+                            <option value="email">E-mail</option>
+                            <option value="phone">Telefone</option>
+                            <option value="evp">Chave Aleatória</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:14px;">
+                    <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:6px;">
+                        <i class="fas fa-fingerprint"></i> Chave PIX do Destinatário
+                    </label>
+                    <input type="text" name="cw_pix_key" id="cwPixKey" placeholder="Digite a chave PIX" required
+                           style="width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border-color);
+                                  background:rgba(0,0,0,0.3);color:#fff;font-size:0.95rem;">
+                </div>
+
+                <div style="margin-bottom:18px;">
+                    <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:6px;">
+                        <i class="fas fa-shield-alt"></i> Digite <code style="color:#ff6600;font-weight:700;">CONFIRMAR</code> para autorizar a retirada
+                    </label>
+                    <input type="text" name="cw_confirm" placeholder="CONFIRMAR" required
+                           style="width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border-color);
+                                  background:rgba(0,0,0,0.3);color:#fff;font-size:0.95rem;text-transform:uppercase;letter-spacing:1.5px;">
+                </div>
+
+                <button type="submit" class="btn" style="width:100%;padding:14px;font-size:1rem;font-weight:700;border-radius:10px;
+                        background:linear-gradient(135deg,#ff6600,#ff8800);color:#fff;border:none;cursor:pointer;">
+                    <i class="fas fa-paper-plane"></i> Retirar Saldo via PIX
+                </button>
+
+                <div style="font-size:0.72rem;color:var(--text-dim);text-align:center;margin-top:10px;">
+                    <i class="fas fa-shield-alt"></i> Saída processada via gateway ZettPay
+                </div>
+            </form>
+
+            <script>
+            function confirmCashierWithdraw(e) {
+                const amt = document.getElementById('cwAmount').value || '0';
+                const key = document.getElementById('cwPixKey').value || '';
+                if (!confirm('Confirmar retirada de R$ ' + amt + ' para a chave PIX:\n' + key + '\n\nEsta ação NÃO pode ser desfeita.')) {
+                    e.preventDefault();
+                    return false;
+                }
+                return true;
+            }
+
+            // Máscara do valor (formato brasileiro)
+            (function() {
+                const inp = document.getElementById('cwAmount');
+                if (!inp) return;
+                inp.addEventListener('input', () => {
+                    let v = inp.value.replace(/\D/g, '');
+                    if (!v) { inp.value = ''; return; }
+                    v = (parseInt(v, 10) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                    inp.value = v;
+                });
+            })();
+            </script>
+        </div>
+    </div>
+
+    <!-- ══ Histórico de Retiradas de Caixa ════════════════════════════════ -->
+    <div class="card" style="margin-bottom:20px;">
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <h3 style="margin:0;font-size:1rem;"><i class="fas fa-history"></i> Histórico de Retiradas do Caixa</h3>
+            <div style="display:flex;gap:14px;font-size:0.78rem;">
+                <div>
+                    <span style="color:var(--text-dim);">Retirado: </span>
+                    <strong style="color:#05ffa1;font-family:'Orbitron',monospace;"><?php echo fmtBRL2($totalCashierWithdrawn); ?></strong>
+                </div>
+                <?php if ($totalCashierWithdrawPending > 0): ?>
+                <div>
+                    <span style="color:var(--text-dim);">Em processamento: </span>
+                    <strong style="color:#ffaa00;font-family:'Orbitron',monospace;"><?php echo fmtBRL2($totalCashierWithdrawPending); ?></strong>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th style="text-align:right;">Valor</th>
+                        <th>Chave PIX</th>
+                        <th style="text-align:center;">Tipo</th>
+                        <th style="text-align:center;">Status</th>
+                        <th>ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($cashierWithdrawals)): ?>
+                        <tr>
+                            <td colspan="6" style="text-align:center;padding:30px;color:var(--text-dim);">
+                                <i class="fas fa-inbox" style="font-size:1.5rem;opacity:0.3;display:block;margin-bottom:8px;"></i>
+                                Nenhuma retirada de caixa realizada
+                            </td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($cashierWithdrawals as $cw):
+                            $cwsl = $statusLabels[$cw['status']] ?? [$cw['status'], 'secondary'];
+                            if ($cw['status'] === 'processing') $cwsl = ['Processando', 'warning'];
+                            $maskedKey = $cw['pix_key'];
+                            if (in_array($cw['pix_key_type'], ['cpf', 'cnpj']) && strlen($maskedKey) > 6) {
+                                $maskedKey = substr($maskedKey, 0, 3) . '***' . substr($maskedKey, -2);
+                            } elseif ($cw['pix_key_type'] === 'email' && strpos($maskedKey, '@') !== false) {
+                                $parts = explode('@', $maskedKey);
+                                $maskedKey = substr($parts[0], 0, 2) . '***@' . $parts[1];
+                            } elseif (strlen($maskedKey) > 6) {
+                                $maskedKey = substr($maskedKey, 0, 3) . '***' . substr($maskedKey, -3);
+                            }
+                        ?>
+                        <tr>
+                            <td style="font-size:0.82rem;">
+                                <?php echo date('d/m/y H:i', strtotime($cw['created_at'])); ?>
+                                <?php if ($cw['confirmed_at']): ?>
+                                    <div style="font-size:0.68rem;color:#05ffa1;">
+                                        <i class="fas fa-check"></i> <?php echo date('d/m/y H:i', strtotime($cw['confirmed_at'])); ?>
+                                    </div>
+                                <?php endif; ?>
+                            </td>
+                            <td style="text-align:right;font-weight:700;font-family:'Orbitron',monospace;font-size:0.9rem;color:#ff8866;">
+                                -<?php echo fmtBRL2((float)$cw['amount_brl']); ?>
+                            </td>
+                            <td style="font-size:0.78rem;font-family:monospace;color:var(--text-dim);">
+                                <?php echo htmlspecialchars($maskedKey); ?>
+                            </td>
+                            <td style="text-align:center;font-size:0.72rem;text-transform:uppercase;color:var(--text-dim);">
+                                <?php echo htmlspecialchars($cw['pix_key_type']); ?>
+                            </td>
+                            <td style="text-align:center;">
+                                <span class="badge badge-<?php echo $cwsl[1]; ?>"><?php echo $cwsl[0]; ?></span>
+                            </td>
+                            <td style="font-size:0.68rem;color:var(--text-dim);">
+                                <code><?php echo htmlspecialchars(substr($cw['external_id'], 0, 26)); ?></code>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
