@@ -226,6 +226,74 @@ function zettpayLookupCashout($externalId) {
 }
 
 // ============================================
+// SALDO DA CONTA (BALANCE)
+// ============================================
+
+/**
+ * Consulta saldo disponível na conta ZettPay (gateway).
+ * Tenta múltiplos endpoints possíveis pois a API ZettPay pode expor o saldo
+ * em /balance, /account/balance ou /merchant/balance dependendo da versão.
+ *
+ * @return array ['success' => bool, 'available' => float|null, 'pending' => float|null, 'raw' => array, 'error' => string|null]
+ */
+function zettpayGetBalance() {
+    $endpoints = ['/balance', '/account/balance', '/merchant/balance', '/wallet/balance'];
+
+    $lastError = null;
+    $lastHttpCode = 0;
+
+    foreach ($endpoints as $ep) {
+        $result = zettpayRequest('GET', $ep);
+        if ($result['success'] && !empty($result['data'])) {
+            $data = $result['data'];
+            if (isset($data['data']) && is_array($data['data'])) {
+                $data = $data['data'];
+            }
+
+            // Procurar valor disponível em chaves comuns
+            $available = $data['available_balance']
+                ?? $data['available']
+                ?? $data['balance']
+                ?? $data['amount']
+                ?? $data['current_balance']
+                ?? null;
+
+            $pending = $data['pending_balance']
+                ?? $data['pending']
+                ?? $data['blocked_balance']
+                ?? $data['reserved']
+                ?? null;
+
+            if ($available !== null) {
+                return [
+                    'success' => true,
+                    'available' => (float)$available,
+                    'pending' => $pending !== null ? (float)$pending : null,
+                    'raw' => $data,
+                    'error' => null,
+                    'endpoint' => $ep
+                ];
+            }
+        }
+
+        $lastError = $result['error'] ?? 'Endpoint não disponível';
+        $lastHttpCode = $result['http_code'] ?? 0;
+
+        // Se a auth falhou, não adianta tentar outros endpoints
+        if ($lastHttpCode === 401 || $lastHttpCode === 403) break;
+    }
+
+    return [
+        'success' => false,
+        'available' => null,
+        'pending' => null,
+        'raw' => null,
+        'error' => $lastError ?? 'Saldo indisponível',
+        'http_code' => $lastHttpCode
+    ];
+}
+
+// ============================================
 // TABELA - AUTO-CRIAÇÃO
 // ============================================
 
