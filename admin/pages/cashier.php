@@ -264,11 +264,25 @@ $statusLabels = [
                         <div style="font-family:'Orbitron',monospace;font-size:1.8rem;font-weight:900;color:#00c8ff;line-height:1;">
                             <?php echo fmtBRL2($gatewayBalance['available']); ?>
                         </div>
-                        <?php if ($gatewayBalance['pending'] !== null && $gatewayBalance['pending'] > 0): ?>
-                            <div style="font-size:0.74rem;color:#ffaa00;margin-top:6px;">
-                                <i class="fas fa-clock"></i> Pendente: <?php echo fmtBRL2($gatewayBalance['pending']); ?>
-                            </div>
-                        <?php endif; ?>
+                        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:0.72rem;">
+                            <?php if ($gatewayBalance['blocked'] !== null && $gatewayBalance['blocked'] > 0): ?>
+                                <span style="color:#ffaa00;">
+                                    <i class="fas fa-lock"></i> Bloqueado: <strong><?php echo fmtBRL2($gatewayBalance['blocked']); ?></strong>
+                                </span>
+                            <?php endif; ?>
+                            <?php if ($gatewayBalance['current'] !== null): ?>
+                                <span style="color:var(--text-dim);">
+                                    <i class="fas fa-coins"></i> Total: <strong><?php echo fmtBRL2($gatewayBalance['current']); ?></strong>
+                                </span>
+                            <?php endif; ?>
+                            <?php if (!empty($gatewayBalance['last_updated_at'])):
+                                $lastUpd = strtotime($gatewayBalance['last_updated_at']);
+                            ?>
+                                <span style="color:var(--text-dim);">
+                                    <i class="fas fa-clock"></i> Atualizado: <?php echo $lastUpd ? date('d/m/y H:i', $lastUpd) : htmlspecialchars($gatewayBalance['last_updated_at']); ?>
+                                </span>
+                            <?php endif; ?>
+                        </div>
                     <?php else: ?>
                         <div style="font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:700;color:#ff6666;line-height:1;">
                             Indisponível
