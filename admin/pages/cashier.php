@@ -27,6 +27,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $allowedKeyTypes = ['cpf', 'cnpj', 'email', 'phone', 'evp'];
 
+        // Mapeamento igual ao auto-withdraw.php - ZettPay espera 'document' para cpf/cnpj
+        $keyTypeMap = [
+            'cpf' => 'document', 'cnpj' => 'document', 'document' => 'document',
+            'email' => 'email', 'phone' => 'phone', 'celular' => 'phone',
+            'aleatoria' => 'evp', 'evp' => 'evp'
+        ];
+
         if ($confirmText !== 'CONFIRMAR') {
             $message = 'Para confirmar a retirada digite CONFIRMAR no campo de confirmação.';
             $messageType = 'danger';
@@ -46,23 +53,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Normalizar chave conforme tipo
             if ($pixKeyType === 'cpf' || $pixKeyType === 'cnpj') {
                 $pixKey = preg_replace('/\D/', '', $pixKey);
+            } elseif ($pixKeyType === 'phone') {
+                // Remover tudo que não é dígito e garantir formato +55
+                $digits = preg_replace('/\D/', '', $pixKey);
+                if (strlen($digits) >= 10 && substr($digits, 0, 2) !== '55') {
+                    $digits = '55' . $digits;
+                }
+                $pixKey = '+' . $digits;
             }
+
+            // Converter para o tipo que o ZettPay espera
+            $zettpayKeyType = $keyTypeMap[$pixKeyType] ?? 'document';
 
             try {
                 $externalId = 'CAIXA-OUT-' . time() . '-' . bin2hex(random_bytes(4));
 
-                $result = zettpayCreateCashout(
+                $apiResult = zettpayCreateCashout(
                     $amount,
                     $pixKey,
-                    $pixKeyType,
+                    $zettpayKeyType,
                     $externalId,
                     ['type' => 'cashier_withdraw']
                 );
 
-                if ($result['success']) {
-                    $apiData = $result['data']['data'] ?? $result['data'] ?? [];
+                if ($apiResult['success']) {
+                    $apiData = $apiResult['data']['data'] ?? $apiResult['data'] ?? [];
 
-                    // Registrar na tabela zettpay_transactions
+                    // Registrar na tabela zettpay_transactions (user_id=0 indica caixa/admin)
                     $pdo->prepare("
                         INSERT INTO zettpay_transactions (
                             user_id, external_id, zettpay_id, type, amount_brl, fee_brl,
@@ -73,27 +90,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $apiData['provider_transaction_id'] ?? $apiData['id'] ?? null,
                         $amount,
                         $pixKey,
-                        $pixKeyType
+                        $zettpayKeyType
                     ]);
 
-                    secureLog("ADMIN_CASHIER_WITHDRAW | amount: R\${$amount} | external_id: {$externalId} | pix_key: " . substr($pixKey, 0, 6) . "***");
+                    secureLog("ADMIN_CASHIER_WITHDRAW | amount: R\${$amount} | external_id: {$externalId} | key_type: {$zettpayKeyType} | pix_key: " . substr($pixKey, 0, 6) . "***");
 
                     $cashoutResult = [
                         'external_id' => $externalId,
                         'amount' => $amount,
                         'pix_key' => $pixKey,
-                        'pix_key_type' => $pixKeyType
+                        'pix_key_type' => $zettpayKeyType
                     ];
                     $message = 'Retirada de R$ ' . number_format($amount, 2, ',', '.') . ' enviada ao gateway. Acompanhe o status no histórico abaixo.';
                     $messageType = 'success';
                 } else {
-                    $message = 'Erro ao processar retirada: ' . ($result['error'] ?? 'Resposta inválida do gateway');
+                    // Extrair mensagem de erro detalhada igual ao auto-withdraw
+                    $errorMsg = $apiResult['error'] ?? 'Resposta inválida do gateway';
+                    $errorData = $apiResult['data'] ?? [];
+                    $errorCode = '';
+                    if (is_array($errorData)) {
+                        $errorCode = $errorData['error']['code'] ?? $errorData['code'] ?? '';
+                    }
+                    $fullErr = $errorMsg . ($errorCode ? " ({$errorCode})" : '');
+
+                    $message = 'Erro ao processar retirada: ' . $fullErr;
                     $messageType = 'danger';
-                    secureLog("ADMIN_CASHIER_WITHDRAW_FAIL | external_id: {$externalId} | error: " . ($result['error'] ?? 'unknown'));
+                    secureLog("ADMIN_CASHIER_WITHDRAW_FAIL | external_id: {$externalId} | http: " . ($apiResult['http_code'] ?? 0) . " | error: " . $fullErr);
                 }
             } catch (Exception $e) {
                 $message = 'Erro: ' . $e->getMessage();
                 $messageType = 'danger';
+                secureLog("ADMIN_CASHIER_WITHDRAW_EXCEPTION | " . $e->getMessage());
             }
         }
     } elseif ($action === 'generate_pix') {
