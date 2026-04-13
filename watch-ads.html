@@ -354,9 +354,6 @@
         </div>
     </div>
 
-    <!-- Ads Manager (para carregar slots) -->
-    <script src="js/ads-manager.js"></script>
-
     <script>
     // ============================================
     // Estado
@@ -389,9 +386,9 @@
 
         try {
             // Carregar status e slots em paralelo
-            const [statusRes, slotsRes] = await Promise.all([
+            const [statusRes, adsConfigRes] = await Promise.all([
                 fetch('/api/ad-rewards.php?action=status&google_uid=' + encodeURIComponent(state.googleUid)).then(r => r.json()),
-                fetch('/api/ad-rewards.php?action=get_slots').then(r => r.json())
+                fetch('/api/ads-config.php').then(r => r.json())
             ]);
 
             if (statusRes.success) {
@@ -403,8 +400,15 @@
                 state.creditsFromAds = statusRes.credits_from_ads;
             }
 
-            if (slotsRes.success && slotsRes.slots.length > 0) {
-                state.slots = slotsRes.slots;
+            // Juntar todos os slots de todos os tipos em uma lista
+            if (adsConfigRes.success && adsConfigRes.slots) {
+                const allSlots = [];
+                for (const type of Object.keys(adsConfigRes.slots)) {
+                    if (Array.isArray(adsConfigRes.slots[type])) {
+                        allSlots.push(...adsConfigRes.slots[type]);
+                    }
+                }
+                state.slots = allSlots;
             }
 
             updateUI();
