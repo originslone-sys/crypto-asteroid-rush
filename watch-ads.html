@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UNOBIX | Assistir Anúncios</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #0a0a1a;
+            color: #e0e0ff;
+            font-family: 'Rajdhani', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Fundo estrelas ─────────────────────────── */
+        .stars-bg {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; z-index: 0;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(10,80,200,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 30%, rgba(100,0,200,0.06) 0%, transparent 50%),
+                #0a0a1a;
+        }
+        .stars-bg::before, .stars-bg::after {
+            content: ''; position: absolute;
+            width: 100%; height: 100%;
+            background-image:
+                radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.6), transparent),
+                radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.4), transparent),
+                radial-gradient(1.5px 1.5px at 50% 10%, rgba(200,220,255,0.7), transparent),
+                radial-gradient(1px 1px at 70% 80%, rgba(255,255,255,0.5), transparent),
+                radial-gradient(1px 1px at 90% 40%, rgba(255,255,255,0.3), transparent);
+            animation: twinkle 4s ease-in-out infinite alternate;
+        }
+        .stars-bg::after { animation-delay: -2s; opacity: 0.7; }
+        @keyframes twinkle { from { opacity: 0.6; } to { opacity: 1; } }
+
+        /* ── Layout principal ───────────────────────── */
+        .page-wrap {
+            position: relative; z-index: 1;
+            max-width: 600px; margin: 0 auto;
+            padding: 16px 16px 100px;
+            min-height: 100vh;
+        }
+
+        /* ── Header ─────────────────────────────────── */
+        .top-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 0; margin-bottom: 16px;
+        }
+        .top-bar .back-btn {
+            color: #aaa; text-decoration: none; font-size: 0.9rem;
+            display: flex; align-items: center; gap: 6px;
+            transition: color 0.2s;
+        }
+        .top-bar .back-btn:hover { color: #fff; }
+        .top-bar .credits-pill {
+            background: rgba(255,200,0,0.12); border: 1px solid rgba(255,200,0,0.25);
+            border-radius: 20px; padding: 6px 14px;
+            font-family: 'Orbitron', monospace; font-size: 0.82rem; font-weight: 700;
+            color: #ffc800; display: flex; align-items: center; gap: 6px;
+        }
+
+        /* ── Card de progresso ──────────────────────── */
+        .progress-card {
+            background: linear-gradient(135deg, rgba(0,200,255,0.06), rgba(100,0,255,0.06));
+            border: 1px solid rgba(0,200,255,0.15);
+            border-radius: 16px; padding: 20px; margin-bottom: 16px;
+            text-align: center;
+        }
+        .progress-title {
+            font-size: 0.72rem; text-transform: uppercase; letter-spacing: 2px;
+            color: rgba(255,255,255,0.4); margin-bottom: 10px;
+        }
+        .progress-ring-wrap {
+            position: relative; width: 130px; height: 130px; margin: 0 auto 12px;
+        }
+        .progress-ring-wrap svg { width: 130px; height: 130px; transform: rotate(-90deg); }
+        .progress-ring-bg { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 8; }
+        .progress-ring-fill {
+            fill: none; stroke: url(#ringGrad); stroke-width: 8;
+            stroke-linecap: round; transition: stroke-dashoffset 0.6s ease;
+        }
+        .progress-ring-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .progress-ring-text .count {
+            font-family: 'Orbitron', monospace; font-size: 1.6rem; font-weight: 900;
+            color: #00c8ff; line-height: 1;
+        }
+        .progress-ring-text .label {
+            font-size: 0.68rem; color: rgba(255,255,255,0.4); margin-top: 2px;
+        }
+        .progress-stats {
+            display: flex; justify-content: center; gap: 24px; font-size: 0.78rem;
+        }
+        .progress-stats .stat { display: flex; flex-direction: column; align-items: center; }
+        .progress-stats .stat-val {
+            font-family: 'Orbitron', monospace; font-weight: 700; font-size: 0.95rem;
+        }
+        .progress-stats .stat-lbl { color: rgba(255,255,255,0.35); font-size: 0.68rem; }
+
+        /* ── Área do anúncio ────────────────────────── */
+        .ad-viewer {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px; overflow: hidden; margin-bottom: 16px;
+        }
+        .ad-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 16px;
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .ad-header .ad-label {
+            font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px;
+            color: rgba(255,255,255,0.3);
+        }
+        .ad-timer-badge {
+            background: rgba(0,200,255,0.1); border: 1px solid rgba(0,200,255,0.2);
+            border-radius: 12px; padding: 3px 10px;
+            font-family: 'Orbitron', monospace; font-size: 0.78rem; font-weight: 700;
+            color: #00c8ff; min-width: 42px; text-align: center;
+        }
+        .ad-timer-badge.done { background: rgba(5,255,161,0.1); border-color: rgba(5,255,161,0.3); color: #05ffa1; }
+
+        .ad-content {
+            min-height: 280px; display: flex; align-items: center; justify-content: center;
+            padding: 16px; position: relative;
+        }
+        .ad-content .ad-slot-render {
+            width: 100%; min-height: 250px;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* Placeholder quando não há anúncios */
+        .ad-placeholder {
+            text-align: center; color: rgba(255,255,255,0.25);
+        }
+        .ad-placeholder i { font-size: 2.5rem; margin-bottom: 10px; display: block; opacity: 0.3; }
+        .ad-placeholder p { font-size: 0.85rem; }
+
+        /* Timer progress bar no rodapé do ad */
+        .ad-timer-bar {
+            height: 3px; background: rgba(255,255,255,0.06);
+        }
+        .ad-timer-bar .fill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, #00c8ff, #05ffa1);
+            transition: width 0.3s linear;
+        }
+
+        /* ── Botão próximo ──────────────────────────── */
+        .next-btn-wrap { text-align: center; margin-bottom: 16px; }
+        .next-btn {
+            background: linear-gradient(135deg, #00c8ff, #0088ff);
+            color: #fff; border: none; border-radius: 12px;
+            padding: 14px 40px; font-size: 1rem; font-weight: 700;
+            font-family: 'Rajdhani', sans-serif; cursor: pointer;
+            transition: all 0.3s; letter-spacing: 0.5px;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .next-btn:disabled {
+            background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.25);
+            cursor: not-allowed;
+        }
+        .next-btn:not(:disabled):hover {
+            transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,200,255,0.3);
+        }
+
+        /* ── Info cards ─────────────────────────────── */
+        .info-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;
+        }
+        .info-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px; padding: 14px; text-align: center;
+        }
+        .info-card .ic-icon { font-size: 1.3rem; margin-bottom: 6px; }
+        .info-card .ic-val {
+            font-family: 'Orbitron', monospace; font-weight: 700; font-size: 1.1rem;
+        }
+        .info-card .ic-lbl { font-size: 0.68rem; color: rgba(255,255,255,0.35); margin-top: 2px; }
+
+        /* ── Toast de crédito ganho ──────────────────── */
+        .credit-toast {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            background: rgba(5,255,161,0.12);
+            border: 2px solid #05ffa1; border-radius: 20px;
+            padding: 28px 40px; text-align: center;
+            z-index: 100; opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            backdrop-filter: blur(20px);
+            pointer-events: none;
+        }
+        .credit-toast.show {
+            opacity: 1; transform: translate(-50%, -50%) scale(1);
+            pointer-events: auto;
+        }
+        .credit-toast .ct-icon {
+            font-size: 3rem; color: #ffc800; margin-bottom: 8px;
+            animation: bounce-in 0.6s ease;
+        }
+        .credit-toast .ct-title {
+            font-family: 'Orbitron', monospace; font-size: 1.3rem; font-weight: 900;
+            color: #05ffa1; margin-bottom: 4px;
+        }
+        .credit-toast .ct-sub { font-size: 0.85rem; color: rgba(255,255,255,0.6); }
+        @keyframes bounce-in {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        /* Confetti */
+        .confetti-particle {
+            position: fixed; width: 8px; height: 8px; z-index: 99;
+            border-radius: 50%; pointer-events: none;
+            animation: confetti-fall 1.5s ease-out forwards;
+        }
+        @keyframes confetti-fall {
+            0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+            100% { opacity: 0; transform: translateY(120vh) rotate(720deg); }
+        }
+
+        /* ── Loading state ──────────────────────────── */
+        .loading-state {
+            text-align: center; padding: 60px 20px;
+        }
+        .loading-state i { font-size: 2rem; color: #00c8ff; margin-bottom: 12px; }
+        .loading-state p { color: rgba(255,255,255,0.4); }
+
+        /* ── Responsivo ─────────────────────────────── */
+        @media (max-width: 400px) {
+            .progress-ring-wrap { width: 110px; height: 110px; }
+            .progress-ring-wrap svg { width: 110px; height: 110px; }
+            .progress-ring-text .count { font-size: 1.3rem; }
+            .ad-content { min-height: 220px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars-bg"></div>
+
+    <!-- Toast de crédito ganho -->
+    <div class="credit-toast" id="creditToast">
+        <div class="ct-icon"><i class="fas fa-star"></i></div>
+        <div class="ct-title">+1 CRÉDITO!</div>
+        <div class="ct-sub">Parabéns! Continue assistindo para ganhar mais.</div>
+    </div>
+
+    <div class="page-wrap">
+        <!-- Top bar -->
+        <div class="top-bar">
+            <a href="game-v2.html" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+            <div class="credits-pill">
+                <i class="fas fa-ticket-alt"></i>
+                <span id="creditsBalance">--</span>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loadingState" class="loading-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Carregando...</p>
+        </div>
+
+        <!-- Conteúdo principal (hidden até carregar) -->
+        <div id="mainContent" style="display:none;">
+
+            <!-- Progresso -->
+            <div class="progress-card">
+                <div class="progress-title">Progresso para o próximo crédito</div>
+                <div class="progress-ring-wrap">
+                    <svg viewBox="0 0 130 130">
+                        <defs>
+                            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#00c8ff"/>
+                                <stop offset="100%" style="stop-color:#05ffa1"/>
+                            </linearGradient>
+                        </defs>
+                        <circle class="progress-ring-bg" cx="65" cy="65" r="56"/>
+                        <circle class="progress-ring-fill" id="progressRing" cx="65" cy="65" r="56"
+                                stroke-dasharray="351.86" stroke-dashoffset="351.86"/>
+                    </svg>
+                    <div class="progress-ring-text">
+                        <div class="count" id="progressCount">0/500</div>
+                        <div class="label">visualizações</div>
+                    </div>
+                </div>
+                <div class="progress-stats">
+                    <div class="stat">
+                        <span class="stat-val" style="color:#05ffa1;" id="viewsRemaining">500</span>
+                        <span class="stat-lbl">Restantes</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-val" style="color:#ffaa00;" id="viewsToday">0</span>
+                        <span class="stat-lbl">Hoje</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-val" style="color:#00c8ff;" id="creditsEarned">0</span>
+                        <span class="stat-lbl">Créditos ganhos</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Área do anúncio -->
+            <div class="ad-viewer">
+                <div class="ad-header">
+                    <span class="ad-label"><i class="fas fa-ad"></i> Anúncio</span>
+                    <span class="ad-timer-badge" id="timerBadge">10s</span>
+                </div>
+                <div class="ad-content" id="adContent">
+                    <div class="ad-slot-render" id="adSlotRender">
+                        <div class="ad-placeholder" id="adPlaceholder">
+                            <i class="fas fa-play-circle"></i>
+                            <p>Clique em <strong>Iniciar</strong> para começar a assistir</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="ad-timer-bar"><div class="fill" id="timerBarFill"></div></div>
+            </div>
+
+            <!-- Botão -->
+            <div class="next-btn-wrap">
+                <button class="next-btn" id="mainBtn" onclick="handleMainBtn()">
+                    <i class="fas fa-play"></i> <span id="mainBtnText">Iniciar</span>
+                </button>
+            </div>
+
+            <!-- Info cards -->
+            <div class="info-row">
+                <div class="info-card">
+                    <div class="ic-icon" style="color:#ffc800;"><i class="fas fa-eye"></i></div>
+                    <div class="ic-val" id="totalViews">0</div>
+                    <div class="ic-lbl">Total de visualizações</div>
+                </div>
+                <div class="info-card">
+                    <div class="ic-icon" style="color:#05ffa1;"><i class="fas fa-calculator"></i></div>
+                    <div class="ic-val" id="conversionRate">500:1</div>
+                    <div class="ic-lbl">Views por crédito</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ads Manager (para carregar slots) -->
+    <script src="js/ads-manager.js"></script>
+
+    <script>
+    // ============================================
+    // Estado
+    // ============================================
+    const state = {
+        googleUid: null,
+        progress: 0,
+        viewsNeeded: 500,
+        credits: 0,
+        viewsToday: 0,
+        viewsTotal: 0,
+        creditsFromAds: 0,
+        slots: [],
+        currentSlotIndex: 0,
+        timerSeconds: 10,
+        timerInterval: null,
+        isWatching: false,
+        isReady: false // anúncio carregado e timer pode iniciar
+    };
+
+    // ============================================
+    // Inicialização
+    // ============================================
+    async function init() {
+        state.googleUid = localStorage.getItem('googleUid');
+        if (!state.googleUid) {
+            window.location.href = 'index.html';
+            return;
+        }
+
+        try {
+            // Carregar status e slots em paralelo
+            const [statusRes, slotsRes] = await Promise.all([
+                fetch('/api/ad-rewards.php?action=status&google_uid=' + encodeURIComponent(state.googleUid)).then(r => r.json()),
+                fetch('/api/ad-rewards.php?action=get_slots').then(r => r.json())
+            ]);
+
+            if (statusRes.success) {
+                state.progress = statusRes.progress;
+                state.viewsNeeded = statusRes.views_needed;
+                state.credits = statusRes.credits;
+                state.viewsToday = statusRes.views_today;
+                state.viewsTotal = statusRes.views_total;
+                state.creditsFromAds = statusRes.credits_from_ads;
+            }
+
+            if (slotsRes.success && slotsRes.slots.length > 0) {
+                state.slots = slotsRes.slots;
+            }
+
+            updateUI();
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+
+        } catch (err) {
+            console.error('Init error:', err);
+            document.getElementById('loadingState').innerHTML =
+                '<i class="fas fa-exclamation-triangle" style="color:#ff4444;"></i><p>Erro ao carregar. Tente novamente.</p>';
+        }
+    }
+
+    // ============================================
+    // UI Updates
+    // ============================================
+    function updateUI() {
+        const pct = (state.progress / state.viewsNeeded) * 100;
+
+        // Ring
+        const circumference = 2 * Math.PI * 56; // r=56
+        const offset = circumference - (pct / 100) * circumference;
+        document.getElementById('progressRing').style.strokeDashoffset = offset;
+
+        // Textos
+        document.getElementById('progressCount').textContent = state.progress + '/' + state.viewsNeeded;
+        document.getElementById('viewsRemaining').textContent = Math.max(0, state.viewsNeeded - state.progress);
+        document.getElementById('viewsToday').textContent = state.viewsToday;
+        document.getElementById('creditsEarned').textContent = state.creditsFromAds;
+        document.getElementById('creditsBalance').textContent = state.credits;
+        document.getElementById('totalViews').textContent = state.viewsTotal;
+    }
+
+    function updateTimerUI(seconds) {
+        const badge = document.getElementById('timerBadge');
+        badge.textContent = seconds + 's';
+        badge.classList.toggle('done', seconds === 0);
+
+        const pct = ((10 - seconds) / 10) * 100;
+        document.getElementById('timerBarFill').style.width = pct + '%';
+    }
+
+    // ============================================
+    // Carregar anúncio no slot
+    // ============================================
+    function loadAd() {
+        const container = document.getElementById('adSlotRender');
+
+        if (state.slots.length === 0) {
+            // Sem slots configurados: mostra placeholder visual
+            container.innerHTML = `
+                <div style="width:100%;height:250px;background:linear-gradient(135deg,rgba(0,200,255,0.05),rgba(100,0,255,0.05));
+                     border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+                     border:1px dashed rgba(255,255,255,0.1);">
+                    <i class="fas fa-ad" style="font-size:2.5rem;color:rgba(0,200,255,0.3);margin-bottom:10px;"></i>
+                    <span style="color:rgba(255,255,255,0.3);font-size:0.85rem;">Espaço publicitário</span>
+                </div>
+            `;
+            return;
+        }
+
+        const slot = state.slots[state.currentSlotIndex % state.slots.length];
+        state.currentSlotIndex++;
+
+        // Renderizar slot
+        container.innerHTML = '';
+
+        if (slot.script_code) {
+            // Usar iframe isolado para scripts de anúncio (segurança + evita conflito)
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = 'width:100%;min-height:250px;border:none;background:transparent;';
+            iframe.sandbox = 'allow-scripts allow-popups allow-popups-to-escape-sandbox';
+            container.appendChild(iframe);
+
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+            iframeDoc.open();
+            iframeDoc.write(`<!DOCTYPE html><html><head>
+                <style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:250px;background:transparent;overflow:hidden;}
+                ${slot.custom_css || ''}</style></head><body>${slot.script_code}</body></html>`);
+            iframeDoc.close();
+
+            // Ajustar altura do iframe ao conteúdo
+            iframe.onload = () => {
+                try {
+                    const h = iframe.contentDocument.body.scrollHeight;
+                    if (h > 50) iframe.style.height = h + 'px';
+                } catch(e) {}
+            };
+        } else {
+            container.innerHTML = `
+                <div style="width:100%;min-height:250px;background:linear-gradient(135deg,rgba(0,200,255,0.05),rgba(100,0,255,0.05));
+                     border-radius:12px;display:flex;align-items:center;justify-content:center;
+                     border:1px dashed rgba(255,255,255,0.1);">
+                    <span style="color:rgba(255,255,255,0.3);font-size:0.85rem;">${slot.provider || 'Anúncio'}</span>
+                </div>
+            `;
+        }
+    }
+
+    // ============================================
+    // Timer de 10 segundos
+    // ============================================
+    function startTimer() {
+        state.timerSeconds = 10;
+        updateTimerUI(10);
+
+        const btn = document.getElementById('mainBtn');
+        const btnText = document.getElementById('mainBtnText');
+        btn.disabled = true;
+        btnText.textContent = 'Aguarde 10s...';
+        btn.querySelector('i').className = 'fas fa-hourglass-half';
+
+        state.timerInterval = setInterval(() => {
+            state.timerSeconds--;
+            updateTimerUI(state.timerSeconds);
+
+            if (state.timerSeconds > 0) {
+                btnText.textContent = 'Aguarde ' + state.timerSeconds + 's...';
+            }
+
+            if (state.timerSeconds <= 0) {
+                clearInterval(state.timerInterval);
+                state.timerInterval = null;
+
+                // Timer concluído — registrar visualização
+                registerView();
+            }
+        }, 1000);
+    }
+
+    // ============================================
+    // Registrar visualização no servidor
+    // ============================================
+    async function registerView() {
+        const btn = document.getElementById('mainBtn');
+        const btnText = document.getElementById('mainBtnText');
+
+        try {
+            const slotId = state.slots.length > 0
+                ? state.slots[(state.currentSlotIndex - 1) % state.slots.length].id
+                : 0;
+
+            const res = await fetch('/api/ad-rewards.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'view_complete',
+                    google_uid: state.googleUid,
+                    slot_id: slotId
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                state.progress = data.progress;
+                state.viewsTotal = data.views_total;
+                state.credits = data.credits;
+                state.viewsToday++;
+                state.isWatching = true;
+
+                if (data.credit_awarded) {
+                    state.creditsFromAds++;
+                    showCreditToast();
+                }
+
+                updateUI();
+
+                // Habilitar botão "Próximo"
+                btn.disabled = false;
+                btnText.textContent = 'Próximo Anúncio';
+                btn.querySelector('i').className = 'fas fa-forward';
+            } else {
+                btn.disabled = false;
+                btnText.textContent = 'Tentar Novamente';
+                btn.querySelector('i').className = 'fas fa-redo';
+                console.warn('View error:', data.error);
+            }
+
+        } catch (err) {
+            console.error('Register view error:', err);
+            btn.disabled = false;
+            btnText.textContent = 'Tentar Novamente';
+            btn.querySelector('i').className = 'fas fa-redo';
+        }
+    }
+
+    // ============================================
+    // Botão principal
+    // ============================================
+    function handleMainBtn() {
+        if (state.timerInterval) return; // Timer ativo — ignorar
+
+        // Carregar anúncio e iniciar timer
+        loadAd();
+        startTimer();
+    }
+
+    // ============================================
+    // Toast de crédito ganho + confetti
+    // ============================================
+    function showCreditToast() {
+        const toast = document.getElementById('creditToast');
+        toast.classList.add('show');
+        spawnConfetti();
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3500);
+    }
+
+    function spawnConfetti() {
+        const colors = ['#ffc800', '#05ffa1', '#00c8ff', '#ff6600', '#ff44aa', '#aa44ff'];
+        for (let i = 0; i < 40; i++) {
+            const el = document.createElement('div');
+            el.className = 'confetti-particle';
+            el.style.left = (Math.random() * 100) + 'vw';
+            el.style.top = (Math.random() * 30 + 20) + 'vh';
+            el.style.background = colors[Math.floor(Math.random() * colors.length)];
+            el.style.width = (Math.random() * 6 + 4) + 'px';
+            el.style.height = el.style.width;
+            el.style.animationDuration = (Math.random() * 1 + 1) + 's';
+            el.style.animationDelay = (Math.random() * 0.5) + 's';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 2500);
+        }
+    }
+
+    // ============================================
+    // Start
+    // ============================================
+    init();
+    </script>
+</body>
+</html>
