@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anuncie na UNOBIX - 300x250</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+.banner {
+    width: 300px;
+    height: 250px;
+    background: radial-gradient(ellipse at 30% 20%, rgba(255,170,0,0.12) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 80%, rgba(0,200,255,0.08) 0%, transparent 50%),
+                linear-gradient(145deg, #0c0c1e 0%, #0a0a1a 50%, #0d0b22 100%);
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    cursor: pointer;
+    border: 1px solid rgba(255,170,0,0.2);
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+.banner:hover {
+    border-color: rgba(255,170,0,0.5);
+    box-shadow: 0 0 30px rgba(255,170,0,0.12), 0 0 60px rgba(0,200,255,0.06);
+}
+
+/* Particulas decorativas */
+.particle {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0;
+    animation: float 4s ease-in-out infinite;
+}
+.p1 { width: 3px; height: 3px; background: #ffaa00; top: 15%; left: 10%; animation-delay: 0s; }
+.p2 { width: 2px; height: 2px; background: #00c8ff; top: 60%; right: 12%; animation-delay: 1.2s; }
+.p3 { width: 2.5px; height: 2.5px; background: #ffaa00; bottom: 25%; left: 25%; animation-delay: 2.4s; }
+.p4 { width: 2px; height: 2px; background: #05ffa1; top: 30%; right: 30%; animation-delay: 0.8s; }
+.p5 { width: 1.5px; height: 1.5px; background: #fff; top: 80%; left: 60%; animation-delay: 1.8s; }
+
+@keyframes float {
+    0%, 100% { opacity: 0; transform: translateY(0) scale(0.5); }
+    50% { opacity: 0.8; transform: translateY(-12px) scale(1); }
+}
+
+/* Linha brilhante no topo */
+.glow-line {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, #ffaa00 30%, #ff6600 50%, #ffaa00 70%, transparent 100%);
+    opacity: 0.7;
+    animation: shimmer 3s ease-in-out infinite;
+}
+@keyframes shimmer {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+/* Conteudo */
+.content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 20px;
+    text-align: center;
+}
+
+/* Icone megafone */
+.icon-wrap {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(255,170,0,0.15), rgba(255,100,0,0.1));
+    border: 1.5px solid rgba(255,170,0,0.3);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 12px;
+    animation: pulse-icon 2.5s ease-in-out infinite;
+    position: relative;
+}
+.icon-wrap::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,170,0,0.1);
+    animation: pulse-ring 2.5s ease-in-out infinite;
+}
+@keyframes pulse-icon {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+}
+@keyframes pulse-ring {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.2); opacity: 0; }
+}
+
+.icon-wrap svg {
+    width: 24px; height: 24px; fill: #ffaa00;
+    filter: drop-shadow(0 0 6px rgba(255,170,0,0.4));
+}
+
+/* Titulo */
+.title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 2px;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+}
+.title span {
+    background: linear-gradient(90deg, #ffaa00, #ff8800);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* Subtitulo */
+.subtitle {
+    font-size: 12.5px;
+    color: rgba(255,255,255,0.45);
+    margin-bottom: 14px;
+    line-height: 1.4;
+    max-width: 240px;
+}
+.subtitle strong {
+    color: rgba(255,255,255,0.7);
+    font-weight: 600;
+}
+
+/* Stats */
+.stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.stat-val {
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1;
+}
+.stat-val.green { color: #05ffa1; }
+.stat-val.orange { color: #ffaa00; }
+.stat-val.blue { color: #00c8ff; }
+.stat-lbl {
+    font-size: 9px;
+    color: rgba(255,255,255,0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-top: 3px;
+}
+
+/* Botao CTA */
+.cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: linear-gradient(135deg, #ffaa00, #ff7700);
+    color: #000;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 9px 22px;
+    border-radius: 8px;
+    text-decoration: none;
+    letter-spacing: 0.3px;
+    transition: all 0.3s;
+    box-shadow: 0 4px 18px rgba(255,170,0,0.25);
+    position: relative;
+    overflow: hidden;
+}
+.cta-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+    animation: btn-shine 3s ease-in-out infinite;
+}
+@keyframes btn-shine {
+    0%, 100% { left: -100%; }
+    50% { left: 100%; }
+}
+.cta-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(255,170,0,0.4);
+}
+.cta-btn svg {
+    width: 16px; height: 16px; fill: #000;
+}
+
+/* Badge */
+.badge {
+    position: absolute;
+    top: 12px; right: 12px;
+    background: rgba(5,255,161,0.1);
+    border: 1px solid rgba(5,255,161,0.25);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #05ffa1;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Logo watermark */
+.watermark {
+    position: absolute;
+    bottom: 8px; left: 12px;
+    font-size: 9px;
+    color: rgba(255,255,255,0.12);
+    font-weight: 700;
+    letter-spacing: 1.5px;
+}
+</style>
+</head>
+<body style="background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;">
+
+<a href="https://t.me/Alvaro789rj" target="_blank" rel="noopener" style="text-decoration:none;">
+<div class="banner">
+    <div class="glow-line"></div>
+    <div class="particle p1"></div>
+    <div class="particle p2"></div>
+    <div class="particle p3"></div>
+    <div class="particle p4"></div>
+    <div class="particle p5"></div>
+
+    <span class="badge">Vagas Limitadas</span>
+
+    <div class="content">
+        <div class="icon-wrap">
+            <svg viewBox="0 0 24 24"><path d="M18 11v2h4v-2h-4zm-2 6.61c.96.71 2.21 1.65 3.2 2.39.4-.53.8-1.07 1.2-1.6-.99-.74-2.24-1.68-3.2-2.4-.4.54-.8 1.07-1.2 1.61zM20.4 5.6c-.4-.53-.8-1.07-1.2-1.6-.99.74-2.24 1.68-3.2 2.4.4.53.8 1.07 1.2 1.6.96-.72 2.21-1.65 3.2-2.4zM4 9c-1.1 0-2 .9-2 2v2c0 1.1.9 2 2 2h1l5 5V4L5 9H4zm11.5 3c0-1.33-.58-2.53-1.5-3.35v6.69c.92-.81 1.5-2.01 1.5-3.34z"/></svg>
+        </div>
+        <div class="title"><span>Anuncie Aqui</span></div>
+        <div class="subtitle">Coloque sua marca na frente de <strong>milhares de jogadores reais</strong> com custo acessivel</div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-val green">Real</span>
+                <span class="stat-lbl">Audiencia</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-val orange">Baixo</span>
+                <span class="stat-lbl">Custo</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-val blue">Alto</span>
+                <span class="stat-lbl">Retorno</span>
+            </div>
+        </div>
+
+        <div class="cta-btn">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+            Fale Conosco
+        </div>
+    </div>
+
+    <span class="watermark">UNOBIX</span>
+</div>
+</a>
+
+</body>
+</html>
