@@ -588,6 +588,40 @@ try {
         }
     } catch (Exception $e) { /* tabela pode não existir */ }
 
+    // --- users: colunas de recompensa por anúncios ---
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM users LIKE 'ad_views_progress'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN ad_views_progress INT NOT NULL DEFAULT 0");
+            $results['migrations'][] = 'users.ad_views_progress';
+            output("  [OK] users.ad_views_progress adicionada");
+        }
+        $col2 = $pdo->query("SHOW COLUMNS FROM users LIKE 'ad_views_total'")->fetch();
+        if (!$col2) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN ad_views_total INT NOT NULL DEFAULT 0");
+            $results['migrations'][] = 'users.ad_views_total';
+            output("  [OK] users.ad_views_total adicionada");
+        }
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
+    // --- ad_reward_log: log de visualizações de anúncios para créditos ---
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS ad_reward_log (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            google_uid VARCHAR(128) NOT NULL,
+            slot_id INT DEFAULT NULL,
+            ip_address VARCHAR(45) DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user_id (user_id),
+            INDEX idx_google_uid (google_uid),
+            INDEX idx_created_at (created_at),
+            INDEX idx_user_created (user_id, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'ad_reward_log';
+    output("  [OK] ad_reward_log");
+
     // ============================================
     // ÍNDICES CRÍTICOS
     // ============================================
