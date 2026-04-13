@@ -323,8 +323,8 @@
                 <div class="ad-content" id="adContent">
                     <div class="ad-slot-render" id="adSlotRender">
                         <div class="ad-placeholder" id="adPlaceholder">
-                            <i class="fas fa-play-circle"></i>
-                            <p>Clique em <strong>Iniciar</strong> para começar a assistir</p>
+                            <i class="fas fa-pause-circle"></i>
+                            <p>Visualização de anúncios <strong>pausada</strong> no momento</p>
                         </div>
                     </div>
                 </div>
@@ -333,8 +333,8 @@
 
             <!-- Botão -->
             <div class="next-btn-wrap">
-                <button class="next-btn" id="mainBtn" onclick="handleMainBtn()">
-                    <i class="fas fa-play"></i> <span id="mainBtnText">Iniciar</span>
+                <button class="next-btn" id="mainBtn" disabled>
+                    <i class="fas fa-pause"></i> <span id="mainBtnText">Pausado</span>
                 </button>
             </div>
 
@@ -623,11 +623,8 @@
     // Botão principal
     // ============================================
     function handleMainBtn() {
-        if (state.timerInterval) return; // Timer ativo — ignorar
-
-        // Carregar anúncio e iniciar timer
-        loadAd();
-        startTimer();
+        // Pausado — navegação desabilitada no momento
+        return;
     }
 
     // ============================================
