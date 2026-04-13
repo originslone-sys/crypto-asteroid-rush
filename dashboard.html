@@ -106,6 +106,12 @@
                 <p class="action-desc">Convide amigos e ganhe R$ 5,00 por indicação!</p>
                 <span class="action-link">Convidar Amigos <i class="fas fa-arrow-right"></i></span>
             </a>
+            <a href="watch-ads.html" class="action-card watch-ads">
+                <div class="action-icon"><i class="fas fa-play-circle"></i></div>
+                <h3 class="action-title">ASSISTIR ANÚNCIOS</h3>
+                <p class="action-desc">Ganhe créditos grátis assistindo anúncios curtos.</p>
+                <span class="action-link">Começar <i class="fas fa-arrow-right"></i></span>
+            </a>
         </div>
     </section>
     
@@ -278,6 +284,18 @@
 .action-card.affiliate:hover {
     border-color: var(--success);
     box-shadow: 0 10px 30px rgba(5, 255, 161, 0.2);
+}
+.action-card.watch-ads {
+    background: linear-gradient(135deg, rgba(255, 170, 0, 0.1), rgba(255, 200, 0, 0.05));
+    border-color: #ffaa00;
+}
+.action-card.watch-ads .action-icon {
+    background: rgba(255, 170, 0, 0.2);
+    color: #ffaa00;
+}
+.action-card.watch-ads:hover {
+    border-color: #ffaa00;
+    box-shadow: 0 10px 30px rgba(255, 170, 0, 0.2);
 }
 
 /* Avatar do usuário logado */

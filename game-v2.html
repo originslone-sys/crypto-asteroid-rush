@@ -141,6 +141,18 @@
         .mode-btn.mode-training .mode-name { color: #95a5a6; }
         .mode-btn.mode-training .mode-cost { background: rgba(149, 165, 166, 0.15); color: #95a5a6; }
 
+        /* Assistir Anúncios */
+        .mode-btn.mode-ads {
+            border-color: rgba(255, 170, 0, 0.4);
+            border-style: dashed;
+        }
+        .mode-btn.mode-ads:hover {
+            background: rgba(255, 170, 0, 0.1);
+            border-color: rgba(255, 170, 0, 0.7);
+        }
+        .mode-btn.mode-ads .mode-name { color: #ffaa00; }
+        .mode-btn.mode-ads .mode-cost { background: rgba(255, 170, 0, 0.2); color: #ffaa00; }
+
         .mode-btn.disabled {
             opacity: 0.4;
             pointer-events: none;
@@ -488,6 +500,14 @@
                 </div>
                 <span class="mode-cost"><i class="fas fa-star"></i> Grátis</span>
             </button>
+
+            <a href="watch-ads.html" class="mode-btn mode-ads" style="text-decoration:none;">
+                <div class="mode-info">
+                    <span class="mode-name"><i class="fas fa-play-circle"></i> ASSISTIR ANÚNCIOS</span>
+                    <span class="mode-desc">Assista anúncios curtos e ganhe créditos grátis</span>
+                </div>
+                <span class="mode-cost"><i class="fas fa-gift"></i> Grátis</span>
+            </a>
         </div>
     </div>
 </div>
