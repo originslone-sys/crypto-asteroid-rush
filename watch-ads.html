@@ -318,13 +318,13 @@
             <div class="ad-viewer">
                 <div class="ad-header">
                     <span class="ad-label"><i class="fas fa-ad"></i> Anúncio</span>
-                    <span class="ad-timer-badge" id="timerBadge">10s</span>
+                    <span class="ad-timer-badge" id="timerBadge">60s</span>
                 </div>
                 <div class="ad-content" id="adContent">
                     <div class="ad-slot-render" id="adSlotRender">
                         <div class="ad-placeholder" id="adPlaceholder">
-                            <i class="fas fa-pause-circle"></i>
-                            <p>Visualização de anúncios <strong>pausada</strong> no momento</p>
+                            <i class="fas fa-play-circle"></i>
+                            <p>Clique em <strong>Iniciar</strong> para começar a assistir</p>
                         </div>
                     </div>
                 </div>
@@ -333,8 +333,8 @@
 
             <!-- Botão -->
             <div class="next-btn-wrap">
-                <button class="next-btn" id="mainBtn" disabled>
-                    <i class="fas fa-pause"></i> <span id="mainBtnText">Pausado</span>
+                <button class="next-btn" id="mainBtn" onclick="handleMainBtn()">
+                    <i class="fas fa-play"></i> <span id="mainBtnText">Iniciar</span>
                 </button>
             </div>
 
@@ -387,7 +387,7 @@
         creditsFromAds: 0,
         slots: [],
         currentSlotIndex: 0,
-        timerSeconds: 10,
+        timerSeconds: 60,
         timerInterval: null,
         isWatching: false,
         isReady: false // anúncio carregado e timer pode iniciar
@@ -466,7 +466,7 @@
         badge.textContent = seconds + 's';
         badge.classList.toggle('done', seconds === 0);
 
-        const pct = ((10 - seconds) / 10) * 100;
+        const pct = ((60 - seconds) / 60) * 100;
         document.getElementById('timerBarFill').style.width = pct + '%';
     }
 
@@ -532,16 +532,16 @@
     }
 
     // ============================================
-    // Timer de 10 segundos
+    // Timer de 60 segundos
     // ============================================
     function startTimer() {
-        state.timerSeconds = 10;
-        updateTimerUI(10);
+        state.timerSeconds = 60;
+        updateTimerUI(60);
 
         const btn = document.getElementById('mainBtn');
         const btnText = document.getElementById('mainBtnText');
         btn.disabled = true;
-        btnText.textContent = 'Aguarde 10s...';
+        btnText.textContent = 'Aguarde 60s...';
         btn.querySelector('i').className = 'fas fa-hourglass-half';
 
         state.timerInterval = setInterval(() => {
@@ -623,8 +623,11 @@
     // Botão principal
     // ============================================
     function handleMainBtn() {
-        // Pausado — navegação desabilitada no momento
-        return;
+        if (state.timerInterval) return; // Timer ativo — ignorar
+
+        // Carregar anúncio e iniciar timer
+        loadAd();
+        startTimer();
     }
 
     // ============================================
