@@ -422,12 +422,25 @@
             // Juntar todos os slots de todos os tipos em uma lista
             if (adsConfigRes.success && adsConfigRes.slots) {
                 const allSlots = [];
+                const globalSlots = [];
                 for (const type of Object.keys(adsConfigRes.slots)) {
                     if (Array.isArray(adsConfigRes.slots[type])) {
-                        allSlots.push(...adsConfigRes.slots[type]);
+                        for (const slot of adsConfigRes.slots[type]) {
+                            // Separar: visual (script_code + não head) vs global-only
+                            if (slot.script_code && slot.position !== 'head') {
+                                allSlots.push(slot);
+                            }
+                            // Coletar slots com custom_js ou position=head para injeção global
+                            if (slot.custom_js || (slot.position === 'head' && slot.script_code)) {
+                                globalSlots.push(slot);
+                            }
+                        }
                     }
                 }
                 state.slots = allSlots;
+
+                // Injetar scripts globais (custom_js) no <head> — necessário para redes ads
+                injectGlobalScripts(globalSlots);
             }
 
             updateUI();
@@ -471,6 +484,43 @@
     }
 
     // ============================================
+    // Injetar scripts globais (custom_js) no <head>
+    // ============================================
+    const _injectedFingerprints = new Set();
+
+    function injectGlobalScripts(globalSlots) {
+        for (const slot of globalSlots) {
+            const code = slot.custom_js || (slot.position === 'head' ? slot.script_code : null);
+            if (!code) continue;
+
+            const temp = document.createElement('div');
+            temp.innerHTML = code;
+            const scripts = temp.querySelectorAll('script');
+
+            scripts.forEach(oldScript => {
+                // Deduplicação por src+zone ou conteúdo inline
+                const zone = oldScript.getAttribute('data-zone') || '';
+                const fp = oldScript.src
+                    ? 'src:' + oldScript.src + (zone ? ':zone:' + zone : '')
+                    : 'inline:' + (oldScript.textContent || '').trim().substring(0, 500);
+
+                if (_injectedFingerprints.has(fp)) return;
+                _injectedFingerprints.add(fp);
+
+                const newScript = document.createElement('script');
+                Array.from(oldScript.attributes).forEach(attr => {
+                    newScript.setAttribute(attr.name, attr.value);
+                });
+                if (!oldScript.src && oldScript.textContent) {
+                    newScript.textContent = oldScript.textContent;
+                }
+                document.head.appendChild(newScript);
+                console.log('[watch-ads] Global script injetado:', fp.substring(0, 80));
+            });
+        }
+    }
+
+    // ============================================
     // Carregar anúncio no slot
     // ============================================
     function loadAd() {
@@ -491,25 +541,35 @@
         const slot = state.slots[state.currentSlotIndex % state.slots.length];
         state.currentSlotIndex++;
 
+        // Injetar custom_js deste slot específico (se tiver e ainda não foi)
+        if (slot.custom_js) {
+            injectGlobalScripts([slot]);
+        }
+
         container.innerHTML = '';
 
-        if (slot.script_code) {
-            // Renderizar direto no DOM igual ao ads-manager.js (sem iframe)
-            let html = '';
-            if (slot.custom_css) {
-                html += `<style>${slot.custom_css}</style>`;
-            }
-            const style = [];
-            if (slot.width) style.push(`width:${slot.width}${isNaN(slot.width) ? '' : 'px'}`);
-            if (slot.height) style.push(`height:${slot.height}${isNaN(slot.height) ? '' : 'px'}`);
+        // Renderizar direto no DOM igual ao ads-manager.js (sem iframe)
+        let html = '';
+        if (slot.custom_css) {
+            html += `<style>${slot.custom_css}</style>`;
+        }
+        const style = [];
+        if (slot.width) style.push(`width:${slot.width}${isNaN(slot.width) ? '' : 'px'}`);
+        if (slot.height) style.push(`height:${slot.height}${isNaN(slot.height) ? '' : 'px'}`);
 
-            html += `<div class="ad-slot-content" data-slot-id="${slot.id}" data-position="center"
-                          style="${style.join(';')}">${slot.script_code}</div>`;
+        html += `<div class="ad-slot-content" data-slot-id="${slot.id}" data-position="center"
+                      style="${style.join(';')}">${slot.script_code}</div>`;
 
-            container.innerHTML = html;
+        container.innerHTML = html;
 
-            // Re-criar <script> tags para executar (innerHTML não executa scripts)
-            const scripts = Array.from(container.querySelectorAll('script'));
+        // Re-criar <script> tags para executar (innerHTML não executa scripts)
+        executeScripts(container);
+    }
+
+    function executeScripts(container) {
+        const slotDivs = container.querySelectorAll('.ad-slot-content[data-position="center"]');
+        slotDivs.forEach(slotDiv => {
+            const scripts = Array.from(slotDiv.querySelectorAll('script'));
             scripts.forEach(oldScript => {
                 const newScript = document.createElement('script');
                 Array.from(oldScript.attributes).forEach(attr => {
@@ -520,15 +580,7 @@
                 }
                 oldScript.parentNode.replaceChild(newScript, oldScript);
             });
-        } else {
-            container.innerHTML = `
-                <div style="width:100%;min-height:250px;background:linear-gradient(135deg,rgba(0,200,255,0.05),rgba(100,0,255,0.05));
-                     border-radius:12px;display:flex;align-items:center;justify-content:center;
-                     border:1px dashed rgba(255,255,255,0.1);">
-                    <span style="color:rgba(255,255,255,0.3);font-size:0.85rem;">${slot.provider || 'Anúncio'}</span>
-                </div>
-            `;
-        }
+        });
     }
 
     // ============================================
