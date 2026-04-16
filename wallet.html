@@ -837,7 +837,7 @@
         <div class="withdraw-form">
             <div class="form-group">
                 <label>Valor (R$)</label>
-                <input type="number" class="withdraw-input" id="withdrawAmount" placeholder="0,00" step="0.01" min="20.00">
+                <input type="number" class="withdraw-input" id="withdrawAmount" placeholder="0,00" step="0.01" min="50.00">
             </div>
             <div class="form-group visible" id="paymentDetailsGroup">
                 <label id="paymentDetailsLabel">Chave PIX (CPF)</label>
@@ -869,7 +869,7 @@
 
         <div class="withdraw-info">
             <i class="fas fa-info-circle"></i>
-            <span>Mínimo: R$ 20,00 • 1 saque por vez (aguarde o processamento) • Sem taxas • <a href="fila-saques.html" style="color:var(--primary);text-decoration:underline;">Acompanhe em tempo real</a></span>
+            <span>Mínimo: R$ 50,00 • 1 saque por vez (aguarde o processamento) • Sem taxas • <a href="fila-saques.html" style="color:var(--primary);text-decoration:underline;">Acompanhe em tempo real</a></span>
         </div>
         
         <div class="withdraw-info warning" id="withdrawWarning" style="display: none;">
@@ -1363,8 +1363,8 @@ async function requestWithdraw() {
     let pixKeyType = '';
     let shouldSaveKey = false;
 
-    if (!amount || amount < 20) {
-        showWarning('O valor mínimo para saque é R$ 20,00');
+    if (!amount || amount < 50) {
+        showWarning('O valor mínimo para saque é R$ 50,00');
         return;
     }
 

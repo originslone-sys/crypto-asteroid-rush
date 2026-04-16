@@ -204,7 +204,7 @@ try {
                     <div class="form-group">
                         <label class="form-label">Saque Mínimo (R$)</label>
                         <input type="number" name="min_withdraw" class="form-control" 
-                               value="<?php echo $settings['min_withdraw_amount_brl'] ?? 5; ?>" 
+                               value="<?php echo $settings['min_withdraw_amount_brl'] ?? 50; ?>"
                                step="0.1" min="0.1">
                     </div>
                     
