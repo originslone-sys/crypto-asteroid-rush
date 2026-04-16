@@ -724,8 +724,8 @@
     </section>
 
     <!-- Seção Premium -->
-    <section class="withdraw-section" id="premiumSection">
-        <h3><i class="fas fa-crown" style="color: #ffd700;"></i> Premium <span style="font-size: 0.7rem; color: var(--text-dim); font-family: 'Exo 2', sans-serif; font-weight: 400; margin-left: 8px;">Opcional</span></h3>
+    <section class="withdraw-section" id="premiumSection" style="display: none;">
+        <h3><i class="fas fa-crown" style="color: #ffd700;"></i> Premium</h3>
 
         <!-- Card Premium - Status Ativo -->
         <div id="premiumActiveCard" style="display: none; padding: 20px; background: linear-gradient(135deg, rgba(255, 215, 0, 0.12), rgba(255, 140, 0, 0.06)); border: 2px solid rgba(255, 215, 0, 0.4); border-radius: 12px; margin-bottom: 15px;">
@@ -814,7 +814,7 @@
 
         <div class="withdraw-info" style="margin-top: 15px;">
             <i class="fas fa-info-circle"></i>
-            <span>Pagamento via PIX | Ativacao automatica apos confirmacao | Opcional</span>
+            <span id="premiumInfoMsg">Aproveite seus beneficios Premium ate a data de expiracao.</span>
         </div>
     </section>
 
@@ -1697,10 +1697,21 @@ function showDepositWarning(message) {
 let premiumPollingInterval = null;
 
 function updatePremiumUI(isPremium, expiresAt) {
+    const premiumSection = document.getElementById('premiumSection');
     const activeCard = document.getElementById('premiumActiveCard');
     const buyCard = document.getElementById('premiumBuyCard');
+    const qrArea = document.getElementById('premiumQrArea');
+    const successArea = document.getElementById('premiumSuccessArea');
+    const infoMsg = document.getElementById('premiumInfoMsg');
+
+    // Compras/renovacoes de Premium estao desativadas — esconder cards de compra
+    if (buyCard) buyCard.style.display = 'none';
+    if (qrArea) qrArea.style.display = 'none';
+    if (successArea) successArea.style.display = 'none';
 
     if (isPremium && expiresAt) {
+        // Usuario premium ativo — mostrar apenas status (sem opcao de renovar)
+        if (premiumSection) premiumSection.style.display = '';
         activeCard.style.display = 'block';
 
         const expDate = new Date(expiresAt);
@@ -1709,25 +1720,16 @@ function updatePremiumUI(isPremium, expiresAt) {
         const formatted = expDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         document.getElementById('premiumExpiresText').textContent = formatted + ' (' + diffDays + ' dias restantes)';
 
-        // Mostrar botão de renovação antecipada
-        buyCard.style.display = 'block';
-        loadPremiumPrice();
-        const buyBtn = document.getElementById('premiumBuyBtn');
-        if (buyBtn) {
-            buyBtn.innerHTML = '<i class="fas fa-crown"></i> Renovar Premium (+30 dias)';
-        }
+        if (infoMsg) infoMsg.textContent = 'Aproveite seus beneficios Premium ate a data de expiracao.';
+
+        loadPremiumDailyCredits();
     } else {
-        activeCard.style.display = 'none';
-        buyCard.style.display = 'block';
-        loadPremiumPrice();
-        const buyBtn = document.getElementById('premiumBuyBtn');
-        if (buyBtn) {
-            buyBtn.innerHTML = '<i class="fas fa-crown"></i> Assinar Premium';
-        }
+        // Nao premium — esconder secao Premium inteira (sem opcao de assinatura)
+        if (premiumSection) premiumSection.style.display = 'none';
     }
 }
 
-async function loadPremiumPrice() {
+async function loadPremiumDailyCredits() {
     const user = window.authManager?.currentUser;
     if (!user) return;
 
@@ -1739,11 +1741,6 @@ async function loadPremiumPrice() {
         });
         const data = await response.json();
         if (data.success) {
-            const price = 'R$ ' + parseFloat(data.price_brl).toFixed(2).replace('.', ',');
-            document.getElementById('premiumPriceText').textContent = price;
-            document.getElementById('premiumDurationText').textContent = data.duration_days || 30;
-
-            // Atualizar contador de créditos diários
             const countEl = document.getElementById('premiumDailyCreditsCount');
             const claimBtn = document.getElementById('premiumClaimBtn');
             if (countEl && claimBtn) {
@@ -1761,8 +1758,13 @@ async function loadPremiumPrice() {
             }
         }
     } catch (e) {
-        console.error('Erro ao carregar preco premium:', e);
+        console.error('Erro ao carregar status premium:', e);
     }
+}
+
+async function loadPremiumPrice() {
+    // Funcao mantida por compatibilidade — compras desativadas
+    return;
 }
 
 async function claimPremiumCredits() {
@@ -1814,6 +1816,11 @@ async function claimPremiumCredits() {
 }
 
 async function buyPremium() {
+    // Compras de Premium estao desativadas no momento
+    showWarning('A assinatura Premium esta indisponivel no momento.');
+    return;
+
+    // Codigo legado abaixo (desabilitado)
     const user = window.authManager?.currentUser;
     if (!user) {
         alert('Voce precisa estar logado!');
