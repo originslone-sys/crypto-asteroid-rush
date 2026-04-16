@@ -43,18 +43,6 @@
         .cta-section { text-align: center; padding: 60px 20px; background: linear-gradient(135deg, rgba(0, 240, 255, 0.05), rgba(146, 254, 157, 0.05)); border-radius: 20px; margin: 30px 0; }
         .cta-title { font-family: 'Orbitron', sans-serif; font-size: 1.8rem; margin-bottom: 15px; }
         .cta-desc { color: var(--text-dim); margin-bottom: 25px; }
-        .referral-banner {
-            background: linear-gradient(135deg, rgba(5, 255, 161, 0.1), rgba(0, 240, 255, 0.1));
-            border: 1px solid var(--success);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 30px;
-            text-align: center;
-            display: none;
-        }
-        .referral-banner.show { display: block; }
-        .referral-banner p { color: var(--success); margin: 0; }
-        .referral-banner strong { color: var(--primary); }
         .free-badge {
             background: linear-gradient(135deg, var(--success), #00d4aa);
             color: #000;
@@ -83,7 +71,6 @@
             <a href="pvp-game.html" class="nav-link" style="color:#ff6600;">PvP</a>
             <a href="wallet.html" class="nav-link">Carteira</a>
             <a href="exploration.html" class="nav-link">Exploração</a>
-            <a href="affiliates.html" class="nav-link">Afiliados</a>
             <a href="support.html" class="nav-link">Suporte</a>
             <a href="how-to-play.html" class="nav-link">Como Jogar</a>
             <a href="ranking.html" class="nav-link">Ranking</a>
@@ -93,11 +80,6 @@
         <a href="dashboard.html" class="wallet-btn" id="walletBtn"><i class="fas fa-rocket"></i> Entrar</a>
         <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
     </header>
-    
-    <!-- Referral Banner -->
-    <div class="referral-banner" id="referralBanner">
-        <p><i class="fas fa-gift"></i> Você foi convidado por um amigo! Faça login para começar a jogar.</p>
-    </div>
     
     <section class="hero">
         <span class="free-badge"><i class="fas fa-coins"></i> JOGUE E GANHE DINHEIRO REAL</span>
@@ -156,42 +138,6 @@
         <p class="footer-copy">&copy; 2026 Unobix. Todos os direitos reservados.</p>
     </footer>
 </div>
-
-<script>
-// ============================================
-// CAPTURA DE CÓDIGO DE REFERRAL
-// ============================================
-(function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const refCode = urlParams.get('ref');
-
-    if (refCode && /^[A-Z0-9]{6}$/i.test(refCode)) {
-        const code = refCode.toUpperCase();
-        // Salvar em TODAS as chaves para compatibilidade com auth-manager.js e main.js
-        localStorage.setItem('referralCode', code);
-        localStorage.setItem('unobix_referral_code', code);
-        localStorage.setItem('unobix_referral', code);
-        localStorage.setItem('unobix_referral_time', Date.now().toString());
-        localStorage.setItem('referralTimestamp', Date.now().toString());
-
-        const banner = document.getElementById('referralBanner');
-        if (banner) banner.classList.add('show');
-
-        console.log('Código de referral capturado:', code);
-
-        if (window.history.replaceState) {
-            const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
-        }
-    }
-
-    const savedRef = localStorage.getItem('referralCode') || localStorage.getItem('unobix_referral_code');
-    if (savedRef && !localStorage.getItem('unobix_user')) {
-        const banner = document.getElementById('referralBanner');
-        if (banner) banner.classList.add('show');
-    }
-})();
-</script>
 
 <!-- Firebase SDK -->
 <!-- Firebase SDK v10.7.1 (compat mode) -->
