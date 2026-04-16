@@ -828,21 +828,135 @@ try {
 
         case "add_credits":
             $targetUid = trim($input['google_uid'] ?? '');
+            $targetEmail = trim($input['email'] ?? '');
+            $targetUserId = intval($input['user_id'] ?? 0);
             $creditsToAdd = intval($input['credits'] ?? 0);
             $reason = trim($input['reason'] ?? 'Adicionado pelo admin');
 
-            if (empty($targetUid)) throw new Exception("google_uid é obrigatório");
+            if (empty($targetUid) && empty($targetEmail) && $targetUserId <= 0) {
+                throw new Exception("Informe email, google_uid ou user_id");
+            }
             if ($creditsToAdd <= 0) throw new Exception("Quantidade de créditos deve ser maior que 0");
 
-            $stmt = $pdo->prepare("UPDATE users SET credits = credits + ? WHERE google_uid = ?");
-            $stmt->execute([$creditsToAdd, $targetUid]);
+            // Localizar usuário
+            if ($targetUserId > 0) {
+                $stmt = $pdo->prepare("SELECT id, google_uid, email, display_name, credits FROM users WHERE id = ? LIMIT 1");
+                $stmt->execute([$targetUserId]);
+            } elseif (!empty($targetEmail)) {
+                $stmt = $pdo->prepare("SELECT id, google_uid, email, display_name, credits FROM users WHERE email = ? LIMIT 1");
+                $stmt->execute([$targetEmail]);
+            } else {
+                $stmt = $pdo->prepare("SELECT id, google_uid, email, display_name, credits FROM users WHERE google_uid = ? LIMIT 1");
+                $stmt->execute([$targetUid]);
+            }
+            $user = $stmt->fetch();
+            if (!$user) throw new Exception("Jogador não encontrado");
 
-            if ($stmt->rowCount() === 0) throw new Exception("Jogador não encontrado");
+            $upd = $pdo->prepare("UPDATE users SET credits = credits + ? WHERE id = ?");
+            $upd->execute([$creditsToAdd, $user['id']]);
 
             $pdo->prepare("INSERT INTO transactions (google_uid, type, amount_brl, description, status, created_at) VALUES (?, 'admin_adjust', 0, ?, 'completed', NOW())")
-                ->execute([$targetUid, "Admin adicionou {$creditsToAdd} crédito(s): {$reason}"]);
+                ->execute([$user['google_uid'], "Admin adicionou {$creditsToAdd} crédito(s): {$reason}"]);
 
-            $response = ["success" => true, "message" => "✅ {$creditsToAdd} crédito(s) adicionado(s)!"];
+            $newBalance = intval($user['credits']) + $creditsToAdd;
+            $response = [
+                "success" => true,
+                "message" => "✅ {$creditsToAdd} crédito(s) adicionado(s) para {$user['email']}. Novo saldo: {$newBalance}",
+                "user" => [
+                    "id" => intval($user['id']),
+                    "email" => $user['email'],
+                    "display_name" => $user['display_name'],
+                    "credits" => $newBalance
+                ]
+            ];
+            break;
+
+        case "remove_credits":
+            $targetUid = trim($input['google_uid'] ?? '');
+            $targetEmail = trim($input['email'] ?? '');
+            $targetUserId = intval($input['user_id'] ?? 0);
+            $creditsToRemove = intval($input['credits'] ?? 0);
+            $reason = trim($input['reason'] ?? 'Removido pelo admin');
+
+            if (empty($targetUid) && empty($targetEmail) && $targetUserId <= 0) {
+                throw new Exception("Informe email, google_uid ou user_id");
+            }
+            if ($creditsToRemove <= 0) throw new Exception("Quantidade de créditos deve ser maior que 0");
+
+            // Localizar usuário
+            if ($targetUserId > 0) {
+                $stmt = $pdo->prepare("SELECT id, google_uid, email, display_name, credits FROM users WHERE id = ? LIMIT 1");
+                $stmt->execute([$targetUserId]);
+            } elseif (!empty($targetEmail)) {
+                $stmt = $pdo->prepare("SELECT id, google_uid, email, display_name, credits FROM users WHERE email = ? LIMIT 1");
+                $stmt->execute([$targetEmail]);
+            } else {
+                $stmt = $pdo->prepare("SELECT id, google_uid, email, display_name, credits FROM users WHERE google_uid = ? LIMIT 1");
+                $stmt->execute([$targetUid]);
+            }
+            $user = $stmt->fetch();
+            if (!$user) throw new Exception("Jogador não encontrado");
+
+            $currentCredits = intval($user['credits']);
+            $actuallyRemoved = min($creditsToRemove, $currentCredits);
+            $newBalance = max(0, $currentCredits - $creditsToRemove);
+
+            $upd = $pdo->prepare("UPDATE users SET credits = ? WHERE id = ?");
+            $upd->execute([$newBalance, $user['id']]);
+
+            $pdo->prepare("INSERT INTO transactions (google_uid, type, amount_brl, description, status, created_at) VALUES (?, 'admin_adjust', 0, ?, 'completed', NOW())")
+                ->execute([$user['google_uid'], "Admin removeu {$actuallyRemoved} crédito(s): {$reason}"]);
+
+            $response = [
+                "success" => true,
+                "message" => "✅ {$actuallyRemoved} crédito(s) removido(s) de {$user['email']}. Novo saldo: {$newBalance}",
+                "user" => [
+                    "id" => intval($user['id']),
+                    "email" => $user['email'],
+                    "display_name" => $user['display_name'],
+                    "credits" => $newBalance
+                ]
+            ];
+            break;
+
+        case "list_users_with_credits":
+            $page = max(1, intval($input['page'] ?? 1));
+            $perPage = max(5, min(100, intval($input['per_page'] ?? 20)));
+            $offset = ($page - 1) * $perPage;
+            $search = trim($input['search'] ?? '');
+
+            $where = "WHERE credits > 0";
+            $params = [];
+            if ($search !== '') {
+                $where .= " AND (email LIKE ? OR display_name LIKE ? OR google_uid = ?)";
+                $like = '%' . $search . '%';
+                $params[] = $like;
+                $params[] = $like;
+                $params[] = $search;
+            }
+
+            // Total
+            $countStmt = $pdo->prepare("SELECT COUNT(*) FROM users {$where}");
+            $countStmt->execute($params);
+            $total = intval($countStmt->fetchColumn());
+
+            // Página
+            $sql = "SELECT id, google_uid, email, display_name, credits, balance_brl
+                    FROM users {$where}
+                    ORDER BY credits DESC, id ASC
+                    LIMIT {$perPage} OFFSET {$offset}";
+            $listStmt = $pdo->prepare($sql);
+            $listStmt->execute($params);
+            $users = $listStmt->fetchAll();
+
+            $response = [
+                "success" => true,
+                "data" => $users,
+                "page" => $page,
+                "per_page" => $perPage,
+                "total" => $total,
+                "total_pages" => $perPage > 0 ? (int)ceil($total / $perPage) : 1
+            ];
             break;
 
         case "send_to_review":

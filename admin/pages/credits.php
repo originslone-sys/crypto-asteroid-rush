@@ -42,21 +42,6 @@ try {
         ")->fetch();
     }
 
-    // Compras recentes
-    $hasPurchases = $pdo->query("SHOW TABLES LIKE 'credit_purchases'")->fetch();
-    $recentPurchases = [];
-    if ($hasPurchases) {
-        $recentPurchases = $pdo->query("
-            SELECT cp.*, u.display_name, u.email, u.google_uid,
-                   pkg.name as package_name
-            FROM credit_purchases cp
-            LEFT JOIN users u ON cp.user_id = u.id
-            LEFT JOIN credit_packages pkg ON cp.package_id = pkg.id
-            ORDER BY cp.created_at DESC
-            LIMIT 50
-        ")->fetchAll();
-    }
-
 } catch (Exception $e) {
     $error = $e->getMessage();
 }
@@ -123,9 +108,9 @@ try {
             <div class="label">Pacotes Cadastrados</div>
         </div>
         <div class="stat-card">
-            <div class="icon" style="background: rgba(0,150,255,0.15); color: #0096ff;"><i class="fas fa-shopping-cart"></i></div>
-            <div class="value"><?php echo count($recentPurchases); ?></div>
-            <div class="label">Compras Recentes</div>
+            <div class="icon" style="background: rgba(0,150,255,0.15); color: #0096ff;"><i class="fas fa-user-friends"></i></div>
+            <div class="value"><?php echo $creditStats['total_users'] ?? 0; ?></div>
+            <div class="label">Total de Jogadores</div>
         </div>
     </div>
 
@@ -277,76 +262,111 @@ try {
     <!-- Adicionar Créditos Manualmente -->
     <div class="panel">
         <div class="panel-header">
-            <h3 class="panel-title"><i class="fas fa-plus-circle"></i> Adicionar Creditos Manualmente</h3>
+            <h3 class="panel-title"><i class="fas fa-plus-circle" style="color: var(--success);"></i> Adicionar Creditos Manualmente</h3>
         </div>
         <div class="panel-body">
+            <p style="color: var(--text-dim); margin-bottom: 15px;">
+                Pesquise o jogador pelo <strong>email</strong> e adicione créditos diretamente à conta.
+            </p>
             <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
-                <div class="form-group" style="flex: 1; min-width: 200px;">
-                    <label class="form-label">Google UID do Jogador</label>
-                    <input type="text" id="manualCreditsUid" class="form-control" placeholder="Google UID">
+                <div class="form-group" style="flex: 2; min-width: 220px;">
+                    <label class="form-label">Email do Jogador</label>
+                    <input type="email" id="manualAddEmail" class="form-control" placeholder="exemplo@email.com">
                 </div>
                 <div class="form-group" style="width: 120px;">
                     <label class="form-label">Creditos</label>
-                    <input type="number" id="manualCreditsAmount" class="form-control" min="1" value="5">
+                    <input type="number" id="manualAddAmount" class="form-control" min="1" value="5">
                 </div>
                 <div class="form-group" style="flex: 1; min-width: 150px;">
                     <label class="form-label">Motivo</label>
-                    <input type="text" id="manualCreditsReason" class="form-control" placeholder="Ex: Bonus, compensacao">
+                    <input type="text" id="manualAddReason" class="form-control" placeholder="Ex: Bonus, compensacao">
                 </div>
-                <button onclick="addCreditsManually()" class="btn btn-success">
+                <button onclick="manualAddCredits()" class="btn btn-success">
                     <i class="fas fa-plus"></i> Adicionar
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Compras Recentes -->
-    <?php if (!empty($recentPurchases)): ?>
+    <!-- Remover Créditos Manualmente -->
     <div class="panel">
         <div class="panel-header">
-            <h3 class="panel-title"><i class="fas fa-shopping-cart"></i> Compras Recentes</h3>
+            <h3 class="panel-title"><i class="fas fa-minus-circle" style="color: #ff3366;"></i> Remover Creditos Manualmente</h3>
         </div>
         <div class="panel-body">
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Jogador</th>
-                            <th>Pacote</th>
-                            <th>Creditos</th>
-                            <th>Valor</th>
-                            <th>Status</th>
-                            <th>Data</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    <?php foreach ($recentPurchases as $p): ?>
-                    <tr>
-                        <td>#<?php echo $p['id']; ?></td>
-                        <td>
-                            <div><?php echo htmlspecialchars($p['display_name'] ?? 'Usuario'); ?></div>
-                            <small style="color: var(--text-dim);"><?php echo htmlspecialchars($p['email'] ?? ''); ?></small>
-                        </td>
-                        <td><?php echo htmlspecialchars($p['package_name'] ?? 'Pacote #' . $p['package_id']); ?></td>
-                        <td><strong><?php echo $p['credits_amount']; ?></strong></td>
-                        <td style="color: var(--success);">R$ <?php echo number_format($p['price_brl'], 2, ',', '.'); ?></td>
-                        <td>
-                            <?php
-                            $sClass = ['confirmed' => 'success', 'pending' => 'warning', 'failed' => 'danger'][$p['status']] ?? 'primary';
-                            $sText = ['confirmed' => 'Confirmado', 'pending' => 'Pendente', 'failed' => 'Falhou'][$p['status']] ?? $p['status'];
-                            ?>
-                            <span class="badge badge-<?php echo $sClass; ?>"><?php echo $sText; ?></span>
-                        </td>
-                        <td><?php echo date('d/m/Y H:i', strtotime($p['created_at'])); ?></td>
-                    </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
+            <p style="color: var(--text-dim); margin-bottom: 15px;">
+                Pesquise o jogador pelo <strong>email</strong> e remova créditos da conta. O saldo nunca ficará negativo.
+            </p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                <div class="form-group" style="flex: 2; min-width: 220px;">
+                    <label class="form-label">Email do Jogador</label>
+                    <input type="email" id="manualRemoveEmail" class="form-control" placeholder="exemplo@email.com">
+                </div>
+                <div class="form-group" style="width: 120px;">
+                    <label class="form-label">Creditos</label>
+                    <input type="number" id="manualRemoveAmount" class="form-control" min="1" value="5">
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 150px;">
+                    <label class="form-label">Motivo</label>
+                    <input type="text" id="manualRemoveReason" class="form-control" placeholder="Ex: Correcao, ajuste">
+                </div>
+                <button onclick="manualRemoveCredits()" class="btn btn-danger">
+                    <i class="fas fa-minus"></i> Remover
+                </button>
             </div>
         </div>
     </div>
-    <?php endif; ?>
+
+    <!-- Lista paginada: Usuários com Créditos -->
+    <div class="panel">
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <h3 class="panel-title"><i class="fas fa-users"></i> Jogadores com Creditos</h3>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <input type="text" id="usersCreditsSearch" class="form-control" placeholder="Buscar por email ou nome" style="width: 240px;" onkeyup="if(event.key==='Enter') reloadUsersWithCredits(1)">
+                <button onclick="reloadUsersWithCredits(1)" class="btn btn-primary btn-sm"><i class="fas fa-search"></i> Buscar</button>
+                <button onclick="document.getElementById('usersCreditsSearch').value=''; reloadUsersWithCredits(1)" class="btn btn-outline btn-sm" title="Limpar"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="panel-body">
+            <div id="usersCreditsTableWrap">
+                <div style="padding: 30px; text-align: center; color: var(--text-dim);">
+                    <i class="fas fa-spinner fa-spin"></i> Carregando jogadores...
+                </div>
+            </div>
+            <div id="usersCreditsPagination" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 15px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Ajuste rápido de créditos -->
+<div id="quickAdjustModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 460px;">
+        <div class="modal-header">
+            <h3 id="quickAdjustTitle"><i class="fas fa-coins"></i> Ajustar Creditos</h3>
+            <button onclick="closeModal('quickAdjustModal')" class="modal-close">&times;</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <input type="hidden" id="quickAdjustUserId" value="0">
+            <input type="hidden" id="quickAdjustMode" value="add">
+            <div style="padding: 12px; border-radius: 8px; background: rgba(0,240,255,0.08); border: 1px solid rgba(0,240,255,0.2);">
+                <div style="font-size: 0.85rem; color: var(--text-dim);">Jogador</div>
+                <div id="quickAdjustUserInfo" style="font-weight: 600;"></div>
+                <div style="font-size: 0.85rem; color: var(--text-dim); margin-top: 6px;">Saldo atual: <strong id="quickAdjustCurrent">0</strong> créditos</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Quantidade</label>
+                <input type="number" id="quickAdjustAmount" class="form-control" min="1" value="1">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Motivo</label>
+                <input type="text" id="quickAdjustReason" class="form-control" placeholder="Ex: Bonus, ajuste">
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeModal('quickAdjustModal')" class="btn btn-outline">Cancelar</button>
+                <button type="button" id="quickAdjustConfirmBtn" onclick="quickAdjustConfirm()" class="btn btn-success">Confirmar</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Modal Criar/Editar Pacote -->
@@ -466,21 +486,23 @@ async function deletePackage(id) {
     }
 }
 
-async function addCreditsManually() {
-    const uid = document.getElementById('manualCreditsUid').value.trim();
-    const credits = parseInt(document.getElementById('manualCreditsAmount').value);
-    const reason = document.getElementById('manualCreditsReason').value.trim() || 'Adicionado pelo admin';
+async function manualAddCredits() {
+    const email = document.getElementById('manualAddEmail').value.trim();
+    const credits = parseInt(document.getElementById('manualAddAmount').value);
+    const reason = document.getElementById('manualAddReason').value.trim() || 'Adicionado pelo admin';
 
-    if (!uid) { showToast('Informe o Google UID', 'error'); return; }
+    if (!email) { showToast('Informe o email do jogador', 'error'); return; }
     if (!credits || credits <= 0) { showToast('Quantidade invalida', 'error'); return; }
 
-    if (!confirm('Adicionar ' + credits + ' credito(s) ao jogador?')) return;
+    if (!confirm('Adicionar ' + credits + ' credito(s) ao jogador ' + email + '?')) return;
 
     try {
-        const response = await adminAjax({ action: 'add_credits', google_uid: uid, credits: credits, reason: reason });
+        const response = await adminAjax({ action: 'add_credits', email: email, credits: credits, reason: reason });
         if (response.success) {
             showToast(response.message, 'success');
-            document.getElementById('manualCreditsUid').value = '';
+            document.getElementById('manualAddEmail').value = '';
+            document.getElementById('manualAddReason').value = '';
+            reloadUsersWithCredits(usersCreditsState.page);
         } else {
             showToast(response.error || response.message, 'error');
         }
@@ -488,6 +510,168 @@ async function addCreditsManually() {
         showToast('Erro: ' + e.message, 'error');
     }
 }
+
+async function manualRemoveCredits() {
+    const email = document.getElementById('manualRemoveEmail').value.trim();
+    const credits = parseInt(document.getElementById('manualRemoveAmount').value);
+    const reason = document.getElementById('manualRemoveReason').value.trim() || 'Removido pelo admin';
+
+    if (!email) { showToast('Informe o email do jogador', 'error'); return; }
+    if (!credits || credits <= 0) { showToast('Quantidade invalida', 'error'); return; }
+
+    if (!confirm('Remover ' + credits + ' credito(s) do jogador ' + email + '?')) return;
+
+    try {
+        const response = await adminAjax({ action: 'remove_credits', email: email, credits: credits, reason: reason });
+        if (response.success) {
+            showToast(response.message, 'success');
+            document.getElementById('manualRemoveEmail').value = '';
+            document.getElementById('manualRemoveReason').value = '';
+            reloadUsersWithCredits(usersCreditsState.page);
+        } else {
+            showToast(response.error || response.message, 'error');
+        }
+    } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+// =====================================================
+// Lista paginada de jogadores com créditos
+// =====================================================
+const usersCreditsState = { page: 1, perPage: 20, search: '', totalPages: 1, total: 0 };
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function reloadUsersWithCredits(page) {
+    const wrap = document.getElementById('usersCreditsTableWrap');
+    const pagWrap = document.getElementById('usersCreditsPagination');
+    const search = document.getElementById('usersCreditsSearch').value.trim();
+    usersCreditsState.page = page || 1;
+    usersCreditsState.search = search;
+    wrap.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-dim);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+    pagWrap.innerHTML = '';
+
+    try {
+        const response = await adminAjax({
+            action: 'list_users_with_credits',
+            page: usersCreditsState.page,
+            per_page: usersCreditsState.perPage,
+            search: search
+        });
+        if (!response.success) {
+            wrap.innerHTML = '<div style="padding:20px;color:var(--danger);"><i class="fas fa-exclamation-triangle"></i> ' + (response.error || response.message || 'Falha ao carregar') + '</div>';
+            return;
+        }
+
+        usersCreditsState.totalPages = response.total_pages || 1;
+        usersCreditsState.total = response.total || 0;
+
+        const users = response.data || [];
+        if (users.length === 0) {
+            wrap.innerHTML = '<div class="empty-state"><i class="fas fa-user-slash"></i><h3>Nenhum jogador encontrado</h3><p>' + (search ? 'Nenhum resultado para a busca atual.' : 'Não há jogadores com créditos no momento.') + '</p></div>';
+            renderUsersCreditsPagination();
+            return;
+        }
+
+        let html = '<div class="table-container"><table>';
+        html += '<thead><tr><th>ID</th><th>Jogador</th><th>Email</th><th>Creditos</th><th>Saldo (R$)</th><th style="text-align:right;">Ações</th></tr></thead><tbody>';
+        for (const u of users) {
+            const id = parseInt(u.id);
+            const name = escapeHtml(u.display_name || 'Usuario');
+            const email = escapeHtml(u.email || '-');
+            const credits = parseInt(u.credits || 0);
+            const balance = parseFloat(u.balance_brl || 0);
+            html += '<tr>';
+            html += '<td>#' + id + '</td>';
+            html += '<td><strong>' + name + '</strong></td>';
+            html += '<td><small>' + email + '</small></td>';
+            html += '<td><strong style="color:var(--success);">' + credits.toLocaleString('pt-BR') + '</strong></td>';
+            html += '<td>R$ ' + balance.toFixed(2).replace('.', ',') + '</td>';
+            html += '<td style="text-align:right;"><div class="btn-group">';
+            html += '<button class="btn btn-success btn-sm" title="Adicionar" onclick="openQuickAdjust(' + id + ', \'' + email.replace(/'/g, "\\'") + '\', \'' + name.replace(/'/g, "\\'") + '\', ' + credits + ', \'add\')"><i class="fas fa-plus"></i></button>';
+            html += '<button class="btn btn-danger btn-sm" title="Remover" onclick="openQuickAdjust(' + id + ', \'' + email.replace(/'/g, "\\'") + '\', \'' + name.replace(/'/g, "\\'") + '\', ' + credits + ', \'remove\')"' + (credits <= 0 ? ' disabled' : '') + '><i class="fas fa-minus"></i></button>';
+            html += '</div></td>';
+            html += '</tr>';
+        }
+        html += '</tbody></table></div>';
+        wrap.innerHTML = html;
+        renderUsersCreditsPagination();
+    } catch (e) {
+        wrap.innerHTML = '<div style="padding:20px;color:var(--danger);"><i class="fas fa-exclamation-triangle"></i> Erro: ' + escapeHtml(e.message) + '</div>';
+    }
+}
+
+function renderUsersCreditsPagination() {
+    const pagWrap = document.getElementById('usersCreditsPagination');
+    const { page, totalPages, total, perPage } = usersCreditsState;
+    const start = total === 0 ? 0 : ((page - 1) * perPage) + 1;
+    const end = Math.min(page * perPage, total);
+
+    let html = '<div style="color:var(--text-dim);font-size:0.85rem;">Exibindo ' + start + '-' + end + ' de ' + total + ' jogador(es)</div>';
+    html += '<div style="display:flex;gap:6px;align-items:center;">';
+    html += '<button class="btn btn-outline btn-sm" ' + (page <= 1 ? 'disabled' : '') + ' onclick="reloadUsersWithCredits(1)" title="Primeira"><i class="fas fa-angle-double-left"></i></button>';
+    html += '<button class="btn btn-outline btn-sm" ' + (page <= 1 ? 'disabled' : '') + ' onclick="reloadUsersWithCredits(' + (page - 1) + ')"><i class="fas fa-angle-left"></i></button>';
+    html += '<span style="padding:0 10px;font-weight:600;">Página ' + page + ' / ' + Math.max(1, totalPages) + '</span>';
+    html += '<button class="btn btn-outline btn-sm" ' + (page >= totalPages ? 'disabled' : '') + ' onclick="reloadUsersWithCredits(' + (page + 1) + ')"><i class="fas fa-angle-right"></i></button>';
+    html += '<button class="btn btn-outline btn-sm" ' + (page >= totalPages ? 'disabled' : '') + ' onclick="reloadUsersWithCredits(' + totalPages + ')" title="Última"><i class="fas fa-angle-double-right"></i></button>';
+    html += '</div>';
+    pagWrap.innerHTML = html;
+}
+
+function openQuickAdjust(userId, email, name, currentCredits, mode) {
+    document.getElementById('quickAdjustUserId').value = userId;
+    document.getElementById('quickAdjustMode').value = mode;
+    document.getElementById('quickAdjustUserInfo').textContent = name + ' (' + email + ')';
+    document.getElementById('quickAdjustCurrent').textContent = currentCredits.toLocaleString('pt-BR');
+    document.getElementById('quickAdjustAmount').value = 1;
+    document.getElementById('quickAdjustReason').value = '';
+
+    const title = document.getElementById('quickAdjustTitle');
+    const btn = document.getElementById('quickAdjustConfirmBtn');
+    if (mode === 'add') {
+        title.innerHTML = '<i class="fas fa-plus-circle" style="color:var(--success);"></i> Adicionar Creditos';
+        btn.className = 'btn btn-success';
+        btn.innerHTML = '<i class="fas fa-plus"></i> Adicionar';
+    } else {
+        title.innerHTML = '<i class="fas fa-minus-circle" style="color:#ff3366;"></i> Remover Creditos';
+        btn.className = 'btn btn-danger';
+        btn.innerHTML = '<i class="fas fa-minus"></i> Remover';
+        document.getElementById('quickAdjustAmount').max = currentCredits;
+    }
+
+    document.getElementById('quickAdjustModal').classList.add('active');
+}
+
+async function quickAdjustConfirm() {
+    const userId = parseInt(document.getElementById('quickAdjustUserId').value);
+    const mode = document.getElementById('quickAdjustMode').value;
+    const amount = parseInt(document.getElementById('quickAdjustAmount').value);
+    const reason = document.getElementById('quickAdjustReason').value.trim() || (mode === 'add' ? 'Adicionado pelo admin' : 'Removido pelo admin');
+
+    if (!userId) { showToast('Usuário inválido', 'error'); return; }
+    if (!amount || amount <= 0) { showToast('Quantidade inválida', 'error'); return; }
+
+    const action = mode === 'add' ? 'add_credits' : 'remove_credits';
+    try {
+        const response = await adminAjax({ action: action, user_id: userId, credits: amount, reason: reason });
+        if (response.success) {
+            showToast(response.message, 'success');
+            closeModal('quickAdjustModal');
+            reloadUsersWithCredits(usersCreditsState.page);
+        } else {
+            showToast(response.error || response.message, 'error');
+        }
+    } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+// Carregar lista ao iniciar
+document.addEventListener('DOMContentLoaded', () => reloadUsersWithCredits(1));
 
 function closeModal(id) {
     document.getElementById(id).classList.remove('active');
