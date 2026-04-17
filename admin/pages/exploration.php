@@ -178,7 +178,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             break;
 
-        // --- Configurações ---
+        // --- Ativar aluguel manualmente ---
+        case 'activate_rental_manual':
+            $email = trim($_POST['rental_email'] ?? '');
+            $shipId = (int)($_POST['rental_ship_id'] ?? 0);
+            $durationOverride = (int)($_POST['rental_duration_override'] ?? 0);
+
+            if (empty($email)) {
+                $message = "Informe o email do jogador";
+                $messageType = 'danger';
+                break;
+            }
+            if ($shipId <= 0) {
+                $message = "Selecione uma nave";
+                $messageType = 'danger';
+                break;
+            }
+
+            try {
+                $userStmt = $pdo->prepare("SELECT id, google_uid, email, display_name FROM users WHERE email = ? LIMIT 1");
+                $userStmt->execute([$email]);
+                $targetUser = $userStmt->fetch();
+
+                if (!$targetUser) {
+                    $message = "Jogador com email '{$email}' não encontrado";
+                    $messageType = 'danger';
+                    break;
+                }
+
+                $shipStmt = $pdo->prepare("SELECT * FROM exploration_ships WHERE id = ? LIMIT 1");
+                $shipStmt->execute([$shipId]);
+                $targetShip = $shipStmt->fetch();
+
+                if (!$targetShip) {
+                    $message = "Nave não encontrada";
+                    $messageType = 'danger';
+                    break;
+                }
+
+                $durationHours = $durationOverride > 0 ? $durationOverride : (int)$targetShip['rental_duration_hours'];
+
+                $pdo->prepare("
+                    INSERT INTO exploration_rentals
+                        (user_id, google_uid, ship_id, ship_key, rental_price_brl, credits_per_day, credits_accumulated, credits_claimed, status, started_at, expires_at, created_at)
+                    VALUES (?, ?, ?, ?, 0, ?, 0, 0, 'active', NOW(), DATE_ADD(NOW(), INTERVAL ? HOUR), NOW())
+                ")->execute([
+                    (int)$targetUser['id'],
+                    $targetUser['google_uid'],
+                    (int)$targetShip['id'],
+                    $targetShip['ship_key'],
+                    (int)$targetShip['credits_per_day'],
+                    $durationHours
+                ]);
+
+                $pdo->prepare("INSERT INTO transactions (google_uid, type, amount_brl, description, status, created_at) VALUES (?, 'admin_adjust', 0, ?, 'completed', NOW())")
+                    ->execute([$targetUser['google_uid'], "Admin ativou aluguel manual: nave {$targetShip['name']} ({$durationHours}h) para {$targetUser['email']}"]);
+
+                $message = "Aluguel ativado! Nave '{$targetShip['name']}' para {$targetUser['display_name']} ({$targetUser['email']}) por {$durationHours}h";
+                $messageType = 'success';
+            } catch (Exception $e) {
+                $message = "Erro: " . $e->getMessage();
+                $messageType = 'danger';
+            }
+            break;
+
         case 'update_settings':
             try {
                 $explorationEnabled = isset($_POST['exploration_enabled']) ? 'true' : 'false';
@@ -515,6 +578,45 @@ $statusLabels = [
     <!-- ============================================ -->
     <!-- ABA: ALUGUÉIS -->
     <!-- ============================================ -->
+
+    <!-- Ativar Aluguel Manualmente -->
+    <div class="card" style="margin-bottom:20px;border-color:rgba(0,255,136,0.25);">
+        <div class="card-header" style="border-bottom-color:rgba(0,255,136,0.15);">
+            <h3 style="margin:0;font-size:1rem;"><i class="fas fa-plus-circle" style="color:#00ff88;"></i> Ativar Aluguel Manualmente</h3>
+        </div>
+        <div style="padding:20px;">
+            <p style="font-size:0.82rem;color:var(--text-dim);margin-bottom:15px;">
+                Ative um aluguel de nave para um jogador pesquisando pelo <strong>email da conta</strong>. O aluguel será ativado sem cobrança.
+            </p>
+            <form method="POST">
+                <input type="hidden" name="action" value="activate_rental_manual">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end;">
+                    <div>
+                        <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">Email do Jogador *</label>
+                        <input type="email" name="rental_email" class="form-control" placeholder="exemplo@email.com" required style="font-size:0.85rem;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">Nave *</label>
+                        <select name="rental_ship_id" class="form-control" required style="font-size:0.85rem;">
+                            <option value="">Selecione...</option>
+                            <?php foreach ($ships as $s): ?>
+                                <option value="<?php echo $s['id']; ?>"><?php echo htmlspecialchars($s['name']); ?> (<?php echo (int)$s['credits_per_day']; ?> créd/dia — <?php echo (int)$s['rental_duration_hours']; ?>h)</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">Duração personalizada (h)</label>
+                        <input type="number" name="rental_duration_override" class="form-control" placeholder="Padrão da nave" min="0" style="font-size:0.85rem;" title="Deixe 0 ou vazio para usar a duração padrão da nave">
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-success" style="font-size:0.85rem;width:100%;" onclick="return confirm('Confirma ativar aluguel manual para este jogador?')">
+                            <i class="fas fa-rocket"></i> Ativar Aluguel
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Filtros -->
     <div class="card" style="margin-bottom:20px;">
