@@ -37,12 +37,12 @@ const PVP_CONFIG = {
     OPPONENT_COLOR: '#ff6600',
 
     // Física da nave (deve espelhar pvp-server/player.js)
-    SHIP_ACCEL_X: 8.0,
-    SHIP_ACCEL_Y: 6.0,
-    SHIP_FRICTION: 0.76,
-    SHIP_MAX_VX: 18,
-    SHIP_MAX_VY: 12,
-    BULLET_SPEED: 15,
+    SHIP_ACCEL_X: 3.5,
+    SHIP_ACCEL_Y: 2.8,
+    SHIP_FRICTION: 0.90,
+    SHIP_MAX_VX: 10,
+    SHIP_MAX_VY: 7,
+    BULLET_SPEED: 10,
     FIRE_RATE_MS: 350,
 };
 
@@ -84,5 +84,7 @@ const pvpState = {
     // Interpolação do oponente (entity interpolation entre pacotes do servidor)
     opponentPrev: null,       // posição no pacote anterior
     opponentCurr: null,       // posição no pacote mais recente
+    opponentVx: 0,            // velocidade horizontal do oponente (server)
+    opponentVy: 0,            // velocidade vertical do oponente (server)
     opponentUpdatedAt: 0,     // timestamp do último pacote
 };

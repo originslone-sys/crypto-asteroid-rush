@@ -32,6 +32,7 @@ class GameRoom {
         this.status = 'countdown'; // countdown → active → ended
         this.timeLeft = config.GAME_DURATION;
         this.countdownLeft = config.COUNTDOWN_SECONDS;
+        this.tickCount = 0;
 
         // Timers
         this.gameLoopInterval = null;
@@ -146,8 +147,11 @@ class GameRoom {
             return;
         }
 
-        // Enviar estado para ambos
-        this.broadcastState(events);
+        // Broadcast a 30Hz (cada 2 ticks) ou imediatamente se houve evento
+        this.tickCount++;
+        if (this.tickCount % 2 === 0 || (events && events.length > 0)) {
+            this.broadcastState(events);
+        }
     }
 
     broadcastState(events) {

@@ -60,11 +60,11 @@ class Player {
     }
 
     updatePosition() {
-        const ACCEL_X  = 8.0;   // px/frame² horizontal
-        const ACCEL_Y  = 6.0;   // px/frame² vertical
-        const MAX_VX   = config.SHIP_SPEED_X;  // 18
-        const MAX_VY   = config.SHIP_SPEED_Y;  // 12
-        const FRICTION = 0.76;  // amortecimento quando sem input (~3 frames pra parar)
+        const ACCEL_X  = 3.5;   // px/frame² horizontal (gradual)
+        const ACCEL_Y  = 2.8;   // px/frame² vertical (gradual)
+        const MAX_VX   = config.SHIP_SPEED_X;  // 10
+        const MAX_VY   = config.SHIP_SPEED_Y;  // 7
+        const FRICTION = 0.90;  // amortecimento suave (mais inércia, glide natural)
 
         // Aceleração horizontal
         if (this.input.left)       this.vx -= ACCEL_X;
@@ -75,6 +75,10 @@ class Player {
         if (this.input.up)         this.vy -= ACCEL_Y;
         else if (this.input.down)  this.vy += ACCEL_Y;
         else                       this.vy *= FRICTION;
+
+        // Cortar velocidade residual muito baixa
+        if (Math.abs(this.vx) < 0.15) this.vx = 0;
+        if (Math.abs(this.vy) < 0.15) this.vy = 0;
 
         // Limitar velocidade máxima
         this.vx = Math.max(-MAX_VX, Math.min(MAX_VX, this.vx));
@@ -145,8 +149,10 @@ class Player {
 
     getState() {
         return {
-            x: Math.round(this.x),
-            y: Math.round(this.y),
+            x: Math.round(this.x * 10) / 10,
+            y: Math.round(this.y * 10) / 10,
+            vx: Math.round(this.vx * 100) / 100,
+            vy: Math.round(this.vy * 100) / 100,
             lives: this.lives,
             invincible: this.invincibilityFrames > 0,
             asteroidsDestroyed: this.asteroidsDestroyed,

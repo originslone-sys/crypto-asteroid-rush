@@ -166,17 +166,36 @@ const PvPRenderer = {
             ? { ...myPlayerServer, x: pvpState.localPrediction.x, y: pvpState.localPrediction.y }
             : myPlayerServer;
 
-        // Oponente: entity interpolation entre pacote anterior e atual
-        // Renderiza no passado (1 tick atrás) mas de forma completamente suave
+        // Oponente: interpolação suave com extrapolação baseada em velocidade
         let opponent = opponentServer;
         if (opponentServer && pvpState.opponentPrev && pvpState.opponentCurr) {
             const elapsed = Date.now() - pvpState.opponentUpdatedAt;
-            const t = Math.min(1, elapsed / 16); // 16ms = 1 server tick
-            opponent = {
-                ...opponentServer,
-                x: pvpState.opponentPrev.x + (pvpState.opponentCurr.x - pvpState.opponentPrev.x) * t,
-                y: pvpState.opponentPrev.y + (pvpState.opponentCurr.y - pvpState.opponentPrev.y) * t,
-            };
+            const tickMs = 33.33; // 30Hz broadcast interval
+            const t = Math.min(1.5, elapsed / tickMs);
+
+            if (t <= 1) {
+                // Interpolação suave (smoothstep) entre posições conhecidas
+                const s = t * t * (3 - 2 * t);
+                opponent = {
+                    ...opponentServer,
+                    x: pvpState.opponentPrev.x + (pvpState.opponentCurr.x - pvpState.opponentPrev.x) * s,
+                    y: pvpState.opponentPrev.y + (pvpState.opponentCurr.y - pvpState.opponentPrev.y) * s,
+                };
+            } else {
+                // Extrapolação baseada na velocidade do servidor
+                const extraMs = elapsed - tickMs;
+                const extraFrames = extraMs / 16.667;
+                const vx = pvpState.opponentVx || 0;
+                const vy = pvpState.opponentVy || 0;
+                opponent = {
+                    ...opponentServer,
+                    x: pvpState.opponentCurr.x + vx * extraFrames,
+                    y: pvpState.opponentCurr.y + vy * extraFrames,
+                };
+                // Clampar na arena
+                opponent.x = Math.max(50, Math.min(PVP_CONFIG.ARENA_WIDTH - 50, opponent.x));
+                opponent.y = Math.max(50, Math.min(PVP_CONFIG.ARENA_HEIGHT - 50, opponent.y));
+            }
         }
 
         // Slot 1 (baixo) aponta para cima; Slot 2 (cima) aponta para baixo

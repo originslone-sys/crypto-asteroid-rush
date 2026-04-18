@@ -23,13 +23,13 @@ module.exports = {
     ARENA_HEIGHT: 768,                  // Altura padrão da arena
 
     // Nave
-    SHIP_SPEED_X: 18,                   // Velocidade horizontal (px/frame)
-    SHIP_SPEED_Y: 12,                   // Velocidade vertical (px/frame)
+    SHIP_SPEED_X: 10,                   // Velocidade horizontal máx (px/frame)
+    SHIP_SPEED_Y: 7,                    // Velocidade vertical máx (px/frame)
     SHIP_HITBOX: 25,                    // Raio de colisão da nave
     INVINCIBILITY_FRAMES: 60,           // Frames de invencibilidade pós-dano
 
     // Balas
-    BULLET_SPEED: 15,                   // Velocidade da bala (px/frame)
+    BULLET_SPEED: 10,                   // Velocidade da bala (px/frame)
     FIRE_RATE_MS: 350,                  // Intervalo mínimo entre tiros
     MAX_BULLETS_PER_PLAYER: 5,          // Máximo de balas simultâneas
     BULLET_HITBOX: 8,                   // Raio de colisão da bala
