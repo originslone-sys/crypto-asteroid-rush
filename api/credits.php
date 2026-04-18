@@ -258,6 +258,141 @@ try {
             ]);
             break;
 
+        // ============================================
+        // COMPRAR PACOTE COM SALDO DA CONTA
+        // ============================================
+        case 'buy_package_balance':
+            $packageId = (int)($input['package_id'] ?? 0);
+
+            if ($packageId <= 0) {
+                echo json_encode(['success' => false, 'error' => 'Pacote inválido']);
+                exit;
+            }
+
+            $user = findPlayer($pdo, $googleUid);
+            if (!$user) {
+                echo json_encode(['success' => false, 'error' => 'Usuário não encontrado']);
+                exit;
+            }
+            if (!empty($user['is_banned'])) {
+                echo json_encode(['success' => false, 'error' => 'Conta suspensa']);
+                exit;
+            }
+
+            // Verificar se compra de créditos está habilitada
+            $cpSt = $pdo->query("SELECT setting_value FROM game_settings WHERE setting_key = 'credits_purchase_enabled' LIMIT 1");
+            $cpVal = $cpSt ? $cpSt->fetchColumn() : false;
+            if ($cpVal !== false && ($cpVal === 'false' || $cpVal === '0')) {
+                echo json_encode(['success' => false, 'error' => 'A compra de créditos está temporariamente desativada.', 'purchase_disabled' => true]);
+                exit;
+            }
+
+            // Buscar pacote
+            $stmt = $pdo->prepare("SELECT * FROM credit_packages WHERE id = ? AND is_active = 1 LIMIT 1");
+            $stmt->execute([$packageId]);
+            $package = $stmt->fetch();
+
+            if (!$package) {
+                echo json_encode(['success' => false, 'error' => 'Pacote não encontrado ou indisponível']);
+                exit;
+            }
+
+            $amount = (float)$package['price_brl'];
+            $totalCredits = (int)$package['credits'] + (int)($package['bonus_credits'] ?? 0);
+
+            try {
+                $pdo->beginTransaction();
+
+                // Lock da linha do usuário e checar saldo atualizado
+                $stmt = $pdo->prepare("SELECT id, balance_brl, credits FROM users WHERE id = ? FOR UPDATE");
+                $stmt->execute([$user['id']]);
+                $userLocked = $stmt->fetch();
+
+                if (!$userLocked) {
+                    $pdo->rollBack();
+                    echo json_encode(['success' => false, 'error' => 'Usuário não encontrado']);
+                    exit;
+                }
+
+                $currentBalance = (float)$userLocked['balance_brl'];
+                if ($currentBalance + 0.0000001 < $amount) {
+                    $pdo->rollBack();
+                    echo json_encode([
+                        'success' => false,
+                        'error' => 'Saldo insuficiente. Disponível: R$ ' . number_format($currentBalance, 2, ',', '.') . ' — Necessário: R$ ' . number_format($amount, 2, ',', '.'),
+                        'insufficient_balance' => true,
+                        'balance_brl' => $currentBalance,
+                        'required_brl' => $amount
+                    ]);
+                    exit;
+                }
+
+                $externalId = 'CRD-BAL-' . $user['id'] . '-PKG' . $packageId . '-' . time() . '-' . bin2hex(random_bytes(4));
+
+                // Debitar saldo e creditar créditos atomicamente
+                $pdo->prepare("UPDATE users SET balance_brl = balance_brl - ?, credits = credits + ?, updated_at = NOW() WHERE id = ?")
+                    ->execute([$amount, $totalCredits, $user['id']]);
+
+                // Registrar compra como confirmada
+                $pdo->prepare("
+                    INSERT INTO credit_purchases (
+                        user_id, package_id, credits_amount, price_brl,
+                        external_id, status, created_at, confirmed_at
+                    ) VALUES (?, ?, ?, ?, ?, 'confirmed', NOW(), NOW())
+                ")->execute([
+                    $user['id'],
+                    $packageId,
+                    $totalCredits,
+                    $amount,
+                    $externalId
+                ]);
+
+                // Registrar transação
+                try {
+                    $pdo->prepare("
+                        INSERT INTO transactions (google_uid, type, amount, amount_brl, description, status, created_at)
+                        VALUES (?, 'credit_purchase', ?, ?, ?, 'completed', NOW())
+                    ")->execute([
+                        $googleUid,
+                        $amount,
+                        $amount,
+                        "Compra de {$totalCredits} créditos com saldo [{$externalId}]"
+                    ]);
+                } catch (Throwable $txErr) {
+                    $pdo->prepare("
+                        INSERT INTO transactions (google_uid, type, amount, description, status, created_at)
+                        VALUES (?, 'credit_purchase', ?, ?, 'completed', NOW())
+                    ")->execute([
+                        $googleUid,
+                        $amount,
+                        "Compra de {$totalCredits} créditos com saldo [{$externalId}]"
+                    ]);
+                }
+
+                $pdo->commit();
+
+                secureLog("CREDIT_PURCHASE_BALANCE | uid: {$googleUid} | package: {$packageId} | credits: {$totalCredits} | amount: R\${$amount} | external_id: {$externalId}");
+
+                $newBalance = $currentBalance - $amount;
+                $newCredits = (int)$userLocked['credits'] + $totalCredits;
+
+                echo json_encode([
+                    'success' => true,
+                    'external_id' => $externalId,
+                    'amount_brl' => $amount,
+                    'credits' => $totalCredits,
+                    'package_name' => $package['name'],
+                    'new_balance_brl' => $newBalance,
+                    'new_credits_total' => $newCredits,
+                    'method' => 'balance'
+                ]);
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                secureLog("CREDIT_PURCHASE_BALANCE_ERROR | uid: {$googleUid} | error: " . $e->getMessage());
+                echo json_encode(['success' => false, 'error' => 'Erro ao processar compra: ' . $e->getMessage()]);
+            }
+            break;
+
         default:
             echo json_encode(['success' => false, 'error' => 'Ação inválida']);
     }
