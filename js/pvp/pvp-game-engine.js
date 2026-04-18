@@ -66,6 +66,9 @@ const PvPEngine = {
         else if (keys.down)  pred.vy += C.SHIP_ACCEL_Y * scale;
         else                 pred.vy *= Math.pow(C.SHIP_FRICTION, scale);
 
+        if (Math.abs(pred.vx) < 0.15) pred.vx = 0;
+        if (Math.abs(pred.vy) < 0.15) pred.vy = 0;
+
         pred.vx = Math.max(-C.SHIP_MAX_VX, Math.min(C.SHIP_MAX_VX, pred.vx));
         pred.vy = Math.max(-C.SHIP_MAX_VY, Math.min(C.SHIP_MAX_VY, pred.vy));
 

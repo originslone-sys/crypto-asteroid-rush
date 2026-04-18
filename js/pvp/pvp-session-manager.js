@@ -131,6 +131,8 @@ const PvPSessionManager = {
                             ? { x: pvpState.opponentCurr.x, y: pvpState.opponentCurr.y }
                             : { x: opp.x, y: opp.y };
                         pvpState.opponentCurr = { x: opp.x, y: opp.y };
+                        pvpState.opponentVx = opp.vx || 0;
+                        pvpState.opponentVy = opp.vy || 0;
                         pvpState.opponentUpdatedAt = Date.now();
                     }
                 }
