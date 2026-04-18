@@ -723,6 +723,71 @@
         </div>
     </section>
 
+    <!-- Modal: Selecionar Método de Pagamento -->
+    <div id="paymentMethodModal" class="pm-overlay" onclick="if(event.target===this) closePaymentMethodModal()">
+        <div class="pm-modal">
+            <div class="pm-header">
+                <h3><i class="fas fa-shopping-cart"></i> Escolher Forma de Pagamento</h3>
+                <button class="pm-close" onclick="closePaymentMethodModal()" aria-label="Fechar">&times;</button>
+            </div>
+            <input type="hidden" id="pmPackageId" value="0">
+            <div class="pm-summary">
+                <div class="pm-summary-row"><span>Pacote:</span><strong id="pmPkgName">-</strong></div>
+                <div class="pm-summary-row"><span>Créditos:</span><strong id="pmPkgCredits">-</strong></div>
+                <div class="pm-summary-row"><span>Total:</span><strong id="pmPkgPrice" style="color: var(--primary);">-</strong></div>
+            </div>
+            <div class="pm-options">
+                <button type="button" class="pm-option" onclick="choosePaymentPix()">
+                    <div class="pm-option-icon" style="background: linear-gradient(135deg, #32BCAD, #22a59a);">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <div class="pm-option-info">
+                        <div class="pm-option-title">Pagar com PIX</div>
+                        <div class="pm-option-desc">Geração de QR Code — confirmação automática</div>
+                    </div>
+                    <i class="fas fa-chevron-right pm-arrow"></i>
+                </button>
+                <button type="button" id="pmBtnBalance" class="pm-option" onclick="choosePaymentBalance()">
+                    <div class="pm-option-icon" style="background: linear-gradient(135deg, #00f0ff, #0096ff);">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <div class="pm-option-info">
+                        <div class="pm-option-title">Pagar com Saldo</div>
+                        <div class="pm-option-desc">
+                            <span id="pmBalanceHint">Instantâneo — sem taxas</span>
+                            <span class="pm-balance-current">Saldo atual: <strong id="pmBalanceCurrent">R$ 0,00</strong></span>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-right pm-arrow"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+    .pm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9999; align-items: center; justify-content: center; padding: 20px; }
+    .pm-overlay.active { display: flex; }
+    .pm-modal { background: var(--bg-card, #161b2a); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 24px; width: 100%; max-width: 460px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .pm-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .pm-header h3 { margin: 0; font-size: 1.1rem; color: #fff; }
+    .pm-close { background: none; border: none; color: var(--text-dim, #888); font-size: 1.6rem; cursor: pointer; line-height: 1; padding: 0 8px; }
+    .pm-close:hover { color: #fff; }
+    .pm-summary { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; margin-bottom: 18px; }
+    .pm-summary-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 0.92rem; color: var(--text-dim, #aaa); }
+    .pm-summary-row strong { color: #fff; }
+    .pm-options { display: flex; flex-direction: column; gap: 10px; }
+    .pm-option { display: flex; align-items: center; gap: 14px; padding: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; cursor: pointer; text-align: left; width: 100%; transition: all 0.2s ease; color: #fff; }
+    .pm-option:hover:not(:disabled) { background: rgba(0,240,255,0.08); border-color: rgba(0,240,255,0.4); transform: translateY(-1px); }
+    .pm-option:disabled, .pm-option.pm-disabled { opacity: 0.5; cursor: not-allowed; }
+    .pm-option-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.2rem; color: #fff; }
+    .pm-option-info { flex: 1; min-width: 0; }
+    .pm-option-title { font-weight: 600; font-size: 0.98rem; margin-bottom: 2px; color: #fff; }
+    .pm-option-desc { font-size: 0.8rem; color: var(--text-dim, #aaa); display: flex; flex-direction: column; gap: 2px; }
+    .pm-balance-current { font-size: 0.75rem; opacity: 0.8; }
+    .pm-balance-current strong { color: #00f0ff; }
+    .pm-arrow { color: var(--text-dim, #888); font-size: 0.85rem; flex-shrink: 0; }
+    </style>
+
     <!-- Seção Premium -->
     <section class="withdraw-section" id="premiumSection" style="display: none;">
         <h3><i class="fas fa-crown" style="color: #ffd700;"></i> Premium</h3>
@@ -1487,13 +1552,16 @@ async function loadCreditPackages() {
         const container = document.getElementById('creditPackages');
 
         if (data.success && data.packages?.length > 0) {
+            // Cachear pacotes para a escolha do método de pagamento
+            window.__creditPackagesCache = {};
             container.innerHTML = data.packages.map(pkg => {
+                window.__creditPackagesCache[pkg.id] = pkg;
                 const bonusText = pkg.bonus_credits > 0 ? `+${pkg.bonus_credits} bonus` : '';
                 const priceFormatted = 'R$ ' + pkg.price_brl.toFixed(2).replace('.', ',');
                 const unitPrice = 'R$ ' + pkg.price_per_credit.toFixed(2).replace('.', ',') + '/credito';
 
                 return `
-                    <div class="credit-package ${pkg.is_featured ? 'featured' : ''}" onclick="buyPackage(${pkg.id})">
+                    <div class="credit-package ${pkg.is_featured ? 'featured' : ''}" onclick="openPaymentMethod(${pkg.id})">
                         <div class="pkg-credits">${pkg.credits}</div>
                         <div class="pkg-bonus">${bonusText}</div>
                         <div class="pkg-name">${pkg.name}</div>
@@ -1532,8 +1600,122 @@ async function loadCreditsBalance() {
     }
 }
 
-// Comprar pacote de créditos
-async function buyPackage(packageId) {
+// Abrir seleção de método de pagamento
+function openPaymentMethod(packageId) {
+    const pkg = (window.__creditPackagesCache || {})[packageId];
+    if (!pkg) {
+        showDepositWarning('Pacote indisponível. Recarregue a página.');
+        return;
+    }
+
+    // Preencher dados do modal
+    const priceFormatted = 'R$ ' + pkg.price_brl.toFixed(2).replace('.', ',');
+    document.getElementById('pmPkgName').textContent = pkg.name;
+    document.getElementById('pmPkgCredits').textContent = pkg.total_credits + ' créditos';
+    document.getElementById('pmPkgPrice').textContent = priceFormatted;
+    document.getElementById('pmPackageId').value = packageId;
+
+    // Ler saldo exibido para decidir se mostra "saldo insuficiente"
+    const balanceText = (document.getElementById('walletBalance').textContent || '').replace(/[^\d,.-]/g, '').replace(',', '.');
+    const currentBalance = parseFloat(balanceText) || 0;
+    const priceBrl = parseFloat(pkg.price_brl);
+
+    const balanceBtn = document.getElementById('pmBtnBalance');
+    const balanceCurrent = document.getElementById('pmBalanceCurrent');
+    balanceCurrent.textContent = 'R$ ' + currentBalance.toFixed(2).replace('.', ',');
+
+    if (currentBalance + 0.0000001 < priceBrl) {
+        balanceBtn.disabled = true;
+        balanceBtn.classList.add('pm-disabled');
+        document.getElementById('pmBalanceHint').textContent = 'Saldo insuficiente';
+    } else {
+        balanceBtn.disabled = false;
+        balanceBtn.classList.remove('pm-disabled');
+        document.getElementById('pmBalanceHint').textContent = 'Instantâneo — sem taxas';
+    }
+
+    document.getElementById('paymentMethodModal').classList.add('active');
+}
+
+function closePaymentMethodModal() {
+    document.getElementById('paymentMethodModal').classList.remove('active');
+}
+
+function choosePaymentPix() {
+    const packageId = parseInt(document.getElementById('pmPackageId').value);
+    closePaymentMethodModal();
+    buyPackage(packageId, 'pix');
+}
+
+function choosePaymentBalance() {
+    const packageId = parseInt(document.getElementById('pmPackageId').value);
+    closePaymentMethodModal();
+    buyPackageWithBalance(packageId);
+}
+
+// Comprar pacote com saldo da conta
+async function buyPackageWithBalance(packageId) {
+    const user = window.authManager?.currentUser;
+    if (!user) {
+        alert('Voce precisa estar logado!');
+        return;
+    }
+
+    const pkg = (window.__creditPackagesCache || {})[packageId];
+    const confirmMsg = pkg
+        ? 'Comprar "' + pkg.name + '" (' + pkg.total_credits + ' créditos) por R$ ' + pkg.price_brl.toFixed(2).replace('.', ',') + ' usando seu saldo?'
+        : 'Confirma a compra usando seu saldo?';
+    if (!confirm(confirmMsg)) return;
+
+    try {
+        const response = await fetch('api/credits.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                google_uid: user.uid,
+                action: 'buy_package_balance',
+                package_id: packageId
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Atualizar saldo e créditos exibidos
+            if (typeof data.new_balance_brl === 'number') {
+                document.getElementById('walletBalance').textContent = formatBRL(data.new_balance_brl);
+            }
+            if (typeof data.new_credits_total === 'number') {
+                document.getElementById('creditsBalance').textContent = data.new_credits_total;
+            } else {
+                loadCreditsBalance();
+            }
+
+            // Mostrar tela de sucesso reaproveitando o bloco do PIX
+            document.getElementById('creditPackages').style.display = 'none';
+            document.getElementById('depositQrArea').style.display = 'none';
+            document.getElementById('depositSuccessArea').style.display = 'block';
+            document.getElementById('depositWarning').style.display = 'none';
+
+            const successMsg = document.getElementById('depositSuccessMsg');
+            if (successMsg) {
+                successMsg.textContent = data.credits + ' crédito(s) adicionados! Pagamento debitado do seu saldo.';
+            }
+            const successTitle = document.querySelector('#depositSuccessArea h4');
+            if (successTitle) {
+                successTitle.textContent = 'Compra Confirmada!';
+            }
+        } else {
+            showDepositWarning(data.error || 'Erro ao processar compra');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        showDepositWarning('Erro de conexao. Tente novamente.');
+    }
+}
+
+// Comprar pacote de créditos (PIX)
+async function buyPackage(packageId, method) {
     const user = window.authManager?.currentUser;
     if (!user) {
         alert('Voce precisa estar logado!');
