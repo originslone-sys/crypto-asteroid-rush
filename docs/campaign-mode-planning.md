@@ -1029,8 +1029,63 @@ admin/pages/campaign.php
 - ✅ Frequência de reset do ranking semanal
 - ✅ Toggle "campanha em manutenção" (fecha o modo com mensagem customizável)
 
-## 17. Versão / Lançamento
-> ⏳ **Pendente de decisão**
+## 17. Versão / Lançamento ✅
+
+### Modelo de lançamento: **Soft launch**
+- Solta com **Setor 1 (treino + 5 fases)** habilitado
+- Setor 2 (F6-F10) fica **bloqueado** e é liberado posteriormente via toggle no admin
+- Reduz risco de bug crítico afetar todos
+- Permite validar engajamento e economia antes de expandir
+
+### Métricas a monitorar (Dashboard no admin)
+
+**Engagement:**
+- DAU (jogadores únicos por dia) na campanha
+- Sessões por jogador / dia
+- Tempo médio por sessão
+- Fases jogadas por jogador
+- Retenção D1, D7, D30
+
+**Monetização:**
+- ARPU (receita por usuário)
+- Taxa de conversão (jogador → pagante)
+- Gastos médios em créditos
+- Skins vendidas
+- Skip de fase usado
+
+**Saúde do jogo:**
+- Taxa de vitória por fase (alarme se >95% ou <30% — rebalancear)
+- Taxa de 3⭐ (alarme se >80% — fácil demais)
+- Fases mais re-jogadas
+- Drop-off (onde os jogadores param)
+
+**Anti-cheat:**
+- Sessões com tempo suspeito
+- BRL ganho vs custo
+- Jogadores no limite diário
+
+> Tab "Dashboard" do `admin/pages/campaign.php` (já prevista na seção 16) cobre tudo isso.
+
+### Plano de rollback
+- **Toggle "campanha em manutenção"** (já decidido na seção 16) fecha o modo com mensagem customizável
+- Não exige desfazer deploy
+- Admin pode resolver bugs específicos sem derrubar o sistema inteiro
+
+### Itens explicitamente **descartados** do MVP
+- ❌ **Fase de teste interno formal** (1 semana com contas de teste antes do soft launch)
+- ❌ **Recompensa de lançamento** (5 vidas grátis, R$ 0,20 ao fazer treino, skin grátis)
+- ❌ **Comunicação de lançamento** (email, banner persistente, pop-up no dashboard, post no blog)
+- ❌ **Plano de pós-lançamento estruturado** (calendário das primeiras 4 semanas)
+- ❌ **Roadmap pós-MVP documentado** (Setor 3+, battle pass, multiplayer cooperativo, etc)
+
+> Lançamento é **soft + minimalista**: solta o Setor 1, monitora métricas, libera Setor 2 quando a economia validar.
+
+### Configurável no painel admin
+- ✅ Toggle "Setor 2 disponível" (libera/bloqueia o segundo setor)
+- ✅ Toggle "campanha em manutenção" + mensagem customizável
+- ✅ Dashboard com as métricas listadas acima
+- ✅ Botão "exportar relatório" das métricas (CSV)
+- ✅ Filtros por período (últimas 24h, 7d, 30d, customizado)
 
 ## 18. Painel Administrativo
 > ⏳ **A consolidar conforme decisões avançam**
@@ -1055,6 +1110,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar Monetização Adicional (skip, acelerar setor, skins, booster, promoções, kill-switch) ✅
 - Gerenciar Anti-cheat (tolerâncias de tempo/BRL/XP, expiração JWT, combo máximo) ✅
 - Gerenciar Integrações (header/dashboard, ranking exclusivo, manutenção, override de premium/áudio) ✅
+- Gerenciar Lançamento (toggle Setor 2, manutenção, dashboard de métricas com export CSV) ✅
 
 ---
 
