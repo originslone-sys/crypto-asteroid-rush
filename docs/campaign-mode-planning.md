@@ -347,8 +347,84 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 - ✅ Cooldown do tiro automático (ms)
 - ✅ Dano base do tiro padrão
 
-## 9. Estrutura de Fase
-> ⏳ **Pendente de decisão**
+## 9. Estrutura de Fase ✅
+
+### Duração média
+- Fases iniciais: **60s**
+- Fases avançadas: **90s**
+- Fases com boss: **sem timer** (até derrotar ou morrer)
+
+### Estrutura de fase normal (F1, F2, F3, F4, F6, F7, F8, F9)
+
+```
+[0s — 5s]   Introdução: cenário rolando, sem inimigos
+[5s — 50s]  3 ondas de inimigos (~15s cada)
+            • Onda 1: inimigos básicos
+            • Onda 2: mix
+            • Onda 3: avançada
+[50s — 60s] Pausa curta + power-up garantido (Reparo)
+[Final]     "Stage Clear" → tela de resultados
+```
+
+### Estrutura de fase com boss (F5 e F10)
+
+```
+[0s — 30s]  2 ondas de warm-up (inimigos do setor)
+[30s — 35s] "Warning! Boss approaching" (cenário trava, música muda)
+[35s — fim] Boss fight sem timer
+            • 3 fases de HP (100% → 50% → 25% → morte)
+[Final]     Recompensa especial + tela de resultados
+```
+
+### Tabela de ondas por fase (MVP)
+
+| Fase | Duração | Onda 1 | Onda 2 | Onda 3 | Especial |
+|---|---|---|---|---|---|
+| Treino | 45s | 5 asteroides | 3 asteroides | — | Tutorial guiado |
+| F1 | 60s | 8 asteroides | 5 asteroides + 2 kamikaze | 3 asteroides | — |
+| F2 | 60s | 10 asteroides | 6 asteroides + 3 kamikaze | 5 atiradores | — |
+| F3 | 70s | 8 kamikaze | 5 atiradores + 4 esquivos | 6 asteroides | Power-up garantido |
+| F4 | 75s | 10 esquivos | 6 atiradores + 4 kamikaze | 8 mix | Mini-boss raro |
+| **F5 (boss)** | s/ timer | 5 atiradores | 8 mix do setor | — | **BOSS 1** |
+| F6 | 70s | 12 mix setor 2 | 8 atiradores | 6 esquivos | — |
+| F7 | 80s | 10 kamikaze | 6 atiradores + 5 esquivos | 8 mix | Power-up garantido |
+| F8 | 85s | 8 esquivos | 10 mix | 8 atiradores | Mini-boss raro |
+| F9 | 90s | 12 mix | 10 mix avançado | 8 mix difícil | 2 mini-bosses |
+| **F10 (boss)** | s/ timer | 8 mix difícil | 10 mix avançado | — | **BOSS FINAL** |
+
+### Ritmo de spawning (transição entre ondas)
+- **Modelo híbrido:**
+  - Onda dura no máximo **20s**
+  - Se o jogador limpar antes de **15s**, a próxima onda começa imediatamente
+  - Recompensa skill e mantém o ritmo
+
+### Power-up de fim de fase
+- Em fases **sem boss**: power-up de **Reparo** garantido antes do "Stage Clear"
+- Em fases **com boss**: recompensa especial via boss (vide seção 10)
+
+### XP por inimigo (bônus ao XP fixo da fase)
+| Inimigo | XP |
+|---|---|
+| Asteroide pequeno | 1 |
+| Asteroide grande | 2 |
+| Kamikaze | 3 |
+| Atirador | 5 |
+| Esquivo | 4 |
+| Mini-Boss | 50 |
+
+> XP de inimigos é um **bônus pequeno** — o foco continua no XP fixo da fase.
+
+### Configurável no painel admin
+- ✅ Duração de cada fase (segundos)
+- ✅ Editor de ondas por fase (lista com tipo + quantidade de inimigos)
+- ✅ Tempo de cada onda
+- ✅ Modo de transição entre ondas (fixo / limpar tela / híbrido)
+- ✅ Timeout máximo por onda
+- ✅ Power-up garantido de fim de fase (toggle + tipo do power-up)
+- ✅ XP de cada tipo de inimigo
+- ✅ Frequência de mini-bosses (% de chance por fase)
+- ✅ Tempo do "warning" antes do boss
+- ✅ Tempo do warm-up das fases de boss
 
 ## 10. Bosses
 > ⏳ **Pendente de decisão**
@@ -389,6 +465,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar Resolução/Orientação Mobile (canvas, rotação, controles, sensibilidade) ✅
 - Gerenciar Scroll/Parallax (velocidade, camadas, tema por setor, comportamento no boss) ✅
 - Gerenciar Mecânicas de Gameplay (HP, inimigos, power-ups, combo, pausa, tiros) ✅
+- Gerenciar Estrutura de Fase (duração, ondas, transições, XP por inimigo, mini-bosses) ✅
 
 ---
 
