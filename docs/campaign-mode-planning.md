@@ -819,8 +819,68 @@ Botão final: **"JOGAR FASE TREINO"**
 - ✅ Promoções: % de desconto temporário em itens (com data início/fim)
 - ✅ Toggle global "monetização adicional ativa" (kill-switch)
 
-## 15. Anti-cheat
-> ⏳ **Pendente de decisão**
+## 15. Anti-cheat e Validações ✅
+
+### Princípio
+**Nunca confiar no cliente.** Toda decisão importante (vidas, XP, BRL, fase concluída) é validada no servidor.
+
+### Validações em `campaign-start.php`
+- Validar Google UID (autenticação)
+- Validar se a fase existe e está habilitada
+- Validar nível mínimo do jogador para a fase
+- Validar se o jogador tem vidas
+- Validar se tem créditos suficientes
+- Validar que não existe outra sessão ativa (anti multi-sessão)
+- Debitar créditos (vida só é consumida ao falhar, mas a sessão é reservada)
+- Gerar **token JWT** único (válido por: tempo da fase × 1.5)
+- Salvar `campaign_session` no banco com seed RNG
+
+### Validações em `campaign-end.php`
+- Validar token JWT
+- Validar tempo decorrido (mínimo 80% da duração; máximo 200%)
+- Validar quantidade de asteroides destruídos vs total possível de spawn
+- Validar BRL reportado (não pode exceder máximo da fase × 1.5)
+- Validar XP reportado (não pode exceder máximo da fase × 1.5)
+- Validar combo máximo (limite plausível)
+- Validar HP final (0-100)
+- Servidor **calcula** as estrelas (cliente não escolhe)
+- Verificar se a sessão já foi finalizada (anti-replay)
+- Marcar sessão como `completed`
+- Aplicar limite diário de BRL antes de creditar
+
+### Cálculo de estrelas no servidor
+Servidor recebe `damage_taken`, `time_elapsed`, `enemies_killed` e decide:
+| Condição | Estrelas |
+|---|---|
+| `damage_taken` = 0 | ⭐⭐⭐ |
+| `damage_taken` ≤ 50% HP máx | ⭐⭐ |
+| `damage_taken` < 100% HP máx | ⭐ |
+| `damage_taken` ≥ 100% HP máx | derrota (0⭐) |
+
+### Validação de progresso entre fases
+- Iniciar fase X exige `level >= requisito da fase X` (server-side)
+- Pular fase X exige `tentativas >= 3` (contador persistido)
+- Compras de skins/boosters validam saldo de créditos antes de debitar
+
+### Anti-replay e tokens únicos
+- Cada sessão gera **um JWT único** com `session_id`, `stage_id`, `google_uid`, `expires_at`
+- Token armazenado no banco — se já usado para finalizar, é rejeitado
+- Sessões expiradas após `tempo_da_fase × 2` são marcadas automaticamente como abandonadas
+
+### Itens explicitamente **descartados** do MVP
+- ❌ **Heartbeat** durante a fase (cliente reportando "estou vivo" a cada 10s)
+- ❌ **Logs detalhados de auditoria** em tabela dedicada (`campaign_anticheat_log`)
+- ❌ **Ações automáticas de bloqueio** (sessão em "review", BRL pendente, bloqueio de conta)
+- ❌ **Rate limiting** específico (máx N fases/min, máx N compras/min, máx N sessões/dia)
+
+> ⚠️ **Observação:** essas funcionalidades aumentariam a robustez do anti-cheat. Reavaliar após o lançamento conforme aparecerem casos de abuso.
+
+### Configurável no painel admin
+- ✅ Tolerância de tempo da fase (% mínimo e máximo — default 80%/200%)
+- ✅ Tolerância de BRL (% acima do máximo — default 50%)
+- ✅ Tolerância de XP (% acima do máximo — default 50%)
+- ✅ Tempo de expiração da sessão JWT (multiplicador sobre duração da fase)
+- ✅ Limite máximo de combo plausível por fase
 
 ## 16. Integrações com o Site
 > ⏳ **Pendente de decisão**
@@ -849,6 +909,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar Onboarding e Tutorial (slides, fase treino, tooltips, cinemáticas, toggles) ✅
 - Gerenciar Engajamento (missões diárias/semanais, streak, eventos, notificações, conquistas, ranking) ✅
 - Gerenciar Monetização Adicional (skip, acelerar setor, skins, booster, promoções, kill-switch) ✅
+- Gerenciar Anti-cheat (tolerâncias de tempo/BRL/XP, expiração JWT, combo máximo) ✅
 
 ---
 
