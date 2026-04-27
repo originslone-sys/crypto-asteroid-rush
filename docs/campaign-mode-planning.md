@@ -426,8 +426,88 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 - ✅ Tempo do "warning" antes do boss
 - ✅ Tempo do warm-up das fases de boss
 
-## 10. Bosses
-> ⏳ **Pendente de decisão**
+## 10. Bosses ✅
+
+### Visão geral
+
+| Boss | Setor | Tema | Fase |
+|---|---|---|---|
+| **Asteroide-Mãe** | Setor 1 | Asteroide gigante com mini-asteroides orbitando | F5 |
+| **Devorador de Sucata** | Setor 2 | Nave pirata reforçada com sucata | F10 |
+
+### Estrutura geral (3 fases de HP)
+| Fase de HP | Comportamento |
+|---|---|
+| 100% → 50% | Padrão básico, ataque previsível |
+| 50% → 25% | Padrão acelerado + ataque secundário |
+| <25% | Modo "berserk" — ataque agressivo + spawn de minions |
+
+### Boss 1 — Asteroide-Mãe (F5)
+
+| Stat | Valor |
+|---|---|
+| HP total | 500 |
+| Tamanho | ~40% da largura da tela |
+| Movimento | Lento, oscila esquerda-direita |
+| Tempo médio | ~60s |
+
+**Padrões de ataque:**
+- **HP 100-50%:** Lança asteroides pequenos com telegrafia
+- **HP 50-25%:** + Spawn de 2 mini-asteroides orbitando (precisam ser destruídos)
+- **HP <25%:** + Charge attack (desce contra o jogador e volta)
+
+**Recompensa:**
+- BRL: R$ 0,40 (definido na seção 5)
+- XP: 200 (definido na seção 2)
+- Drop garantido: **Reparo + Bomba**
+
+### Boss 2 — Devorador de Sucata (F10, boss final)
+
+| Stat | Valor |
+|---|---|
+| HP total | 1000 |
+| Tamanho | ~60% da largura da tela |
+| Movimento | Rápido, padrões variados |
+| Tempo médio | ~90s |
+
+**Padrões de ataque:**
+- **HP 100-50%:** Atira projéteis em leque (5 tiros)
+- **HP 50-25%:** + Spawn de 2 atiradores como minions a cada 10s
+- **HP <25%:** + Laser sweep horizontal (esquivar na vertical)
+
+**Recompensa:**
+- BRL: R$ 1,50 (definido na seção 5)
+- XP: 350 (definido na seção 2)
+- Drop garantido: **Bomba + Reparo + power-up exclusivo (a detalhar)**
+- Conquista: Badge **"Conquistador"** no perfil
+- Drop com chance baixa: **skin lendária** (a especificar na seção 13)
+
+### Mecânicas comuns
+- Barra de HP grande no topo da tela
+- "Warning" visual nas transições (50% e 25%)
+- Screen-shake ao tomar dano grande
+- Música específica de boss; muda de tom no berserk (<25%)
+- Slow-motion no golpe final + flash + tela "BOSS DEFEATED!"
+
+### Continuar após morrer no boss
+- Custo: **+2 créditos** (definido na seção 4)
+- HP do boss **não é restaurado** (continua de onde parou)
+- Mantém pressão e justiça
+
+### Configurável no painel admin
+- ✅ CRUD completo de bosses (criar, editar, ativar/desativar)
+- ✅ HP total de cada boss
+- ✅ Tamanho/escala visual
+- ✅ Velocidade de movimento
+- ✅ Editor de padrões de ataque por fase de HP (timer + tipo + dano)
+- ✅ Limiares de transição de fase (50% e 25% ajustáveis)
+- ✅ BRL extra do boss (separado da fase)
+- ✅ XP extra do boss
+- ✅ Lista de drops garantidos (power-ups)
+- ✅ Chance de drop de skin/cosmético (%)
+- ✅ Upload de música de fundo
+- ✅ Toggle "modo berserk" da fase 3
+- ✅ Toggle "HP do boss persiste no continue"
 
 ## 11. Persistência e UI do Mapa
 > ⏳ **Pendente de decisão**
@@ -466,6 +546,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar Scroll/Parallax (velocidade, camadas, tema por setor, comportamento no boss) ✅
 - Gerenciar Mecânicas de Gameplay (HP, inimigos, power-ups, combo, pausa, tiros) ✅
 - Gerenciar Estrutura de Fase (duração, ondas, transições, XP por inimigo, mini-bosses) ✅
+- Gerenciar Bosses (CRUD, HP, padrões por fase, drops, música, modo berserk) ✅
 
 ---
 
