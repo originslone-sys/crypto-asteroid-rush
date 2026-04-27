@@ -604,8 +604,70 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 - ✅ Resetar progresso de um jogador (suporte)
 - ✅ Conceder estrelas/XP manualmente (suporte)
 
-## 12. Onboarding e Tutorial
-> ⏳ **Pendente de decisão**
+## 12. Onboarding e Tutorial ✅
+
+### Público-alvo do tutorial
+- **Apenas jogadores novos no modo Campanha** (independente de experiência em outros modos)
+- Foco em: vidas, XP, mapa, ondas, bosses (não mecânica básica)
+
+### Tela de boas-vindas (1ª entrada)
+Modal com 4 slides:
+1. **Bem-vindo à Campanha!** — descrição do modo
+2. **Sistema de Vidas** — 5 vidas que recarregam com o tempo
+3. **XP e Níveis** — complete fases para subir de nível e desbloquear novas
+4. **Estrelas** — vença sem dano para ganhar 3⭐ e mais BRL
+
+Botão final: **"JOGAR FASE TREINO"**
+
+### Fase Treino como tutorial guiado
+
+```
+[0s-3s]   "Mova com touch ou WASD" (highlight no controle)
+[3s-8s]   "Tiros são automáticos" (asteroide grande demonstrativo)
+[8s-15s]  Onda fácil — "Destrua todos os asteroides!"
+[15s-25s] "Cuidado com seu HP" (asteroide em colisão direta)
+[25s-35s] Power-up de Reparo — "Pegue power-ups para se recuperar!"
+[35s-45s] "Boa sorte! Sua jornada começa agora."
+```
+
+### Tooltips contextuais (cada um aparece 1 vez)
+- 1ª vida perdida → "Você perdeu uma vida! Vidas recarregam com o tempo."
+- 1ª fase completada → "Parabéns! Você ganhou XP. Continue para subir de nível."
+- 1ª estrela perdida → "Para 3⭐, complete sem tomar dano."
+- 1ª aparição de power-up → "Power-ups dão habilidades especiais!"
+- 1ª aparição de boss → "Este é um BOSS! Tem fases de HP. Esquive e ataque!"
+- 1ª fase bloqueada → "Esta fase exige nível X. Continue jogando para desbloquear."
+
+> Persistido no banco via flags em `campaign_tutorial_seen` por usuário.
+
+### Cinemáticas (texto narrativo curto)
+- **Setor 1 → Setor 2:** "Você atravessou o cinturão. Agora enfrenta os destroços de uma guerra antiga..."
+- **Antes do boss final:** "O Devorador de Sucata espreita as profundezas. Esta é sua última missão."
+
+> Cada cinemática aparece **1 vez** por jogador e pode ser pulada.
+
+### Política de pular
+- ✅ Tela de boas-vindas: **pode pular** ("Pular tutorial")
+- ❌ Fase treino: **não pode ser pulada** (mas dá XP e custa pouco)
+- ✅ Tooltips contextuais: **podem ser fechados**
+- ✅ Cinemáticas: **podem ser puladas**
+
+### Botão de "rever tutorial"
+- Botão **"?"** no header do mapa
+- Reabre a tela de boas-vindas (4 slides)
+- Mostra tooltip ao tocar/passar em cada elemento (vidas, XP, créditos, etc)
+
+### Configurável no painel admin
+- ✅ Habilitar/desabilitar tela de boas-vindas
+- ✅ Editar slides (título, texto, imagem)
+- ✅ Habilitar/desabilitar fase treino como tutorial
+- ✅ Editar mensagens da fase treino (timer + texto)
+- ✅ Habilitar/desabilitar cada tooltip contextual individualmente
+- ✅ Editar texto de cada tooltip
+- ✅ Editar texto das cinemáticas
+- ✅ Upload de imagens de cada cinemática
+- ✅ Toggle "permitir pular cinemática"
+- ✅ Toggle "tutorial obrigatório" (força fase treino antes de F1)
 
 ## 13. Engajamento Diário/Semanal
 > ⏳ **Pendente de decisão**
@@ -640,6 +702,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar Estrutura de Fase (duração, ondas, transições, XP por inimigo, mini-bosses) ✅
 - Gerenciar Bosses (CRUD, HP, padrões por fase, drops, música, modo berserk) ✅
 - Gerenciar Persistência e UI do Mapa (fases, temas, descrições, animações, progresso por jogador) ✅
+- Gerenciar Onboarding e Tutorial (slides, fase treino, tooltips, cinemáticas, toggles) ✅
 
 ---
 
