@@ -669,8 +669,90 @@ Botão final: **"JOGAR FASE TREINO"**
 - ✅ Toggle "permitir pular cinemática"
 - ✅ Toggle "tutorial obrigatório" (força fase treino antes de F1)
 
-## 13. Engajamento Diário/Semanal
-> ⏳ **Pendente de decisão**
+## 13. Engajamento Diário/Semanal ✅
+
+> **Regra global:** Recompensas de engajamento são sempre em **BRL** ou **Vidas** — nunca em créditos (créditos são moeda paga; entregar grátis dilui a monetização).
+
+### Missões Diárias (3 por dia, reset à meia-noite)
+
+| Missão (template) | Recompensa |
+|---|---|
+| Complete 2 fases hoje | R$ 0,15 |
+| Destrua 50 asteroides | R$ 0,10 |
+| Faça 3⭐ em qualquer fase | +1 vida |
+| Ganhe 100 XP hoje | R$ 0,15 |
+| Derrote 1 mini-boss | +1 vida + R$ 0,10 |
+
+### Streak Diário (login)
+
+| Dia | Recompensa |
+|---|---|
+| 1 | R$ 0,05 |
+| 2 | R$ 0,10 |
+| 3 | +1 vida |
+| 4 | R$ 0,20 |
+| 5 | +2 vidas |
+| 6 | R$ 0,30 |
+| 7 | **R$ 0,50 + 2 vidas** |
+| 8+ | loop volta ao dia 1 |
+
+> Ao perder 1 dia, volta ao dia 1.
+
+### Missões Semanais (4 por semana, reset domingo à meia-noite)
+
+| Missão | Recompensa |
+|---|---|
+| Complete 10 fases nesta semana | R$ 1,00 |
+| Faça 3⭐ em 5 fases | R$ 2,00 + 3 vidas |
+| Derrote o Devorador de Sucata | R$ 3,00 |
+| Atinja nível 15 | R$ 1,50 + 5 vidas |
+
+### Eventos Especiais (sob demanda via admin)
+- Sem evento fixo no MVP — admin cria com calendário (data início/fim)
+- Banner visível na tela do mapa
+- Exemplos:
+  - "Fim de Semana de Recompensas" — todas as fases pagam 2x BRL
+  - "Maratona de Bosses" — bosses dão +50% de XP por 3 dias
+  - "Vidas Infinitas" — 24h de vidas ilimitadas (mensal)
+  - "Triple Star" — 3⭐ em qualquer fase dá power-up exclusivo
+- Recompensas dos eventos: sempre **multiplicadores** ou **vidas/BRL bônus**, nunca créditos
+
+### Notificações Web Push (opt-in)
+- Vidas cheias (volta a jogar)
+- Missão diária expirando (1h antes da meia-noite)
+- Evento especial começando
+- Re-engagement após 3 dias sem jogar
+
+### Conquistas (Achievements)
+~15-20 no MVP. Recompensas sempre em BRL ou Vidas.
+
+| Conquista | Recompensa |
+|---|---|
+| 🏆 Primeira Vitória (F1) | R$ 0,05 |
+| 🏆 Estrela Cadente (1ª 3⭐) | R$ 0,10 |
+| 🏆 Asteroides? Sem problema! (1.000 destruídos) | R$ 0,30 |
+| 🏆 Conquistador do Setor 1 | R$ 0,50 + 3 vidas |
+| 🏆 Imperador Galáctico (todas as fases 3⭐) | R$ 5,00 + 7 vidas |
+| 🏆 Bilionário Espacial (R$ 50 acumulado) | R$ 1,00 |
+| 🏆 Sobrevivente (5 fases sem usar continue) | R$ 0,30 + 2 vidas |
+
+> Lista completa de 15-20 conquistas a definir no momento da implementação.
+
+### Ranking dedicado
+- **Ranking permanente** da campanha (estrelas totais, nível, BRL acumulado)
+- **Ranking semanal** "mais XP ganho na semana" (reseta toda segunda)
+
+### Configurável no painel admin
+- ✅ CRUD de missões diárias (templates, recompensas restritas a BRL/Vidas)
+- ✅ Quantidade de missões por dia (default: 3)
+- ✅ Tabela de streak (dia + recompensa)
+- ✅ CRUD de missões semanais
+- ✅ CRUD de eventos especiais (calendário com início/fim, descrição, multiplicadores)
+- ✅ Toggle por tipo de notificação web push
+- ✅ Texto editável de cada notificação
+- ✅ CRUD de conquistas (nome, descrição, condição, recompensa em BRL/vidas)
+- ✅ Toggle "ranking semanal da campanha"
+- ✅ Visualização de evento ativo no momento
 
 ## 14. Monetização Adicional
 > ⏳ **Pendente de decisão**
@@ -703,6 +785,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar Bosses (CRUD, HP, padrões por fase, drops, música, modo berserk) ✅
 - Gerenciar Persistência e UI do Mapa (fases, temas, descrições, animações, progresso por jogador) ✅
 - Gerenciar Onboarding e Tutorial (slides, fase treino, tooltips, cinemáticas, toggles) ✅
+- Gerenciar Engajamento (missões diárias/semanais, streak, eventos, notificações, conquistas, ranking) ✅
 
 ---
 
