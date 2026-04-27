@@ -754,8 +754,70 @@ Botão final: **"JOGAR FASE TREINO"**
 - ✅ Toggle "ranking semanal da campanha"
 - ✅ Visualização de evento ativo no momento
 
-## 14. Monetização Adicional
-> ⏳ **Pendente de decisão**
+## 14. Monetização Adicional ✅
+
+### Já decidido em seções anteriores
+- ✅ Custo de fase (1-2 créditos, seção 4)
+- ✅ Continuar após game over (+2 créditos, seção 4)
+- ✅ Comprar vidas (1 vida = 1 crédito; pacote 5 = 4 créditos; refill = 3 créditos, seção 3)
+- ✅ Benefícios Premium (recarga 2x e +2 vidas máx, seção 3)
+
+### Itens novos do MVP
+
+#### 1. Skip de Fase
+- Após **3 tentativas falhas** numa fase, libera o botão **"Pular Fase"**
+- Custo: **5 créditos**
+- Concede **1⭐** automaticamente (não dá 2⭐ ou 3⭐)
+- Não entrega o BRL de 1ª vez? **Entrega normal** (decisão: o jogador pagou por "vencer")
+- Jogador pode voltar depois e re-jogar para tentar 3⭐
+- Configurável: quantidade de tentativas até liberar + custo + se entrega BRL
+
+#### 2. Pacote "Acelerar Setor"
+- Disponível após desbloqueio do setor
+- Compra setor completo (5 fases) com **1⭐ em cada**
+- Custo: **20 créditos** (Setor 1) e **30 créditos** (Setor 2)
+- **Não entrega BRL** das fases (apenas desbloqueio + 1⭐)
+- Jogador pode revisitar fases para fazer 2⭐/3⭐ e ganhar a diferença
+- Configurável: toggle + custo por setor
+
+#### 3. Skins de Nave (cosmético, não afeta gameplay)
+
+| Skin | Tema | Custo |
+|---|---|---|
+| Nave Padrão | Default | grátis |
+| Falcon Vermelho | Vermelha agressiva | 50 créditos |
+| Phantom Roxo | Roxa estilizada | 50 créditos |
+| Golden Wing | Dourada premium | 100 créditos |
+| Skin Lendária do Boss Final | Drop raro do F10 | apenas drop (não vendida) |
+
+- Configurável: CRUD completo no admin (nome, custo, sprite, disponibilidade, descrição)
+
+#### 4. Triple Star Booster
+- Item consumível
+- **Efeito:** próxima fase começa com **escudo ativo** (bloqueia 1 dano)
+- Custo: **3 créditos**
+- Configurável: efeito + custo + toggle disponibilidade
+
+### Itens explicitamente **descartados** do MVP
+- ❌ **Battle Pass Mensal** — adiciona complexidade demais; reavaliar após validação do modo
+- ❌ **Recompensa por Ver Anúncio** (na campanha) — fora do escopo inicial
+- ❌ **Loja Unificada da Campanha** — sem tela "LOJA" centralizada no MVP
+
+> Como não há loja unificada, cada item será oferecido **contextualmente**:
+> - Vidas: pelo header do mapa (modal de compra direto)
+> - Skip de Fase: aparece como botão na tela de game-over após 3 tentativas
+> - Acelerar Setor: card promocional no mapa após desbloqueio
+> - Skins: tela de seleção de nave no pré-jogo
+> - Triple Star Booster: oferta no modal de seleção de fase
+
+### Configurável no painel admin
+- ✅ Toggle de cada item (skip, acelerar setor, skins, booster)
+- ✅ Custo de cada item (editável)
+- ✅ Quantidade de tentativas para liberar skip de fase
+- ✅ Toggle "skip entrega BRL" (sim/não)
+- ✅ CRUD de skins (nome, custo, sprite, disponibilidade, descrição)
+- ✅ Promoções: % de desconto temporário em itens (com data início/fim)
+- ✅ Toggle global "monetização adicional ativa" (kill-switch)
 
 ## 15. Anti-cheat
 > ⏳ **Pendente de decisão**
@@ -786,6 +848,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar Persistência e UI do Mapa (fases, temas, descrições, animações, progresso por jogador) ✅
 - Gerenciar Onboarding e Tutorial (slides, fase treino, tooltips, cinemáticas, toggles) ✅
 - Gerenciar Engajamento (missões diárias/semanais, streak, eventos, notificações, conquistas, ranking) ✅
+- Gerenciar Monetização Adicional (skip, acelerar setor, skins, booster, promoções, kill-switch) ✅
 
 ---
 
