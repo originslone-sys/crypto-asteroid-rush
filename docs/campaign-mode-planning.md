@@ -279,8 +279,73 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 - ✅ Tempo até boss aparecer (após cenário travar)
 - ✅ Toggle: cenário continua rolando durante boss fight (sim/não)
 
-## 8. Mecânicas de Gameplay
-> ⏳ **Pendente de decisão**
+## 8. Mecânicas de Gameplay ✅
+
+### HP da nave
+- **HP em barra** com **100 HP** padrão
+- Permite balanceamento fino e casa com o critério de estrelas (2⭐ ≤ 50% dano, 3⭐ sem dano)
+
+### Tiros
+- **Tiro padrão:** automático, contínuo, dano baixo
+- **Munição:** infinita (estilo arcade clássico)
+- **Tiros especiais:** apenas via power-ups dropados
+
+### Power-ups (5 no MVP)
+
+| Power-up | Efeito | Duração |
+|---|---|---|
+| 🛡️ Escudo | Bloqueia o próximo dano | Até ser atingido |
+| ⚡ Tiro Triplo | 3 projéteis em leque | 10s |
+| ❤️ Reparo | Recupera 25 HP | Instantâneo |
+| 💣 Bomba | Destrói todos os inimigos na tela | Instantâneo |
+| ⏰ Slow-time | Inimigos 50% mais lentos | 5s |
+
+> Power-ups para expansão futura: Mísseis, Multiplicador BRL.
+
+### Sistema de drop de power-ups
+- **Modelo híbrido:**
+  - Power-ups **garantidos** em pontos-chave de algumas ondas (script)
+  - Power-ups **aleatórios** em inimigos especiais raros (chance baixa)
+
+### Tipos de inimigos (MVP — 6 tipos)
+
+| Inimigo | Comportamento | HP | Dano |
+|---|---|---|---|
+| Asteroide pequeno | Desce reto | 1 | 10 |
+| Asteroide grande | Desce reto, lento | 3 | 25 |
+| Inimigo Kamikaze | Persegue o jogador | 2 | 30 |
+| Inimigo Atirador | Para e atira projéteis | 4 | 15 (por projétil) |
+| Inimigo Esquivo | Desce em zig-zag | 2 | 20 |
+| Mini-Boss (raro) | Aparece em 1-2 fases pré-boss | 15 | 40 |
+
+> Cada setor tem **variação de arte** dos inimigos (mesmo comportamento, visual diferente).
+
+### Sistema de combo
+- Multiplicador acumulável até **x5**
+- Cada **10 inimigos destruídos sem tomar dano** = +1x
+- O multiplicador afeta apenas o **XP** ganho na fase (não o BRL, para evitar abuse)
+- **Reseta** ao tomar qualquer dano
+
+### Pausa
+- Botão de pausa habilitado durante a fase
+- Menu da pausa: Continuar / Sair / Configurações
+- **Sair = perde 1 vida** (anti-cheat: impede pausar para escapar de morte iminente)
+
+### Configurável no painel admin
+- ✅ HP máximo da nave (padrão e premium)
+- ✅ Dano de cada tipo de inimigo
+- ✅ HP de cada tipo de inimigo
+- ✅ Velocidade de cada tipo de inimigo
+- ✅ Lista de power-ups ativos (toggle individual por power-up)
+- ✅ Taxa de drop de cada power-up
+- ✅ Duração de cada power-up
+- ✅ Habilitar/desabilitar combo
+- ✅ Multiplicador máximo de combo (1x a 10x)
+- ✅ Quantidade de inimigos para subir 1x no combo
+- ✅ Toggle "munição infinita"
+- ✅ Toggle "pausa habilitada"
+- ✅ Cooldown do tiro automático (ms)
+- ✅ Dano base do tiro padrão
 
 ## 9. Estrutura de Fase
 > ⏳ **Pendente de decisão**
@@ -323,6 +388,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar Recompensas em BRL (base por fase, estrelas, re-jogada, streak, limite diário, eventos) ✅
 - Gerenciar Resolução/Orientação Mobile (canvas, rotação, controles, sensibilidade) ✅
 - Gerenciar Scroll/Parallax (velocidade, camadas, tema por setor, comportamento no boss) ✅
+- Gerenciar Mecânicas de Gameplay (HP, inimigos, power-ups, combo, pausa, tiros) ✅
 
 ---
 
