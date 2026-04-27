@@ -1,6 +1,6 @@
 # Modo Campanha — Documento de Planejamento
 
-> Status: **Em mapeamento** | Branch: `claude/new-game-mode-planning-crtrQ`
+> Status: **Mapeamento concluído ✅** | Branch: `claude/new-game-mode-planning-crtrQ`
 
 ## Objetivo
 Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com fases sequenciais, sistema de XP, vidas e chefões. Foco em **engajamento**, **retenção** e **monetização**.
@@ -1087,57 +1087,221 @@ admin/pages/campaign.php
 - ✅ Botão "exportar relatório" das métricas (CSV)
 - ✅ Filtros por período (últimas 24h, 7d, 30d, customizado)
 
-## 18. Painel Administrativo
-> ⏳ **A consolidar conforme decisões avançam**
+## 18. Painel Administrativo ✅
 
-Página: `admin/pages/campaign.php`
+Página única: `admin/pages/campaign.php` com sidebar de tabs.
 
-Funcionalidades previstas (vão sendo adicionadas conforme decisões):
-- Gerenciar XP por fase ✅
-- Gerenciar tabela de níveis ✅
-- Gerenciar desbloqueios por nível ✅
-- Gerenciar Sistema de Vidas (máx, recarga, consumo, custos, premium, ilimitado) ✅
-- Gerenciar Custo em Créditos (setor, fase, treino, boss, re-jogada, continuar, promoções) ✅
-- Gerenciar Recompensas em BRL (base por fase, estrelas, re-jogada, streak, limite diário, eventos) ✅
-- Gerenciar Resolução/Orientação Mobile (canvas, rotação, controles, sensibilidade) ✅
-- Gerenciar Scroll/Parallax (velocidade, camadas, tema por setor, comportamento no boss) ✅
-- Gerenciar Mecânicas de Gameplay (HP, inimigos, power-ups, combo, pausa, tiros) ✅
-- Gerenciar Estrutura de Fase (duração, ondas, transições, XP por inimigo, mini-bosses) ✅
-- Gerenciar Bosses (CRUD, HP, padrões por fase, drops, música, modo berserk) ✅
-- Gerenciar Persistência e UI do Mapa (fases, temas, descrições, animações, progresso por jogador) ✅
-- Gerenciar Onboarding e Tutorial (slides, fase treino, tooltips, cinemáticas, toggles) ✅
-- Gerenciar Engajamento (missões diárias/semanais, streak, eventos, notificações, conquistas, ranking) ✅
-- Gerenciar Monetização Adicional (skip, acelerar setor, skins, booster, promoções, kill-switch) ✅
-- Gerenciar Anti-cheat (tolerâncias de tempo/BRL/XP, expiração JWT, combo máximo) ✅
-- Gerenciar Integrações (header/dashboard, ranking exclusivo, manutenção, override de premium/áudio) ✅
-- Gerenciar Lançamento (toggle Setor 2, manutenção, dashboard de métricas com export CSV) ✅
+### Estrutura de tabs
+
+```
+admin/pages/campaign.php
+│
+├── 📊 Tab 1: Dashboard
+│   ├── KPIs: DAU, ARPU, sessões/dia, tempo médio
+│   ├── Engagement: retenção D1/D7/D30, fases jogadas
+│   ├── Monetização: créditos gastos, conversão, skins vendidas, skips
+│   ├── Saúde: taxa de vitória/fase, taxa 3⭐, drop-off
+│   ├── Anti-cheat: sessões suspeitas, BRL vs custo, no limite diário
+│   ├── Filtros: 24h / 7d / 30d / customizado
+│   └── Botão "Exportar CSV"
+│
+├── 🎯 Tab 2: Fases
+│   ├── Lista das 11 fases (Treino + F1-F10)
+│   ├── Por fase: editar (custo, duração, ondas, recompensa, descrição)
+│   ├── Toggle habilitar/desabilitar fase
+│   ├── Toggle "Setor 2 disponível"
+│   └── Override de custo por fase individual
+│
+├── 📈 Tab 3: XP & Níveis
+│   ├── Tabela de XP por fase (editável)
+│   ├── Curva de XP por nível (1-30)
+│   ├── Tabela de desbloqueio (nível mínimo por fase)
+│   └── XP bônus por estrelas
+│
+├── ❤️ Tab 4: Vidas
+│   ├── Quantidade máxima
+│   ├── Tempo de recarga (min)
+│   ├── Comportamento de consumo (ao entrar / ao falhar)
+│   ├── Custos: avulsa, pacote 5, refill completo
+│   └── Toggle "vidas ilimitadas" (eventos)
+│
+├── 💰 Tab 5: Recompensas
+│   ├── BRL base por fase
+│   ├── Multiplicadores por estrelas (1⭐, 2⭐, 3⭐)
+│   ├── Critério da 2⭐ (% HP)
+│   ├── Política de re-jogada
+│   ├── Bônus de streak
+│   ├── Limite diário de BRL + toggle
+│   ├── Eventos de recompensa dobrada
+│   └── Promoções por fase (multiplicador + janela)
+│
+├── ⚔️ Tab 6: Mecânicas
+│   ├── HP máximo da nave
+│   ├── Inimigos: HP, dano, velocidade por tipo
+│   ├── Power-ups: lista, drop rate, duração
+│   ├── Combo: toggle, máx, qtd para subir
+│   ├── Tiro: cooldown, dano, munição infinita
+│   └── Pausa habilitada
+│
+├── 👹 Tab 7: Bosses (CRUD)
+│   ├── Lista de bosses (criar/editar/desativar)
+│   ├── Por boss: HP, escala, velocidade
+│   ├── Editor de padrões de ataque por fase de HP
+│   ├── Limiares de transição (50%, 25%)
+│   ├── BRL e XP extras
+│   ├── Drops garantidos
+│   ├── Chance de drop de skin
+│   ├── Toggle modo berserk
+│   └── Toggle "HP do boss persiste no continue"
+│
+├── 🎓 Tab 8: Tutorial
+│   ├── Toggle tela de boas-vindas
+│   ├── Editor de slides (título, texto, imagem)
+│   ├── Toggle fase treino como tutorial
+│   ├── Editor de mensagens da fase treino (timer + texto)
+│   ├── Toggle de cada tooltip contextual + texto
+│   ├── Editor de cinemáticas (texto + imagem + toggle pular)
+│   └── Toggle "tutorial obrigatório"
+│
+├── 🎪 Tab 9: Engajamento
+│   ├── Missões diárias (CRUD templates, qtd por dia)
+│   ├── Streak diário (tabela dia → recompensa)
+│   ├── Missões semanais (CRUD)
+│   ├── Eventos especiais (calendário com início/fim, tipo, multiplicador)
+│   ├── Conquistas (CRUD)
+│   ├── Notificações web push (toggle e textos)
+│   └── Visualização de evento ativo
+│
+├── 🛒 Tab 10: Monetização
+│   ├── Toggle skip de fase + custo + tentativas + entrega BRL
+│   ├── Pacote Acelerar Setor (toggle + custo por setor)
+│   ├── Skins de nave (CRUD: nome, custo, sprite, descrição)
+│   ├── Triple Star Booster
+│   ├── Promoções: % desconto temporário + janela
+│   └── Kill-switch global
+│
+├── 🛡️ Tab 11: Anti-cheat
+│   ├── Tolerância de tempo (% min/máx)
+│   ├── Tolerância de BRL (% acima)
+│   ├── Tolerância de XP (% acima)
+│   ├── Expiração JWT (multiplicador)
+│   └── Combo máximo plausível
+│
+├── 👥 Tab 12: Jogadores
+│   ├── Busca por Google UID / email / nome
+│   ├── Visualizar progresso (nível, XP, vidas, fases, estrelas)
+│   ├── Histórico de sessões
+│   ├── Resetar progresso
+│   └── Conceder XP / estrelas / vidas / BRL manualmente
+│
+└── 🏆 Tab 13: Ranking
+    ├── Visibilidade de cada coluna (estrelas, nível, BRL, XP semanal)
+    ├── Tamanho do top (default 100)
+    ├── Frequência de reset semanal
+    └── Visualização do ranking atual
+```
+
+### Permissões sugeridas
+| Perfil | Acesso |
+|---|---|
+| Admin Master | Todas as tabs |
+| Admin Suporte | Jogadores + Dashboard |
+| Admin Conteúdo | Fases, XP, Tutorial, Engajamento, Bosses |
+| Admin Financeiro | Monetização, Recompensas, Dashboard |
+
+### Persistência das configs
+- Tabela única `campaign_settings` (chave-valor) para configs simples
+- Tabelas dedicadas para entidades complexas: `campaign_stages`, `campaign_bosses`, `campaign_skins`, `campaign_missions_*`, `campaign_events`, `campaign_achievements`
+- Cache no servidor para evitar query a cada `campaign-config.php`
+- Endpoint de cache invalidation ao salvar configs
+
+### Auditoria
+- Cada save em config gera log em `admin_action_log` (admin_uid, action, target, before, after, timestamp)
+- Reaproveitar `admin/pages/logs.php` (já existe no projeto)
 
 ---
 
-## Arquivos planejados (visão geral, evolui conforme decisões)
+## Arquivos planejados (consolidação final)
 
 ### Frontend
 - `campaign.html` — mapa de fases
 - `campaign-game.html` — tela de jogo
+- `campaign-postgame.html` — resultados (ou modal)
 - `js/campaign-map.js`
 - `js/campaign-config.js`
 - `js/campaign-engine.js`
+- `js/campaign-renderer.js`
 - `js/campaign-boss.js`
+- `js/campaign-powerups.js`
+- `js/campaign-session-manager.js`
+- `js/campaign-tutorial.js`
+- `css/campaign.css`
 
-### Backend
-- `api/campaign-start.php`
-- `api/campaign-end.php`
-- `api/campaign-progress.php`
-- `api/campaign-config.php` (público — lê configs do admin)
-- `api/admin/campaign-*.php` (CRUD do admin)
+### Backend público (`/api`)
+- `campaign-start.php`
+- `campaign-end.php`
+- `campaign-progress.php`
+- `campaign-config.php`
+- `campaign-buy-life.php`
+- `campaign-buy-skin.php`
+- `campaign-skip-stage.php`
+- `campaign-buy-booster.php`
+- `campaign-claim-mission.php`
+- `campaign-claim-streak.php`
+- `campaign-claim-achievement.php`
+- `campaign-ranking.php`
+
+### Backend admin (`/api/admin`)
+- `campaign-stages.php`
+- `campaign-bosses.php`
+- `campaign-skins.php`
+- `campaign-missions.php`
+- `campaign-events.php`
+- `campaign-achievements.php`
+- `campaign-settings.php`
+- `campaign-player.php`
 
 ### Admin
 - `admin/pages/campaign.php`
+- `admin/js/campaign.js`
+- `admin/css/campaign.css`
 
 ### Banco de Dados
-- `campaign_stages` — definição estática
-- `campaign_progress` — progresso por usuário
-- `campaign_xp_table` — curva de XP por nível
-- `campaign_unlocks` — XP necessário por fase
-- `campaign_bosses` — definição dos bosses
-- `campaign_settings` — configs gerais (vidas, cooldown, etc)
+- `campaign_stages`
+- `campaign_progress`
+- `campaign_stage_progress`
+- `campaign_xp_table`
+- `campaign_bosses`
+- `campaign_settings` (chave-valor)
+- `campaign_skins`
+- `campaign_player_skins`
+- `campaign_missions_daily`
+- `campaign_missions_weekly`
+- `campaign_player_missions`
+- `campaign_streak`
+- `campaign_events`
+- `campaign_achievements`
+- `campaign_player_achievements`
+- `campaign_session`
+- `campaign_tutorial_seen`
+
+---
+
+## Conclusão — Mapeamento Concluído ✅
+
+Este documento cobre **18 seções** de planejamento do Modo Campanha, cada uma confirmada pelo product owner. As decisões estão prontas para virar especificação técnica de implementação.
+
+### Próximas etapas sugeridas (fora do escopo deste documento)
+1. **Design visual** — definir paleta, mockups das telas (mapa, jogo, postgame, modais), wireframes do admin
+2. **Produção dos assets** — sprites de inimigos (com a variedade ampla decidida), bosses, naves, backgrounds, ícones de UI
+3. **Schema SQL detalhado** — gerar os `CREATE TABLE` de todas as tabelas listadas
+4. **Implementação por fatia vertical** — começar pela tab "Fases" do admin + `campaign-start.php` + tela de mapa, garantindo um fluxo end-to-end mínimo antes de expandir
+5. **Soft launch** com Setor 1 conforme seção 17
+
+### Premissas mantidas
+- 10 fases + treino, 2 setores, 2 bosses
+- Portrait fixo, scroll vertical estilo Sky Force
+- Recompensas em BRL e Vidas (nunca créditos como reward)
+- Sem premium, sem áudio no MVP
+- Anti-cheat server-side mínimo viável (sem rate limit / heartbeat / logs dedicados)
+- Sem testes formais, comunicação de lançamento ou roadmap pós-MVP no escopo MVP
