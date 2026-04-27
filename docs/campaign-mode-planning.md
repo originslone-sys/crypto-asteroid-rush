@@ -509,8 +509,100 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 - ✅ Toggle "modo berserk" da fase 3
 - ✅ Toggle "HP do boss persiste no continue"
 
-## 11. Persistência e UI do Mapa
-> ⏳ **Pendente de decisão**
+## 11. Persistência e UI do Mapa ✅
+
+### Layout: **Mapa galáctico**
+- Visual imersivo alinhado à temática espacial
+- Cada setor é uma região do mapa com fundo temático próprio
+- Setores apresentados em **scroll vertical único** (Setor 1 em cima, Setor 2 embaixo) com header destacado
+  - "SETOR 1: Cinturão de Asteroides"
+  - "SETOR 2: Zona de Detritos"
+
+### Indicadores em cada nó de fase
+- Número da fase (1, 2, 3...)
+- Estrelas conquistadas (⭐⭐⭐ ou cinza)
+- Cadeado se bloqueada (com nível necessário)
+- Ícone de boss em F5 e F10
+- Marca "NOVO" para fase recém-desbloqueada
+- Recompensa em BRL exibida abaixo do nó
+
+### Header (fixo no topo)
+- Nome + foto do jogador
+- Nível atual + barra de progresso para próximo nível
+- XP total e XP para próximo nível
+- Vidas atuais (ícones ❤️❤️❤️❤️🤍)
+- Timer de próxima recarga de vida ("+1 vida em 23:14")
+- Saldo de créditos
+- Botão de compra (vidas/créditos)
+
+### Modal de fase selecionada
+- Nome + número da fase
+- Recompensa em BRL com simulação por estrelas
+- Estrelas atuais
+- Custo em créditos
+- Vidas atuais
+- Botão **INICIAR** (ou **BLOQUEADA** com nível necessário)
+- Botão **VER DETALHES** (inimigos, ondas, dicas)
+
+### Tela pós-fase (postgame)
+- Resultado: VITÓRIA! / DERROTA
+- Animação de revelação das estrelas
+- XP ganho com barra animada (level-up se aplicável)
+- BRL ganho (com diferença em re-jogadas)
+- Estatísticas: asteroides destruídos, dano sofrido, combo máximo, tempo
+- Botões: Próxima fase / Re-jogar / Mapa
+
+### Histórico por fase (acessível via "Ver Detalhes")
+- Tentativas totais, vitórias, derrotas
+- Melhor tempo
+- Combo máximo histórico
+- Asteroides destruídos totais
+- Última vez jogada
+- Estrelas obtidas
+- BRL acumulado na fase
+
+### Animações de progresso
+- Cadeado quebrando ao desbloquear fase
+- Pop-up "LEVEL UP! Você desbloqueou: [Fase X]"
+- Confete + som especial ao 3⭐ pela 1ª vez
+- Cinemática curta de explosão ao derrotar boss
+
+### Persistência (banco de dados)
+
+**Tabela `campaign_progress` (1 linha por jogador):**
+- `google_uid` (PK)
+- `current_level`
+- `total_xp`
+- `current_lives`
+- `next_life_at`
+- `streak_count`
+- `daily_brl_earned`
+- `daily_brl_reset_at`
+- `total_stars`
+- `created_at`, `updated_at`
+
+**Tabela `campaign_stage_progress` (1 linha por jogador × fase):**
+- `id` (PK)
+- `google_uid`
+- `stage_id`
+- `stars` (0, 1, 2 ou 3)
+- `best_time`
+- `attempts`, `wins`, `losses`
+- `total_brl_earned`
+- `max_combo`
+- `total_asteroids_destroyed`
+- `last_played_at`, `first_completed_at`
+
+### Configurável no painel admin
+- ✅ Habilitar/desabilitar fases individualmente
+- ✅ Customizar tema visual de cada setor (cor, background)
+- ✅ Toggle "mostrar BRL no mapa"
+- ✅ Toggle "mostrar estrelas no mapa"
+- ✅ Descrição/dica de cada fase (texto editável)
+- ✅ Animações ON/OFF (para low-end devices)
+- ✅ Painel de progresso por jogador (visualização)
+- ✅ Resetar progresso de um jogador (suporte)
+- ✅ Conceder estrelas/XP manualmente (suporte)
 
 ## 12. Onboarding e Tutorial
 > ⏳ **Pendente de decisão**
@@ -547,6 +639,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar Mecânicas de Gameplay (HP, inimigos, power-ups, combo, pausa, tiros) ✅
 - Gerenciar Estrutura de Fase (duração, ondas, transições, XP por inimigo, mini-bosses) ✅
 - Gerenciar Bosses (CRUD, HP, padrões por fase, drops, música, modo berserk) ✅
+- Gerenciar Persistência e UI do Mapa (fases, temas, descrições, animações, progresso por jogador) ✅
 
 ---
 
