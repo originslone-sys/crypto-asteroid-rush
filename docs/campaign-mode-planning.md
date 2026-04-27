@@ -243,8 +243,41 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 - ✅ Sensibilidade do touch (multiplicador 0.5x a 2.0x)
 - ✅ Velocidade base de movimento da nave
 
-## 7. Tipo de Scroll
-> ⏳ **Pendente de decisão** (mecânica v2 vertical OU side-scroller estilo Space Impact)
+## 7. Tipo de Scroll ✅
+
+### Decisão: **Vertical scroll com cenário rolando** (estilo Sky Force / Galaga / 1942)
+
+### Como funciona
+- Cenário rola **de cima para baixo** (parallax vertical contínuo)
+- Inimigos e asteroides entram pela parte superior da tela
+- Nave do jogador se move livremente dentro da área inferior da tela
+- Ao chegar no boss, o **cenário trava** e a tela vira uma "arena" para a luta
+- Mantém a essência do Space Impact (fases, ondas, bosses, power-ups) adaptada para portrait
+
+### Justificativa
+- Casa perfeitamente com a orientação **portrait** já definida
+- Formato consagrado em mobile (Sky Force, Phoenix Force)
+- Diferencia visualmente dos modos atuais (que não têm cenário rolando)
+- Permite arte temática por setor sem complicar implementação
+
+### Camadas de parallax (proposta inicial)
+1. **Camada de fundo:** estrelas distantes (rolagem lenta)
+2. **Camada do meio:** nebulosa / planetas (rolagem média)
+3. **Camada de frente:** asteroides decorativos / detritos (rolagem rápida)
+
+### Tema visual por setor
+| Setor | Tema |
+|---|---|
+| Setor 1 | Cinturão de Asteroides (azul/cinza, rochas) |
+| Setor 2 | Zona de Detritos (laranja/vermelho, sucata espacial) |
+
+### Configurável no painel admin
+- ✅ Velocidade do scroll do cenário (ajustável por fase)
+- ✅ Número de camadas de parallax (1, 2 ou 3 — para performance)
+- ✅ Tema visual por setor (asset pack: estrelas, asteroides, nebulosa, etc)
+- ✅ Velocidade base dos inimigos descendo
+- ✅ Tempo até boss aparecer (após cenário travar)
+- ✅ Toggle: cenário continua rolando durante boss fight (sim/não)
 
 ## 8. Mecânicas de Gameplay
 > ⏳ **Pendente de decisão**
@@ -289,6 +322,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar Custo em Créditos (setor, fase, treino, boss, re-jogada, continuar, promoções) ✅
 - Gerenciar Recompensas em BRL (base por fase, estrelas, re-jogada, streak, limite diário, eventos) ✅
 - Gerenciar Resolução/Orientação Mobile (canvas, rotação, controles, sensibilidade) ✅
+- Gerenciar Scroll/Parallax (velocidade, camadas, tema por setor, comportamento no boss) ✅
 
 ---
 
