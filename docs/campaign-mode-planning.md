@@ -101,8 +101,7 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 | Escopo | **Exclusivas da campanha** (não interferem em outros modos) |
 
 ### Premium
-- Recarga **2x mais rápida** (15 min por vida)
-- Vidas máximas aumentadas para **7**
+> ❌ **Removido na seção 16.** O modo Campanha **não terá benefícios premium** — vidas, HP e mecânicas são iguais para todos os jogadores.
 
 ### Compra com créditos
 | Opção | Custo |
@@ -114,8 +113,8 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 > Refill completo só disponível quando vidas < máximo.
 
 ### Configurável no painel admin
-- ✅ Quantidade máxima de vidas (padrão e premium)
-- ✅ Tempo de recarga em minutos (padrão e premium)
+- ✅ Quantidade máxima de vidas
+- ✅ Tempo de recarga em minutos
 - ✅ Comportamento de consumo (ao entrar / ao falhar)
 - ✅ Custo de compra avulsa
 - ✅ Custo do pacote de 5 vidas
@@ -307,18 +306,18 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
   - Power-ups **garantidos** em pontos-chave de algumas ondas (script)
   - Power-ups **aleatórios** em inimigos especiais raros (chance baixa)
 
-### Tipos de inimigos (MVP — 6 tipos)
+### Tipos de inimigos (MVP — 6 comportamentos)
 
-| Inimigo | Comportamento | HP | Dano |
-|---|---|---|---|
-| Asteroide pequeno | Desce reto | 1 | 10 |
-| Asteroide grande | Desce reto, lento | 3 | 25 |
-| Inimigo Kamikaze | Persegue o jogador | 2 | 30 |
-| Inimigo Atirador | Para e atira projéteis | 4 | 15 (por projétil) |
-| Inimigo Esquivo | Desce em zig-zag | 2 | 20 |
-| Mini-Boss (raro) | Aparece em 1-2 fases pré-boss | 15 | 40 |
+| Comportamento | HP | Dano |
+|---|---|---|
+| "Tank" — desce reto, lento | 3 | 25 |
+| "Bullet" — desce reto, rápido | 1 | 10 |
+| "Kamikaze" — persegue o jogador | 2 | 30 |
+| "Atirador" — para e atira projéteis | 4 | 15 (por projétil) |
+| "Esquivo" — desce em zig-zag | 2 | 20 |
+| Mini-Boss (raro) | 15 | 40 |
 
-> Cada setor tem **variação de arte** dos inimigos (mesmo comportamento, visual diferente).
+> **Variedade visual ampla** (decidido na seção 16): cada comportamento tem **múltiplas skins** (asteroides, alienígenas, naves inimigas, drones) para evitar repetição visual. A arte muda por setor e dentro do mesmo setor.
 
 ### Sistema de combo
 - Multiplicador acumulável até **x5**
@@ -332,7 +331,7 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 - **Sair = perde 1 vida** (anti-cheat: impede pausar para escapar de morte iminente)
 
 ### Configurável no painel admin
-- ✅ HP máximo da nave (padrão e premium)
+- ✅ HP máximo da nave
 - ✅ Dano de cada tipo de inimigo
 - ✅ HP de cada tipo de inimigo
 - ✅ Velocidade de cada tipo de inimigo
@@ -370,7 +369,7 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 
 ```
 [0s — 30s]  2 ondas de warm-up (inimigos do setor)
-[30s — 35s] "Warning! Boss approaching" (cenário trava, música muda)
+[30s — 35s] "Warning! Boss approaching" (cenário trava, alerta visual)
 [35s — fim] Boss fight sem timer
             • 3 fases de HP (100% → 50% → 25% → morte)
 [Final]     Recompensa especial + tela de resultados
@@ -486,8 +485,9 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 - Barra de HP grande no topo da tela
 - "Warning" visual nas transições (50% e 25%)
 - Screen-shake ao tomar dano grande
-- Música específica de boss; muda de tom no berserk (<25%)
 - Slow-motion no golpe final + flash + tela "BOSS DEFEATED!"
+
+> Sem áudio/música no MVP (decidido na seção 16) — a tensão é feita via visual e screen-shake.
 
 ### Continuar após morrer no boss
 - Custo: **+2 créditos** (definido na seção 4)
@@ -505,7 +505,6 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 - ✅ XP extra do boss
 - ✅ Lista de drops garantidos (power-ups)
 - ✅ Chance de drop de skin/cosmético (%)
-- ✅ Upload de música de fundo
 - ✅ Toggle "modo berserk" da fase 3
 - ✅ Toggle "HP do boss persiste no continue"
 
@@ -564,7 +563,7 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 ### Animações de progresso
 - Cadeado quebrando ao desbloquear fase
 - Pop-up "LEVEL UP! Você desbloqueou: [Fase X]"
-- Confete + som especial ao 3⭐ pela 1ª vez
+- Confete ao 3⭐ pela 1ª vez (apenas visual — sem som no MVP)
 - Cinemática curta de explosão ao derrotar boss
 
 ### Persistência (banco de dados)
@@ -882,8 +881,153 @@ Servidor recebe `damage_taken`, `time_elapsed`, `enemies_killed` e decide:
 - ✅ Tempo de expiração da sessão JWT (multiplicador sobre duração da fase)
 - ✅ Limite máximo de combo plausível por fase
 
-## 16. Integrações com o Site
-> ⏳ **Pendente de decisão**
+## 16. Integrações com o Site ✅
+
+### Overrides retroativos
+- ❌ **Sem premium no modo Campanha** — vidas, HP e mecânicas são iguais para todos (afeta seções 3 e 8)
+- ❌ **Sem áudio/música/efeitos sonoros** no MVP (afeta seções 9, 10, 11)
+
+### Pontos de entrada (acesso ao modo)
+
+**Header do `index.html`:**
+- Adicionar link **"Campanha"** no menu principal
+- Posição: entre "Jogar" e "PvP"
+- Ícone: 🚀 ou 🌌
+
+**Dashboard `dashboard.html`:**
+- Card **"MODO CAMPANHA"** com ícone temático, descrição curta, botão "INICIAR JORNADA" e indicador de progresso ("Nível 5 • 3/10 fases")
+
+**Banner promocional na home (lançamento):**
+- Banner destacado "NOVO! Modo Campanha" + botão "JOGAR AGORA"
+- Pode ser desligado no admin após o período inicial
+
+### Páginas auxiliares a atualizar
+
+| Página | Atualização |
+|---|---|
+| `faq.html` | Seção "Modo Campanha" com FAQ |
+| `how-to-play.html` | Bloco explicando o modo + link para `campaign.html` |
+| `rules.html` | Regras específicas (limite diário BRL, anti-cheat, monetização) |
+| `gameplay.html` | Adicionar referência ao modo |
+
+### Ranking
+- **A página `ranking.html` será totalmente substituída** para focar **exclusivamente no modo Campanha**
+- Conteúdo proposto:
+  - Top 100 por **estrelas totais** (acumuladas)
+  - Top 100 por **nível** (XP total)
+  - Top 100 por **BRL acumulado na campanha**
+  - Top semanal: **mais XP ganho na semana**
+- **Sem premiação** para os primeiros colocados — apenas ranking visual (motivacional)
+- Configurável no admin: visibilidade de cada coluna, tamanho do top, frequência de reset semanal
+
+### Itens explicitamente **descartados** no MVP
+- ❌ **Wallet** — sem filtro "Campanha" no histórico de transações
+- ❌ **Notificações** no dashboard / banner persistente de evento
+- ❌ **Premium específico** da campanha (página `premium.html` não muda)
+- ❌ **Banners da home** automatizados (texto manual em `index.html` se necessário)
+
+> Cross-sell minimalista: campanha aparece no header e dashboard. Sem mecanismos extras de comunicação no MVP.
+
+### Admin: página `admin/pages/campaign.php`
+Estrutura proposta:
+```
+admin/pages/campaign.php
+├── Tab: Dashboard (jogadores, BRL pago, créditos gastos, top fases, eventos ativos)
+├── Tab: Fases (lista das 11 fases — treino + 10)
+├── Tab: XP & Níveis
+├── Tab: Vidas
+├── Tab: Recompensas (BRL, estrelas, streak)
+├── Tab: Mecânicas (HP, inimigos, power-ups)
+├── Tab: Bosses (CRUD)
+├── Tab: Tutorial
+├── Tab: Engajamento (missões, eventos, conquistas)
+├── Tab: Monetização (skins, skip, booster)
+├── Tab: Anti-cheat
+├── Tab: Jogadores (busca, progresso, suporte)
+└── Tab: Ranking (config das colunas)
+```
+
+### Integração com sistemas existentes
+
+| Sistema atual | Como integra |
+|---|---|
+| **Auth Firebase** | Reusa `js/firebase-config.js` + `auth-manager.js` |
+| **Wallet** | Reusa `js/game-wallet.js` (créditos, BRL) — sem UI específica |
+| **Saques** | Sem mudança — BRL ganho vai para o saldo geral |
+| **Compra de créditos** | Sem mudança — campanha consome o saldo de créditos |
+| **Sistema de banners** | Não usado no MVP |
+| **Ads system** | Não usado no MVP |
+| **Premium** | Não aplica (campanha sem premium) |
+| **Ranking global** | `ranking.html` será reescrita para focar só na campanha |
+
+### Lançamento técnico — arquivos a criar
+
+**Frontend:**
+- `campaign.html`, `campaign-game.html`, `campaign-postgame.html`
+- `js/campaign-map.js`, `campaign-config.js`, `campaign-engine.js`, `campaign-renderer.js`, `campaign-boss.js`, `campaign-powerups.js`, `campaign-session-manager.js`, `campaign-tutorial.js`
+- `css/campaign.css`
+
+**Backend público (`/api`):**
+- `campaign-start.php`, `campaign-end.php`, `campaign-progress.php`, `campaign-config.php`
+- `campaign-buy-life.php`, `campaign-buy-skin.php`, `campaign-skip-stage.php`, `campaign-buy-booster.php`
+- `campaign-claim-mission.php`, `campaign-claim-streak.php`, `campaign-claim-achievement.php`
+- `campaign-ranking.php` (alimenta `ranking.html`)
+
+**Backend admin (`/api/admin`):**
+- `campaign-stages.php`, `campaign-bosses.php`, `campaign-skins.php`, `campaign-missions.php`, `campaign-events.php`, `campaign-achievements.php`, `campaign-settings.php`, `campaign-player.php`
+
+**Admin:**
+- `admin/pages/campaign.php`, `admin/js/campaign.js`, `admin/css/campaign.css`
+
+**Banco de dados (tabelas):**
+- `campaign_stages`, `campaign_progress`, `campaign_stage_progress`, `campaign_xp_table`
+- `campaign_bosses`, `campaign_settings` (chave-valor), `campaign_skins`, `campaign_player_skins`
+- `campaign_missions_daily`, `campaign_missions_weekly`, `campaign_player_missions`
+- `campaign_streak`, `campaign_events`, `campaign_achievements`, `campaign_player_achievements`
+- `campaign_session`, `campaign_tutorial_seen`
+
+### Assets (arte nova) — variedade ampla
+> **Diretriz crítica:** evitar repetição visual cansativa. Cada comportamento de inimigo deve ter **múltiplas skins distintas** (asteroides, alienígenas, naves inimigas, drones), distribuídas entre setores e fases.
+
+**Inimigos (sprites por setor):**
+- Setor 1 — Cinturão de Asteroides:
+  - Tank: 3 variações (asteroide rochoso, asteroide gelo, asteroide cristal)
+  - Bullet: 3 variações (drone explorador, micro-asteroide, lasca cristalina)
+  - Kamikaze: 2 variações (drone kamikaze, fragmento volátil)
+  - Atirador: 2 variações (drone laser, torre flutuante)
+  - Esquivo: 2 variações (drone escavador, alienígena pequeno)
+- Setor 2 — Zona de Detritos:
+  - Tank: 3 variações (sucata gigante, container blindado, satélite quebrado)
+  - Bullet: 3 variações (drone pirata, sucata projétil, mini-nave inimiga)
+  - Kamikaze: 2 variações (alienígena kamikaze, drone suicida)
+  - Atirador: 2 variações (nave atiradora, alienígena artilheiro)
+  - Esquivo: 2 variações (nave ágil, alienígena ciborgue)
+
+**Mini-bosses:** 2-3 variações distintas (visual diferente para cada aparição)
+
+**Bosses:** já são distintos (Asteroide-Mãe vs Devorador de Sucata)
+
+**Naves do jogador (skins):**
+- 4 designs (definidos na seção 14: Padrão, Falcon Vermelho, Phantom Roxo, Golden Wing) + 1 lendária (drop do boss final)
+
+**Backgrounds (parallax 3 camadas):**
+- Setor 1: estrelas distantes / nebulosa azul / cinturão de rochas
+- Setor 2: estrelas / nebulosa avermelhada / detritos espaciais
+
+**UI:**
+- Ícones de power-ups (5)
+- Ícones de conquistas (~15-20)
+- Mapa galáctico (background dos setores)
+
+**Áudio:** ❌ **nenhum no MVP**
+
+### Configurável no painel admin
+- ✅ Toggle "campanha visível no header" (controla link no `index.html`)
+- ✅ Toggle "campanha visível no dashboard" (controla card)
+- ✅ Visibilidade das colunas do ranking (estrelas / nível / BRL / XP semanal)
+- ✅ Tamanho do top no ranking (default 100)
+- ✅ Frequência de reset do ranking semanal
+- ✅ Toggle "campanha em manutenção" (fecha o modo com mensagem customizável)
 
 ## 17. Versão / Lançamento
 > ⏳ **Pendente de decisão**
@@ -910,6 +1054,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar Engajamento (missões diárias/semanais, streak, eventos, notificações, conquistas, ranking) ✅
 - Gerenciar Monetização Adicional (skip, acelerar setor, skins, booster, promoções, kill-switch) ✅
 - Gerenciar Anti-cheat (tolerâncias de tempo/BRL/XP, expiração JWT, combo máximo) ✅
+- Gerenciar Integrações (header/dashboard, ranking exclusivo, manutenção, override de premium/áudio) ✅
 
 ---
 
