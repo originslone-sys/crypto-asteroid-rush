@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56">
+  <defs>
+    <radialGradient id="ca-body" cx="0.5" cy="0.4" r="0.6">
+      <stop offset="0%" stop-color="#a0e8a0"/>
+      <stop offset="100%" stop-color="#1d4a1d"/>
+    </radialGradient>
+    <linearGradient id="ca-metal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#bbb"/>
+      <stop offset="100%" stop-color="#444"/>
+    </linearGradient>
+    <radialGradient id="ca-eye" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="50%" stop-color="#00ff88"/>
+      <stop offset="100%" stop-color="#003322"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="28" cy="22" rx="14" ry="13" fill="url(#ca-body)" stroke="#0a2a0a" stroke-width="1.4"/>
+  <path d="M14 22 Q12 22 10 28 Q14 30 16 28" fill="url(#ca-metal)" stroke="#0a2a0a" stroke-width="1"/>
+  <path d="M42 22 Q44 22 46 28 Q42 30 40 28" fill="url(#ca-metal)" stroke="#0a2a0a" stroke-width="1"/>
+  <rect x="20" y="14" width="16" height="3" rx="0.5" fill="url(#ca-metal)" stroke="#0a2a0a" stroke-width="0.8"/>
+  <rect x="20" y="13" width="2" height="2" fill="#ff5500"/>
+  <rect x="34" y="13" width="2" height="2" fill="#ff5500"/>
+  <ellipse cx="22" cy="22" rx="3.5" ry="4" fill="url(#ca-eye)"/>
+  <ellipse cx="34" cy="24" rx="3" ry="3.5" fill="url(#ca-metal)" stroke="#0a2a0a" stroke-width="0.6"/>
+  <circle cx="34" cy="24" r="1" fill="#ff2200"/>
+  <path d="M22 30 Q28 33 34 30" fill="none" stroke="#0a2a0a" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M14 32 Q12 40 16 44 Q18 40 18 34" fill="#3d8c3d" stroke="#0a2a0a" stroke-width="1"/>
+  <path d="M28 34 Q26 44 30 48 Q32 42 32 36" fill="#3d8c3d" stroke="#0a2a0a" stroke-width="1"/>
+  <path d="M42 32 Q44 40 40 44 Q38 40 38 34" fill="#3d8c3d" stroke="#0a2a0a" stroke-width="1"/>
+</svg>

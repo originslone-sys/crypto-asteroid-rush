@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 414 896" width="414" height="896" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="s2m-neb1" cx="0.3" cy="0.2" r="0.55">
+      <stop offset="0%" stop-color="#cc4422" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#cc4422" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="s2m-neb2" cx="0.7" cy="0.45" r="0.5">
+      <stop offset="0%" stop-color="#ffaa3c" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#ffaa3c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="s2m-neb3" cx="0.4" cy="0.78" r="0.55">
+      <stop offset="0%" stop-color="#aa3366" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#aa3366" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="s2m-planet" cx="0.4" cy="0.4" r="0.6">
+      <stop offset="0%" stop-color="#aa6644"/>
+      <stop offset="100%" stop-color="#3d1808"/>
+    </radialGradient>
+  </defs>
+  <rect width="414" height="896" fill="transparent"/>
+  <ellipse cx="120" cy="180" rx="240" ry="180" fill="url(#s2m-neb1)"/>
+  <ellipse cx="300" cy="420" rx="200" ry="160" fill="url(#s2m-neb2)"/>
+  <ellipse cx="160" cy="720" rx="220" ry="180" fill="url(#s2m-neb3)"/>
+  <circle cx="320" cy="140" r="36" fill="url(#s2m-planet)" stroke="#1a0700" stroke-width="0.6"/>
+  <ellipse cx="320" cy="140" rx="48" ry="6" fill="none" stroke="#ff8a44" stroke-width="0.8" opacity="0.5" transform="rotate(-15 320 140)"/>
+  <circle cx="60" cy="540" r="22" fill="#7a5028" opacity="0.7"/>
+  <circle cx="370" cy="780" r="14" fill="#9c5c20" opacity="0.6"/>
+</svg>

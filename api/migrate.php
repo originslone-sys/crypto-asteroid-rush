@@ -787,6 +787,489 @@ try {
     } catch (Exception $e) { /* já existe */ }
 
     // ============================================
+    // CAMPAIGN - TABELAS E COLUNAS
+    // ============================================
+    output("\n--- Campaign: Tabelas e colunas ---");
+
+    // users.total_xp (XP total acumulado na campanha)
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM users LIKE 'total_xp'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN total_xp INT NOT NULL DEFAULT 0 AFTER credits");
+            $pdo->exec("ALTER TABLE users ADD INDEX idx_total_xp (total_xp)");
+            $results['migrations'][] = 'users.total_xp';
+            output("  [OK] users: coluna total_xp adicionada");
+        }
+    } catch (Exception $e) { /* já existe */ }
+
+    // campaign_progress (1 linha por jogador, estado global na campanha)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_progress (
+            google_uid VARCHAR(128) NOT NULL PRIMARY KEY,
+            current_level INT NOT NULL DEFAULT 1,
+            total_xp INT NOT NULL DEFAULT 0,
+            current_lives TINYINT NOT NULL DEFAULT 5,
+            next_life_at DATETIME DEFAULT NULL,
+            streak_count INT NOT NULL DEFAULT 0,
+            daily_brl_earned DECIMAL(10,2) NOT NULL DEFAULT 0,
+            daily_brl_reset_at DATETIME DEFAULT NULL,
+            total_stars INT NOT NULL DEFAULT 0,
+            equipped_skin_id INT DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_current_level (current_level),
+            INDEX idx_total_xp (total_xp),
+            INDEX idx_total_stars (total_stars)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_progress:create';
+    output("  [OK] Tabela campaign_progress criada/verificada");
+
+    // campaign_stage_progress (1 linha por jogador x fase)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_stage_progress (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            google_uid VARCHAR(128) NOT NULL,
+            stage_id VARCHAR(20) NOT NULL,
+            stars TINYINT NOT NULL DEFAULT 0,
+            best_time INT DEFAULT NULL COMMENT 'Em segundos',
+            attempts INT NOT NULL DEFAULT 0,
+            wins INT NOT NULL DEFAULT 0,
+            losses INT NOT NULL DEFAULT 0,
+            total_brl_earned DECIMAL(10,2) NOT NULL DEFAULT 0,
+            max_combo INT NOT NULL DEFAULT 0,
+            total_enemies_destroyed INT NOT NULL DEFAULT 0,
+            last_played_at DATETIME DEFAULT NULL,
+            first_completed_at DATETIME DEFAULT NULL,
+            UNIQUE KEY idx_user_stage (google_uid, stage_id),
+            INDEX idx_google_uid (google_uid),
+            INDEX idx_stage_id (stage_id),
+            INDEX idx_stars (stars)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_stage_progress:create';
+    output("  [OK] Tabela campaign_stage_progress criada/verificada");
+
+    // campaign_session (sessões em andamento ou recentes)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_session (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            session_token VARCHAR(64) NOT NULL UNIQUE,
+            google_uid VARCHAR(128) NOT NULL,
+            stage_id VARCHAR(20) NOT NULL,
+            status ENUM('active','completed','abandoned','review') NOT NULL DEFAULT 'active',
+            seed VARCHAR(32) NOT NULL,
+            credits_spent INT NOT NULL DEFAULT 0,
+            booster_applied VARCHAR(50) DEFAULT NULL,
+            damage_taken INT NOT NULL DEFAULT 0,
+            enemies_destroyed INT NOT NULL DEFAULT 0,
+            max_combo INT NOT NULL DEFAULT 0,
+            stars_awarded TINYINT DEFAULT NULL,
+            xp_awarded INT DEFAULT NULL,
+            brl_awarded DECIMAL(10,2) DEFAULT NULL,
+            time_elapsed INT DEFAULT NULL,
+            expires_at DATETIME NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            ended_at DATETIME DEFAULT NULL,
+            INDEX idx_google_uid (google_uid),
+            INDEX idx_status (status),
+            INDEX idx_stage_id (stage_id),
+            INDEX idx_expires_at (expires_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_session:create';
+    output("  [OK] Tabela campaign_session criada/verificada");
+
+    // campaign_stages (definição estática das fases — editável no admin)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_stages (
+            stage_id VARCHAR(20) NOT NULL PRIMARY KEY COMMENT 'training, s1f1, s1f2, ..., s2f5',
+            sector TINYINT NOT NULL,
+            order_in_sector TINYINT NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            description TEXT DEFAULT NULL,
+            duration_seconds INT NOT NULL DEFAULT 60,
+            credit_cost INT NOT NULL DEFAULT 1,
+            min_level INT NOT NULL DEFAULT 1,
+            xp_reward INT NOT NULL DEFAULT 80,
+            brl_base DECIMAL(10,2) NOT NULL DEFAULT 0,
+            is_boss BOOLEAN NOT NULL DEFAULT FALSE,
+            boss_id INT DEFAULT NULL,
+            waves_json JSON DEFAULT NULL COMMENT 'Configuração das ondas de inimigos',
+            is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_sector (sector),
+            INDEX idx_min_level (min_level),
+            INDEX idx_is_enabled (is_enabled)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_stages:create';
+    output("  [OK] Tabela campaign_stages criada/verificada");
+
+    // campaign_xp_table (curva de XP por nível, 1-30)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_xp_table (
+            level INT NOT NULL PRIMARY KEY,
+            xp_required INT NOT NULL COMMENT 'XP cumulativo total para atingir esse nível'
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_xp_table:create';
+    output("  [OK] Tabela campaign_xp_table criada/verificada");
+
+    // campaign_settings (chave-valor para configs gerais)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_settings (
+            setting_key VARCHAR(100) NOT NULL PRIMARY KEY,
+            setting_value TEXT NOT NULL,
+            value_type ENUM('int','decimal','string','bool','json') NOT NULL DEFAULT 'string',
+            description TEXT DEFAULT NULL,
+            is_public BOOLEAN NOT NULL DEFAULT FALSE,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_settings:create';
+    output("  [OK] Tabela campaign_settings criada/verificada");
+
+    // campaign_tutorial_seen (flags por jogador para tooltips/cinemáticas vistas)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_tutorial_seen (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            google_uid VARCHAR(128) NOT NULL,
+            tutorial_key VARCHAR(80) NOT NULL COMMENT 'welcome, tooltip_first_life_lost, cinematic_sector2, etc',
+            seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY idx_user_tutorial (google_uid, tutorial_key),
+            INDEX idx_google_uid (google_uid)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_tutorial_seen:create';
+    output("  [OK] Tabela campaign_tutorial_seen criada/verificada");
+
+    // campaign_bosses (definição dos bosses, CRUD pelo admin)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_bosses (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            sector TINYINT NOT NULL,
+            sprite_key VARCHAR(80) NOT NULL,
+            hp_total INT NOT NULL,
+            scale DECIMAL(4,2) NOT NULL DEFAULT 1.00,
+            speed DECIMAL(5,2) NOT NULL DEFAULT 1.00,
+            attack_patterns_json JSON DEFAULT NULL COMMENT 'Padrões por fase de HP (100-50, 50-25, <25)',
+            phase_thresholds_json JSON DEFAULT NULL COMMENT 'Limiares de transição (default [50, 25])',
+            extra_brl DECIMAL(10,2) NOT NULL DEFAULT 0,
+            extra_xp INT NOT NULL DEFAULT 0,
+            guaranteed_drops_json JSON DEFAULT NULL COMMENT 'Lista de power-ups dropados',
+            skin_drop_chance DECIMAL(5,2) NOT NULL DEFAULT 0 COMMENT 'Chance de drop de skin (0-100%)',
+            skin_drop_id INT DEFAULT NULL,
+            berserk_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+            hp_persists_on_continue BOOLEAN NOT NULL DEFAULT TRUE,
+            is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_sector (sector),
+            INDEX idx_is_enabled (is_enabled)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_bosses:create';
+    output("  [OK] Tabela campaign_bosses criada/verificada");
+
+    // campaign_skins (skins de nave, cosméticas)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_skins (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            skin_key VARCHAR(80) NOT NULL UNIQUE,
+            name VARCHAR(100) NOT NULL,
+            description TEXT DEFAULT NULL,
+            sprite_path VARCHAR(255) NOT NULL,
+            credit_cost INT NOT NULL DEFAULT 0,
+            is_purchasable BOOLEAN NOT NULL DEFAULT TRUE COMMENT 'false = drop apenas (ex: lendária)',
+            is_default BOOLEAN NOT NULL DEFAULT FALSE,
+            is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+            sort_order INT NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_is_enabled (is_enabled),
+            INDEX idx_sort_order (sort_order)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_skins:create';
+    output("  [OK] Tabela campaign_skins criada/verificada");
+
+    // campaign_player_skins (relação user x skin desbloqueada)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_player_skins (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            google_uid VARCHAR(128) NOT NULL,
+            skin_id INT NOT NULL,
+            obtained_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            obtained_via ENUM('purchase','drop','grant') NOT NULL DEFAULT 'purchase',
+            UNIQUE KEY idx_user_skin (google_uid, skin_id),
+            INDEX idx_google_uid (google_uid)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_player_skins:create';
+    output("  [OK] Tabela campaign_player_skins criada/verificada");
+
+    // campaign_missions_daily (templates de missões diárias)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_missions_daily (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            mission_key VARCHAR(80) NOT NULL UNIQUE,
+            title VARCHAR(150) NOT NULL,
+            description TEXT NOT NULL,
+            condition_type ENUM('complete_stages','destroy_enemies','earn_xp','three_stars','defeat_miniboss') NOT NULL,
+            condition_value INT NOT NULL,
+            reward_type ENUM('brl','lives','brl_and_lives') NOT NULL,
+            reward_brl DECIMAL(10,2) NOT NULL DEFAULT 0,
+            reward_lives TINYINT NOT NULL DEFAULT 0,
+            weight INT NOT NULL DEFAULT 1 COMMENT 'Peso para sorteio aleatório',
+            is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_is_enabled (is_enabled)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_missions_daily:create';
+    output("  [OK] Tabela campaign_missions_daily criada/verificada");
+
+    // campaign_missions_weekly (templates de missões semanais)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_missions_weekly (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            mission_key VARCHAR(80) NOT NULL UNIQUE,
+            title VARCHAR(150) NOT NULL,
+            description TEXT NOT NULL,
+            condition_type ENUM('complete_stages','three_stars','defeat_boss','reach_level','earn_xp') NOT NULL,
+            condition_value INT NOT NULL,
+            condition_extra VARCHAR(100) DEFAULT NULL COMMENT 'Ex: stage_id específico para defeat_boss',
+            reward_type ENUM('brl','lives','brl_and_lives') NOT NULL,
+            reward_brl DECIMAL(10,2) NOT NULL DEFAULT 0,
+            reward_lives TINYINT NOT NULL DEFAULT 0,
+            is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_is_enabled (is_enabled)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_missions_weekly:create';
+    output("  [OK] Tabela campaign_missions_weekly criada/verificada");
+
+    // campaign_player_missions (progresso de missões por jogador)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_player_missions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            google_uid VARCHAR(128) NOT NULL,
+            mission_type ENUM('daily','weekly') NOT NULL,
+            mission_id INT NOT NULL,
+            progress INT NOT NULL DEFAULT 0,
+            target INT NOT NULL,
+            is_completed BOOLEAN NOT NULL DEFAULT FALSE,
+            is_claimed BOOLEAN NOT NULL DEFAULT FALSE,
+            assigned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            completed_at DATETIME DEFAULT NULL,
+            claimed_at DATETIME DEFAULT NULL,
+            expires_at DATETIME NOT NULL,
+            UNIQUE KEY idx_user_mission_period (google_uid, mission_type, mission_id, expires_at),
+            INDEX idx_google_uid (google_uid),
+            INDEX idx_expires_at (expires_at),
+            INDEX idx_is_claimed (is_claimed)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_player_missions:create';
+    output("  [OK] Tabela campaign_player_missions criada/verificada");
+
+    // campaign_streak (login diário consecutivo)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_streak (
+            google_uid VARCHAR(128) NOT NULL PRIMARY KEY,
+            current_day INT NOT NULL DEFAULT 1,
+            last_claim_date DATE DEFAULT NULL,
+            total_days_claimed INT NOT NULL DEFAULT 0,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_last_claim_date (last_claim_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_streak:create';
+    output("  [OK] Tabela campaign_streak criada/verificada");
+
+    // campaign_events (eventos especiais com calendário)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_events (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            event_key VARCHAR(80) NOT NULL UNIQUE,
+            name VARCHAR(150) NOT NULL,
+            description TEXT DEFAULT NULL,
+            event_type ENUM('brl_multiplier','xp_multiplier','unlimited_lives','triple_star_bonus') NOT NULL,
+            multiplier DECIMAL(4,2) NOT NULL DEFAULT 1.00,
+            scope ENUM('all_stages','sector','single_stage','bosses_only') NOT NULL DEFAULT 'all_stages',
+            scope_value VARCHAR(50) DEFAULT NULL COMMENT 'sector # ou stage_id quando aplicável',
+            starts_at DATETIME NOT NULL,
+            ends_at DATETIME NOT NULL,
+            is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_active_window (is_enabled, starts_at, ends_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_events:create';
+    output("  [OK] Tabela campaign_events criada/verificada");
+
+    // campaign_achievements (conquistas permanentes)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_achievements (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            achievement_key VARCHAR(80) NOT NULL UNIQUE,
+            name VARCHAR(150) NOT NULL,
+            description TEXT NOT NULL,
+            icon VARCHAR(80) DEFAULT NULL,
+            condition_type VARCHAR(50) NOT NULL COMMENT 'first_win, first_3stars, destroy_x_enemies, etc',
+            condition_value INT DEFAULT NULL,
+            condition_extra VARCHAR(100) DEFAULT NULL,
+            reward_brl DECIMAL(10,2) NOT NULL DEFAULT 0,
+            reward_lives TINYINT NOT NULL DEFAULT 0,
+            is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+            sort_order INT NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_is_enabled (is_enabled),
+            INDEX idx_sort_order (sort_order)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_achievements:create';
+    output("  [OK] Tabela campaign_achievements criada/verificada");
+
+    // campaign_player_achievements (conquistas desbloqueadas por jogador)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS campaign_player_achievements (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            google_uid VARCHAR(128) NOT NULL,
+            achievement_id INT NOT NULL,
+            unlocked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            is_claimed BOOLEAN NOT NULL DEFAULT FALSE,
+            claimed_at DATETIME DEFAULT NULL,
+            UNIQUE KEY idx_user_achievement (google_uid, achievement_id),
+            INDEX idx_google_uid (google_uid),
+            INDEX idx_is_claimed (is_claimed)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $results['migrations'][] = 'campaign_player_achievements:create';
+    output("  [OK] Tabela campaign_player_achievements criada/verificada");
+
+    // Configurações padrão da campanha (defaults inseridos uma vez)
+    try {
+        $defaults = [
+            // Vidas
+            ['campaign.lives.max',                  '5',     'int',     0],
+            ['campaign.lives.recharge_minutes',     '30',    'int',     0],
+            ['campaign.lives.consume_on',           'fail',  'string',  0],
+            ['campaign.lives.cost_single',          '1',     'int',     0],
+            ['campaign.lives.cost_pack5',           '4',     'int',     0],
+            ['campaign.lives.cost_refill',          '3',     'int',     0],
+            ['campaign.lives.unlimited_event',      'false', 'bool',    0],
+            // Recompensas
+            ['campaign.rewards.star1_multiplier',   '1.00',  'decimal', 0],
+            ['campaign.rewards.star2_multiplier',   '1.25',  'decimal', 0],
+            ['campaign.rewards.star3_multiplier',   '1.50',  'decimal', 0],
+            ['campaign.rewards.star2_max_dmg_pct',  '50',    'int',     0],
+            ['campaign.rewards.replay_policy',      'diff',  'string',  0],
+            ['campaign.rewards.streak_pct',         '10',    'int',     0],
+            ['campaign.rewards.streak_threshold',   '3',     'int',     0],
+            ['campaign.rewards.daily_brl_cap',      '10.00', 'decimal', 0],
+            ['campaign.rewards.daily_cap_enabled',  'true',  'bool',    0],
+            // Custos
+            ['campaign.cost.continue_after_death',  '2',     'int',     0],
+            // Mecânicas
+            ['campaign.mechanics.ship_max_hp',      '100',   'int',     0],
+            ['campaign.mechanics.combo_max',        '5',     'int',     0],
+            ['campaign.mechanics.combo_kills_per_step', '10','int',     0],
+            ['campaign.mechanics.pause_enabled',    'true',  'bool',    0],
+            ['campaign.mechanics.shoot_cooldown_ms','300',   'int',     0],
+            // Monetização adicional
+            ['campaign.monetization.skip_attempts', '3',     'int',     0],
+            ['campaign.monetization.skip_cost',     '5',     'int',     0],
+            ['campaign.monetization.skip_pays_brl', 'true',  'bool',    0],
+            ['campaign.monetization.accelerate_s1', '20',    'int',     0],
+            ['campaign.monetization.accelerate_s2', '30',    'int',     0],
+            ['campaign.monetization.booster_cost',  '3',     'int',     0],
+            ['campaign.monetization.kill_switch',   'false', 'bool',    0],
+            // Anti-cheat
+            ['campaign.anticheat.time_min_pct',     '80',    'int',     0],
+            ['campaign.anticheat.time_max_pct',     '200',   'int',     0],
+            ['campaign.anticheat.brl_tolerance_pct','50',    'int',     0],
+            ['campaign.anticheat.xp_tolerance_pct', '50',    'int',     0],
+            ['campaign.anticheat.jwt_expire_mult',  '1.5',   'decimal', 0],
+            // Lançamento / visibilidade
+            ['campaign.launch.sector2_enabled',     'false', 'bool',    1],
+            ['campaign.launch.maintenance',         'false', 'bool',    1],
+            ['campaign.launch.maintenance_msg',     'Modo Campanha em manutenção. Volte em breve!', 'string', 1],
+            ['campaign.launch.show_in_header',      'true',  'bool',    1],
+            ['campaign.launch.show_in_dashboard',   'true',  'bool',    1],
+            // Ranking
+            ['campaign.ranking.top_size',           '100',   'int',     1],
+            ['campaign.ranking.show_stars',         'true',  'bool',    1],
+            ['campaign.ranking.show_level',         'true',  'bool',    1],
+            ['campaign.ranking.show_brl',           'true',  'bool',    1],
+            ['campaign.ranking.show_weekly_xp',     'true',  'bool',    1],
+            // Tutorial
+            ['campaign.tutorial.welcome_enabled',   'true',  'bool',    0],
+            ['campaign.tutorial.required',          'true',  'bool',    0],
+        ];
+        $ins = $pdo->prepare("INSERT IGNORE INTO campaign_settings (setting_key, setting_value, value_type, description, is_public, updated_at) VALUES (?, ?, ?, NULL, ?, NOW())");
+        foreach ($defaults as $d) {
+            $ins->execute($d);
+        }
+        $results['migrations'][] = 'campaign_settings:defaults';
+        output("  [OK] Configurações padrão da campanha inseridas/ignoradas");
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
+    // Curva de XP por nível (1-30) — defaults
+    try {
+        $xpCurve = [
+            1 => 0,       2 => 100,    3 => 220,    4 => 360,    5 => 500,
+            6 => 660,     7 => 830,    8 => 1000,   9 => 1180,   10 => 1500,
+            11 => 1700,   12 => 1900,  13 => 2150,  14 => 2500,  15 => 3000,
+            16 => 3300,   17 => 3500,  18 => 3850,  19 => 4250,  20 => 4700,
+            21 => 5050,   22 => 5400,  23 => 6000,  24 => 6700,  25 => 7500,
+            26 => 8100,   27 => 8800,  28 => 9500,  29 => 10200, 30 => 11000,
+        ];
+        $ins = $pdo->prepare("INSERT IGNORE INTO campaign_xp_table (level, xp_required) VALUES (?, ?)");
+        foreach ($xpCurve as $lvl => $xp) {
+            $ins->execute([$lvl, $xp]);
+        }
+        $results['migrations'][] = 'campaign_xp_table:defaults';
+        output("  [OK] Curva de XP (níveis 1-30) inserida/ignorada");
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
+    // Fases padrão (treino + 10 fases) — defaults
+    try {
+        $stages = [
+            // [stage_id, sector, order, name, duration, cost, min_level, xp, brl, is_boss]
+            ['training', 0, 0, 'Treino',                   45, 1, 1,  50,  0.00, 0],
+            ['s1f1',     1, 1, 'Cinturão — Iniciação',     60, 1, 1,  80,  0.05, 0],
+            ['s1f2',     1, 2, 'Cinturão — Pressão',       60, 1, 3,  100, 0.08, 0],
+            ['s1f3',     1, 3, 'Cinturão — Caos',          70, 1, 5,  120, 0.12, 0],
+            ['s1f4',     1, 4, 'Cinturão — Berserker',     75, 1, 8,  140, 0.18, 0],
+            ['s1f5',     1, 5, 'Asteroide-Mãe',            0,  1, 11, 200, 0.40, 1],
+            ['s2f1',     2, 1, 'Detritos — Sucata',        70, 2, 14, 180, 0.25, 0],
+            ['s2f2',     2, 2, 'Detritos — Sentinelas',    80, 2, 17, 200, 0.35, 0],
+            ['s2f3',     2, 3, 'Detritos — Emboscada',     85, 2, 20, 220, 0.50, 0],
+            ['s2f4',     2, 4, 'Detritos — Ruína',         90, 2, 23, 240, 0.70, 0],
+            ['s2f5',     2, 5, 'Devorador de Sucata',      0,  2, 25, 350, 1.50, 1],
+        ];
+        $ins = $pdo->prepare("
+            INSERT IGNORE INTO campaign_stages
+            (stage_id, sector, order_in_sector, name, duration_seconds, credit_cost, min_level, xp_reward, brl_base, is_boss, is_enabled, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+        ");
+        foreach ($stages as $s) {
+            $ins->execute($s);
+        }
+        $results['migrations'][] = 'campaign_stages:defaults';
+        output("  [OK] Fases padrão (treino + 10) inseridas/ignoradas");
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
+    // ============================================
     // LIMPEZA
     // ============================================
     $flagFiles = glob(sys_get_temp_dir() . '/unobix_*.flag');
