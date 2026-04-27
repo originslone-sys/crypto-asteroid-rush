@@ -122,8 +122,30 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 - ✅ Custo do refill completo
 - ✅ Toggle de "vidas ilimitadas" para promoções/eventos
 
-## 4. Custo em Créditos
-> ⏳ **Pendente de decisão**
+## 4. Custo em Créditos ✅
+
+### Modelo: cobrança **por setor** (com override por fase no admin)
+
+| Fase | Custo (créditos) |
+|---|---|
+| Treino | 1 |
+| F1 a F5 (Setor 1) | 1 |
+| F6 a F10 (Setor 2) | 2 |
+
+### Regras
+- **Bosses (F5 e F10)** não cobram extra — custo igual ao do setor
+- **Re-jogar fase** (para melhorar estrelas): mesmo custo da 1ª vez (protege economia)
+- **Continuar após game over** (recupera 1 vida + ressuscita no ponto): **+2 créditos**
+
+### Configurável no painel admin
+- ✅ Custo padrão por setor
+- ✅ Override de custo por fase individual (sobrepõe o do setor)
+- ✅ Custo da fase treino
+- ✅ Toggle: cobrar extra em bosses + valor extra
+- ✅ Custo de re-jogada (% do original OU valor fixo)
+- ✅ Custo do "continuar" após game over
+- ✅ Toggle "fases grátis" (promoções/eventos)
+- ✅ Toggle "primeira jogada grátis" por fase recém-desbloqueada
 
 ## 5. Recompensas em BRL
 > ⏳ **Pendente de decisão**
@@ -174,6 +196,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar tabela de níveis ✅
 - Gerenciar desbloqueios por nível ✅
 - Gerenciar Sistema de Vidas (máx, recarga, consumo, custos, premium, ilimitado) ✅
+- Gerenciar Custo em Créditos (setor, fase, treino, boss, re-jogada, continuar, promoções) ✅
 
 ---
 
