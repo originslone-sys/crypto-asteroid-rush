@@ -203,8 +203,45 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 - ✅ Evento "recompensa dobrada" (toggle global)
 - ✅ Promoções temporárias por fase (multiplicador customizado + janela de tempo)
 
-## 6. Resolução / Orientação Mobile
-> ⏳ **Pendente de decisão**
+## 6. Resolução / Orientação Mobile ✅
+
+### Orientação
+- **Portrait (vertical)** — padrão mobile moderno
+- Bloqueio de rotação ativo (se o usuário girar o celular, força volta para portrait)
+
+> Caso o tipo de scroll definido na seção 7 seja side-scroller landscape, esta decisão será revista.
+
+### Resolução do canvas
+- **414 x 896 px** (referência iPhone 11/12/13 — boa área visível e compatibilidade ampla)
+
+### Comportamento no Desktop
+- Janela mobile **centralizada** (414x896)
+- Background ao redor: **espelho do gameplay desfocado** (estilo Netflix) — imersivo e focal
+- Sem barra de scroll do navegador interferindo
+
+### Comportamento no Mobile (celular real)
+- **Tela cheia** (fullscreen API) — UX nativa
+- Esconde barra de URL e barra de status quando possível
+
+### Controles
+
+**Mobile (touch):**
+- Arrastar com o dedo para mover a nave
+- **Tiro automático**
+
+**Desktop:**
+- **WASD** ou **setas** para mover
+- **Tiro automático** (mesma mecânica do mobile)
+- Espaço reservado para futuros power-ups/tiro especial
+
+### Configurável no painel admin
+- ✅ Resolução do canvas (largura × altura)
+- ✅ Orientação forçada (portrait / landscape)
+- ✅ Bloqueio de rotação ON/OFF
+- ✅ Tema do background lateral no desktop (gameplay-blur / cor sólida / imagem)
+- ✅ Tiro automático ON/OFF (testar variantes)
+- ✅ Sensibilidade do touch (multiplicador 0.5x a 2.0x)
+- ✅ Velocidade base de movimento da nave
 
 ## 7. Tipo de Scroll
 > ⏳ **Pendente de decisão** (mecânica v2 vertical OU side-scroller estilo Space Impact)
@@ -251,6 +288,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar Sistema de Vidas (máx, recarga, consumo, custos, premium, ilimitado) ✅
 - Gerenciar Custo em Créditos (setor, fase, treino, boss, re-jogada, continuar, promoções) ✅
 - Gerenciar Recompensas em BRL (base por fase, estrelas, re-jogada, streak, limite diário, eventos) ✅
+- Gerenciar Resolução/Orientação Mobile (canvas, rotação, controles, sensibilidade) ✅
 
 ---
 
