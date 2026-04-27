@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56">
+  <defs>
+    <linearGradient id="ft-base" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7c8fa0"/>
+      <stop offset="100%" stop-color="#1f2a36"/>
+    </linearGradient>
+    <radialGradient id="ft-dome" cx="0.5" cy="0.3" r="0.6">
+      <stop offset="0%" stop-color="#c8e8ff"/>
+      <stop offset="100%" stop-color="#2a4868"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="28" cy="44" rx="16" ry="6" fill="url(#ft-base)" stroke="#0e151c" stroke-width="1.2"/>
+  <rect x="20" y="32" width="16" height="14" rx="1" fill="url(#ft-base)" stroke="#0e151c" stroke-width="1.2"/>
+  <ellipse cx="28" cy="32" rx="14" ry="10" fill="url(#ft-dome)" stroke="#0e151c" stroke-width="1.4"/>
+  <ellipse cx="28" cy="30" rx="6" ry="3" fill="#fff" opacity="0.4"/>
+  <rect x="26" y="14" width="4" height="14" fill="#3a4a5a" stroke="#0e151c" stroke-width="1"/>
+  <rect x="22" y="10" width="12" height="6" rx="1" fill="#1a2230" stroke="#0e151c" stroke-width="1"/>
+  <circle cx="22" cy="42" r="1.4" fill="#ff5500"/>
+  <circle cx="34" cy="42" r="1.4" fill="#ff5500"/>
+  <rect x="14" y="46" width="6" height="3" fill="#3a4a5a"/>
+  <rect x="36" y="46" width="6" height="3" fill="#3a4a5a"/>
+</svg>
