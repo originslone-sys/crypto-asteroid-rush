@@ -147,8 +147,61 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 - ✅ Toggle "fases grátis" (promoções/eventos)
 - ✅ Toggle "primeira jogada grátis" por fase recém-desbloqueada
 
-## 5. Recompensas em BRL
-> ⏳ **Pendente de decisão**
+## 5. Recompensas em BRL e Estrelas ✅
+
+### Recompensa base (1ª vez completando)
+
+| Fase | BRL base (1⭐) | Observação |
+|---|---|---|
+| Treino | R$ 0,00 | Treino dá só XP |
+| F1 | R$ 0,05 | |
+| F2 | R$ 0,08 | |
+| F3 | R$ 0,12 | |
+| F4 | R$ 0,18 | |
+| **F5 (boss)** | R$ 0,40 | Final do Setor 1 |
+| F6 | R$ 0,25 | |
+| F7 | R$ 0,35 | |
+| F8 | R$ 0,50 | |
+| F9 | R$ 0,70 | |
+| **F10 (boss)** | R$ 1,50 | Boss final |
+
+**Total possível 1ª vez (sem bônus de estrelas):** R$ 5,13
+**Custo total em créditos para completar:** 16 créditos
+
+### Multiplicador por estrelas
+| Estrelas | Multiplicador |
+|---|---|
+| 1 ⭐ | 100% (base) |
+| 2 ⭐ | 125% |
+| 3 ⭐ | 150% |
+
+### Critérios das estrelas
+- **1 ⭐** Completar a fase (vencer)
+- **2 ⭐** Completar perdendo no máximo **50% de HP**
+- **3 ⭐** Completar **sem tomar dano** (perfect run)
+
+### Política de re-jogada
+- Paga apenas a **diferença** entre estrelas anteriores e novas
+  - Ex: tinha 1⭐ (recebeu 100%), agora fez 3⭐ → recebe os **50% extras**
+- Evita farm e incentiva o jogador a perseguir 3⭐
+
+### Bônus de sequência (streak)
+- Completar **3 fases seguidas sem falhar** → **+10%** na próxima fase
+- Configurável (% e número de fases que ativam)
+
+### Limite diário
+- **R$ 10,00 por dia** em recompensas da campanha (anti-abuse)
+- Toggle no admin para desabilitar
+
+### Configurável no painel admin
+- ✅ BRL base por fase (cada fase editável)
+- ✅ Multiplicadores por estrelas (1⭐, 2⭐, 3⭐)
+- ✅ Critério da 2⭐ (% de HP máximo perdido)
+- ✅ Política de re-jogada (apenas diferença / 100% / % reduzida)
+- ✅ Bônus de sequência (% e quantidade de fases)
+- ✅ Limite diário de ganho (valor + toggle on/off)
+- ✅ Evento "recompensa dobrada" (toggle global)
+- ✅ Promoções temporárias por fase (multiplicador customizado + janela de tempo)
 
 ## 6. Resolução / Orientação Mobile
 > ⏳ **Pendente de decisão**
@@ -197,6 +250,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar desbloqueios por nível ✅
 - Gerenciar Sistema de Vidas (máx, recarga, consumo, custos, premium, ilimitado) ✅
 - Gerenciar Custo em Créditos (setor, fase, treino, boss, re-jogada, continuar, promoções) ✅
+- Gerenciar Recompensas em BRL (base por fase, estrelas, re-jogada, streak, limite diário, eventos) ✅
 
 ---
 
