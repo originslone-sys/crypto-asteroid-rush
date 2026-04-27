@@ -89,8 +89,38 @@ Criar um novo modo de jogo inspirado em **Space Impact** (Nokia clássico), com 
 
 ---
 
-## 3. Sistema de Vidas
-> ⏳ **Pendente de decisão**
+## 3. Sistema de Vidas ✅
+
+### Configuração base
+| Parâmetro | Valor |
+|---|---|
+| Vidas máximas | **5** |
+| Tempo de recarga por vida | **30 minutos** |
+| Tempo total para encher do zero | 2h30 |
+| Quando consome | **Ao falhar a fase** (vencer não consome vida) |
+| Escopo | **Exclusivas da campanha** (não interferem em outros modos) |
+
+### Premium
+- Recarga **2x mais rápida** (15 min por vida)
+- Vidas máximas aumentadas para **7**
+
+### Compra com créditos
+| Opção | Custo |
+|---|---|
+| 1 vida avulsa | 1 crédito |
+| Pacote de 5 vidas (com desconto) | 4 créditos |
+| Refill completo (encher tudo) | 3 créditos |
+
+> Refill completo só disponível quando vidas < máximo.
+
+### Configurável no painel admin
+- ✅ Quantidade máxima de vidas (padrão e premium)
+- ✅ Tempo de recarga em minutos (padrão e premium)
+- ✅ Comportamento de consumo (ao entrar / ao falhar)
+- ✅ Custo de compra avulsa
+- ✅ Custo do pacote de 5 vidas
+- ✅ Custo do refill completo
+- ✅ Toggle de "vidas ilimitadas" para promoções/eventos
 
 ## 4. Custo em Créditos
 > ⏳ **Pendente de decisão**
@@ -143,6 +173,7 @@ Funcionalidades previstas (vão sendo adicionadas conforme decisões):
 - Gerenciar XP por fase ✅
 - Gerenciar tabela de níveis ✅
 - Gerenciar desbloqueios por nível ✅
+- Gerenciar Sistema de Vidas (máx, recarga, consumo, custos, premium, ilimitado) ✅
 
 ---
 
