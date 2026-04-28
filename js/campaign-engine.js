@@ -49,13 +49,18 @@
   // Cada behavior define stats + função update(en, ctx)
   // ----------------------------------------------------------------------
   const BEHAVIORS = {
-    tank:     { hp: 3, damage: 25, w: 56, h: 56, baseSpeed: 1.2 },
+    tank:     { hp: 3, damage: 25, w: 56, h: 56, baseSpeed: 1.2,
+                fireWhileMovingMs: 3500, projDamage: 12, projSpeed: 4 },
     bullet:   { hp: 1, damage: 10, w: 44, h: 44, baseSpeed: 2.4 },
-    kamikaze: { hp: 2, damage: 30, w: 50, h: 50, baseSpeed: 1.6 },
+    kamikaze: { hp: 2, damage: 30, w: 50, h: 50, baseSpeed: 1.6,
+                fireWhileMovingMs: 2800, projDamage: 12, projSpeed: 5,
+                aimAtPlayer: true },
     shooter:  { hp: 4, damage: 15, w: 52, h: 52, baseSpeed: 1.0,
                 stopY: 180, fireIntervalMs: 1500 },
     dodger:   { hp: 2, damage: 20, w: 48, h: 48, baseSpeed: 1.8,
-                amplitude: 60, frequency: 0.05 },
+                amplitude: 60, frequency: 0.05,
+                fireWhileMovingMs: 2500, projDamage: 12, projSpeed: 5,
+                aimAtPlayer: true },
     miniboss: { hp: 15, damage: 40, w: 88, h: 88, baseSpeed: 0.6,
                 stopY: 160, fireIntervalMs: 2000, projectiles: 2, projDamage: 18,
                 amplitude: 100, frequency: 0.0015,
@@ -346,6 +351,10 @@
       fireIntervalMs: def.fireIntervalMs || 1500,
       projectiles: def.projectiles || 1,
       projDamage:  def.projDamage  || 15,
+      projSpeed:   def.projSpeed   || 4,
+      aimAtPlayer: def.aimAtPlayer || false,
+      fireWhileMovingMs: def.fireWhileMovingMs || 0,
+      lastMoveFireMs:    -1,  // primeiro tiro depois de spawnar com offset
       // Dodger / miniboss
       birthMs: performance.now(),
       amplitude: def.amplitude || 0,
@@ -423,24 +432,50 @@
   // ----------------------------------------------------------------------
   // Update / lógica
   // ----------------------------------------------------------------------
-  function updatePlayer(dt) {
-    const speed = 5;
-    let dx = 0, dy = 0;
-    if (inputKeys['arrowleft']  || inputKeys['a']) dx -= speed;
-    if (inputKeys['arrowright'] || inputKeys['d']) dx += speed;
-    if (inputKeys['arrowup']    || inputKeys['w']) dy -= speed;
-    if (inputKeys['arrowdown']  || inputKeys['s']) dy += speed;
-    player.x += dx * dt; player.y += dy * dt;
+  // Offset do dedo no touch: nave fica 70px ACIMA do dedo para o
+  // jogador conseguir ver a nave e o que está vindo de cima.
+  const TOUCH_OFFSET_Y = 70;
+  // Smoothing constant — % da distância restante por frame em 60fps.
+  // Frame-rate independent via Math.pow(remaining, dt/60).
+  const TOUCH_SMOOTH_REMAINING = 0.18;  // alcança ~82% em 1 frame; sente ágil mas suave
 
-    // Ponteiro: arrasta a nave para a posição central no eixo X (e Y)
-    if (pointer.active) {
-      const targetX = pointer.x - player.w / 2;
-      const targetY = pointer.y - player.h / 2;
-      player.x += (targetX - player.x) * 0.25;
-      player.y += (targetY - player.y) * 0.25;
+  function updatePlayer(dt) {
+    // Teclado: vetor unitário normalizado para diagonal (não fica mais rápido na diagonal)
+    const speed = 4.5;
+    let inX = 0, inY = 0;
+    if (inputKeys['arrowleft']  || inputKeys['a']) inX -= 1;
+    if (inputKeys['arrowright'] || inputKeys['d']) inX += 1;
+    if (inputKeys['arrowup']    || inputKeys['w']) inY -= 1;
+    if (inputKeys['arrowdown']  || inputKeys['s']) inY += 1;
+    if (inX !== 0 || inY !== 0) {
+      const inv = 1 / Math.hypot(inX, inY);
+      player.x += inX * inv * speed * dt;
+      player.y += inY * inv * speed * dt;
     }
 
-    // Limites
+    // Touch: smoothing exponencial frame-rate independent.
+    // Nave fica TOUCH_OFFSET_Y px acima do dedo.
+    if (pointer.active) {
+      const targetX = pointer.x - player.w / 2;
+      const targetY = pointer.y - player.h / 2 - TOUCH_OFFSET_Y;
+      // alpha = 1 - remaining^(dt/1) → frame-rate independent
+      const alpha = 1 - Math.pow(TOUCH_SMOOTH_REMAINING, dt);
+      // Cap velocidade máxima por frame (anti-snap de pulsos)
+      const maxStep = 14 * dt;  // pixels por unidade de dt
+      const desiredDx = (targetX - player.x) * alpha;
+      const desiredDy = (targetY - player.y) * alpha;
+      const stepLen = Math.hypot(desiredDx, desiredDy);
+      if (stepLen > maxStep) {
+        const k = maxStep / stepLen;
+        player.x += desiredDx * k;
+        player.y += desiredDy * k;
+      } else {
+        player.x += desiredDx;
+        player.y += desiredDy;
+      }
+    }
+
+    // Limites (nave não passa do meio para cima)
     if (player.x < 0) player.x = 0;
     if (player.x + player.w > canvas.width)  player.x = canvas.width - player.w;
     if (player.y < canvas.height * 0.4)       player.y = canvas.height * 0.4;
@@ -495,11 +530,48 @@
     for (let i = enemies.length - 1; i >= 0; i--) {
       const en = enemies[i];
       updateEnemyByBehavior(en, dtSlow, nowMs);
+      // Tiro em movimento (tank/kamikaze/dodger atiram enquanto descem)
+      maybeFireWhileMoving(en, nowMs);
       if (en.y > canvas.height + 30) {
         enemies.splice(i, 1);
         combo = 0;  // escapou da tela: penaliza combo
       }
     }
+  }
+
+  function maybeFireWhileMoving(en, nowMs) {
+    if (!en.fireWhileMovingMs) return;
+    if (en.y < 30) return;                        // ainda fora da tela
+    if (en.y > canvas.height - 100) return;       // perto demais do player, injusto
+    if (en.lastMoveFireMs < 0) {
+      // Primeiro tiro: random offset 30-80% do intervalo
+      en.lastMoveFireMs = nowMs - en.fireWhileMovingMs * (0.3 + Math.random() * 0.5);
+    }
+    if (nowMs - en.lastMoveFireMs < en.fireWhileMovingMs) return;
+    en.lastMoveFireMs = nowMs;
+    fireEnemyShot(en);
+  }
+
+  function fireEnemyShot(en) {
+    const fromX = en.x + en.w / 2 - 4;
+    const fromY = en.y + en.h - 4;
+    const speed = en.projSpeed;
+    let vx = 0, vy = speed;
+    if (en.aimAtPlayer && player) {
+      const tx = player.x + player.w / 2;
+      const ty = player.y + player.h / 2;
+      const dx = tx - fromX, dy = ty - fromY;
+      const len = Math.hypot(dx, dy) || 1;
+      vx = (dx / len) * speed;
+      vy = (dy / len) * speed;
+    }
+    enemyBullets.push({
+      x: fromX, y: fromY,
+      w: 8, h: 18,
+      vx, vy,
+      damage: en.projDamage,
+      sprite: (global.CampaignAssets && global.CampaignAssets.tryGet('enemy_bullet')) || null,
+    });
   }
 
   function updateEnemyByBehavior(en, dt, nowMs) {
