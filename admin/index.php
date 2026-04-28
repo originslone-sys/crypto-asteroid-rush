@@ -192,6 +192,7 @@ $allowedPages = [
     'notifications',
     'pvp',
     'cashier',
+    'campaign',
     'admin-logins'
 ];
 
