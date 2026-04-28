@@ -154,6 +154,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = "Boss salvo.";
                 break;
 
+            case 'update_xp_table':
+                $rows = $_POST['xp'] ?? [];
+                if (!is_array($rows)) throw new Exception('payload inválido');
+                $upd = $pdo->prepare("UPDATE campaign_xp_table SET xp_required = ? WHERE level = ?");
+                $count = 0;
+                foreach ($rows as $level => $xp) {
+                    $level = (int)$level;
+                    $xp = max(0, (int)$xp);
+                    if ($level <= 0) continue;
+                    $upd->execute([$xp, $level]);
+                    if ($upd->rowCount() > 0) $count++;
+                }
+                $message = "Curva de XP atualizada ($count níveis).";
+                break;
+
+            case 'update_settings':
+                // settings[<key>] = valor; bool é checkbox que envia 'true' ou ausente.
+                // Aplica conforme value_type já existente (não muda tipo).
+                $incoming = $_POST['settings'] ?? [];
+                $boolKeys = $_POST['bool_keys'] ?? [];
+                if (!is_array($incoming)) $incoming = [];
+
+                // Para bools, marca como 'false' qualquer chave declarada que não veio
+                foreach ($boolKeys as $bk) {
+                    if (!isset($incoming[$bk])) $incoming[$bk] = 'false';
+                    elseif ($incoming[$bk] === 'true' || $incoming[$bk] === '1' || $incoming[$bk] === 'on') {
+                        $incoming[$bk] = 'true';
+                    } else {
+                        $incoming[$bk] = 'false';
+                    }
+                }
+
+                $upd = $pdo->prepare("UPDATE campaign_settings SET setting_value = ?, updated_at = NOW() WHERE setting_key = ?");
+                $count = 0;
+                foreach ($incoming as $key => $value) {
+                    if (!preg_match('/^[a-z0-9_.]+$/i', $key)) continue;
+                    $upd->execute([(string)$value, $key]);
+                    if ($upd->rowCount() > 0) $count++;
+                }
+                $message = "Configurações salvas ($count alterações).";
+                break;
+
             case 'player_reset':
                 $uid = trim($_POST['google_uid'] ?? '');
                 if ($uid === '') throw new Exception('google_uid ausente');
@@ -818,3 +860,270 @@ $tabs = [
 <?php endif; ?>
 
 <?php endif; /* activeTab=players */ ?>
+
+<?php if ($activeTab === 'settings'):
+    // Carrega todos os settings em um mapa key=>value
+    $allSettings = [];
+    try {
+        $rs = $pdo->query("SELECT setting_key, setting_value, value_type FROM campaign_settings");
+        while ($r = $rs->fetch()) $allSettings[$r['setting_key']] = $r;
+    } catch (Exception $e) {}
+
+    function S($all, $key, $default = '') {
+        return isset($all[$key]) ? $all[$key]['setting_value'] : $default;
+    }
+    function isBool($all, $key) {
+        return S($all, $key, 'false') === 'true';
+    }
+
+    // Definição das seções e campos
+    $sections = [
+        'Vidas' => [
+            ['campaign.lives.max',                   'number', 'Máximo de vidas'],
+            ['campaign.lives.recharge_minutes',      'number', 'Recarga (minutos)'],
+            ['campaign.lives.consume_on',            'select', 'Consome vida em', ['fail' => 'Ao falhar', 'enter' => 'Ao entrar']],
+            ['campaign.lives.cost_single',           'number', 'Custo 1 vida (💎)'],
+            ['campaign.lives.cost_pack5',            'number', 'Custo pacote 5 (💎)'],
+            ['campaign.lives.cost_refill',           'number', 'Custo refill (💎)'],
+            ['campaign.lives.unlimited_event',       'bool',   'Vidas ilimitadas (evento)'],
+        ],
+        'Recompensas' => [
+            ['campaign.rewards.star1_multiplier',    'decimal', 'Multiplicador 1⭐'],
+            ['campaign.rewards.star2_multiplier',    'decimal', 'Multiplicador 2⭐'],
+            ['campaign.rewards.star3_multiplier',    'decimal', 'Multiplicador 3⭐'],
+            ['campaign.rewards.star2_max_dmg_pct',   'number',  'Dano máx p/ 2⭐ (% HP)'],
+            ['campaign.rewards.replay_policy',       'select',  'Política de re-jogada', ['diff' => 'Apenas diferença', 'full' => '100%', 'reduced' => 'Reduzida 30%']],
+            ['campaign.rewards.streak_pct',          'number',  'Bônus de streak (%)'],
+            ['campaign.rewards.streak_threshold',    'number',  'Fases para ativar streak'],
+            ['campaign.rewards.daily_brl_cap',       'decimal', 'Limite diário BRL'],
+            ['campaign.rewards.daily_cap_enabled',   'bool',    'Limite diário ativo'],
+        ],
+        'Custo extra' => [
+            ['campaign.cost.continue_after_death',   'number', 'Continuar após game over (💎)'],
+        ],
+        'Mecânicas' => [
+            ['campaign.mechanics.ship_max_hp',       'number', 'HP máx da nave'],
+            ['campaign.mechanics.combo_max',         'number', 'Combo máximo'],
+            ['campaign.mechanics.combo_kills_per_step','number','Kills p/ subir 1x no combo'],
+            ['campaign.mechanics.shoot_cooldown_ms', 'number', 'Cooldown do tiro (ms)'],
+            ['campaign.mechanics.pause_enabled',     'bool',   'Pausa habilitada'],
+        ],
+        'Monetização' => [
+            ['campaign.monetization.skip_attempts',  'number', 'Skip — tentativas mínimas'],
+            ['campaign.monetization.skip_cost',      'number', 'Skip — custo (💎)'],
+            ['campaign.monetization.skip_pays_brl',  'bool',   'Skip paga BRL'],
+            ['campaign.monetization.accelerate_s1',  'number', 'Acelerar Setor 1 (💎)'],
+            ['campaign.monetization.accelerate_s2',  'number', 'Acelerar Setor 2 (💎)'],
+            ['campaign.monetization.booster_cost',   'number', 'Triple Star Booster (💎)'],
+            ['campaign.monetization.kill_switch',    'bool',   'Kill-switch global'],
+        ],
+        'Anti-cheat' => [
+            ['campaign.anticheat.time_min_pct',      'number',  'Tempo mín da fase (%)'],
+            ['campaign.anticheat.time_max_pct',      'number',  'Tempo máx da fase (%)'],
+            ['campaign.anticheat.brl_tolerance_pct', 'number',  'Tolerância BRL (% acima)'],
+            ['campaign.anticheat.xp_tolerance_pct',  'number',  'Tolerância XP (% acima)'],
+            ['campaign.anticheat.jwt_expire_mult',   'decimal', 'Multiplicador expiração token'],
+        ],
+        'Tutorial' => [
+            ['campaign.tutorial.welcome_enabled',    'bool', 'Habilitar boas-vindas'],
+            ['campaign.tutorial.required',           'bool', 'Tutorial obrigatório (treino)'],
+        ],
+    ];
+    // Coleta chaves bool para mandar no form (server-side trata "ausente" como false)
+    $boolKeys = [];
+    foreach ($sections as $sec) foreach ($sec as $f) if ($f[1] === 'bool') $boolKeys[] = $f[0];
+?>
+
+<form method="POST">
+  <input type="hidden" name="action" value="update_settings">
+  <?php foreach ($boolKeys as $bk): ?>
+    <input type="hidden" name="bool_keys[]" value="<?= htmlspecialchars($bk) ?>">
+  <?php endforeach; ?>
+
+  <?php foreach ($sections as $secName => $fields): ?>
+  <div style="background:#0e1330;border:1px solid #2a3375;border-radius:10px;padding:18px;margin-bottom:16px">
+    <h2 style="margin:0 0 12px;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;color:#5cd5ff"><?= htmlspecialchars($secName) ?></h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+      <?php foreach ($fields as $f):
+          $key = $f[0]; $type = $f[1]; $label = $f[2];
+          $val = S($allSettings, $key, '');
+      ?>
+        <div>
+          <label style="display:block;font-size:11px;color:#8a93c8;margin-bottom:3px"><?= htmlspecialchars($label) ?>
+            <span style="color:#444;float:right;font-size:10px;font-family:monospace"><?= htmlspecialchars($key) ?></span>
+          </label>
+          <?php if ($type === 'bool'): ?>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 10px">
+              <input type="checkbox" name="settings[<?= htmlspecialchars($key) ?>]" value="true" <?= isBool($allSettings, $key) ? 'checked' : '' ?>>
+              <span style="font-size:12px;color:<?= isBool($allSettings, $key) ? '#5fdb91' : '#8a93c8' ?>"><?= isBool($allSettings, $key) ? 'Ativado' : 'Desativado' ?></span>
+            </label>
+          <?php elseif ($type === 'select'): ?>
+            <select name="settings[<?= htmlspecialchars($key) ?>]"
+                    style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff">
+              <?php foreach ($f[3] as $optV => $optL): ?>
+                <option value="<?= htmlspecialchars($optV) ?>" <?= $val === $optV ? 'selected' : '' ?>><?= htmlspecialchars($optL) ?></option>
+              <?php endforeach; ?>
+            </select>
+          <?php elseif ($type === 'decimal'): ?>
+            <input type="number" step="0.01" name="settings[<?= htmlspecialchars($key) ?>]" value="<?= htmlspecialchars($val) ?>"
+                   style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff">
+          <?php else: ?>
+            <input type="number" name="settings[<?= htmlspecialchars($key) ?>]" value="<?= htmlspecialchars($val) ?>"
+                   style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff">
+          <?php endif; ?>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endforeach; ?>
+
+  <div style="text-align:center;margin-bottom:24px">
+    <button type="submit" style="background:linear-gradient(135deg,#1c4cff,#5b1a8a);color:#fff;border:none;border-radius:8px;padding:11px 28px;cursor:pointer;font-size:14px">
+      Salvar todas as configurações
+    </button>
+  </div>
+</form>
+
+<?php endif; /* activeTab=settings */ ?>
+
+<?php if ($activeTab === 'xp'):
+    $xpRows = [];
+    try {
+        $rs = $pdo->query("SELECT level, xp_required FROM campaign_xp_table ORDER BY level");
+        $xpRows = $rs->fetchAll();
+    } catch (Exception $e) {}
+?>
+<div style="background:#0e1330;border:1px solid #2a3375;border-radius:10px;padding:18px;margin-bottom:20px">
+  <h2 style="margin:0 0 12px;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;color:#5cd5ff">Curva de XP por nível</h2>
+  <p style="margin:0 0 14px;color:#8a93c8;font-size:12px">
+    XP cumulativo para alcançar cada nível. O servidor calcula o nível atual buscando o maior <code>level</code> com <code>xp_required ≤ total_xp</code>.
+  </p>
+  <form method="POST">
+    <input type="hidden" name="action" value="update_xp_table">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;font-size:12px">
+      <?php foreach ($xpRows as $r): ?>
+      <div style="background:#050720;border:1px solid #2a3375;border-radius:5px;padding:8px">
+        <label style="display:block;font-size:10px;color:#8a93c8;margin-bottom:3px">Nível <?= (int)$r['level'] ?></label>
+        <input type="number" name="xp[<?= (int)$r['level'] ?>]" value="<?= (int)$r['xp_required'] ?>" min="0"
+               style="width:100%;background:#0e1330;border:1px solid #2a3375;border-radius:4px;padding:5px 7px;color:#e7eaff;font-family:monospace">
+      </div>
+      <?php endforeach; ?>
+    </div>
+    <div style="margin-top:14px;text-align:center">
+      <button type="submit" style="background:linear-gradient(135deg,#1c4cff,#5b1a8a);color:#fff;border:none;border-radius:8px;padding:9px 22px;cursor:pointer">
+        Salvar curva de XP
+      </button>
+    </div>
+  </form>
+</div>
+<?php endif; /* activeTab=xp */ ?>
+
+<?php if ($activeTab === 'dashboard'):
+    $kpis = [
+        'players_total'      => 0,
+        'players_active_24h' => 0,
+        'players_active_7d'  => 0,
+        'sessions_24h'       => 0,
+        'sessions_7d'        => 0,
+        'sessions_completed_24h' => 0,
+        'sessions_review_7d' => 0,
+        'brl_paid_24h'       => 0.0,
+        'brl_paid_7d'        => 0.0,
+        'brl_paid_30d'       => 0.0,
+        'credits_spent_24h'  => 0,
+        'stars_earned_7d'    => 0,
+    ];
+    try {
+        $kpis['players_total']      = (int)$pdo->query("SELECT COUNT(*) FROM campaign_progress")->fetchColumn();
+        $kpis['players_active_24h'] = (int)$pdo->query("SELECT COUNT(*) FROM campaign_progress WHERE updated_at > DATE_SUB(NOW(), INTERVAL 1 DAY)")->fetchColumn();
+        $kpis['players_active_7d']  = (int)$pdo->query("SELECT COUNT(*) FROM campaign_progress WHERE updated_at > DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn();
+        $kpis['sessions_24h']       = (int)$pdo->query("SELECT COUNT(*) FROM campaign_session WHERE created_at > DATE_SUB(NOW(), INTERVAL 1 DAY)")->fetchColumn();
+        $kpis['sessions_7d']        = (int)$pdo->query("SELECT COUNT(*) FROM campaign_session WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn();
+        $kpis['sessions_completed_24h'] = (int)$pdo->query("SELECT COUNT(*) FROM campaign_session WHERE status='completed' AND ended_at > DATE_SUB(NOW(), INTERVAL 1 DAY)")->fetchColumn();
+        $kpis['sessions_review_7d'] = (int)$pdo->query("SELECT COUNT(*) FROM campaign_session WHERE status='review' AND ended_at > DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn();
+        $kpis['brl_paid_24h']       = (float)$pdo->query("SELECT COALESCE(SUM(brl_awarded),0) FROM campaign_session WHERE status='completed' AND ended_at > DATE_SUB(NOW(), INTERVAL 1 DAY)")->fetchColumn();
+        $kpis['brl_paid_7d']        = (float)$pdo->query("SELECT COALESCE(SUM(brl_awarded),0) FROM campaign_session WHERE status='completed' AND ended_at > DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn();
+        $kpis['brl_paid_30d']       = (float)$pdo->query("SELECT COALESCE(SUM(brl_awarded),0) FROM campaign_session WHERE status='completed' AND ended_at > DATE_SUB(NOW(), INTERVAL 30 DAY)")->fetchColumn();
+        $kpis['credits_spent_24h']  = (int)$pdo->query("SELECT COALESCE(SUM(credits_spent),0) FROM campaign_session WHERE created_at > DATE_SUB(NOW(), INTERVAL 1 DAY)")->fetchColumn();
+        $kpis['stars_earned_7d']    = (int)$pdo->query("SELECT COALESCE(SUM(stars_awarded),0) FROM campaign_session WHERE status='completed' AND ended_at > DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn();
+    } catch (Exception $e) { $error = $e->getMessage(); }
+
+    // Estatísticas por fase (taxa de vitória + sessões)
+    $stagesStats = [];
+    try {
+        $rs = $pdo->query("
+            SELECT stage_id,
+                   COUNT(*)                          AS total,
+                   SUM(status='completed')           AS completed,
+                   SUM(status='review')              AS review,
+                   AVG(CASE WHEN status='completed' THEN time_elapsed END) AS avg_time
+            FROM campaign_session
+            WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
+            GROUP BY stage_id
+            ORDER BY stage_id
+        ");
+        $stagesStats = $rs->fetchAll();
+    } catch (Exception $e) {}
+?>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px">
+  <?php
+  $cards = [
+      ['Jogadores totais',       (int)$kpis['players_total'],       '#5cd5ff'],
+      ['Ativos (24h)',           (int)$kpis['players_active_24h'],  '#5fdb91'],
+      ['Ativos (7d)',            (int)$kpis['players_active_7d'],   '#5fdb91'],
+      ['Sessões 24h',            (int)$kpis['sessions_24h'],        '#5cd5ff'],
+      ['Sessões 7d',             (int)$kpis['sessions_7d'],         '#5cd5ff'],
+      ['Concluídas 24h',         (int)$kpis['sessions_completed_24h'], '#5fdb91'],
+      ['Em review 7d',           (int)$kpis['sessions_review_7d'],  '#ffd166'],
+      ['BRL pago 24h',           'R$ ' . number_format($kpis['brl_paid_24h'], 2, ',', '.'), '#ff7eea'],
+      ['BRL pago 7d',            'R$ ' . number_format($kpis['brl_paid_7d'],  2, ',', '.'), '#ff7eea'],
+      ['BRL pago 30d',           'R$ ' . number_format($kpis['brl_paid_30d'], 2, ',', '.'), '#ff7eea'],
+      ['Créditos gastos 24h',    (int)$kpis['credits_spent_24h'] . '💎', '#ffd166'],
+      ['Estrelas 7d',            (int)$kpis['stars_earned_7d'] . '⭐', '#ffd166'],
+  ];
+  foreach ($cards as $c): ?>
+    <div style="background:#0e1330;border:1px solid #2a3375;border-radius:8px;padding:14px">
+      <div style="font-size:11px;color:#8a93c8;text-transform:uppercase;letter-spacing:0.08em"><?= htmlspecialchars($c[0]) ?></div>
+      <div style="font-size:22px;color:<?= $c[2] ?>;font-weight:600;margin-top:4px"><?= htmlspecialchars($c[1]) ?></div>
+    </div>
+  <?php endforeach; ?>
+</div>
+
+<div style="background:#0e1330;border:1px solid #2a3375;border-radius:10px;padding:18px;margin-bottom:20px">
+  <h2 style="margin:0 0 12px;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;color:#5cd5ff">Estatísticas por fase (últimos 7 dias)</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead>
+      <tr style="background:#161c4a;color:#8a93c8;text-align:left">
+        <th style="padding:8px 10px">Fase</th>
+        <th style="padding:8px 10px;text-align:right">Sessões</th>
+        <th style="padding:8px 10px;text-align:right">Concluídas</th>
+        <th style="padding:8px 10px;text-align:right">Taxa vitória</th>
+        <th style="padding:8px 10px;text-align:right">Em review</th>
+        <th style="padding:8px 10px;text-align:right">Tempo médio (s)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($stagesStats as $s):
+        $total = (int)$s['total'];
+        $compl = (int)$s['completed'];
+        $rate = $total > 0 ? ($compl / $total) * 100 : 0;
+        $rateColor = $rate >= 50 ? '#5fdb91' : ($rate >= 25 ? '#ffd166' : '#ff6b6b');
+      ?>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:8px 10px;font-family:monospace;color:#5cd5ff"><?= htmlspecialchars($s['stage_id']) ?></td>
+        <td style="padding:8px 10px;text-align:right"><?= $total ?></td>
+        <td style="padding:8px 10px;text-align:right"><?= $compl ?></td>
+        <td style="padding:8px 10px;text-align:right;color:<?= $rateColor ?>"><?= number_format($rate, 1) ?>%</td>
+        <td style="padding:8px 10px;text-align:right;color:#ffd166"><?= (int)$s['review'] ?></td>
+        <td style="padding:8px 10px;text-align:right"><?= $s['avg_time'] !== null ? number_format((float)$s['avg_time'], 1) : '—' ?></td>
+      </tr>
+      <?php endforeach; ?>
+      <?php if (!count($stagesStats)): ?>
+      <tr><td colspan="6" style="padding:18px;text-align:center;color:#8a93c8">Sem sessões nos últimos 7 dias.</td></tr>
+      <?php endif; ?>
+    </tbody>
+  </table>
+</div>
+
+<?php endif; /* activeTab=dashboard */ ?>
