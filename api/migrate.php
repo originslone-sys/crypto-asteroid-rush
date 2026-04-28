@@ -1365,6 +1365,92 @@ try {
                     'warning_ms' => 4000,
                 ],
             ]),
+            // ---------- SETOR 2 ----------
+            // F6 — densidade subindo, tanks + bullets do setor 2 (sucata)
+            's2f1' => json_encode([
+                'waves' => [
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'tank',   'count' => 4, 'interval' => 850],
+                        ['behavior' => 'bullet', 'count' => 4, 'interval' => 600],
+                    ]],
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'kamikaze', 'count' => 3, 'interval' => 1300],
+                        ['behavior' => 'tank',     'count' => 3, 'interval' => 950],
+                    ]],
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'bullet',   'count' => 5, 'interval' => 600],
+                        ['behavior' => 'shooter',  'count' => 2, 'interval' => 1900],
+                    ]],
+                ],
+            ]),
+            // F7 — sentinelas: muitos shooters
+            's2f2' => json_encode([
+                'waves' => [
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'shooter',  'count' => 4, 'interval' => 1500],
+                    ]],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'kamikaze', 'count' => 3, 'interval' => 1200],
+                        ['behavior' => 'dodger',   'count' => 3, 'interval' => 1100],
+                    ]],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'shooter',  'count' => 3, 'interval' => 1500],
+                        ['behavior' => 'tank',     'count' => 3, 'interval' => 900],
+                    ]],
+                ],
+            ]),
+            // F8 — emboscada com mistura agressiva
+            's2f3' => json_encode([
+                'waves' => [
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'kamikaze', 'count' => 5, 'interval' => 1200],
+                    ]],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'shooter',  'count' => 3, 'interval' => 1400],
+                        ['behavior' => 'dodger',   'count' => 4, 'interval' => 1000],
+                    ]],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'tank',     'count' => 4, 'interval' => 800],
+                        ['behavior' => 'bullet',   'count' => 5, 'interval' => 500],
+                        ['behavior' => 'shooter',  'count' => 2, 'interval' => 1700],
+                    ]],
+                ],
+            ]),
+            // F9 — ruína: pré-boss, densidade alta
+            's2f4' => json_encode([
+                'waves' => [
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'dodger',   'count' => 5, 'interval' => 1000],
+                        ['behavior' => 'bullet',   'count' => 4, 'interval' => 600],
+                    ]],
+                    ['duration_max' => 26, 'clear_at' => 20, 'spawns' => [
+                        ['behavior' => 'shooter',  'count' => 4, 'interval' => 1400],
+                        ['behavior' => 'kamikaze', 'count' => 4, 'interval' => 1100],
+                    ]],
+                    ['duration_max' => 26, 'clear_at' => 20, 'spawns' => [
+                        ['behavior' => 'tank',     'count' => 4, 'interval' => 800],
+                        ['behavior' => 'shooter',  'count' => 3, 'interval' => 1400],
+                        ['behavior' => 'dodger',   'count' => 3, 'interval' => 1100],
+                    ]],
+                ],
+            ]),
+            // F10 — Boss Devorador de Sucata
+            's2f5' => json_encode([
+                'waves' => [
+                    ['duration_max' => 18, 'clear_at' => 13, 'spawns' => [
+                        ['behavior' => 'tank',     'count' => 3, 'interval' => 900],
+                        ['behavior' => 'shooter',  'count' => 2, 'interval' => 1500],
+                    ]],
+                    ['duration_max' => 20, 'clear_at' => 15, 'spawns' => [
+                        ['behavior' => 'dodger',   'count' => 3, 'interval' => 1100],
+                        ['behavior' => 'kamikaze', 'count' => 3, 'interval' => 1200],
+                    ]],
+                ],
+                'boss' => [
+                    'boss_key'   => 'junk_devourer',
+                    'warning_ms' => 4500,
+                ],
+            ]),
         ];
         $upd = $pdo->prepare("UPDATE campaign_stages SET waves_json = ? WHERE stage_id = ? AND waves_json IS NULL");
         $touched = 0;

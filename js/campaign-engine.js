@@ -80,25 +80,48 @@
       spriteKey: 'boss_asteroid_mother',
       hp: 500,
       w: 160, h: 160,
-      enterY: 110,            // y final ao "encaixar" no topo
-      oscAmpBase: 110,        // amplitude lateral em px
-      oscFreqBase: 0.0009,    // velocidade da oscilação
+      enterY: 110,
+      oscAmpBase: 110,
+      oscFreqBase: 0.0009,
       contactDamage: 30,
-      // Fase 1 (HP 100-50%): 1-3 mini-rocks descendentes a cada 2.5s
-      phase1: { fireMs: 2500, projectiles: 1, projDamage: 15, projSpeed: 4 },
-      // Fase 2 (HP 50-25%): + 2 minions orbitantes
+      phase1: { fireMs: 2500, projectiles: 1, projDamage: 15, projSpeed: 4,   fanAngle: 0 },
       phase2: {
-        fireMs: 2200, projectiles: 2, projDamage: 15, projSpeed: 4.5,
-        minions: 2, minionHp: 5, minionDamage: 25, minionRadius: 90, minionSpeed: 0.06,
+        fireMs: 2200, projectiles: 2, projDamage: 15, projSpeed: 4.5, fanAngle: 0.18,
+        orbitalMinions: 2, minionHp: 5, minionDamage: 25, minionRadius: 90, minionSpeed: 0.06,
       },
-      // Fase 3 (<25%): + charge attack a cada 8s
       phase3: {
-        fireMs: 1800, projectiles: 3, projDamage: 15, projSpeed: 5,
+        fireMs: 1800, projectiles: 3, projDamage: 15, projSpeed: 5,   fanAngle: 0.18,
+        orbitalMinions: 2, minionHp: 5, minionDamage: 25, minionRadius: 90, minionSpeed: 0.06,
         chargeMs: 8000, chargeSpeed: 7,
       },
       drops: ['repair', 'bomb'],
-      brlExtra: 0,            // recompensa extra além de stage.brl_base — fica para o admin
-      xpExtra: 0,             // idem
+      brlExtra: 0, xpExtra: 0,
+    },
+    junk_devourer: {
+      spriteKey: 'boss_junk_devourer',
+      hp: 1000,
+      w: 192, h: 160,
+      enterY: 90,
+      oscAmpBase: 90,
+      oscFreqBase: 0.0011,
+      contactDamage: 35,
+      // Fase 1 (HP 100-50%): leque de 5 projéteis
+      phase1: {
+        fireMs: 2200, projectiles: 5, projDamage: 15, projSpeed: 4.5, fanAngle: 0.42,
+      },
+      // Fase 2 (HP 50-25%): + spawn de 2 atiradores como minions a cada 10s
+      phase2: {
+        fireMs: 1900, projectiles: 5, projDamage: 15, projSpeed: 5,   fanAngle: 0.5,
+        spawnShooterMs: 10000, shooterCount: 2,
+      },
+      // Fase 3 (<25%): + laser sweep horizontal
+      phase3: {
+        fireMs: 1700, projectiles: 7, projDamage: 18, projSpeed: 5.5, fanAngle: 0.7,
+        spawnShooterMs: 8000, shooterCount: 2,
+        laserMs: 9000, laserWindupMs: 1000, laserActiveMs: 600, laserDamage: 30,
+      },
+      drops: ['repair', 'bomb', 'shield'],
+      brlExtra: 0, xpExtra: 0,
     },
   };
 
@@ -699,11 +722,95 @@
     // Disparos por fase
     bossFire(nowMs, phase);
 
-    // Minions na fase 2+
+    // Minions orbitantes (Asteroide-Mãe) na fase 2+
     if (phase >= 2 && bossMinions.length === 0) {
       spawnBossMinions();
     }
     updateBossMinions(dts, nowMs);
+
+    // Spawn periódico de inimigos atiradores (Devorador) na fase 2+
+    bossSpawnShooterMinions(nowMs, phase);
+
+    // Laser sweep (fase 3 do Devorador)
+    bossLaserUpdate(dt, nowMs, phase);
+  }
+
+  // ----------------------------------------------------------------------
+  // Laser sweep (Devorador, fase 3)
+  // ----------------------------------------------------------------------
+  function bossLaserUpdate(dt, nowMs, phase) {
+    if (phase < 3 || !bossSpec.phase3 || !bossSpec.phase3.laserMs) return;
+    const cfg3 = bossSpec.phase3;
+    if (boss.laserState == null) {
+      boss.laserState = 'idle';
+      boss.laserStartMs = nowMs;
+      boss.laserY = 0;
+      boss.laserDamageApplied = false;
+    }
+    const elapsed = nowMs - boss.laserStartMs;
+    if (boss.laserState === 'idle') {
+      if (elapsed >= cfg3.laserMs) {
+        boss.laserState = 'windup';
+        boss.laserStartMs = nowMs;
+        boss.laserY = boss.y + boss.h - 10;   // sai logo abaixo do boss
+        boss.laserDamageApplied = false;
+      }
+    } else if (boss.laserState === 'windup') {
+      if (elapsed >= cfg3.laserWindupMs) {
+        boss.laserState = 'firing';
+        boss.laserStartMs = nowMs;
+      }
+    } else if (boss.laserState === 'firing') {
+      if (elapsed >= cfg3.laserActiveMs) {
+        boss.laserState = 'idle';
+        boss.laserStartMs = nowMs;
+      } else {
+        // Damage check: feixe horizontal de altura ~24px na laserY
+        if (!boss.laserDamageApplied && rectsHit(boss.laserY, 24, player)) {
+          applyDamage(cfg3.laserDamage);
+          boss.laserDamageApplied = true;
+          if (player.hp <= 0) endRun('loss');
+        }
+      }
+    }
+  }
+
+  function rectsHit(beamY, beamH, p) {
+    return p.y < beamY + beamH && p.y + p.h > beamY;
+  }
+
+  function drawBossLaser(nowMs) {
+    if (!boss || !boss.laserState || boss.laserState === 'idle') return;
+    const elapsed = nowMs - boss.laserStartMs;
+    const cfg3 = bossSpec.phase3;
+    if (boss.laserState === 'windup') {
+      // Linha vermelha pulsante de aviso
+      const pulse = 0.4 + 0.5 * Math.sin(nowMs * 0.025);
+      ctx.fillStyle = 'rgba(255,40,40,' + (0.18 + pulse * 0.25) + ')';
+      ctx.fillRect(0, boss.laserY - 1, canvas.width, 4);
+    } else if (boss.laserState === 'firing') {
+      // Feixe sólido com glow
+      const grad = ctx.createLinearGradient(0, boss.laserY - 12, 0, boss.laserY + 36);
+      grad.addColorStop(0, 'rgba(255,200,100,0)');
+      grad.addColorStop(0.45, 'rgba(255,200,100,0.7)');
+      grad.addColorStop(0.5, '#fff');
+      grad.addColorStop(0.55, 'rgba(255,80,40,0.9)');
+      grad.addColorStop(1, 'rgba(255,80,40,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, boss.laserY - 12, canvas.width, 48);
+    }
+  }
+
+  function bossSpawnShooterMinions(nowMs, phase) {
+    const cfgPhase = phase >= 3 ? bossSpec.phase3 : phase >= 2 ? bossSpec.phase2 : null;
+    if (!cfgPhase || !cfgPhase.spawnShooterMs) return;
+    if (boss.lastShooterSpawnMs == null) boss.lastShooterSpawnMs = nowMs;  // primeira chamada arma o timer
+    if (nowMs - boss.lastShooterSpawnMs < cfgPhase.spawnShooterMs) return;
+    boss.lastShooterSpawnMs = nowMs;
+    const n = cfgPhase.shooterCount || 2;
+    for (let i = 0; i < n; i++) {
+      spawnEnemy('shooter');
+    }
   }
 
   function bossFire(nowMs, phase) {
@@ -722,8 +829,10 @@
     const ty = player.y + player.h / 2;
     const baseAng = Math.atan2(ty - fromY, tx - fromX);
 
+    const fanAngle = (typeof cfgPhase.fanAngle === 'number') ? cfgPhase.fanAngle : 0.18;
+    const stepAngle = projN === 1 ? 0 : fanAngle / (projN - 1);
     for (let i = 0; i < projN; i++) {
-      const offset = projN === 1 ? 0 : (i - (projN - 1) / 2) * 0.18;  // ~10° entre tiros
+      const offset = projN === 1 ? 0 : (i - (projN - 1) / 2) * stepAngle * 2; // espalha total = fanAngle
       const ang = baseAng + offset;
       const sprite = pickSpriteForBehavior(stage.sector || 1, 'tank');  // mini-rocha do setor
       enemyBullets.push({
@@ -742,15 +851,16 @@
 
   function spawnBossMinions() {
     const cfg2 = bossSpec.phase2;
-    if (!cfg2 || !cfg2.minions) return;
-    for (let i = 0; i < cfg2.minions; i++) {
+    const n = cfg2 && cfg2.orbitalMinions;
+    if (!n) return;
+    for (let i = 0; i < n; i++) {
       const sprite = pickSpriteForBehavior(stage.sector || 1, 'bullet');
       bossMinions.push({
-        angle: (i / cfg2.minions) * Math.PI * 2,
+        angle: (i / n) * Math.PI * 2,
         radius: cfg2.minionRadius,
         speed: cfg2.minionSpeed,
         w: 36, h: 36,
-        x: 0, y: 0,         // setado em update
+        x: 0, y: 0,
         hp: cfg2.minionHp,
         damage: cfg2.minionDamage,
         sprite,
@@ -1219,6 +1329,7 @@
     drawEnemies();
     drawBoss();
     drawBossMinions();
+    drawBossLaser(ts);
     drawBullets();
     drawPowerups(ts);
     drawParticles();
