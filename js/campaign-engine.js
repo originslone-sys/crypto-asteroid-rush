@@ -33,15 +33,27 @@
     shipMaxHp: 100,
     shootCooldownMs: 300,
     bulletDamage: 10,
-    bulletSpeed: 14,           // px/frame
-    enemyMinSpeed: 1.4,
-    enemyMaxSpeed: 2.4,
-    spawnIntervalMs: 1100,
+    bulletSpeed: 14,
+    enemyBulletSpeed: 6,
     parallaxFar: 0.3,
     parallaxMid: 0.7,
     parallaxNear: 1.4,
     comboKillsPerStep: 10,
     comboMax: 5,
+  };
+
+  // ----------------------------------------------------------------------
+  // Catálogo de comportamentos de inimigos
+  // Cada behavior define stats + função update(en, ctx)
+  // ----------------------------------------------------------------------
+  const BEHAVIORS = {
+    tank:     { hp: 3, damage: 25, w: 56, h: 56, baseSpeed: 1.2 },
+    bullet:   { hp: 1, damage: 10, w: 44, h: 44, baseSpeed: 2.4 },
+    kamikaze: { hp: 2, damage: 30, w: 50, h: 50, baseSpeed: 1.6 },
+    shooter:  { hp: 4, damage: 15, w: 52, h: 52, baseSpeed: 1.0,
+                stopY: 180, fireIntervalMs: 1500 },
+    dodger:   { hp: 2, damage: 20, w: 48, h: 48, baseSpeed: 1.8,
+                amplitude: 60, frequency: 0.05 },
   };
 
   // ----------------------------------------------------------------------
@@ -65,14 +77,20 @@
 
   // Mundo
   const playerBullets = [];
+  const enemyBullets = [];
   const enemies = [];
+  const particles = [];
   let enemiesDestroyed = 0;
   let maxCombo = 0;
   let combo = 0;
   let damageTaken = 0;
-  let nextSpawnAtMs = 0;
-  let spawnedTotal = 0;        // limite por fase
-  let plannedTotal = 8;        // configurável via stage.waves_json (futuro)
+
+  // Sistema de ondas
+  let waveQueue = [];          // [{ duration_max, clear_at, queue: [{behavior, dueAt}] }]
+  let activeWave = null;
+  let waveIndex = 0;
+  let waveStartMs = 0;
+  let plannedTotal = 0;        // soma de inimigos previstos no stage
 
   // Parallax
   let bgFar = null, bgMid = null, bgNear = null;
@@ -83,19 +101,8 @@
   let endedFired = false;
 
   // ----------------------------------------------------------------------
-  // Pool de skins de inimigos por sector (vem do CampaignAssets)
+  // Background do parallax (vem do CampaignAssets)
   // ----------------------------------------------------------------------
-  function pickEnemySprite(sector) {
-    if (!global.CampaignAssets) return null;
-    const list = [
-      ...(global.CampaignAssets.byBehavior(sector, 'tank') || []),
-      ...(global.CampaignAssets.byBehavior(sector, 'bullet') || []),
-    ];
-    if (!list.length) return null;
-    const key = list[Math.floor(Math.random() * list.length)];
-    return global.CampaignAssets.tryGet(key);
-  }
-
   function loadBackgrounds(sector) {
     if (!global.CampaignAssets) return;
     const keys = global.CampaignAssets.backgroundKeys(sector) || {};
@@ -121,29 +128,131 @@
   }
 
   // ----------------------------------------------------------------------
-  // Spawning
+  // Sistema de Ondas + Spawning
   // ----------------------------------------------------------------------
-  function maybeSpawnEnemy(nowMs) {
-    if (spawnedTotal >= plannedTotal) return;
-    if (nowMs < nextSpawnAtMs) return;
-    spawnEnemy();
-    spawnedTotal += 1;
-    nextSpawnAtMs = nowMs + cfg.spawnIntervalMs;
+  function loadWaves(stageData, totalEnemiesFallback) {
+    waveQueue.length = 0;
+    plannedTotal = 0;
+
+    const waves = stageData && stageData.waves_json && stageData.waves_json.waves;
+    if (Array.isArray(waves) && waves.length) {
+      for (const w of waves) {
+        const queue = [];
+        let cursor = 0;
+        for (const spawn of (w.spawns || [])) {
+          const interval = spawn.interval || 800;
+          const count = spawn.count || 0;
+          for (let i = 0; i < count; i++) {
+            queue.push({ behavior: spawn.behavior || 'tank', dueAt: cursor });
+            cursor += interval;
+          }
+        }
+        // Ordena por dueAt para spawns intercalados quando o admin definir múltiplos
+        queue.sort((a, b) => a.dueAt - b.dueAt);
+        waveQueue.push({
+          duration_max: (w.duration_max || 20) * 1000,
+          clear_at:     (w.clear_at     || 15) * 1000,
+          queue,
+          spawnedCount: 0,
+          totalCount:   queue.length,
+        });
+        plannedTotal += queue.length;
+      }
+    } else {
+      // Fallback: 1 onda de 8 inimigos básicos (tank/bullet aleatório)
+      const fallback = (totalEnemiesFallback | 0) || 8;
+      const queue = [];
+      for (let i = 0; i < fallback; i++) {
+        queue.push({
+          behavior: i % 2 === 0 ? 'tank' : 'bullet',
+          dueAt: i * 900,
+        });
+      }
+      waveQueue.push({
+        duration_max: 60000,
+        clear_at:     45000,
+        queue,
+        spawnedCount: 0,
+        totalCount:   queue.length,
+      });
+      plannedTotal = queue.length;
+    }
+
+    waveIndex = 0;
+    activeWave = waveQueue[0] || null;
   }
 
-  function spawnEnemy() {
-    const w = 48, h = 48;
-    const sector = stage && stage.sector ? stage.sector : 1;
-    const speed  = cfg.enemyMinSpeed + Math.random() * (cfg.enemyMaxSpeed - cfg.enemyMinSpeed);
+  function advanceWave(nowMs) {
+    waveIndex += 1;
+    activeWave = waveQueue[waveIndex] || null;
+    waveStartMs = nowMs;
+  }
+
+  function tickWaveSpawn(nowMs) {
+    if (!activeWave) return;
+
+    const elapsed = nowMs - waveStartMs;
+
+    // Spawna o que estiver "vencido" no queue da onda atual
+    while (activeWave.spawnedCount < activeWave.totalCount &&
+           activeWave.queue[activeWave.spawnedCount].dueAt <= elapsed) {
+      const item = activeWave.queue[activeWave.spawnedCount];
+      spawnEnemy(item.behavior);
+      activeWave.spawnedCount += 1;
+    }
+
+    // Transição: ondas completas E sem inimigos vivos OU duration_max excedido
+    const allSpawned   = activeWave.spawnedCount >= activeWave.totalCount;
+    const screenClear  = enemies.length === 0;
+    const earlyClear   = allSpawned && screenClear && elapsed >= activeWave.clear_at;
+    const timeoutHit   = elapsed >= activeWave.duration_max;
+
+    if (earlyClear || timeoutHit) {
+      advanceWave(nowMs);
+    }
+  }
+
+  function spawnEnemy(behaviorKey) {
+    const def = BEHAVIORS[behaviorKey] || BEHAVIORS.tank;
+    const sector = (stage && stage.sector) ? stage.sector : 1;
+    const sprite = pickSpriteForBehavior(sector, behaviorKey);
+
     enemies.push({
-      x: 20 + Math.random() * (canvas.width - 20 - w),
-      y: -h - 10,
-      w, h,
-      vy: speed,
-      hp: 2,
-      damage: 18,
-      sprite: pickEnemySprite(sector),
+      behavior: behaviorKey,
+      x: 20 + Math.random() * (canvas.width - 40 - def.w),
+      y: -def.h - 10,
+      w: def.w, h: def.h,
+      vx: 0,
+      vy: def.baseSpeed * (0.85 + Math.random() * 0.3),
+      hp: def.hp,
+      damage: def.damage,
+      sprite,
+      // Campos por behavior
+      stopY: def.stopY || null,
+      stopped: false,
+      lastFireMs: 0,
+      fireIntervalMs: def.fireIntervalMs || 1500,
+      // Dodger
+      birthMs: performance.now(),
+      amplitude: def.amplitude || 0,
+      frequency: def.frequency || 0,
+      anchorX: 0,  // setado no primeiro update
     });
+  }
+
+  function pickSpriteForBehavior(sector, behaviorKey) {
+    if (!global.CampaignAssets) return null;
+    const list = global.CampaignAssets.byBehavior(sector, behaviorKey);
+    if (list && list.length) {
+      const key = list[Math.floor(Math.random() * list.length)];
+      return global.CampaignAssets.tryGet(key);
+    }
+    // Fallback: usa qualquer skin do sector
+    const all = ['tank','bullet','kamikaze','shooter','dodger']
+      .flatMap(b => global.CampaignAssets.byBehavior(sector, b) || []);
+    if (!all.length) return null;
+    const key = all[Math.floor(Math.random() * all.length)];
+    return global.CampaignAssets.tryGet(key);
   }
 
   // ----------------------------------------------------------------------
@@ -236,15 +345,118 @@
     }
   }
 
-  function updateEnemies(dt) {
+  function updateEnemies(dt, nowMs) {
     for (let i = enemies.length - 1; i >= 0; i--) {
       const en = enemies[i];
-      en.y += en.vy * dt;
-      if (en.y > canvas.height + 20) {
+      updateEnemyByBehavior(en, dt, nowMs);
+      if (en.y > canvas.height + 30) {
         enemies.splice(i, 1);
-        // saiu da tela viva: zera combo (escapou)
-        combo = 0;
+        combo = 0;  // escapou da tela: penaliza combo
       }
+    }
+  }
+
+  function updateEnemyByBehavior(en, dt, nowMs) {
+    switch (en.behavior) {
+      case 'kamikaze': {
+        en.y += en.vy * dt;
+        // Persegue lateralmente quando entra na tela
+        if (en.y > 0 && player) {
+          const targetX = player.x + player.w / 2 - en.w / 2;
+          const dx = targetX - en.x;
+          const lerp = Math.max(-2.2, Math.min(2.2, dx * 0.05));
+          en.x += lerp * dt;
+        }
+        break;
+      }
+      case 'shooter': {
+        if (!en.stopped) {
+          en.y += en.vy * dt;
+          if (en.stopY !== null && en.y >= en.stopY) {
+            en.stopped = true;
+            en.lastFireMs = nowMs;
+          }
+        } else {
+          // Dispara periodicamente em direção ao jogador
+          if (nowMs - en.lastFireMs >= en.fireIntervalMs) {
+            spawnEnemyBullet(en);
+            en.lastFireMs = nowMs;
+          }
+        }
+        break;
+      }
+      case 'dodger': {
+        if (!en.anchorX) en.anchorX = en.x;
+        en.y += en.vy * dt;
+        const t = (nowMs - en.birthMs) * en.frequency;
+        en.x = en.anchorX + Math.sin(t) * en.amplitude;
+        // Mantém dentro do canvas
+        if (en.x < 4) en.x = 4;
+        if (en.x + en.w > canvas.width - 4) en.x = canvas.width - 4 - en.w;
+        break;
+      }
+      case 'bullet':
+      case 'tank':
+      default:
+        en.y += en.vy * dt;
+        break;
+    }
+  }
+
+  function spawnEnemyBullet(en) {
+    const bw = 8, bh = 22;
+    const fromX = en.x + en.w / 2 - bw / 2;
+    const fromY = en.y + en.h;
+    // Vetor em direção ao jogador
+    let vx = 0, vy = cfg.enemyBulletSpeed;
+    if (player) {
+      const tx = player.x + player.w / 2 - fromX;
+      const ty = player.y + player.h / 2 - fromY;
+      const len = Math.hypot(tx, ty) || 1;
+      vx = (tx / len) * cfg.enemyBulletSpeed;
+      vy = (ty / len) * cfg.enemyBulletSpeed;
+    }
+    enemyBullets.push({
+      x: fromX, y: fromY, w: bw, h: bh, vx, vy,
+      damage: 15,
+      sprite: (global.CampaignAssets && global.CampaignAssets.tryGet('enemy_bullet')) || null,
+    });
+  }
+
+  function updateEnemyBullets(dt) {
+    for (let i = enemyBullets.length - 1; i >= 0; i--) {
+      const b = enemyBullets[i];
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      if (b.y > canvas.height + 20 || b.y < -20 || b.x < -20 || b.x > canvas.width + 20) {
+        enemyBullets.splice(i, 1);
+      }
+    }
+  }
+
+  function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  function spawnExplosion(x, y, color) {
+    const n = 8;
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * Math.PI * 2 + Math.random() * 0.4;
+      const sp = 1.5 + Math.random() * 2;
+      particles.push({
+        x, y,
+        vx: Math.cos(ang) * sp,
+        vy: Math.sin(ang) * sp,
+        life: 18 + Math.random() * 10,
+        size: 3 + Math.random() * 2,
+        color: color || '#ffaa3c',
+      });
     }
   }
 
@@ -253,7 +465,7 @@
   }
 
   function handleCollisions() {
-    // Bullets vs enemies
+    // Player bullets vs enemies
     for (let i = enemies.length - 1; i >= 0; i--) {
       const en = enemies[i];
       for (let j = playerBullets.length - 1; j >= 0; j--) {
@@ -261,7 +473,9 @@
         if (!aabb(b, en)) continue;
         en.hp -= b.damage;
         playerBullets.splice(j, 1);
+        spawnExplosion(en.x + en.w / 2, en.y + en.h / 2, '#ffd166');
         if (en.hp <= 0) {
+          spawnExplosion(en.x + en.w / 2, en.y + en.h / 2, '#ff7e4a');
           enemies.splice(i, 1);
           enemiesDestroyed += 1;
           combo += 1;
@@ -270,20 +484,29 @@
         break;
       }
     }
-    // Enemies vs player
+    // Enemies vs player (colisão corpo-a-corpo)
     for (let i = enemies.length - 1; i >= 0; i--) {
       const en = enemies[i];
       if (!aabb(en, player)) continue;
-      player.hp -= en.damage;
-      damageTaken += en.damage;
+      applyDamage(en.damage);
+      spawnExplosion(en.x + en.w / 2, en.y + en.h / 2, '#ff5566');
       enemies.splice(i, 1);
-      combo = 0;
-      if (player.hp <= 0) {
-        player.hp = 0;
-        endRun('loss');
-        return;
-      }
+      if (player.hp <= 0) { endRun('loss'); return; }
     }
+    // Enemy bullets vs player
+    for (let i = enemyBullets.length - 1; i >= 0; i--) {
+      const b = enemyBullets[i];
+      if (!aabb(b, player)) continue;
+      applyDamage(b.damage);
+      enemyBullets.splice(i, 1);
+      if (player.hp <= 0) { endRun('loss'); return; }
+    }
+  }
+
+  function applyDamage(amount) {
+    player.hp = Math.max(0, player.hp - amount);
+    damageTaken += amount;
+    combo = 0;
   }
 
   function updateParallax(dt) {
@@ -334,6 +557,30 @@
         ctx.fillRect(b.x, b.y, b.w, b.h);
       }
     }
+    for (const b of enemyBullets) {
+      // Rotaciona o sprite na direção do movimento
+      const ang = Math.atan2(b.vy, b.vx) - Math.PI / 2;
+      ctx.save();
+      ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
+      ctx.rotate(ang);
+      if (b.sprite && b.sprite.complete) {
+        ctx.drawImage(b.sprite, -b.w / 2, -b.h / 2, b.w, b.h);
+      } else {
+        ctx.fillStyle = '#ffaa00';
+        ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawParticles() {
+    for (const p of particles) {
+      const alpha = Math.max(0, Math.min(1, p.life / 28));
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = alpha;
+      ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
   }
 
   function drawHud(timeLeftSec) {
@@ -396,8 +643,10 @@
     updatePlayer(dt);
     autoShoot(ts);
     updateBullets(dt);
-    maybeSpawnEnemy(ts);
-    updateEnemies(dt);
+    tickWaveSpawn(ts);
+    updateEnemies(dt, ts);
+    updateEnemyBullets(dt);
+    updateParticles(dt);
     handleCollisions();
 
     clear();
@@ -406,21 +655,22 @@
     drawTiledBackground(bgNear, bgNearY);
     drawEnemies();
     drawBullets();
+    drawParticles();
     drawPlayer();
     drawHud(timeLeft);
 
     // Condições de fim
     if (player.hp <= 0) { endRun('loss'); return; }
-    if (timeLeft <= 0 && spawnedTotal >= plannedTotal && enemies.length === 0) {
+
+    const allWavesDone = activeWave === null;  // advanceWave devolveu null
+    if (allWavesDone && enemies.length === 0 && enemyBullets.length === 0) {
       endRun('win');
       return;
     }
-    if (timeLeft <= 0) {
-      // Tempo acabou mas ainda há inimigos: dá uma "graça" curta
-      if (elapsedSec > duration + 5) {
-        endRun(player.hp > 0 ? 'win' : 'loss');
-        return;
-      }
+    if (timeLeft <= 0 && elapsedSec > duration + 8) {
+      // Hard timeout (não deveria acontecer em fase normal)
+      endRun(player.hp > 0 && enemiesDestroyed >= Math.ceil(plannedTotal * 0.7) ? 'win' : 'loss');
+      return;
     }
 
     rafId = requestAnimationFrame(loop);
@@ -439,24 +689,25 @@
 
     // Reset estado
     playerBullets.length = 0;
+    enemyBullets.length = 0;
     enemies.length = 0;
+    particles.length = 0;
     enemiesDestroyed = 0;
     maxCombo = 0;
     combo = 0;
     damageTaken = 0;
-    spawnedTotal = 0;
-    plannedTotal = (opts.totalEnemies | 0) || 8;
     bgFarY = bgMidY = bgNearY = 0;
     endedFired = false;
 
     spawnPlayer();
     loadBackgrounds(stage.sector);
+    loadWaves(stage, opts.totalEnemies);
     bindInput();
 
     running = true;
     startTimeMs = performance.now();
     lastFrameMs = 0;
-    nextSpawnAtMs = startTimeMs + 800;
+    waveStartMs = startTimeMs + 1500;  // 1.5s de "introdução" antes do primeiro spawn
     rafId = requestAnimationFrame(loop);
   }
 

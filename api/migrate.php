@@ -1269,6 +1269,98 @@ try {
         output("  [OK] Fases padrão (treino + 10) inseridas/ignoradas");
     } catch (Exception $e) { /* tabela pode não existir */ }
 
+    // Waves padrão para fases não-boss do Setor 1.
+    // Idempotente: só preenche quando waves_json IS NULL (não sobrescreve admin).
+    try {
+        $wavesByStage = [
+            // Treino — tutorial guiado, leve
+            'training' => json_encode([
+                'waves' => [
+                    ['duration_max' => 18, 'clear_at' => 12, 'spawns' => [
+                        ['behavior' => 'tank',   'count' => 3, 'interval' => 1500],
+                    ]],
+                    ['duration_max' => 20, 'clear_at' => 14, 'spawns' => [
+                        ['behavior' => 'bullet', 'count' => 3, 'interval' => 1000],
+                    ]],
+                ],
+            ]),
+            // F1 — só tank + bullet
+            's1f1' => json_encode([
+                'waves' => [
+                    ['duration_max' => 20, 'clear_at' => 15, 'spawns' => [
+                        ['behavior' => 'tank',   'count' => 4, 'interval' => 1000],
+                    ]],
+                    ['duration_max' => 20, 'clear_at' => 15, 'spawns' => [
+                        ['behavior' => 'bullet', 'count' => 5, 'interval' => 700],
+                    ]],
+                    ['duration_max' => 20, 'clear_at' => 15, 'spawns' => [
+                        ['behavior' => 'tank',   'count' => 2, 'interval' => 900],
+                        ['behavior' => 'bullet', 'count' => 2, 'interval' => 900],
+                    ]],
+                ],
+            ]),
+            // F2 — apresenta kamikaze
+            's1f2' => json_encode([
+                'waves' => [
+                    ['duration_max' => 20, 'clear_at' => 15, 'spawns' => [
+                        ['behavior' => 'tank',     'count' => 5, 'interval' => 900],
+                    ]],
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'bullet',   'count' => 4, 'interval' => 600],
+                        ['behavior' => 'kamikaze', 'count' => 2, 'interval' => 1800],
+                    ]],
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'kamikaze', 'count' => 3, 'interval' => 1400],
+                        ['behavior' => 'tank',     'count' => 2, 'interval' => 1100],
+                    ]],
+                ],
+            ]),
+            // F3 — apresenta shooter
+            's1f3' => json_encode([
+                'waves' => [
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'kamikaze', 'count' => 4, 'interval' => 1400],
+                    ]],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'shooter',  'count' => 3, 'interval' => 1800],
+                        ['behavior' => 'bullet',   'count' => 4, 'interval' => 700],
+                    ]],
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'tank',     'count' => 4, 'interval' => 900],
+                        ['behavior' => 'shooter',  'count' => 2, 'interval' => 2200],
+                    ]],
+                ],
+            ]),
+            // F4 — apresenta dodger; mistura mais densa
+            's1f4' => json_encode([
+                'waves' => [
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'dodger',   'count' => 5, 'interval' => 1100],
+                    ]],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'shooter',  'count' => 3, 'interval' => 1700],
+                        ['behavior' => 'kamikaze', 'count' => 3, 'interval' => 1500],
+                    ]],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'tank',     'count' => 3, 'interval' => 950],
+                        ['behavior' => 'bullet',   'count' => 4, 'interval' => 600],
+                        ['behavior' => 'dodger',   'count' => 2, 'interval' => 1700],
+                    ]],
+                ],
+            ]),
+        ];
+        $upd = $pdo->prepare("UPDATE campaign_stages SET waves_json = ? WHERE stage_id = ? AND waves_json IS NULL");
+        $touched = 0;
+        foreach ($wavesByStage as $stageId => $json) {
+            $upd->execute([$json, $stageId]);
+            if ($upd->rowCount() > 0) $touched++;
+        }
+        if ($touched > 0) {
+            $results['migrations'][] = "campaign_stages:waves_json($touched)";
+            output("  [OK] waves_json default aplicado a $touched fase(s)");
+        }
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
     // ============================================
     // LIMPEZA
     // ============================================
