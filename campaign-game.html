@@ -6,38 +6,71 @@
   <meta name="robots" content="noindex,nofollow" />
   <title>Modo Campanha</title>
   <link rel="icon" href="favicon.ico" />
+
+  <!-- Fonts (alinha com main.css) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;500;600;700&display=swap">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
   <style>
     :root {
       color-scheme: dark;
-      --bg: #04060f;
+
+      --primary:        #00E5CC;
+      --primary-dark:   #00b8a3;
+      --secondary:      #7BF542;
+      --accent:         #B8FF00;
+      --success:        #00FF88;
+      --warning:        #ffd166;
+      --danger:         #ff4757;
+      --info:           #00d4ff;
+
+      --bg:             #0a0a0f;
+      --bg-2:           #0f1018;
+      --card-bg:        rgba(15, 16, 24, 0.95);
+
+      --text:           #ffffff;
+      --text-soft:      #e0e0e0;
+      --text-dim:       #8892a4;
+
+      --border:         rgba(0, 229, 204, 0.15);
+      --border-hover:   rgba(0, 229, 204, 0.4);
+      --glow:           0 0 20px rgba(0, 229, 204, 0.3);
+
+      --gradient-primary: linear-gradient(135deg, #00E5CC, #00FF88);
+      --gradient-warm:    linear-gradient(135deg, #ffd166, #ff7e4a);
+      --gradient-danger:  linear-gradient(135deg, #ff4757, #ff6b7a);
+
       --canvas-w: 414px;
       --canvas-h: 896px;
-      --text: #e7eaff;
-      --muted: #8a93c8;
-      --accent: #5cd5ff;
-      --ok: #5fdb91;
-      --err: #ff6b6b;
     }
     * { box-sizing: border-box; }
     html, body {
       margin: 0; padding: 0;
       background: var(--bg);
       color: var(--text);
-      font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-family: 'Exo 2', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
       min-height: 100vh; min-height: 100dvh;
       overflow: hidden;
       touch-action: none;
+      -webkit-font-smoothing: antialiased;
     }
+    h1, h2, h3, h4 { font-family: 'Orbitron', monospace; font-weight: 700; }
 
-    /* Centraliza o canvas portrait. No desktop, fundo blur do
-       gameplay; no mobile, cobre a tela toda. */
+    /* Centraliza o canvas portrait com background cosmic */
     .stage {
       position: fixed; inset: 0;
       display: flex; align-items: center; justify-content: center;
       background:
-        radial-gradient(ellipse at 30% 20%, rgba(80,40,180,0.25) 0%, transparent 50%),
-        radial-gradient(ellipse at 70% 80%, rgba(180,40,120,0.2)  0%, transparent 50%),
-        #04060f;
+        radial-gradient(ellipse at 20% 25%, rgba(0, 229, 204, 0.10) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 75%, rgba(123, 245, 66, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(184, 255, 0, 0.05) 0%, transparent 60%),
+        #0a0a0f;
     }
     .frame {
       position: relative;
@@ -45,9 +78,13 @@
       height: var(--canvas-h);
       max-width: 100vw;
       max-height: 100dvh;
-      border-radius: 18px;
+      border-radius: 20px;
       overflow: hidden;
-      box-shadow: 0 30px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(92,213,255,0.18);
+      background: var(--bg);
+      box-shadow:
+        0 30px 80px rgba(0, 0, 0, 0.6),
+        0 0 0 1px var(--border),
+        0 0 60px rgba(0, 229, 204, 0.12);
     }
     @media (max-width: 480px) {
       .frame { border-radius: 0; box-shadow: none; }
@@ -55,7 +92,7 @@
     canvas {
       display: block;
       width: 100%; height: 100%;
-      background: #04060f;
+      background: var(--bg);
       touch-action: none;
     }
 
@@ -63,54 +100,157 @@
     .overlay {
       position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
-      background: rgba(4,6,15,0.85);
-      backdrop-filter: blur(6px);
+      background: rgba(10, 10, 15, 0.88);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       z-index: 5; padding: 24px;
+      animation: overlayIn 0.25s ease-out;
     }
+    @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
     .overlay .card {
       max-width: 360px; width: 100%;
-      background: rgba(20,28,72,0.85);
-      border: 1px solid #2a3375;
-      border-radius: 14px; padding: 22px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-hover);
+      border-radius: 18px;
+      padding: 26px;
       text-align: center;
+      box-shadow:
+        0 30px 80px rgba(0, 0, 0, 0.6),
+        0 0 40px rgba(0, 229, 204, 0.15);
+      animation: cardIn 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
     }
-    .overlay h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.05em; }
-    .overlay p  { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(8px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .overlay h2 {
+      margin: 0 0 6px;
+      font-family: 'Orbitron', monospace;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+    .overlay h2 i { color: var(--primary); margin-right: 6px; }
+    .overlay h2.boss i { color: var(--warning); }
+    .overlay p  {
+      margin: 0 0 14px;
+      color: var(--text-dim);
+      font-size: 13px;
+      line-height: 1.5;
+    }
     .overlay .btn {
-      display: inline-block; margin-top: 8px;
-      background: linear-gradient(135deg, #1c4cff 0%, #5b1a8a 100%);
-      color: #fff; border: none; border-radius: 8px;
-      padding: 10px 18px; font-size: 14px; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      background: rgba(0, 229, 204, 0.06);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 25px;
+      padding: 10px 22px;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: all 0.25s ease;
       text-decoration: none;
     }
+    .overlay .btn:hover:not(:disabled) {
+      background: rgba(0, 229, 204, 0.12);
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+    .overlay .btn.primary {
+      background: var(--gradient-primary);
+      color: var(--bg);
+      border: none;
+      font-weight: 700;
+    }
+    .overlay .btn.primary:hover:not(:disabled) {
+      box-shadow: var(--glow);
+      transform: translateY(-2px);
+    }
     .overlay .btn.secondary {
-      background: #1f2766; border: 1px solid #2a3375;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
     }
     .overlay .btn.danger {
-      background: #4a1a1a; border: 1px solid #6e2424; color: #ffb1b1;
+      background: rgba(255, 71, 87, 0.12);
+      border: 1px solid rgba(255, 71, 87, 0.4);
+      color: #ffb1b1;
+    }
+    .overlay .btn.danger:hover:not(:disabled) {
+      background: rgba(255, 71, 87, 0.2);
+      border-color: var(--danger);
+      box-shadow: 0 0 20px rgba(255, 71, 87, 0.25);
     }
     .overlay .stats {
       display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-      margin: 12px 0 16px; font-size: 12px;
+      margin: 14px 0 18px;
+      font-size: 11px;
     }
     .overlay .stats > div {
-      background: #050720; border: 1px solid #1f2766;
-      border-radius: 6px; padding: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      color: var(--text-dim);
     }
-    .overlay .stats strong { display: block; color: var(--accent); font-size: 14px; margin-bottom: 2px; }
-    .stars { font-size: 28px; letter-spacing: 6px; margin: 4px 0 8px; }
-    .stars .lit { color: #ffd166; }
-    .stars .off { color: #2a3375; }
-    .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; background: #5b1a8a; color: #fff; }
-    .err { color: var(--err); }
-    .small { font-size: 11px; color: var(--muted); margin-top: 8px; }
-    .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
+    .overlay .stats strong {
+      display: block;
+      font-family: 'Orbitron', monospace;
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .overlay .stats strong i.fa-coins { color: var(--accent); margin-right: 3px; }
+    .stars {
+      font-size: 32px;
+      letter-spacing: 10px;
+      margin: 8px 0;
+    }
+    .stars i.lit { color: var(--warning); filter: drop-shadow(0 0 8px rgba(255, 209, 102, 0.6)); }
+    .stars i.off { color: rgba(136, 146, 164, 0.2); }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      background: rgba(184, 255, 0, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(184, 255, 0, 0.3);
+    }
+    .err { color: var(--danger); }
+    .small { font-size: 11px; color: var(--text-dim); margin-top: 8px; }
+    .row {
+      display: flex; gap: 10px;
+      justify-content: center; flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .modal-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      letter-spacing: 0.04em;
+    }
     .pause-btn {
       position: absolute; top: 14px; right: 14px; z-index: 4;
-      width: 36px; height: 36px; border-radius: 50%;
-      background: rgba(0,0,0,0.55); border: 1px solid #2a3375;
-      color: #fff; font-size: 14px; cursor: pointer;
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: rgba(10, 10, 15, 0.7);
+      border: 1px solid var(--border-hover);
+      color: var(--primary);
+      font-size: 16px;
+      cursor: pointer;
       display: none;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(8px);
+    }
+    .pause-btn:hover {
+      background: rgba(0, 229, 204, 0.15);
+      transform: scale(1.05);
     }
   </style>
 </head>
@@ -120,13 +260,13 @@
   <div class="frame">
     <canvas id="game" width="414" height="896"></canvas>
 
-    <button class="pause-btn" id="btn-pause" title="Pausar">⏸</button>
+    <button class="pause-btn" id="btn-pause" title="Pausar"><i class="fas fa-pause"></i></button>
 
     <!-- Overlay: idle/login (pré-jogo) -->
     <div class="overlay" id="ov-idle">
       <div class="card">
-        <h2 id="pre-stage-name">🚀 Carregando...</h2>
-        <p id="pre-stage-sector" style="margin:4px 0 0;color:var(--muted);font-size:12px">—</p>
+        <h2 id="pre-stage-name"><i class="fas fa-rocket"></i> Carregando...</h2>
+        <p class="modal-sub" id="pre-stage-sector">—</p>
         <div class="stats" id="pre-stage-stats" style="display:none">
           <div><strong id="pre-cost">—</strong>custo</div>
           <div><strong id="pre-reward">—</strong>recompensa</div>
@@ -135,11 +275,11 @@
         </div>
         <div id="prelaunch-meta" class="small">Verificando...</div>
         <div class="row">
-          <button class="btn" id="btn-login">Login com Google</button>
+          <button class="btn primary" id="btn-login"><i class="fab fa-google"></i> Entrar com Google</button>
         </div>
         <div class="row">
-          <button class="btn primary" id="btn-start" style="display:none">▶ Iniciar fase</button>
-          <a class="btn secondary" href="campaign.html">Voltar ao mapa</a>
+          <button class="btn primary" id="btn-start" style="display:none"><i class="fas fa-play"></i> Iniciar fase</button>
+          <a class="btn secondary" href="campaign.html"><i class="fas fa-arrow-left"></i> Voltar ao mapa</a>
         </div>
       </div>
     </div>
@@ -148,19 +288,23 @@
     <div class="overlay" id="ov-result" style="display:none">
       <div class="card">
         <h2 id="res-title">—</h2>
-        <div class="stars" id="res-stars">★ ★ ★</div>
+        <div class="stars" id="res-stars">
+          <i class="fas fa-star off"></i>
+          <i class="fas fa-star off"></i>
+          <i class="fas fa-star off"></i>
+        </div>
         <div class="stats">
-          <div><strong id="res-brl">R$ 0,00</strong>BRL</div>
+          <div><strong id="res-brl">R$ 0,00</strong>BRL ganho</div>
           <div><strong id="res-xp">+0</strong>XP</div>
           <div><strong id="res-time">0s</strong>tempo</div>
-          <div><strong id="res-combo">x1</strong>combo</div>
+          <div><strong id="res-combo">x1</strong>combo máx</div>
           <div><strong id="res-enemies">0</strong>destruídos</div>
-          <div><strong id="res-lives">5</strong>vidas</div>
+          <div><strong id="res-lives">5</strong>vidas restantes</div>
         </div>
         <div id="res-flag" class="small"></div>
         <div class="row">
-          <button class="btn" id="btn-retry">Jogar de novo</button>
-          <a class="btn secondary" href="campaign.html">Sair</a>
+          <button class="btn primary" id="btn-retry"><i class="fas fa-redo"></i> Jogar de novo</button>
+          <a class="btn secondary" href="campaign.html"><i class="fas fa-arrow-left"></i> Mapa</a>
         </div>
       </div>
     </div>
@@ -168,11 +312,11 @@
     <!-- Overlay: error -->
     <div class="overlay" id="ov-error" style="display:none">
       <div class="card">
-        <h2 class="err">Erro</h2>
+        <h2 class="err"><i class="fas fa-triangle-exclamation"></i> Erro</h2>
         <p id="err-msg">—</p>
         <div class="row">
-          <button class="btn secondary" onclick="location.reload()">Recarregar</button>
-          <a class="btn secondary" href="campaign.html">Sair</a>
+          <button class="btn secondary" onclick="location.reload()"><i class="fas fa-rotate"></i> Recarregar</button>
+          <a class="btn secondary" href="campaign.html"><i class="fas fa-arrow-left"></i> Mapa</a>
         </div>
       </div>
     </div>
@@ -180,13 +324,11 @@
     <!-- Overlay: pause -->
     <div class="overlay" id="ov-pause" style="display:none">
       <div class="card">
-        <h2>⏸ Pausado</h2>
-        <p style="color:var(--muted);font-size:12px;margin-bottom:6px">
-          Sair desta fase agora vai contar como derrota e custar 1 vida.
-        </p>
+        <h2><i class="fas fa-pause" style="color:var(--warning)"></i> Pausado</h2>
+        <p>Sair desta fase agora vai contar como derrota e custar 1 vida.</p>
         <div class="row">
-          <button class="btn" id="btn-resume">Continuar</button>
-          <button class="btn danger" id="btn-quit">Sair (perde vida)</button>
+          <button class="btn primary" id="btn-resume"><i class="fas fa-play"></i> Continuar</button>
+          <button class="btn danger" id="btn-quit"><i class="fas fa-door-open"></i> Sair (perde vida)</button>
         </div>
       </div>
     </div>
@@ -194,14 +336,15 @@
     <!-- Overlay: continue (após game over) -->
     <div class="overlay" id="ov-continue" style="display:none">
       <div class="card">
-        <h2 style="color:#ff6b6b">💀 Game Over</h2>
-        <p style="color:var(--muted);font-size:12px;margin-bottom:10px">
+        <h2 style="color:var(--danger)"><i class="fas fa-skull"></i> Game Over</h2>
+        <p>
           Continuar do ponto em que parou. Custa
-          <strong id="cont-cost">2</strong> 💎 e não dá vida nem reseta as estrelas.
+          <strong style="color:var(--accent)"><i class="fas fa-coins"></i> <span id="cont-cost">2</span></strong>
+          e não dá vida nem reseta as estrelas.
         </p>
-        <div id="cont-err" style="color:#ff6b6b;font-size:11px;margin-bottom:6px"></div>
+        <div id="cont-err" class="err small" style="margin-bottom:6px"></div>
         <div class="row">
-          <button class="btn primary" id="btn-continue">Continuar (<span id="cont-cost-btn">2</span>💎)</button>
+          <button class="btn primary" id="btn-continue"><i class="fas fa-play"></i> Continuar (<i class="fas fa-coins"></i> <span id="cont-cost-btn">2</span>)</button>
           <button class="btn danger" id="btn-accept-loss">Aceitar derrota</button>
         </div>
       </div>
@@ -276,7 +419,7 @@
     const arr = ['off','off','off'];
     for (let i = 0; i < stars; i++) arr[i] = 'lit';
     els.resStars.innerHTML = arr.map(c =>
-      '<span class="' + c + '">★</span>'
+      '<i class="fas fa-star ' + c + '"></i>'
     ).join(' ');
   }
 
@@ -403,16 +546,22 @@
   }
 
   function renderResult(serverData, clientPayload) {
-    els.resTitle.textContent = serverData.result === 'win' ? '🏆 Vitória!' : '💀 Derrota';
+    if (serverData.result === 'win') {
+      els.resTitle.innerHTML = '<i class="fas fa-trophy" style="color:var(--warning)"></i> Vitória!';
+      els.resTitle.classList.add('boss');
+    } else {
+      els.resTitle.innerHTML = '<i class="fas fa-skull" style="color:var(--danger)"></i> Derrota';
+      els.resTitle.classList.remove('boss');
+    }
     setStarsUi(serverData.stars);
     els.resBrl.textContent  = fmtBrl(serverData.brl_awarded);
-    els.resXp.textContent   = '+' + serverData.xp_awarded + (serverData.level_up ? ' ⬆' : '');
+    els.resXp.innerHTML     = '+' + serverData.xp_awarded + (serverData.level_up ? ' <i class="fas fa-arrow-up" style="color:var(--success)"></i>' : '');
     els.resTime.textContent = clientPayload.time_elapsed + 's';
     els.resCombo.textContent= 'x' + clientPayload.max_combo;
     els.resEnem.textContent = clientPayload.enemies_destroyed;
     els.resLives.textContent= serverData.lives_left;
     els.resFlag.innerHTML   = serverData.suspicious
-      ? '<span class="err">⚠ Sessão marcada como REVIEW (suspeita).</span>'
+      ? '<span class="err"><i class="fas fa-triangle-exclamation"></i> Sessão marcada como REVIEW (suspeita).</span>'
       : '';
     showOverlay('result');
     currentSession = null;
@@ -453,18 +602,21 @@
     const starsEl  = document.getElementById('pre-stars');
 
     if (!stageInfo) {
-      nameEl.textContent = '🚀 Fase não encontrada';
+      nameEl.innerHTML = '<i class="fas fa-rocket"></i> Fase não encontrada';
       sectorEl.textContent = STAGE_ID;
       statsEl.style.display = 'none';
       return;
     }
-    const icon = stageInfo.is_boss ? '☠' : '🚀';
-    nameEl.textContent = icon + ' ' + stageInfo.name;
+    const iconHtml = stageInfo.is_boss
+      ? '<i class="fas fa-skull"></i>'
+      : (stageInfo.sector === 0 ? '<i class="fas fa-graduation-cap"></i>' : '<i class="fas fa-rocket"></i>');
+    nameEl.innerHTML = iconHtml + ' ' + stageInfo.name;
+    nameEl.classList.toggle('boss', !!stageInfo.is_boss);
     if (stageInfo.sector === 0) sectorEl.textContent = 'Tutorial';
     else sectorEl.textContent = 'Setor ' + stageInfo.sector + ' · Fase ' + stageInfo.order;
     statsEl.style.display = 'grid';
 
-    costEl.textContent   = stageInfo.credit_cost + '💎';
+    costEl.innerHTML   = '<i class="fas fa-coins"></i> ' + stageInfo.credit_cost;
     rewardEl.textContent = stageInfo.brl_base > 0
       ? 'R$ ' + stageInfo.brl_base.toFixed(2).replace('.', ',')
       : '—';
@@ -473,7 +625,10 @@
       const stages = progressInfo.stages || [];
       const sp = stages.find(s => s.stage_id === STAGE_ID);
       livesEl.textContent = (lv.current ?? '?') + '/' + (lv.max ?? '?');
-      starsEl.textContent = sp ? (sp.stars + '⭐') : '—';
+      const stars = sp ? sp.stars : 0;
+      starsEl.innerHTML = [0, 1, 2].map(i =>
+        '<i class="fas fa-star ' + (i < stars ? 'lit' : 'off') + '" style="font-size:13px;margin:0 1px"></i>'
+      ).join('');
     } else {
       livesEl.textContent = '?';
       starsEl.textContent = '—';
