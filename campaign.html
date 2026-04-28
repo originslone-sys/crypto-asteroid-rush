@@ -2,142 +2,368 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="robots" content="noindex,nofollow" />
-  <title>Campaign — Test Harness</title>
+  <title>Campanha — Modo Galáctico</title>
   <link rel="icon" href="favicon.ico" />
   <style>
     :root {
       color-scheme: dark;
-      --bg: #07091a;
-      --panel: #0e1330;
-      --panel-2: #161c4a;
-      --border: #2a3375;
-      --accent: #5cd5ff;
-      --accent-2: #ff7eea;
+      --bg: #04060f;
+      --canvas-w: 414px;
+      --canvas-h: 896px;
       --text: #e7eaff;
       --muted: #8a93c8;
+      --accent: #5cd5ff;
+      --accent-2: #ff7eea;
+      --gold: #ffd166;
       --ok: #5fdb91;
       --warn: #ffd166;
       --err: #ff6b6b;
-      --mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+      --panel: rgba(20,28,72,0.78);
+      --border: #2a3375;
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    a { color: var(--accent); }
-    header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 22px; background: linear-gradient(180deg, #0a0f30 0%, #05071a 100%);
-      border-bottom: 1px solid var(--border);
-      position: sticky; top: 0; z-index: 10;
+    html, body {
+      margin: 0; padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh; min-height: 100dvh;
+      overflow: hidden;
+      touch-action: pan-y;
     }
-    header h1 { font-size: 16px; margin: 0; letter-spacing: 0.04em; }
-    header .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #5b1a8a; color: #fff; margin-left: 10px; vertical-align: middle; }
-    .auth { display: flex; align-items: center; gap: 10px; font-size: 12px; }
-    .auth img { width: 28px; height: 28px; border-radius: 50%; }
+
+    .stage {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(80,40,180,0.28) 0%, transparent 55%),
+        radial-gradient(ellipse at 70% 80%, rgba(180,40,120,0.22) 0%, transparent 55%),
+        #04060f;
+    }
+    .frame {
+      position: relative;
+      width: var(--canvas-w);
+      height: var(--canvas-h);
+      max-width: 100vw;
+      max-height: 100dvh;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(92,213,255,0.18);
+      display: flex; flex-direction: column;
+    }
+    @media (max-width: 480px) {
+      .frame { border-radius: 0; box-shadow: none; }
+    }
+
+    /* Header sticky */
+    header.hud {
+      flex-shrink: 0;
+      padding: 12px 14px 10px;
+      background: linear-gradient(180deg, #050930 0%, #0a0f3a 100%);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+    .hud-row1 { display: flex; align-items: center; gap: 10px; }
+    .hud-row1 img { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); }
+    .hud-row1 .who { flex: 1; min-width: 0; }
+    .hud-row1 .who .name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hud-row1 .who .lvl { font-size: 11px; color: var(--muted); }
+    .hud-row1 .lvl-big {
+      font: 700 22px ui-monospace,Menlo,monospace;
+      color: var(--accent);
+      background: rgba(0,0,0,0.45);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2px 10px;
+      min-width: 56px; text-align: center;
+    }
+
+    .xp-bar {
+      margin-top: 8px;
+      height: 6px;
+      background: rgba(0,0,0,0.45);
+      border-radius: 3px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .xp-bar > div {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width 0.5s;
+      width: 0%;
+    }
+    .xp-meta {
+      display: flex; justify-content: space-between;
+      font: 10px ui-monospace,Menlo,monospace;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .hud-row2 {
+      margin-top: 10px;
+      display: flex; gap: 10px; align-items: center;
+      font-size: 12px;
+    }
+    .lives { letter-spacing: 1px; }
+    .lives .heart { font-size: 16px; }
+    .lives .heart.full  { color: var(--err); }
+    .lives .heart.empty { color: #2a3375; }
+    .lives-meta { font: 10px ui-monospace,Menlo,monospace; color: var(--muted); margin-left: 4px; }
+    .credits {
+      margin-left: auto;
+      background: rgba(0,0,0,0.45);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font: 600 12px ui-monospace,Menlo,monospace;
+      color: var(--gold);
+    }
+
+    /* Map area */
+    main.map {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .sector {
+      position: relative;
+      padding: 18px 0 30px;
+      border-bottom: 1px dashed rgba(255,255,255,0.06);
+    }
+    .sector h2 {
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      text-align: center;
+      margin: 0 0 4px;
+    }
+    .sector .subtitle {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+    .sector.locked { opacity: 0.55; }
+    .sector .locked-banner {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(20,28,72,0.92);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 12px;
+      color: var(--warn);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Path com nodes em zigzag */
+    .path { position: relative; padding: 0 28px; }
+    .node {
+      position: relative;
+      display: flex; align-items: center; gap: 12px;
+      margin: 14px 0;
+      cursor: pointer;
+    }
+    .node.right { flex-direction: row-reverse; text-align: right; }
+    .node .circle {
+      flex-shrink: 0;
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1c4cff 0%, #5b1a8a 100%);
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font: 700 22px ui-monospace,Menlo,monospace;
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(28,76,255,0.35);
+      transition: transform 0.15s;
+    }
+    .node:hover .circle { transform: scale(1.06); }
+    .node.boss .circle {
+      background: linear-gradient(135deg, #aa1a3a 0%, #ff7e4a 100%);
+      box-shadow: 0 8px 20px rgba(255,126,74,0.4);
+      width: 76px; height: 76px;
+      font-size: 24px;
+    }
+    .node.locked .circle {
+      background: linear-gradient(135deg, #2a2a3c 0%, #1a1a26 100%);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+    .node.locked .circle::before { content: "🔒"; font-size: 22px; }
+    .node.locked .circle .label { display: none; }
+
+    .node .meta {
+      flex: 1;
+      min-width: 0;
+    }
+    .node .meta .name { font-weight: 600; font-size: 13px; }
+    .node .meta .stars { letter-spacing: 4px; font-size: 14px; margin-top: 2px; }
+    .node .meta .stars .lit { color: var(--gold); }
+    .node .meta .stars .off { color: #2a3375; }
+    .node .meta .reward { color: var(--ok); font-size: 11px; margin-top: 2px; font-family: ui-monospace,Menlo,monospace; }
+    .node .meta .req { color: var(--warn); font-size: 10px; margin-top: 2px; }
+    .node .badge-new {
+      position: absolute; top: -6px; left: -6px;
+      background: var(--accent-2);
+      color: #fff; font: 700 9px ui-monospace,Menlo,monospace;
+      padding: 2px 6px; border-radius: 999px;
+    }
+
+    /* Modal */
+    .overlay {
+      position: absolute; inset: 0;
+      background: rgba(4,6,15,0.85);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 20px;
+      z-index: 50;
+    }
+    .overlay.show { display: flex; }
+    .overlay .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+      max-width: 360px; width: 100%;
+      text-align: center;
+    }
+    .overlay h3 { margin: 0 0 4px; font-size: 18px; }
+    .overlay .modal-sub { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+    .overlay .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 12px 0 16px;
+      font-size: 11px;
+    }
+    .overlay .grid > div {
+      background: #050720;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+    }
+    .overlay .grid strong {
+      display: block;
+      color: var(--accent);
+      font: 600 13px ui-monospace,Menlo,monospace;
+      margin-bottom: 2px;
+    }
+    .overlay .stars-big { font-size: 30px; letter-spacing: 8px; margin: 8px 0; }
+    .overlay .stars-big .lit { color: var(--gold); }
+    .overlay .stars-big .off { color: #2a3375; }
     .btn {
-      background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
-      border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer;
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 14px;
+      cursor: pointer;
       transition: background 0.15s;
     }
     .btn:hover { background: #1f2766; }
-    .btn.primary { background: linear-gradient(135deg, #1c4cff 0%, #5b1a8a 100%); border: none; }
-    .btn.danger { background: #4a1a1a; border-color: #6e2424; color: #ffb1b1; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    main { max-width: 1280px; margin: 0 auto; padding: 22px; display: grid; gap: 22px; }
-    section.card {
-      background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px;
+    .btn.primary {
+      background: linear-gradient(135deg, #1c4cff 0%, #5b1a8a 100%);
+      border: none;
     }
-    section.card h2 { font-size: 14px; margin: 0 0 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
-    section.card .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-    pre.json {
-      background: #050720; border: 1px solid var(--border); border-radius: 6px; padding: 12px;
-      max-height: 360px; overflow: auto; font: 12px/1.45 var(--mono); color: #cad4ff; margin: 0;
+    .btn.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+    /* Login overlay (1ª vez) */
+    .login-overlay { z-index: 60; }
+    .err-msg { color: var(--err); font-size: 12px; margin-top: 6px; }
+
+    .footer-mini {
+      flex-shrink: 0;
+      padding: 6px 14px;
+      font: 10px ui-monospace,Menlo,monospace;
+      color: var(--muted);
+      text-align: center;
+      border-top: 1px solid var(--border);
+      background: #050930;
     }
-    .meta { font-size: 12px; color: var(--muted); }
-    .meta strong { color: var(--text); }
-    .grid {
-      display: grid; gap: 12px;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    }
-    .sprite-card {
-      background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px;
-      display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 130px;
-    }
-    .sprite-card .frame {
-      width: 96px; height: 96px; display: flex; align-items: center; justify-content: center;
-      background: radial-gradient(circle at 50% 40%, #11164a 0%, #050720 100%);
-      border-radius: 6px; overflow: hidden;
-    }
-    .sprite-card.bg .frame { width: 96px; height: 200px; }
-    .sprite-card .frame img { max-width: 90%; max-height: 90%; image-rendering: pixelated; }
-    .sprite-card.bg .frame img { width: 96px; height: 200px; max-width: none; max-height: none; image-rendering: auto; }
-    .sprite-card .key { font: 11px var(--mono); color: var(--muted); word-break: break-all; text-align: center; }
-    .sprite-card.fail { border-color: #6e2424; background: #2a0a0a; }
-    .sprite-card.fail .key { color: var(--err); }
-    .group { margin-bottom: 18px; }
-    .group h3 { font-size: 13px; margin: 0 0 8px; color: var(--accent-2); letter-spacing: 0.04em; }
-    .progress-bar { height: 6px; background: #050720; border-radius: 3px; overflow: hidden; margin-top: 6px; }
-    .progress-bar > div { height: 100%; background: linear-gradient(90deg, #5cd5ff, #ff7eea); transition: width 0.2s; }
-    .pill { display: inline-block; font: 11px var(--mono); padding: 2px 8px; border-radius: 999px; background: #1f2766; color: var(--accent); margin-right: 6px; }
-    .pill.ok { background: #143a25; color: var(--ok); }
-    .pill.warn { background: #3d2f0a; color: var(--warn); }
-    .pill.err { background: #3a1010; color: var(--err); }
-    .signed-out-msg { color: var(--warn); font-size: 13px; }
-    .footer { text-align: center; color: var(--muted); font-size: 11px; padding: 24px; }
   </style>
 </head>
 <body>
 
-<header>
-  <div>
-    <h1>🚀 CAMPAIGN — Test Harness <span class="badge">isolado</span></h1>
-  </div>
-  <div class="auth" id="auth-box">
-    <span class="meta">Não logado</span>
-    <button class="btn primary" id="btn-login">Login com Google</button>
-  </div>
-</header>
+<div class="stage">
+  <div class="frame">
 
-<main>
-  <!-- ============================================
-       1. Carregamento de assets (galeria)
-       ============================================ -->
-  <section class="card">
-    <h2>1. Asset Loader — Galeria de Sprites</h2>
-    <div class="meta" id="assets-meta">Carregando manifesto...</div>
-    <div class="progress-bar"><div id="assets-progress" style="width:0%"></div></div>
-    <div id="assets-gallery"></div>
-  </section>
+    <!-- HEADER (hud) -->
+    <header class="hud">
+      <div class="hud-row1">
+        <img id="hud-avatar" src="" alt="" style="display:none">
+        <div class="who">
+          <div class="name" id="hud-name">Carregando...</div>
+          <div class="lvl" id="hud-lvl-text">—</div>
+        </div>
+        <div class="lvl-big" id="hud-lvl">1</div>
+      </div>
+      <div class="xp-bar"><div id="hud-xp-fill"></div></div>
+      <div class="xp-meta">
+        <span id="hud-xp-cur">0 XP</span>
+        <span id="hud-xp-next">/ 100 XP</span>
+      </div>
+      <div class="hud-row2">
+        <span class="lives" id="hud-lives">—</span>
+        <span class="lives-meta" id="hud-lives-timer"></span>
+        <span class="credits" id="hud-credits">💎 0</span>
+      </div>
+    </header>
 
-  <!-- ============================================
-       2. /api/campaign-config.php
-       ============================================ -->
-  <section class="card">
-    <h2>2. /api/campaign-config.php (público)</h2>
-    <div class="toolbar">
-      <button class="btn" id="btn-config-reload">Recarregar config</button>
-      <span class="meta" id="config-meta">—</span>
+    <!-- MAPA -->
+    <main class="map" id="map-root">
+      <div style="padding: 60px 20px; text-align: center; color: var(--muted)">
+        Carregando mapa...
+      </div>
+    </main>
+
+    <div class="footer-mini">
+      <a href="campaign-debug.html" style="color:var(--muted);text-decoration:none">debug</a>
+      <span>·</span>
+      <span id="boot-stamp">—</span>
     </div>
-    <pre class="json" id="config-json">(aguardando)</pre>
-  </section>
 
-  <!-- ============================================
-       3. /api/campaign-progress.php (autenticado)
-       ============================================ -->
-  <section class="card">
-    <h2>3. /api/campaign-progress.php (autenticado)</h2>
-    <div class="toolbar">
-      <button class="btn" id="btn-progress-reload" disabled>Recarregar progress</button>
-      <button class="btn danger" id="btn-progress-reset" disabled>⚠ Resetar meu progresso</button>
-      <span class="meta" id="progress-meta">Faça login para visualizar.</span>
+    <!-- Modal de fase -->
+    <div class="overlay" id="ov-stage">
+      <div class="card">
+        <h3 id="ov-title">—</h3>
+        <p class="modal-sub" id="ov-sub">—</p>
+        <div class="stars-big" id="ov-stars">★ ★ ★</div>
+        <div class="grid">
+          <div><strong id="ov-cost">—</strong>custo</div>
+          <div><strong id="ov-reward">—</strong>recompensa</div>
+          <div><strong id="ov-best">—</strong>melhor tempo</div>
+          <div><strong id="ov-attempts">—</strong>tentativas</div>
+        </div>
+        <div class="err-msg" id="ov-err"></div>
+        <div class="btn-row">
+          <button class="btn primary" id="ov-start">Iniciar</button>
+          <button class="btn" id="ov-close">Cancelar</button>
+        </div>
+      </div>
     </div>
-    <pre class="json" id="progress-json">(aguardando login)</pre>
-  </section>
-</main>
 
-<div class="footer">
-  Build: <span id="build-stamp"></span> · branch <code>claude/new-game-mode-planning-crtrQ</code> · página de teste, sem links públicos.
+    <!-- Login overlay -->
+    <div class="overlay login-overlay" id="ov-login">
+      <div class="card">
+        <h3>🚀 Modo Campanha</h3>
+        <p class="modal-sub">Faça login para acessar o mapa de fases.</p>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-login">Login com Google</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <!-- Firebase compat -->
@@ -146,236 +372,396 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/auth-manager.js"></script>
 
-<!-- Asset loader da campanha -->
-<script src="js/campaign-asset-loader.js"></script>
-
 <script>
-  document.getElementById('build-stamp').textContent = new Date().toISOString();
+(function () {
+  document.getElementById('boot-stamp').textContent = new Date().toISOString().slice(11, 19);
 
   // ----------------------------------------------------------------------
-  // ASSETS — galeria
+  // State
   // ----------------------------------------------------------------------
-  const GALLERY_GROUPS = [
-    { title: 'Naves do jogador',                prefix: ['ship_'] },
-    { title: 'Setor 1 — Inimigos',              prefix: ['s1_'] },
-    { title: 'Setor 2 — Inimigos',              prefix: ['s2_'] },
-    { title: 'Bosses',                          prefix: ['boss_'] },
-    { title: 'Power-ups',                       prefix: ['powerup_'] },
-    { title: 'Projéteis',                       prefix: ['player_bullet','enemy_bullet','bullets_sheet','muzzle_flash'] },
-    { title: 'Backgrounds (parallax)',          prefix: ['bg_'], isBackground: true },
-  ];
+  let cfg = null;       // /api/campaign-config.php
+  let prog = null;      // /api/campaign-progress.php
+  let user = null;      // saldo de créditos (vem da API extra)
+  let liveTimerId = null;
 
-  function classifyKey(key, group) {
-    for (const p of group.prefix) {
-      if (key === p || key.startsWith(p)) return true;
-    }
-    return false;
+  // ----------------------------------------------------------------------
+  // DOM refs
+  // ----------------------------------------------------------------------
+  const $ = (id) => document.getElementById(id);
+
+  // ----------------------------------------------------------------------
+  // Helpers
+  // ----------------------------------------------------------------------
+  function uid() {
+    return window.authManager && window.authManager.currentUser
+      ? window.authManager.currentUser.uid
+      : null;
+  }
+  function fmtBrl(v) {
+    return 'R$ ' + (Number(v) || 0).toFixed(2).replace('.', ',');
+  }
+  function fmtTime(seconds) {
+    if (seconds == null || seconds < 0) return '—';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m + ':' + String(s).padStart(2, '0');
+  }
+  function findStage(stageId) {
+    if (!cfg) return null;
+    return (cfg.stages || []).find(s => s.stage_id === stageId);
+  }
+  function findStageProgress(stageId) {
+    if (!prog) return null;
+    return (prog.stages || []).find(s => s.stage_id === stageId) || null;
+  }
+  function xpForLevel(level) {
+    if (!cfg) return 0;
+    const row = (cfg.xp_table || []).find(r => r.level === level);
+    return row ? row.xp_required : 0;
   }
 
-  async function preloadAssetsAndRender() {
-    const total = Object.keys(CampaignAssets.MANIFEST).length;
-    const meta = document.getElementById('assets-meta');
-    const bar = document.getElementById('assets-progress');
-    meta.innerHTML = `<span class="pill">${total}</span> assets no manifesto. Carregando...`;
-
-    let okCount = 0, errCount = 0;
-    const errors = [];
-    await CampaignAssets.preloadAll({
-      onProgress: (done, t, key) => {
-        bar.style.width = Math.round(100 * done / t) + '%';
-      },
-    });
-
-    // Conta sucessos com base no que está no cache
-    const results = {};
-    for (const key of Object.keys(CampaignAssets.MANIFEST)) {
-      const img = CampaignAssets.tryGet(key);
-      results[key] = img;
-      if (img) okCount++; else { errCount++; errors.push(key); }
-    }
-
-    bar.style.width = '100%';
-    meta.innerHTML =
-      `<span class="pill ok">${okCount} OK</span>` +
-      (errCount ? `<span class="pill err">${errCount} falha(s)</span>` : '') +
-      ` de ${total}.` +
-      (errCount ? ` <span class="meta">Falhas: ${errors.slice(0, 4).join(', ')}${errors.length > 4 ? '...' : ''}</span>` : '');
-
-    renderGallery(results);
-  }
-
-  function renderGallery(results) {
-    const root = document.getElementById('assets-gallery');
-    root.innerHTML = '';
-    for (const group of GALLERY_GROUPS) {
-      const keys = Object.keys(CampaignAssets.MANIFEST).filter(k => classifyKey(k, group));
-      if (!keys.length) continue;
-
-      const wrap = document.createElement('div');
-      wrap.className = 'group';
-      const h = document.createElement('h3');
-      h.textContent = `${group.title} (${keys.length})`;
-      wrap.appendChild(h);
-
-      const grid = document.createElement('div');
-      grid.className = 'grid';
-      for (const key of keys) {
-        const card = document.createElement('div');
-        card.className = 'sprite-card' + (group.isBackground ? ' bg' : '');
-        if (!results[key]) card.classList.add('fail');
-
-        const frame = document.createElement('div');
-        frame.className = 'frame';
-        const img = document.createElement('img');
-        img.alt = key;
-        img.src = CampaignAssets.MANIFEST[key];
-        frame.appendChild(img);
-
-        const lbl = document.createElement('div');
-        lbl.className = 'key';
-        lbl.textContent = key;
-
-        card.appendChild(frame);
-        card.appendChild(lbl);
-        grid.appendChild(card);
+  // ----------------------------------------------------------------------
+  // Header render
+  // ----------------------------------------------------------------------
+  function renderHeader() {
+    const u = window.authManager && window.authManager.currentUser;
+    if (u) {
+      $('hud-name').textContent = u.displayName || 'Anônimo';
+      if (u.photoURL) {
+        $('hud-avatar').src = u.photoURL;
+        $('hud-avatar').style.display = 'block';
       }
-      wrap.appendChild(grid);
-      root.appendChild(wrap);
     }
+    if (!prog) return;
+
+    const p = prog.progress || {};
+    const lives = prog.lives || {};
+
+    // Nível e XP
+    $('hud-lvl').textContent = p.current_level || 1;
+    const curLvl = p.current_level || 1;
+    const nextLvl = curLvl + 1;
+    const curXpReq = xpForLevel(curLvl);
+    const nextXpReq = xpForLevel(nextLvl) || curXpReq;
+    const xpInBracket = (p.total_xp || 0) - curXpReq;
+    const xpBracket = nextXpReq - curXpReq;
+    const pct = xpBracket > 0 ? Math.min(100, Math.max(0, (xpInBracket / xpBracket) * 100)) : 100;
+    $('hud-xp-fill').style.width = pct + '%';
+    $('hud-xp-cur').textContent = (p.total_xp || 0) + ' XP';
+    $('hud-xp-next').textContent = nextXpReq > curXpReq
+      ? '→ Lv ' + nextLvl + ' em ' + (nextXpReq - (p.total_xp || 0)) + ' XP'
+      : 'nível máx';
+    $('hud-lvl-text').textContent = p.total_stars + '⭐ totais';
+
+    // Vidas
+    const max = lives.max || 5;
+    const cur = lives.current || 0;
+    let hearts = '';
+    for (let i = 0; i < max; i++) {
+      hearts += '<span class="heart ' + (i < cur ? 'full' : 'empty') + '">' +
+                (i < cur ? '❤' : '🤍') + '</span>';
+    }
+    $('hud-lives').innerHTML = hearts;
+    updateLivesTimer();
+
+    // Créditos vêm de fora (precisa de uma API auxiliar; por ora usa user.credits se carregado)
+    $('hud-credits').textContent = '💎 ' + (user && typeof user.credits === 'number' ? user.credits : '?');
+  }
+
+  function updateLivesTimer() {
+    if (!prog || !prog.lives) return;
+    const lives = prog.lives;
+    if (lives.current >= lives.max || !lives.next_life_at) {
+      $('hud-lives-timer').textContent = '';
+      if (liveTimerId) { clearInterval(liveTimerId); liveTimerId = null; }
+      return;
+    }
+    const target = new Date(lives.next_life_at).getTime();
+    const tick = () => {
+      const sec = Math.max(0, Math.floor((target - Date.now()) / 1000));
+      $('hud-lives-timer').textContent = '+1 em ' + fmtTime(sec);
+      if (sec <= 0) {
+        clearInterval(liveTimerId);
+        liveTimerId = null;
+        // Recarrega progresso para pegar a vida nova
+        loadProgress();
+      }
+    };
+    tick();
+    if (liveTimerId) clearInterval(liveTimerId);
+    liveTimerId = setInterval(tick, 1000);
   }
 
   // ----------------------------------------------------------------------
-  // CONFIG endpoint
+  // Map render
+  // ----------------------------------------------------------------------
+  const SECTOR_TITLES = {
+    1: { title: 'SETOR 1', sub: 'Cinturão de Asteroides' },
+    2: { title: 'SETOR 2', sub: 'Zona de Detritos' },
+  };
+
+  function renderMap() {
+    if (!cfg) return;
+    const root = $('map-root');
+    root.innerHTML = '';
+
+    // Treino (sector=0) sempre primeiro, fora do agrupamento
+    const training = (cfg.stages || []).find(s => s.sector === 0);
+    const sectors = [1, 2];
+
+    // Bloco de treino
+    if (training) {
+      const block = renderSectorBlock({
+        title: 'TUTORIAL',
+        sub: 'Treine sem perder vida',
+        stages: [training],
+        locked: false,
+      });
+      root.appendChild(block);
+    }
+
+    for (const sec of sectors) {
+      const stages = (cfg.stages || []).filter(s => s.sector === sec);
+      if (!stages.length) continue;
+      const meta = SECTOR_TITLES[sec] || { title: 'SETOR ' + sec, sub: '' };
+
+      // Bloqueio do Setor 2: vem de cfg.settings['campaign.launch.sector2_enabled']
+      let locked = false;
+      if (sec === 2) {
+        locked = !((cfg.settings || {})['campaign.launch.sector2_enabled'] === true);
+      }
+
+      const block = renderSectorBlock({
+        title: meta.title,
+        sub: meta.sub,
+        stages,
+        locked,
+      });
+      root.appendChild(block);
+    }
+  }
+
+  function renderSectorBlock({ title, sub, stages, locked }) {
+    const sec = document.createElement('section');
+    sec.className = 'sector' + (locked ? ' locked' : '');
+
+    const h = document.createElement('h2');
+    h.textContent = title;
+    sec.appendChild(h);
+    if (sub) {
+      const s = document.createElement('div');
+      s.className = 'subtitle';
+      s.textContent = sub;
+      sec.appendChild(s);
+    }
+
+    if (locked) {
+      const banner = document.createElement('div');
+      banner.className = 'locked-banner';
+      banner.textContent = '🔒 Em breve';
+      sec.appendChild(banner);
+    }
+
+    const path = document.createElement('div');
+    path.className = 'path';
+    stages.forEach((stage, idx) => {
+      path.appendChild(renderNode(stage, idx, locked));
+    });
+    sec.appendChild(path);
+
+    return sec;
+  }
+
+  function renderNode(stage, idx, sectorLocked) {
+    const sp = findStageProgress(stage.stage_id);
+    const stars = sp ? sp.stars : 0;
+    const isBoss = !!stage.is_boss;
+    const playerLevel = (prog && prog.progress && prog.progress.current_level) || 1;
+    const levelLocked = playerLevel < (stage.min_level || 1);
+    const locked = sectorLocked || levelLocked;
+    const isNew = !levelLocked && !sp; // desbloqueada e nunca jogada
+
+    const node = document.createElement('div');
+    node.className = 'node ' + (idx % 2 === 1 ? 'right' : '') + (isBoss ? ' boss' : '') + (locked ? ' locked' : '');
+
+    const circle = document.createElement('div');
+    circle.className = 'circle';
+    if (!locked) {
+      const label = document.createElement('span');
+      label.className = 'label';
+      label.textContent = isBoss ? '☠' : (stage.order || '?');
+      circle.appendChild(label);
+    }
+    node.appendChild(circle);
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = stage.name;
+    meta.appendChild(name);
+
+    const starsDiv = document.createElement('div');
+    starsDiv.className = 'stars';
+    starsDiv.innerHTML = ['', '', ''].map((_, i) =>
+      '<span class="' + (i < stars ? 'lit' : 'off') + '">★</span>'
+    ).join('');
+    meta.appendChild(starsDiv);
+
+    if (locked && levelLocked && !sectorLocked) {
+      const req = document.createElement('div');
+      req.className = 'req';
+      req.textContent = '🔒 Requer nível ' + stage.min_level;
+      meta.appendChild(req);
+    } else if (!locked) {
+      const reward = document.createElement('div');
+      reward.className = 'reward';
+      reward.textContent = stage.brl_base > 0
+        ? fmtBrl(stage.brl_base) + ' • ' + stage.credit_cost + '💎'
+        : 'Sem BRL • ' + stage.credit_cost + '💎';
+      meta.appendChild(reward);
+    }
+    node.appendChild(meta);
+
+    if (isNew) {
+      const tag = document.createElement('div');
+      tag.className = 'badge-new';
+      tag.textContent = 'NOVO';
+      node.appendChild(tag);
+    }
+
+    if (!locked) {
+      node.addEventListener('click', () => openStageModal(stage));
+    }
+    return node;
+  }
+
+  // ----------------------------------------------------------------------
+  // Modal de fase
+  // ----------------------------------------------------------------------
+  function openStageModal(stage) {
+    const sp = findStageProgress(stage.stage_id) || { stars: 0, attempts: 0, best_time: null };
+    $('ov-title').textContent = stage.name;
+    $('ov-sub').textContent = stage.is_boss ? 'BOSS — ' + stage.description : (stage.description || 'Setor ' + stage.sector);
+
+    // Stars
+    $('ov-stars').innerHTML = ['', '', ''].map((_, i) =>
+      '<span class="' + (i < sp.stars ? 'lit' : 'off') + '">★</span>'
+    ).join('');
+
+    // Grid
+    $('ov-cost').textContent     = stage.credit_cost + '💎';
+    $('ov-reward').textContent   = stage.brl_base > 0 ? fmtBrl(stage.brl_base) : '—';
+    $('ov-best').textContent     = sp.best_time != null ? sp.best_time + 's' : '—';
+    $('ov-attempts').textContent = sp.attempts || 0;
+
+    // Validações pré-jogada
+    const lives = (prog && prog.lives) || {};
+    const hasLives = (lives.current || 0) > 0;
+    const hasCredits = !user || (typeof user.credits !== 'number') || user.credits >= stage.credit_cost;
+
+    let err = '';
+    if (!hasLives) err = 'Sem vidas disponíveis. Aguarde recarga.';
+    else if (!hasCredits) err = 'Créditos insuficientes (' + (user.credits || 0) + ' / ' + stage.credit_cost + ').';
+    $('ov-err').textContent = err;
+    $('ov-start').disabled = !!err;
+    $('ov-start').onclick = () => {
+      window.location.href = 'campaign-game.html?stage=' + encodeURIComponent(stage.stage_id);
+    };
+
+    $('ov-stage').classList.add('show');
+  }
+  function closeStageModal() {
+    $('ov-stage').classList.remove('show');
+  }
+  $('ov-close').addEventListener('click', closeStageModal);
+  $('ov-stage').addEventListener('click', (e) => {
+    if (e.target.id === 'ov-stage') closeStageModal();
+  });
+
+  // ----------------------------------------------------------------------
+  // API fetching
   // ----------------------------------------------------------------------
   async function loadConfig() {
-    const meta = document.getElementById('config-meta');
-    const out = document.getElementById('config-json');
-    meta.textContent = 'Carregando...';
-    try {
-      const t0 = performance.now();
-      const r = await fetch('/api/campaign-config.php', { headers: { 'Accept': 'application/json' } });
-      const dt = (performance.now() - t0).toFixed(0);
-      const data = await r.json();
-      out.textContent = JSON.stringify(data, null, 2);
-      if (data.success) {
-        const stages = (data.data?.stages || []).length;
-        const settings = Object.keys(data.data?.settings || {}).length;
-        const xp = (data.data?.xp_table || []).length;
-        meta.innerHTML = `<span class="pill ok">${r.status}</span> ${dt}ms · ${settings} settings · ${stages} fases · ${xp} níveis · v${data.data?.version}`;
-      } else {
-        meta.innerHTML = `<span class="pill err">${r.status}</span> ${data.error || 'erro'}`;
-      }
-    } catch (e) {
-      meta.innerHTML = `<span class="pill err">net</span> ${e.message}`;
-      out.textContent = String(e);
-    }
-  }
-
-  // ----------------------------------------------------------------------
-  // PROGRESS endpoint
-  // ----------------------------------------------------------------------
-  function getUid() {
-    return window.authManager?.currentUser?.uid || null;
+    const r = await fetch('/api/campaign-config.php', { headers: { 'Accept': 'application/json' } });
+    const data = await r.json();
+    if (!data.success) throw new Error(data.error || 'config falhou');
+    cfg = data.data;
   }
 
   async function loadProgress() {
-    const meta = document.getElementById('progress-meta');
-    const out = document.getElementById('progress-json');
-    const uid = getUid();
-    if (!uid) {
-      meta.innerHTML = `<span class="pill warn">offline</span> Faça login para visualizar.`;
-      out.textContent = '(aguardando login)';
-      return;
-    }
-    meta.textContent = 'Carregando...';
+    const u = uid();
+    if (!u) return;
+    const r = await fetch('/api/campaign-progress.php?google_uid=' + encodeURIComponent(u));
+    const data = await r.json();
+    if (!data.success) throw new Error(data.error || 'progress falhou');
+    prog = data.data;
+  }
+
+  async function loadUserCredits() {
+    // O endpoint /api/credits.php espera google_uid e devolve dados.
+    // Falha silenciosa: se não tiver, header mostra "?" e o modal fica permissivo.
+    const u = uid();
+    if (!u) return;
     try {
-      const t0 = performance.now();
-      const r = await fetch('/api/campaign-progress.php?google_uid=' + encodeURIComponent(uid), {
-        headers: { 'Accept': 'application/json' },
-      });
-      const dt = (performance.now() - t0).toFixed(0);
+      const fd = new FormData();
+      fd.set('google_uid', u);
+      fd.set('action', 'balance');
+      const r = await fetch('/api/credits.php', { method: 'POST', body: fd });
       const data = await r.json();
-      out.textContent = JSON.stringify(data, null, 2);
-      if (data.success) {
-        const p = data.data?.progress || {};
-        const lives = data.data?.lives || {};
-        meta.innerHTML =
-          `<span class="pill ok">${r.status}</span> ${dt}ms · ` +
-          `nível <strong>${p.current_level}</strong> · ` +
-          `XP <strong>${p.total_xp}</strong> · ` +
-          `vidas <strong>${lives.current}/${lives.max}</strong> · ` +
-          `estrelas <strong>${p.total_stars}</strong>`;
-      } else {
-        meta.innerHTML = `<span class="pill err">${r.status}</span> ${data.error || 'erro'}`;
+      if (data && (data.success || data.credits !== undefined)) {
+        user = { credits: data.credits ?? (data.data && data.data.credits) ?? null };
       }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ----------------------------------------------------------------------
+  // Boot
+  // ----------------------------------------------------------------------
+  async function refreshAll() {
+    try {
+      if (!cfg) await loadConfig();
+      await loadProgress();
+      await loadUserCredits();
+      renderHeader();
+      renderMap();
     } catch (e) {
-      meta.innerHTML = `<span class="pill err">net</span> ${e.message}`;
-      out.textContent = String(e);
+      $('map-root').innerHTML =
+        '<div style="padding:40px 20px;color:var(--err);text-align:center">Erro: ' +
+        (e && e.message ? e.message : e) + '</div>';
     }
   }
 
-  async function resetProgress() {
-    const uid = getUid();
-    if (!uid) return;
-    if (!confirm('Resetar TODO o progresso da campanha do usuário atual? Isso é só para testes.')) return;
-    const fd = new FormData();
-    fd.set('action', 'reset');
-    fd.set('google_uid', uid);
-    const r = await fetch('/api/campaign-progress.php', { method: 'POST', body: fd });
-    await r.json();
-    await loadProgress();
-  }
-
-  // ----------------------------------------------------------------------
-  // Auth UI
-  // ----------------------------------------------------------------------
-  function renderAuthBox(user) {
-    const box = document.getElementById('auth-box');
-    if (user) {
-      box.innerHTML = `
-        ${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ''}
-        <span class="meta"><strong>${user.displayName || 'Anônimo'}</strong> <code>${user.uid.slice(0, 8)}...</code></span>
-        <button class="btn" id="btn-logout">Sair</button>
-      `;
-      document.getElementById('btn-logout').addEventListener('click', () => window.authManager.signOut());
-      document.getElementById('btn-progress-reload').disabled = false;
-      document.getElementById('btn-progress-reset').disabled = false;
-      loadProgress();
+  function refreshOnAuth(authedUser) {
+    if (authedUser) {
+      $('ov-login').classList.remove('show');
+      refreshAll();
     } else {
-      box.innerHTML = `
-        <span class="meta">Não logado</span>
-        <button class="btn primary" id="btn-login">Login com Google</button>
-      `;
-      document.getElementById('btn-login').addEventListener('click', () => window.authManager.signIn());
-      document.getElementById('btn-progress-reload').disabled = true;
-      document.getElementById('btn-progress-reset').disabled = true;
-      const out = document.getElementById('progress-json');
-      out.textContent = '(aguardando login)';
-      const meta = document.getElementById('progress-meta');
-      meta.innerHTML = `<span class="pill warn">offline</span> Faça login para visualizar.`;
+      $('ov-login').classList.add('show');
     }
   }
 
-  // Hook inicial de auth quando o authManager terminar de subir
-  function bindAuth() {
+  function bindAuth(retries = 50) {
     if (!window.authManager) {
-      setTimeout(bindAuth, 100);
+      if (retries <= 0) return;
+      setTimeout(() => bindAuth(retries - 1), 100);
       return;
     }
-    window.authManager.onAuthStateChanged((user) => renderAuthBox(user));
-    document.getElementById('btn-login').addEventListener('click', () => window.authManager.signIn());
-    renderAuthBox(window.authManager.currentUser);
+    window.authManager.onAuthStateChanged(refreshOnAuth);
+    refreshOnAuth(window.authManager.currentUser);
   }
 
-  // Botões de recarregar
-  document.getElementById('btn-config-reload').addEventListener('click', loadConfig);
-  document.getElementById('btn-progress-reload').addEventListener('click', loadProgress);
-  document.getElementById('btn-progress-reset').addEventListener('click', resetProgress);
+  $('btn-login').addEventListener('click', () => window.authManager && window.authManager.signIn());
 
-  // Boot
-  preloadAssetsAndRender();
-  loadConfig();
+  // Recarrega progress quando o usuário volta para a aba (ex: após terminar fase)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && uid()) {
+      loadProgress().then(() => { renderHeader(); renderMap(); }).catch(() => {});
+    }
+  });
+
   bindAuth();
+})();
 </script>
 
 </body>
