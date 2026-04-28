@@ -243,11 +243,16 @@
   }
 
   // ----- preload assets -----
+  const EXTRA_KEYS = [
+    'ship_default', 'player_bullet', 'enemy_bullet',
+    'powerup_shield', 'powerup_triple_shot', 'powerup_repair',
+    'powerup_bomb', 'powerup_slow_time',
+  ];
+  const ALL_BEHAVIORS = ['tank','bullet','kamikaze','shooter','dodger'];
+
   async function preloadAssets() {
     if (!window.CampaignAssets) throw new Error('CampaignAssets não carregado');
-    await CampaignAssets.preloadForStage(1, ['tank','bullet'], [
-      'ship_default', 'player_bullet',
-    ]);
+    await CampaignAssets.preloadForStage(1, ALL_BEHAVIORS, EXTRA_KEYS);
   }
 
   // ----- start flow -----
@@ -270,10 +275,8 @@
       els.ovIdle.style.display = 'none';
       els.pauseBtn.style.display = 'block';
 
-      // Sprites do setor da fase
-      await CampaignAssets.preloadForStage(data.data.stage.sector || 1, ['tank','bullet'], [
-        'ship_default', 'player_bullet',
-      ]);
+      // Sprites do setor da fase (recarrega no caso de fase de outro setor)
+      await CampaignAssets.preloadForStage(data.data.stage.sector || 1, ALL_BEHAVIORS, EXTRA_KEYS);
 
       CampaignEngine.start({
         canvas: els.canvas,

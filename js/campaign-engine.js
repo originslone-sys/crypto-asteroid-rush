@@ -40,6 +40,8 @@
     parallaxNear: 1.4,
     comboKillsPerStep: 10,
     comboMax: 5,
+    powerupDropChance: 0.12,
+    powerupFallSpeed: 1.6,
   };
 
   // ----------------------------------------------------------------------
@@ -55,6 +57,20 @@
     dodger:   { hp: 2, damage: 20, w: 48, h: 48, baseSpeed: 1.8,
                 amplitude: 60, frequency: 0.05 },
   };
+
+  // ----------------------------------------------------------------------
+  // Catálogo de power-ups
+  // - 'shield' / 'repair' / 'bomb': aplicação instantânea
+  // - 'triple_shot' / 'slow_time': efeito com duração (ms)
+  // ----------------------------------------------------------------------
+  const POWERUPS = {
+    shield:      { spriteKey: 'powerup_shield',      timed: false, color: '#5cd5ff' },
+    repair:      { spriteKey: 'powerup_repair',      timed: false, color: '#ff5566', amount: 25 },
+    bomb:        { spriteKey: 'powerup_bomb',        timed: false, color: '#ff7e4a' },
+    triple_shot: { spriteKey: 'powerup_triple_shot', timed: true,  color: '#ffd166', durationMs: 10000 },
+    slow_time:   { spriteKey: 'powerup_slow_time',   timed: true,  color: '#a0aaff', durationMs: 5000, slowFactor: 0.5 },
+  };
+  const POWERUP_KEYS = Object.keys(POWERUPS);
 
   // ----------------------------------------------------------------------
   // Estado interno
@@ -80,10 +96,19 @@
   const enemyBullets = [];
   const enemies = [];
   const particles = [];
+  const powerups = [];           // [{ x, y, w, h, vy, type, sprite }]
   let enemiesDestroyed = 0;
   let maxCombo = 0;
   let combo = 0;
   let damageTaken = 0;
+  let endGuaranteedDropFired = false;
+
+  // Efeitos ativos no jogador
+  const effects = {
+    shield: false,                // bool — absorve próximo dano
+    tripleShotUntil: 0,           // timestamp ms (0 = inativo)
+    slowTimeUntil: 0,             // timestamp ms
+  };
 
   // Sistema de ondas
   let waveQueue = [];          // [{ duration_max, clear_at, queue: [{behavior, dueAt}] }]
@@ -327,28 +352,50 @@
     if (nowMs - player.lastShotMs < cfg.shootCooldownMs) return;
     player.lastShotMs = nowMs;
     const bw = 8, bh = 22;
-    playerBullets.push({
-      x: player.x + player.w / 2 - bw / 2,
-      y: player.y - bh,
-      w: bw, h: bh,
-      vy: -cfg.bulletSpeed,
-      damage: cfg.bulletDamage,
-      sprite: player.bulletSprite,
-    });
+    const cx = player.x + player.w / 2 - bw / 2;
+    const cy = player.y - bh;
+
+    if (isTripleShotActive(nowMs)) {
+      // Leque: -15°, 0°, +15° em relação ao topo
+      const speed = cfg.bulletSpeed;
+      const angles = [-Math.PI / 12, 0, Math.PI / 12];
+      for (const a of angles) {
+        playerBullets.push({
+          x: cx, y: cy, w: bw, h: bh,
+          vx: Math.sin(a) * speed,
+          vy: -Math.cos(a) * speed,
+          damage: cfg.bulletDamage,
+          sprite: player.bulletSprite,
+        });
+      }
+    } else {
+      playerBullets.push({
+        x: cx, y: cy, w: bw, h: bh,
+        vx: 0,
+        vy: -cfg.bulletSpeed,
+        damage: cfg.bulletDamage,
+        sprite: player.bulletSprite,
+      });
+    }
   }
 
   function updateBullets(dt) {
     for (let i = playerBullets.length - 1; i >= 0; i--) {
       const b = playerBullets[i];
+      if (b.vx) b.x += b.vx * dt;
       b.y += b.vy * dt;
-      if (b.y + b.h < 0) playerBullets.splice(i, 1);
+      if (b.y + b.h < 0 || b.x < -40 || b.x > canvas.width + 40) {
+        playerBullets.splice(i, 1);
+      }
     }
   }
 
   function updateEnemies(dt, nowMs) {
+    const slow = isSlowTimeActive(nowMs) ? POWERUPS.slow_time.slowFactor : 1;
+    const dtSlow = dt * slow;
     for (let i = enemies.length - 1; i >= 0; i--) {
       const en = enemies[i];
-      updateEnemyByBehavior(en, dt, nowMs);
+      updateEnemyByBehavior(en, dtSlow, nowMs);
       if (en.y > canvas.height + 30) {
         enemies.splice(i, 1);
         combo = 0;  // escapou da tela: penaliza combo
@@ -434,6 +481,99 @@
     }
   }
 
+  // ----------------------------------------------------------------------
+  // Power-ups: drop, queda, coleta e efeitos
+  // ----------------------------------------------------------------------
+  function maybeDropPowerup(x, y) {
+    if (Math.random() > cfg.powerupDropChance) return;
+    spawnPowerup(x, y, POWERUP_KEYS[Math.floor(Math.random() * POWERUP_KEYS.length)]);
+  }
+
+  function spawnPowerup(x, y, type) {
+    const def = POWERUPS[type];
+    if (!def) return;
+    const w = 36, h = 36;
+    powerups.push({
+      x: x - w / 2,
+      y: y - h / 2,
+      w, h,
+      vy: cfg.powerupFallSpeed,
+      type,
+      sprite: (global.CampaignAssets && global.CampaignAssets.tryGet(def.spriteKey)) || null,
+    });
+  }
+
+  function updatePowerups(dt) {
+    for (let i = powerups.length - 1; i >= 0; i--) {
+      const p = powerups[i];
+      p.y += p.vy * dt;
+      if (p.y > canvas.height + 40) powerups.splice(i, 1);
+    }
+  }
+
+  function handlePowerupPickup(nowMs) {
+    for (let i = powerups.length - 1; i >= 0; i--) {
+      const p = powerups[i];
+      if (!aabb(p, player)) continue;
+      applyPowerup(p.type, nowMs);
+      spawnExplosion(p.x + p.w / 2, p.y + p.h / 2, POWERUPS[p.type].color);
+      powerups.splice(i, 1);
+    }
+  }
+
+  function applyPowerup(type, nowMs) {
+    const def = POWERUPS[type];
+    if (!def) return;
+    switch (type) {
+      case 'shield':
+        effects.shield = true;
+        break;
+      case 'repair':
+        player.hp = Math.min(cfg.shipMaxHp, player.hp + (def.amount || 25));
+        break;
+      case 'bomb':
+        applyBomb();
+        break;
+      case 'triple_shot':
+        effects.tripleShotUntil = nowMs + def.durationMs;
+        break;
+      case 'slow_time':
+        effects.slowTimeUntil = nowMs + def.durationMs;
+        break;
+    }
+  }
+
+  function applyBomb() {
+    // Destrói todos os inimigos visíveis e remove projéteis inimigos
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const en = enemies[i];
+      spawnExplosion(en.x + en.w / 2, en.y + en.h / 2, '#ff7e4a');
+      enemiesDestroyed += 1;
+      combo += 1;
+      if (combo > maxCombo) maxCombo = combo;
+    }
+    enemies.length = 0;
+    enemyBullets.length = 0;
+  }
+
+  function isTripleShotActive(nowMs) { return nowMs < effects.tripleShotUntil; }
+  function isSlowTimeActive(nowMs)   { return nowMs < effects.slowTimeUntil; }
+
+  /**
+   * Quando o jogador acaba de limpar a última onda (sem boss), dropa
+   * um Repair garantido no centro-superior. Só dispara uma vez por
+   * sessão. Não faz nada em fases de boss (waves vazias / activeWave
+   * já foi consumido sem ondas).
+   */
+  function maybeFireEndOfStageDrop() {
+    if (endGuaranteedDropFired) return;
+    if (activeWave !== null) return;
+    if (enemies.length > 0 || enemyBullets.length > 0) return;
+    if (waveQueue.length === 0) return;  // se nunca houve onda, não dropa
+    endGuaranteedDropFired = true;
+    spawnPowerup(canvas.width / 2, 80, 'repair');
+  }
+
   function updateParticles(dt) {
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
@@ -475,7 +615,9 @@
         playerBullets.splice(j, 1);
         spawnExplosion(en.x + en.w / 2, en.y + en.h / 2, '#ffd166');
         if (en.hp <= 0) {
-          spawnExplosion(en.x + en.w / 2, en.y + en.h / 2, '#ff7e4a');
+          const cx = en.x + en.w / 2, cy = en.y + en.h / 2;
+          spawnExplosion(cx, cy, '#ff7e4a');
+          maybeDropPowerup(cx, cy);
           enemies.splice(i, 1);
           enemiesDestroyed += 1;
           combo += 1;
@@ -504,6 +646,12 @@
   }
 
   function applyDamage(amount) {
+    if (effects.shield) {
+      // Escudo absorve o dano integralmente, mas se consome
+      effects.shield = false;
+      spawnExplosion(player.x + player.w / 2, player.y + player.h / 2, '#5cd5ff');
+      return;
+    }
     player.hp = Math.max(0, player.hp - amount);
     damageTaken += amount;
     combo = 0;
@@ -571,6 +719,52 @@
       }
       ctx.restore();
     }
+  }
+
+  function drawPowerups(nowMs) {
+    for (const p of powerups) {
+      // Pulsa levemente
+      const pulse = 1 + Math.sin(nowMs * 0.006) * 0.05;
+      const w = p.w * pulse, h = p.h * pulse;
+      const x = p.x + p.w / 2 - w / 2;
+      const y = p.y + p.h / 2 - h / 2;
+
+      // Halo
+      const grad = ctx.createRadialGradient(p.x + p.w / 2, p.y + p.h / 2, 4, p.x + p.w / 2, p.y + p.h / 2, p.w * 0.9);
+      grad.addColorStop(0, POWERUPS[p.type].color + 'cc');
+      grad.addColorStop(1, POWERUPS[p.type].color + '00');
+      ctx.fillStyle = grad;
+      ctx.fillRect(p.x - 8, p.y - 8, p.w + 16, p.h + 16);
+
+      if (p.sprite && p.sprite.complete) {
+        ctx.drawImage(p.sprite, x, y, w, h);
+      } else {
+        ctx.fillStyle = POWERUPS[p.type].color;
+        ctx.fillRect(x, y, w, h);
+      }
+    }
+  }
+
+  function drawActiveEffectsHud(nowMs) {
+    const x0 = canvas.width - 16;
+    let y = 70;
+    const drawBadge = (label, color, secsLeft) => {
+      ctx.font = '600 11px ui-monospace,Menlo,monospace';
+      const text = secsLeft != null ? `${label} ${secsLeft.toFixed(1)}s` : label;
+      const w = ctx.measureText(text).width + 14;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(x0 - w, y, w, 18);
+      ctx.fillStyle = color;
+      ctx.fillRect(x0 - w, y, 3, 18);
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'right';
+      ctx.fillText(text, x0 - 6, y + 13);
+      ctx.textAlign = 'left';
+      y += 22;
+    };
+    if (effects.shield) drawBadge('SHIELD', POWERUPS.shield.color, null);
+    if (isTripleShotActive(nowMs)) drawBadge('3X', POWERUPS.triple_shot.color, (effects.tripleShotUntil - nowMs) / 1000);
+    if (isSlowTimeActive(nowMs))   drawBadge('SLOW', POWERUPS.slow_time.color, (effects.slowTimeUntil - nowMs) / 1000);
   }
 
   function drawParticles() {
@@ -646,8 +840,11 @@
     tickWaveSpawn(ts);
     updateEnemies(dt, ts);
     updateEnemyBullets(dt);
+    updatePowerups(dt);
     updateParticles(dt);
     handleCollisions();
+    handlePowerupPickup(ts);
+    maybeFireEndOfStageDrop();
 
     clear();
     drawTiledBackground(bgFar,  bgFarY);
@@ -655,15 +852,17 @@
     drawTiledBackground(bgNear, bgNearY);
     drawEnemies();
     drawBullets();
+    drawPowerups(ts);
     drawParticles();
     drawPlayer();
     drawHud(timeLeft);
+    drawActiveEffectsHud(ts);
 
     // Condições de fim
     if (player.hp <= 0) { endRun('loss'); return; }
 
     const allWavesDone = activeWave === null;  // advanceWave devolveu null
-    if (allWavesDone && enemies.length === 0 && enemyBullets.length === 0) {
+    if (allWavesDone && enemies.length === 0 && enemyBullets.length === 0 && powerups.length === 0) {
       endRun('win');
       return;
     }
@@ -692,12 +891,17 @@
     enemyBullets.length = 0;
     enemies.length = 0;
     particles.length = 0;
+    powerups.length = 0;
     enemiesDestroyed = 0;
     maxCombo = 0;
     combo = 0;
     damageTaken = 0;
     bgFarY = bgMidY = bgNearY = 0;
     endedFired = false;
+    endGuaranteedDropFired = false;
+    effects.shield = false;
+    effects.tripleShotUntil = 0;
+    effects.slowTimeUntil = 0;
 
     spawnPlayer();
     loadBackgrounds(stage.sector);
