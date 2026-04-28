@@ -73,6 +73,36 @@
   const POWERUP_KEYS = Object.keys(POWERUPS);
 
   // ----------------------------------------------------------------------
+  // Catálogo de bosses
+  // ----------------------------------------------------------------------
+  const BOSSES = {
+    asteroid_mother: {
+      spriteKey: 'boss_asteroid_mother',
+      hp: 500,
+      w: 160, h: 160,
+      enterY: 110,            // y final ao "encaixar" no topo
+      oscAmpBase: 110,        // amplitude lateral em px
+      oscFreqBase: 0.0009,    // velocidade da oscilação
+      contactDamage: 30,
+      // Fase 1 (HP 100-50%): 1-3 mini-rocks descendentes a cada 2.5s
+      phase1: { fireMs: 2500, projectiles: 1, projDamage: 15, projSpeed: 4 },
+      // Fase 2 (HP 50-25%): + 2 minions orbitantes
+      phase2: {
+        fireMs: 2200, projectiles: 2, projDamage: 15, projSpeed: 4.5,
+        minions: 2, minionHp: 5, minionDamage: 25, minionRadius: 90, minionSpeed: 0.06,
+      },
+      // Fase 3 (<25%): + charge attack a cada 8s
+      phase3: {
+        fireMs: 1800, projectiles: 3, projDamage: 15, projSpeed: 5,
+        chargeMs: 8000, chargeSpeed: 7,
+      },
+      drops: ['repair', 'bomb'],
+      brlExtra: 0,            // recompensa extra além de stage.brl_base — fica para o admin
+      xpExtra: 0,             // idem
+    },
+  };
+
+  // ----------------------------------------------------------------------
   // Estado interno
   // ----------------------------------------------------------------------
   let canvas, ctx;
@@ -117,6 +147,14 @@
   let waveStartMs = 0;
   let plannedTotal = 0;        // soma de inimigos previstos no stage
 
+  // Boss
+  let bossSpec = null;          // entrada do BOSSES selecionada
+  let boss = null;              // instância em cena: { x, y, w, h, hp, hpMax, sprite, ... }
+  let bossPhase = 0;            // 0 = ainda não apareceu, 1/2/3 conforme HP
+  let bossWarningUntil = 0;     // timestamp ms; antes disso, mostra "WARNING"
+  let bossEndedFired = false;
+  const bossMinions = [];       // mini-asteroides orbitantes da fase 2+
+
   // Parallax
   let bgFar = null, bgMid = null, bgNear = null;
   let bgFarY = 0, bgMidY = 0, bgNearY = 0;
@@ -158,6 +196,21 @@
   function loadWaves(stageData, totalEnemiesFallback) {
     waveQueue.length = 0;
     plannedTotal = 0;
+
+    // Boss config opcional em waves_json.boss = { boss_key, warning_ms }
+    bossSpec = null;
+    boss = null;
+    bossPhase = 0;
+    bossWarningUntil = 0;
+    bossEndedFired = false;
+    bossMinions.length = 0;
+    const bossCfg = stageData && stageData.waves_json && stageData.waves_json.boss;
+    if (bossCfg && bossCfg.boss_key && BOSSES[bossCfg.boss_key]) {
+      bossSpec = {
+        ...BOSSES[bossCfg.boss_key],
+        warning_ms: bossCfg.warning_ms || 4000,
+      };
+    }
 
     const waves = stageData && stageData.waves_json && stageData.waves_json.waves;
     if (Array.isArray(waves) && waves.length) {
@@ -559,6 +612,147 @@
   function isTripleShotActive(nowMs) { return nowMs < effects.tripleShotUntil; }
   function isSlowTimeActive(nowMs)   { return nowMs < effects.slowTimeUntil; }
 
+  // ----------------------------------------------------------------------
+  // BOSS — spawn, update, render
+  // ----------------------------------------------------------------------
+  function maybeStartBoss(nowMs) {
+    if (!bossSpec) return;
+    if (boss || bossWarningUntil > 0) return;        // já iniciado
+    if (activeWave !== null) return;                  // ainda há ondas
+    if (enemies.length > 0 || enemyBullets.length > 0) return; // tela suja
+    bossWarningUntil = nowMs + bossSpec.warning_ms;
+  }
+
+  function trySpawnBoss(nowMs) {
+    if (!bossSpec || boss) return;
+    if (bossWarningUntil === 0 || nowMs < bossWarningUntil) return;
+    boss = {
+      x: canvas.width / 2 - bossSpec.w / 2,
+      y: -bossSpec.h - 20,
+      w: bossSpec.w, h: bossSpec.h,
+      hp: bossSpec.hp,
+      hpMax: bossSpec.hp,
+      sprite: (global.CampaignAssets && global.CampaignAssets.tryGet(bossSpec.spriteKey)) || null,
+      enteringTopAt: bossSpec.enterY,
+      birthMs: nowMs,
+      lastFireMs: 0,
+      lastChargeMs: 0,
+      charging: false,
+      chargeAtY: null,
+      chargeReturning: false,
+      anchorX: canvas.width / 2 - bossSpec.w / 2,
+    };
+    bossPhase = 1;
+  }
+
+  function currentBossPhase() {
+    if (!boss || !bossSpec) return 0;
+    const pct = boss.hp / boss.hpMax;
+    if (pct <= 0.25) return 3;
+    if (pct <= 0.50) return 2;
+    return 1;
+  }
+
+  function updateBoss(dt, nowMs) {
+    if (!boss) return;
+    const slow = isSlowTimeActive(nowMs) ? POWERUPS.slow_time.slowFactor : 1;
+    const dts = dt * slow;
+
+    // Entrada (desce do topo até enterY)
+    if (boss.y < boss.enteringTopAt) {
+      boss.y = Math.min(boss.enteringTopAt, boss.y + 1.6 * dt);
+      return;
+    }
+
+    bossPhase = currentBossPhase();
+
+    // Charge attack (fase 3)
+    if (bossPhase >= 3 && !boss.charging && (nowMs - boss.lastChargeMs) > bossSpec.phase3.chargeMs && boss.lastChargeMs >= 0) {
+      boss.charging = true;
+      boss.chargeAtY = canvas.height - 200;  // alvo
+      boss.chargeReturning = false;
+      boss.lastChargeMs = nowMs;
+    }
+    if (boss.charging) {
+      const speed = bossSpec.phase3.chargeSpeed;
+      if (!boss.chargeReturning) {
+        boss.y += speed * dt;
+        if (boss.y >= boss.chargeAtY) boss.chargeReturning = true;
+      } else {
+        boss.y -= speed * 0.7 * dt;
+        if (boss.y <= boss.enteringTopAt) {
+          boss.y = boss.enteringTopAt;
+          boss.charging = false;
+        }
+      }
+      // Mantém oscilação suave em x mesmo no charge
+    }
+
+    // Oscilação lateral (varia com a fase)
+    const phase = bossPhase || 1;
+    const amp = bossSpec.oscAmpBase * (phase === 1 ? 0.85 : phase === 2 ? 1.0 : 1.2);
+    const freq = bossSpec.oscFreqBase * (phase === 1 ? 1 : phase === 2 ? 1.4 : 1.8);
+    const t = (nowMs - boss.birthMs) * freq * slow;
+    boss.x = Math.max(8, Math.min(canvas.width - boss.w - 8,
+      (canvas.width / 2 - boss.w / 2) + Math.sin(t) * amp));
+  }
+
+  function drawBoss() {
+    if (!boss) return;
+    if (boss.sprite && boss.sprite.complete) {
+      ctx.drawImage(boss.sprite, boss.x, boss.y, boss.w, boss.h);
+    } else {
+      ctx.fillStyle = '#ff7e4a';
+      ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
+    }
+  }
+
+  function bossTakeDamage(amount) {
+    if (!boss) return;
+    boss.hp = Math.max(0, boss.hp - amount);
+    spawnExplosion(boss.x + boss.w / 2 + (Math.random() - 0.5) * boss.w * 0.4,
+                   boss.y + boss.h / 2 + (Math.random() - 0.5) * boss.h * 0.4,
+                   bossPhase >= 3 ? '#ff3322' : '#ffaa3c');
+    if (boss.hp <= 0) bossDefeated();
+  }
+
+  function bossDefeated() {
+    if (!boss || bossEndedFired) return;
+    bossEndedFired = true;
+    // Explosão grande
+    for (let i = 0; i < 30; i++) {
+      spawnExplosion(boss.x + boss.w / 2 + (Math.random() - 0.5) * boss.w,
+                     boss.y + boss.h / 2 + (Math.random() - 0.5) * boss.h,
+                     ['#ffd166','#ff7e4a','#ff3322'][Math.floor(Math.random() * 3)]);
+    }
+    // Drops garantidos
+    if (bossSpec && bossSpec.drops) {
+      bossSpec.drops.forEach((type, i) => {
+        spawnPowerup(boss.x + boss.w / 2 + (i - bossSpec.drops.length / 2) * 60, boss.y + boss.h / 2, type);
+      });
+    }
+    boss = null;
+    bossMinions.length = 0;
+    enemyBullets.length = 0;
+  }
+
+  function handleBossCollisions() {
+    if (!boss) return;
+    // Player bullets vs boss
+    for (let j = playerBullets.length - 1; j >= 0; j--) {
+      const b = playerBullets[j];
+      if (!aabb(b, boss)) continue;
+      bossTakeDamage(b.damage);
+      playerBullets.splice(j, 1);
+    }
+    // Boss vs player (colisão direta; só durante charge realmente alcança)
+    if (aabb(boss, player)) {
+      applyDamage(bossSpec.contactDamage);
+      // Empurra o jogador para baixo pra evitar dano contínuo
+      player.y = Math.min(canvas.height - player.h, player.y + 20);
+    }
+  }
+
   /**
    * Quando o jogador acaba de limpar a última onda (sem boss), dropa
    * um Repair garantido no centro-superior. Só dispara uma vez por
@@ -845,12 +1039,18 @@
     handleCollisions();
     handlePowerupPickup(ts);
     maybeFireEndOfStageDrop();
+    // Boss
+    maybeStartBoss(ts);
+    trySpawnBoss(ts);
+    updateBoss(dt, ts);
+    handleBossCollisions();
 
     clear();
     drawTiledBackground(bgFar,  bgFarY);
     drawTiledBackground(bgMid,  bgMidY);
     drawTiledBackground(bgNear, bgNearY);
     drawEnemies();
+    drawBoss();
     drawBullets();
     drawPowerups(ts);
     drawParticles();
@@ -862,7 +1062,13 @@
     if (player.hp <= 0) { endRun('loss'); return; }
 
     const allWavesDone = activeWave === null;  // advanceWave devolveu null
-    if (allWavesDone && enemies.length === 0 && enemyBullets.length === 0 && powerups.length === 0) {
+    const bossPending  = !!bossSpec && !bossEndedFired;
+    if (allWavesDone && !bossPending &&
+        enemies.length === 0 && enemyBullets.length === 0 && powerups.length === 0) {
+      endRun('win');
+      return;
+    }
+    if (bossEndedFired && enemies.length === 0 && enemyBullets.length === 0 && powerups.length === 0) {
       endRun('win');
       return;
     }
