@@ -203,7 +203,10 @@ try {
         $xpAwarded  = min($xpFull, $xpMax);
         $brlAwarded = min($brlFull, $brlMax);
 
-        // Política de re-jogada: paga só a diferença entre estrelas
+        // Política de re-jogada: paga só a diferença entre estrelas (BRL).
+        // XP segue regra própria: treino é repetível à plena (spec sec 2),
+        // outras fases dão 30% em re-jogadas para permitir progressão de
+        // nível sem trivializar.
         if ($replayPolicy === 'diff') {
             $sgStmt->execute([$googleUid, $session['stage_id']]);
             $prev = $sgStmt->fetch();
@@ -215,8 +218,12 @@ try {
                 };
                 $diff = max(0.0, $brlAwarded - round((float)$stage['brl_base'] * $prevMult, 2));
                 $brlAwarded = round($diff, 2);
-                // XP da fase também só na primeira vitória
-                if ((int)$prev['wins'] > 0) $xpAwarded = 0;
+            }
+            if ($prev && (int)$prev['wins'] > 0) {
+                // Treino mantém XP integral (farm controlado); demais 30%.
+                if ($session['stage_id'] !== 'training') {
+                    $xpAwarded = (int)round($xpAwarded * 0.3);
+                }
             }
         }
     }
