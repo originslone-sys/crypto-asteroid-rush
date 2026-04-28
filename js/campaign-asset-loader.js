@@ -32,10 +32,16 @@
     ship_phantom_purple: `${BASE}/ships/ship-phantom-purple.png`,
     ship_golden_wing:    `${BASE}/ships/ship-golden-wing.png`,
 
-    // ----- Setor 1 - Tank (asteroides Kenney pro) -----
-    s1_tank_asteroid_rocky:   `${BASE}/asteroids/asteroid-brown-1.png`,
-    s1_tank_asteroid_ice:     `${BASE}/asteroids/asteroid-grey-1.png`,
-    s1_tank_asteroid_crystal: `${BASE}/asteroids/asteroid-grey-2.png`,
+    // ----- Setor 1 - Tank (asteroides marrom + cinza, vários tamanhos) -----
+    s1_tank_asteroid_brown_1:  `${BASE}/asteroids/asteroid-brown-big-1.png`,
+    s1_tank_asteroid_brown_2:  `${BASE}/asteroids/asteroid-brown-big-2.png`,
+    s1_tank_asteroid_brown_3:  `${BASE}/asteroids/asteroid-brown-big-3.png`,
+    s1_tank_asteroid_brown_4:  `${BASE}/asteroids/asteroid-brown-big-4.png`,
+    s1_tank_asteroid_brown_m:  `${BASE}/asteroids/asteroid-brown-med-1.png`,
+    s1_tank_asteroid_grey_1:   `${BASE}/asteroids/asteroid-grey-big-1.png`,
+    s1_tank_asteroid_grey_2:   `${BASE}/asteroids/asteroid-grey-big-2.png`,
+    s1_tank_asteroid_grey_3:   `${BASE}/asteroids/asteroid-grey-big-3.png`,
+    s1_tank_asteroid_grey_4:   `${BASE}/asteroids/asteroid-grey-big-4.png`,
 
     // ----- Setor 1 - Bullet -----
     s1_bullet_drone_explorer: `${BASE}/enemies/sector1/bullet-drone-explorer.png`,
@@ -102,7 +108,13 @@
   // Mapas auxiliares para spawn aleatório por setor + behavior
   const BEHAVIOR_INDEX = {
     1: {
-      tank:     ['s1_tank_asteroid_rocky', 's1_tank_asteroid_ice', 's1_tank_asteroid_crystal'],
+      tank:     [
+        's1_tank_asteroid_brown_1','s1_tank_asteroid_brown_2',
+        's1_tank_asteroid_brown_3','s1_tank_asteroid_brown_4',
+        's1_tank_asteroid_brown_m',
+        's1_tank_asteroid_grey_1','s1_tank_asteroid_grey_2',
+        's1_tank_asteroid_grey_3','s1_tank_asteroid_grey_4',
+      ],
       bullet:   ['s1_bullet_drone_explorer', 's1_bullet_micro_rock', 's1_bullet_crystal_shard'],
       kamikaze: ['s1_kamikaze_drone', 's1_kamikaze_volatile_fragment'],
       shooter:  ['s1_shooter_drone_laser', 's1_shooter_floating_turret'],
