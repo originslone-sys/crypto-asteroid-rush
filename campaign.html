@@ -594,6 +594,26 @@
       sec.appendChild(banner);
     }
 
+    // Botão "Acelerar setor" (só para setores 1 e 2 desbloqueados,
+    // se ainda houver fases sem 1⭐)
+    const sectorNum = stages[0] && stages[0].sector;
+    if (!locked && (sectorNum === 1 || sectorNum === 2) && cfg && prog) {
+      const allHaveStar = stages.every(s => {
+        const sp = findStageProgress(s.stage_id);
+        return sp && sp.stars >= 1;
+      });
+      if (!allHaveStar) {
+        const cost = (cfg.settings || {})['campaign.monetization.accelerate_s' + sectorNum]
+                     ?? (sectorNum === 1 ? 20 : 30);
+        const promo = document.createElement('button');
+        promo.type = 'button';
+        promo.style.cssText = 'display:block;margin:0 28px 12px;padding:8px 12px;background:linear-gradient(135deg,#1c4cff,#5b1a8a);color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer;width:calc(100% - 56px)';
+        promo.textContent = '⚡ Acelerar setor (' + cost + '💎) — desbloqueia tudo com 1⭐';
+        promo.addEventListener('click', () => attemptAccelerateSector(sectorNum, cost));
+        sec.appendChild(promo);
+      }
+    }
+
     const path = document.createElement('div');
     path.className = 'path';
     stages.forEach((stage, idx) => {
@@ -602,6 +622,23 @@
     sec.appendChild(path);
 
     return sec;
+  }
+
+  async function attemptAccelerateSector(sector, cost) {
+    if (!confirm('Acelerar Setor ' + sector + ' por ' + cost + '💎?\n\nVocê ganhará 1⭐ em todas as fases ainda não vencidas.\nNão paga BRL — apenas desbloqueia. Você pode re-jogar para 2⭐/3⭐.')) return;
+    try {
+      const fd = new FormData();
+      fd.set('google_uid', uid());
+      fd.set('sector', String(sector));
+      const r = await fetch('/api/campaign-accelerate-sector.php', { method: 'POST', body: fd });
+      const data = await r.json();
+      if (!data.success) { alert(data.error || 'Falha'); return; }
+      if (user) user.credits = data.data.remaining_credits;
+      await loadProgress();
+      renderHeader();
+      renderMap();
+      alert('Setor desbloqueado! +' + data.data.stars_added + '⭐');
+    } catch (e) { alert('Erro: ' + e.message); }
   }
 
   function renderNode(stage, idx, sectorLocked) {
