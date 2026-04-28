@@ -1223,6 +1223,21 @@ try {
         output("  [OK] Configurações padrão da campanha inseridas/ignoradas");
     } catch (Exception $e) { /* tabela pode não existir */ }
 
+    // Promove a public alguns settings que o cliente precisa ler
+    // (custos visíveis no modal de compra de vida no mapa).
+    try {
+        $publicKeys = [
+            'campaign.lives.cost_single',
+            'campaign.lives.cost_pack5',
+            'campaign.lives.cost_refill',
+            'campaign.cost.continue_after_death',
+        ];
+        $stmt = $pdo->prepare("UPDATE campaign_settings SET is_public = 1 WHERE setting_key = ?");
+        foreach ($publicKeys as $k) $stmt->execute([$k]);
+        $results['migrations'][] = 'campaign_settings:public_costs';
+        output("  [OK] Custos de vida/continue marcados como públicos");
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
     // Curva de XP por nível (1-30) — defaults
     try {
         $xpCurve = [

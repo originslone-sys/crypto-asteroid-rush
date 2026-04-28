@@ -315,6 +315,9 @@
       <div class="hud-row2">
         <span class="lives" id="hud-lives">—</span>
         <span class="lives-meta" id="hud-lives-timer"></span>
+        <button id="hud-buy-life" type="button" title="Comprar vidas"
+                style="background:rgba(0,0,0,0.45);border:1px solid var(--border);color:var(--err);
+                       border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer">+</button>
         <span class="credits" id="hud-credits">💎 0</span>
       </div>
     </header>
@@ -359,6 +362,33 @@
         <p class="modal-sub">Faça login para acessar o mapa de fases.</p>
         <div class="btn-row">
           <button class="btn primary" id="btn-login">Login com Google</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buy lives overlay -->
+    <div class="overlay" id="ov-buy-life">
+      <div class="card">
+        <h3>❤ Comprar vidas</h3>
+        <p class="modal-sub" id="bl-status">—</p>
+        <div id="bl-err" style="color:#ff6b6b;font-size:11px;margin-bottom:6px"></div>
+        <div style="display:grid;grid-template-columns:1fr;gap:8px;text-align:left">
+          <button class="btn" data-pkg="single">
+            <strong>+1 vida</strong> <span style="float:right;color:#ffd166" id="bl-cost-single">— 💎</span>
+          </button>
+          <button class="btn" data-pkg="pack5">
+            <strong>+5 vidas</strong>
+            <span style="display:block;font-size:10px;color:#8a93c8">desconto</span>
+            <span style="float:right;color:#ffd166;margin-top:-30px" id="bl-cost-pack5">— 💎</span>
+          </button>
+          <button class="btn" data-pkg="refill">
+            <strong>Refill total</strong>
+            <span style="display:block;font-size:10px;color:#8a93c8">enche até o máximo</span>
+            <span style="float:right;color:#ffd166;margin-top:-30px" id="bl-cost-refill">— 💎</span>
+          </button>
+        </div>
+        <div class="btn-row" style="margin-top:14px">
+          <button class="btn" id="bl-close">Fechar</button>
         </div>
       </div>
     </div>
@@ -677,6 +707,69 @@
   $('ov-close').addEventListener('click', closeStageModal);
   $('ov-stage').addEventListener('click', (e) => {
     if (e.target.id === 'ov-stage') closeStageModal();
+  });
+
+  // ----------------------------------------------------------------------
+  // Buy lives modal
+  // ----------------------------------------------------------------------
+  function openBuyLifeModal() {
+    if (!cfg) return;
+    const settings = cfg.settings || {};
+    // Custos vêm de campaign_settings (defaults se ausentes)
+    const costSingle = settings['campaign.lives.cost_single']  ?? 1;
+    const costPack5  = settings['campaign.lives.cost_pack5']   ?? 4;
+    const costRefill = settings['campaign.lives.cost_refill']  ?? 3;
+    document.getElementById('bl-cost-single').textContent = costSingle + ' 💎';
+    document.getElementById('bl-cost-pack5').textContent  = costPack5  + ' 💎';
+    document.getElementById('bl-cost-refill').textContent = costRefill + ' 💎';
+    const lives = (prog && prog.lives) || {};
+    document.getElementById('bl-status').textContent =
+      'Vidas atuais: ' + (lives.current ?? '?') + ' / ' + (lives.max ?? '?');
+    document.getElementById('bl-err').textContent = '';
+    document.getElementById('ov-buy-life').classList.add('show');
+  }
+  function closeBuyLifeModal() {
+    document.getElementById('ov-buy-life').classList.remove('show');
+  }
+  async function buyLife(pkg) {
+    const u = uid();
+    if (!u) return;
+    const errEl = document.getElementById('bl-err');
+    errEl.textContent = '';
+    try {
+      const fd = new FormData();
+      fd.set('google_uid', u);
+      fd.set('package', pkg);
+      const r = await fetch('/api/campaign-buy-life.php', { method: 'POST', body: fd });
+      const data = await r.json();
+      if (!data.success) {
+        errEl.textContent = data.error || 'Falha';
+        return;
+      }
+      // Atualiza local cache de progresso e créditos
+      if (prog && prog.lives) {
+        prog.lives.current      = data.data.lives.current;
+        prog.lives.max          = data.data.lives.max;
+        prog.lives.next_life_at = data.data.lives.next_life_at;
+        if (prog.progress) prog.progress.current_lives = data.data.lives.current;
+      }
+      if (user) user.credits = data.data.remaining_credits;
+      else user = { credits: data.data.remaining_credits };
+      renderHeader();
+      // Recarrega progress full para sincronizar 100% com o servidor
+      loadProgress().then(() => { renderHeader(); renderMap(); }).catch(() => {});
+      closeBuyLifeModal();
+    } catch (e) {
+      errEl.textContent = 'Erro de rede: ' + e.message;
+    }
+  }
+  document.getElementById('hud-buy-life').addEventListener('click', openBuyLifeModal);
+  document.getElementById('bl-close').addEventListener('click', closeBuyLifeModal);
+  document.getElementById('ov-buy-life').addEventListener('click', (e) => {
+    if (e.target.id === 'ov-buy-life') closeBuyLifeModal();
+  });
+  document.querySelectorAll('#ov-buy-life [data-pkg]').forEach(btn => {
+    btn.addEventListener('click', () => buyLife(btn.getAttribute('data-pkg')));
   });
 
   // ----------------------------------------------------------------------
