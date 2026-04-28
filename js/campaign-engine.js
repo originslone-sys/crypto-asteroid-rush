@@ -695,6 +695,122 @@
     const t = (nowMs - boss.birthMs) * freq * slow;
     boss.x = Math.max(8, Math.min(canvas.width - boss.w - 8,
       (canvas.width / 2 - boss.w / 2) + Math.sin(t) * amp));
+
+    // Disparos por fase
+    bossFire(nowMs, phase);
+
+    // Minions na fase 2+
+    if (phase >= 2 && bossMinions.length === 0) {
+      spawnBossMinions();
+    }
+    updateBossMinions(dts, nowMs);
+  }
+
+  function bossFire(nowMs, phase) {
+    const cfgPhase = phase >= 3 ? bossSpec.phase3 : phase >= 2 ? bossSpec.phase2 : bossSpec.phase1;
+    if (nowMs - boss.lastFireMs < cfgPhase.fireMs) return;
+    boss.lastFireMs = nowMs;
+
+    const projN = cfgPhase.projectiles;
+    const projSpeed = cfgPhase.projSpeed;
+    const projDmg = cfgPhase.projDamage;
+    const fromX = boss.x + boss.w / 2;
+    const fromY = boss.y + boss.h - 8;
+
+    // Fan: simétrico em torno do alvo (player)
+    const tx = player.x + player.w / 2;
+    const ty = player.y + player.h / 2;
+    const baseAng = Math.atan2(ty - fromY, tx - fromX);
+
+    for (let i = 0; i < projN; i++) {
+      const offset = projN === 1 ? 0 : (i - (projN - 1) / 2) * 0.18;  // ~10° entre tiros
+      const ang = baseAng + offset;
+      const sprite = pickSpriteForBehavior(stage.sector || 1, 'tank');  // mini-rocha do setor
+      enemyBullets.push({
+        x: fromX - 12, y: fromY,
+        w: 22, h: 22,
+        vx: Math.cos(ang) * projSpeed,
+        vy: Math.sin(ang) * projSpeed,
+        damage: projDmg,
+        sprite: sprite || ((global.CampaignAssets && global.CampaignAssets.tryGet('enemy_bullet')) || null),
+      });
+    }
+
+    // Pequeno flash de telegrafia
+    spawnExplosion(fromX, fromY, '#ffd166');
+  }
+
+  function spawnBossMinions() {
+    const cfg2 = bossSpec.phase2;
+    if (!cfg2 || !cfg2.minions) return;
+    for (let i = 0; i < cfg2.minions; i++) {
+      const sprite = pickSpriteForBehavior(stage.sector || 1, 'bullet');
+      bossMinions.push({
+        angle: (i / cfg2.minions) * Math.PI * 2,
+        radius: cfg2.minionRadius,
+        speed: cfg2.minionSpeed,
+        w: 36, h: 36,
+        x: 0, y: 0,         // setado em update
+        hp: cfg2.minionHp,
+        damage: cfg2.minionDamage,
+        sprite,
+      });
+    }
+  }
+
+  function updateBossMinions(dt, nowMs) {
+    if (!boss) return;
+    for (let i = bossMinions.length - 1; i >= 0; i--) {
+      const m = bossMinions[i];
+      m.angle += m.speed * dt;
+      const cx = boss.x + boss.w / 2;
+      const cy = boss.y + boss.h / 2;
+      m.x = cx + Math.cos(m.angle) * m.radius - m.w / 2;
+      m.y = cy + Math.sin(m.angle) * m.radius - m.h / 2;
+    }
+  }
+
+  function drawBossMinions() {
+    for (const m of bossMinions) {
+      if (m.sprite && m.sprite.complete) {
+        ctx.drawImage(m.sprite, m.x, m.y, m.w, m.h);
+      } else {
+        ctx.fillStyle = '#ff7e4a';
+        ctx.fillRect(m.x, m.y, m.w, m.h);
+      }
+    }
+  }
+
+  function handleBossMinionCollisions() {
+    if (!boss) return;
+    // Player bullets vs minions
+    for (let j = playerBullets.length - 1; j >= 0; j--) {
+      const b = playerBullets[j];
+      for (let i = bossMinions.length - 1; i >= 0; i--) {
+        const m = bossMinions[i];
+        if (!aabb(b, m)) continue;
+        m.hp -= b.damage;
+        playerBullets.splice(j, 1);
+        spawnExplosion(m.x + m.w / 2, m.y + m.h / 2, '#ffaa3c');
+        if (m.hp <= 0) {
+          spawnExplosion(m.x + m.w / 2, m.y + m.h / 2, '#ff7e4a');
+          bossMinions.splice(i, 1);
+          enemiesDestroyed += 1;
+          combo += 1;
+          if (combo > maxCombo) maxCombo = combo;
+          maybeDropPowerup(m.x + m.w / 2, m.y + m.h / 2);
+        }
+        break;
+      }
+    }
+    // Minions vs player
+    for (let i = bossMinions.length - 1; i >= 0; i--) {
+      const m = bossMinions[i];
+      if (!aabb(m, player)) continue;
+      applyDamage(m.damage);
+      bossMinions.splice(i, 1);
+      if (player.hp <= 0) { endRun('loss'); return; }
+    }
   }
 
   function drawBoss() {
@@ -939,6 +1055,56 @@
     }
   }
 
+  function drawBossHud(nowMs) {
+    if (!boss) return;
+    const padX = 16, y = 16, barW = canvas.width - padX * 2, barH = 14;
+    // Fundo
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(padX, y, barW, barH);
+    // Preenchimento por fase
+    const pct = Math.max(0, boss.hp / boss.hpMax);
+    const phase = currentBossPhase();
+    const color = phase >= 3 ? '#ff3322' : phase >= 2 ? '#ff8c20' : '#ffd166';
+    ctx.fillStyle = color;
+    ctx.fillRect(padX, y, barW * pct, barH);
+    // Marcadores das fases (50% e 25%)
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padX + barW * 0.5, y); ctx.lineTo(padX + barW * 0.5, y + barH);
+    ctx.moveTo(padX + barW * 0.25, y); ctx.lineTo(padX + barW * 0.25, y + barH);
+    ctx.stroke();
+    // Borda
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.strokeRect(padX, y, barW, barH);
+    // Texto
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 12px ui-monospace,Menlo,monospace';
+    ctx.textBaseline = 'top';
+    ctx.fillText('BOSS — fase ' + (phase || 1), padX, y + barH + 4);
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.ceil(boss.hp) + ' / ' + boss.hpMax, padX + barW, y + barH + 4);
+    ctx.textAlign = 'left';
+  }
+
+  function drawBossWarning(nowMs) {
+    if (!bossSpec || boss) return;
+    if (bossWarningUntil === 0 || nowMs >= bossWarningUntil) return;
+    // Pulse
+    const pulse = 0.5 + 0.5 * Math.sin(nowMs * 0.012);
+    ctx.fillStyle = 'rgba(255,40,40,' + (0.18 + pulse * 0.08) + ')';
+    ctx.fillRect(0, canvas.height / 2 - 60, canvas.width, 120);
+    ctx.fillStyle = '#ff4040';
+    ctx.font = '900 32px ui-monospace,Menlo,monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚠ WARNING ⚠', canvas.width / 2, canvas.height / 2 - 6);
+    ctx.fillStyle = '#fff';
+    ctx.font = '600 14px ui-monospace,Menlo,monospace';
+    ctx.fillText('BOSS APPROACHING', canvas.width / 2, canvas.height / 2 + 22);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+  }
+
   function drawActiveEffectsHud(nowMs) {
     const x0 = canvas.width - 16;
     let y = 70;
@@ -1044,6 +1210,7 @@
     trySpawnBoss(ts);
     updateBoss(dt, ts);
     handleBossCollisions();
+    handleBossMinionCollisions();
 
     clear();
     drawTiledBackground(bgFar,  bgFarY);
@@ -1051,12 +1218,15 @@
     drawTiledBackground(bgNear, bgNearY);
     drawEnemies();
     drawBoss();
+    drawBossMinions();
     drawBullets();
     drawPowerups(ts);
     drawParticles();
     drawPlayer();
     drawHud(timeLeft);
     drawActiveEffectsHud(ts);
+    drawBossHud(ts);
+    drawBossWarning(ts);
 
     // Condições de fim
     if (player.hp <= 0) { endRun('loss'); return; }
