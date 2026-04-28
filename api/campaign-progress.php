@@ -46,7 +46,7 @@ try {
     }
 
     // Confirma que o usuário existe na base
-    $userStmt = $pdo->prepare("SELECT id, google_uid FROM users WHERE google_uid = ? LIMIT 1");
+    $userStmt = $pdo->prepare("SELECT id, google_uid, credits, balance_brl FROM users WHERE google_uid = ? LIMIT 1");
     $userStmt->execute([$googleUid]);
     $user = $userStmt->fetch();
     if (!$user) {
@@ -162,6 +162,10 @@ try {
                 'total_stars'      => (int)$progress['total_stars'],
                 'equipped_skin_id' => $progress['equipped_skin_id'] !== null ? (int)$progress['equipped_skin_id'] : null,
                 'pending_booster'  => $progress['pending_booster'] ?? null,
+            ],
+            'user' => [
+                'credits'     => (int)$user['credits'],
+                'balance_brl' => (float)$user['balance_brl'],
             ],
             'stages' => $stages,
             'skins_owned' => $skins,
