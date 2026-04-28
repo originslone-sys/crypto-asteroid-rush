@@ -89,6 +89,171 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = "Fase {$stageId} salva.";
                 break;
 
+            case 'update_boss':
+                $bossId   = (int)($_POST['boss_id'] ?? 0);
+                $name     = trim($_POST['name'] ?? '');
+                $sector   = max(1, (int)($_POST['sector'] ?? 1));
+                $hpTotal  = max(1, (int)($_POST['hp_total'] ?? 100));
+                $scale    = max(0.1, (float)($_POST['scale'] ?? 1.0));
+                $speed    = max(0.0, (float)($_POST['speed'] ?? 1.0));
+                $contact  = max(0, (int)($_POST['contact_damage'] ?? 0));
+                $brlExtra = max(0.0, (float)($_POST['extra_brl'] ?? 0));
+                $xpExtra  = max(0, (int)($_POST['extra_xp'] ?? 0));
+                $skinChance = max(0.0, min(100.0, (float)($_POST['skin_drop_chance'] ?? 0)));
+                $skinId   = empty($_POST['skin_drop_id']) ? null : (int)$_POST['skin_drop_id'];
+                $berserk  = isset($_POST['berserk_enabled']) ? 1 : 0;
+                $hpPersist= isset($_POST['hp_persists_on_continue']) ? 1 : 0;
+                $enabled  = isset($_POST['is_enabled']) ? 1 : 0;
+                $patterns = trim($_POST['attack_patterns_json'] ?? '');
+                $thresholds = trim($_POST['phase_thresholds_json'] ?? '');
+                $drops    = trim($_POST['guaranteed_drops_json'] ?? '');
+
+                $patternsValue = $patterns === '' ? null : json_encode(json_decode($patterns, true), JSON_UNESCAPED_UNICODE);
+                if ($patterns !== '' && $patternsValue === false) throw new Exception('attack_patterns_json inválido');
+                $thresholdsValue = $thresholds === '' ? null : json_encode(json_decode($thresholds, true));
+                if ($thresholds !== '' && $thresholdsValue === false) throw new Exception('phase_thresholds_json inválido');
+                $dropsValue = $drops === '' ? null : json_encode(json_decode($drops, true));
+                if ($drops !== '' && $dropsValue === false) throw new Exception('guaranteed_drops_json inválido');
+
+                if ($bossId > 0) {
+                    $pdo->prepare("
+                        UPDATE campaign_bosses
+                        SET name = ?, sector = ?, hp_total = ?, scale = ?, speed = ?,
+                            attack_patterns_json = ?, phase_thresholds_json = ?,
+                            extra_brl = ?, extra_xp = ?, guaranteed_drops_json = ?,
+                            skin_drop_chance = ?, skin_drop_id = ?,
+                            berserk_enabled = ?, hp_persists_on_continue = ?,
+                            is_enabled = ?
+                        WHERE id = ?
+                    ")->execute([
+                        $name, $sector, $hpTotal, $scale, $speed,
+                        $patternsValue, $thresholdsValue,
+                        $brlExtra, $xpExtra, $dropsValue,
+                        $skinChance, $skinId,
+                        $berserk, $hpPersist, $enabled, $bossId,
+                    ]);
+                } else {
+                    $sprite = trim($_POST['sprite_key'] ?? '');
+                    if ($sprite === '') throw new Exception('sprite_key obrigatório');
+                    $pdo->prepare("
+                        INSERT INTO campaign_bosses
+                            (name, sector, sprite_key, hp_total, scale, speed,
+                             attack_patterns_json, phase_thresholds_json,
+                             extra_brl, extra_xp, guaranteed_drops_json,
+                             skin_drop_chance, skin_drop_id,
+                             berserk_enabled, hp_persists_on_continue, is_enabled, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                    ")->execute([
+                        $name, $sector, $sprite, $hpTotal, $scale, $speed,
+                        $patternsValue, $thresholdsValue,
+                        $brlExtra, $xpExtra, $dropsValue,
+                        $skinChance, $skinId,
+                        $berserk, $hpPersist, $enabled,
+                    ]);
+                }
+                $message = "Boss salvo.";
+                break;
+
+            case 'update_xp_table':
+                $rows = $_POST['xp'] ?? [];
+                if (!is_array($rows)) throw new Exception('payload inválido');
+                $upd = $pdo->prepare("UPDATE campaign_xp_table SET xp_required = ? WHERE level = ?");
+                $count = 0;
+                foreach ($rows as $level => $xp) {
+                    $level = (int)$level;
+                    $xp = max(0, (int)$xp);
+                    if ($level <= 0) continue;
+                    $upd->execute([$xp, $level]);
+                    if ($upd->rowCount() > 0) $count++;
+                }
+                $message = "Curva de XP atualizada ($count níveis).";
+                break;
+
+            case 'update_settings':
+                // settings[<key>] = valor; bool é checkbox que envia 'true' ou ausente.
+                // Aplica conforme value_type já existente (não muda tipo).
+                $incoming = $_POST['settings'] ?? [];
+                $boolKeys = $_POST['bool_keys'] ?? [];
+                if (!is_array($incoming)) $incoming = [];
+
+                // Para bools, marca como 'false' qualquer chave declarada que não veio
+                foreach ($boolKeys as $bk) {
+                    if (!isset($incoming[$bk])) $incoming[$bk] = 'false';
+                    elseif ($incoming[$bk] === 'true' || $incoming[$bk] === '1' || $incoming[$bk] === 'on') {
+                        $incoming[$bk] = 'true';
+                    } else {
+                        $incoming[$bk] = 'false';
+                    }
+                }
+
+                $upd = $pdo->prepare("UPDATE campaign_settings SET setting_value = ?, updated_at = NOW() WHERE setting_key = ?");
+                $count = 0;
+                foreach ($incoming as $key => $value) {
+                    if (!preg_match('/^[a-z0-9_.]+$/i', $key)) continue;
+                    $upd->execute([(string)$value, $key]);
+                    if ($upd->rowCount() > 0) $count++;
+                }
+                $message = "Configurações salvas ($count alterações).";
+                break;
+
+            case 'player_reset':
+                $uid = trim($_POST['google_uid'] ?? '');
+                if ($uid === '') throw new Exception('google_uid ausente');
+                $pdo->prepare("DELETE FROM campaign_stage_progress WHERE google_uid = ?")->execute([$uid]);
+                $pdo->prepare("DELETE FROM campaign_tutorial_seen WHERE google_uid = ?")->execute([$uid]);
+                $pdo->prepare("DELETE FROM campaign_player_skins WHERE google_uid = ?")->execute([$uid]);
+                $pdo->prepare("DELETE FROM campaign_player_missions WHERE google_uid = ?")->execute([$uid]);
+                $pdo->prepare("DELETE FROM campaign_player_achievements WHERE google_uid = ?")->execute([$uid]);
+                $pdo->prepare("DELETE FROM campaign_streak WHERE google_uid = ?")->execute([$uid]);
+                $maxL = (int)campaignGetSetting($pdo, 'campaign.lives.max', 5);
+                $pdo->prepare("
+                    UPDATE campaign_progress
+                    SET current_level = 1, total_xp = 0, current_lives = ?, total_stars = 0,
+                        streak_count = 0, daily_brl_earned = 0, next_life_at = NULL,
+                        equipped_skin_id = NULL, pending_booster = NULL, updated_at = NOW()
+                    WHERE google_uid = ?
+                ")->execute([$maxL, $uid]);
+                $message = "Progresso de {$uid} resetado.";
+                break;
+
+            case 'player_grant':
+                $uid = trim($_POST['google_uid'] ?? '');
+                if ($uid === '') throw new Exception('google_uid ausente');
+                $grantXp     = max(0, (int)($_POST['grant_xp'] ?? 0));
+                $grantLives  = max(0, (int)($_POST['grant_lives'] ?? 0));
+                $grantStars  = max(0, (int)($_POST['grant_stars'] ?? 0));
+                $grantCredits= max(0, (int)($_POST['grant_credits'] ?? 0));
+                $grantBrl    = max(0.0, (float)($_POST['grant_brl'] ?? 0));
+
+                // Auto-init progress
+                $maxL = (int)campaignGetSetting($pdo, 'campaign.lives.max', 5);
+                $pdo->prepare("
+                    INSERT IGNORE INTO campaign_progress
+                        (google_uid, current_level, current_lives, total_stars, created_at, updated_at)
+                    VALUES (?, 1, ?, 0, NOW(), NOW())
+                ")->execute([$uid, $maxL]);
+
+                if ($grantXp > 0 || $grantStars > 0 || $grantLives > 0) {
+                    $pdo->prepare("
+                        UPDATE campaign_progress
+                        SET total_xp = total_xp + ?,
+                            current_lives = LEAST(?, current_lives + ?),
+                            total_stars = total_stars + ?,
+                            updated_at = NOW()
+                        WHERE google_uid = ?
+                    ")->execute([$grantXp, $maxL, $grantLives, $grantStars, $uid]);
+                }
+                if ($grantXp > 0) {
+                    $pdo->prepare("UPDATE users SET total_xp = total_xp + ? WHERE google_uid = ?")
+                        ->execute([$grantXp, $uid]);
+                }
+                if ($grantCredits > 0 || $grantBrl > 0) {
+                    $pdo->prepare("UPDATE users SET credits = credits + ?, balance_brl = balance_brl + ? WHERE google_uid = ?")
+                        ->execute([$grantCredits, $grantBrl, $uid]);
+                }
+                $message = "Concedido a {$uid}: +{$grantXp} XP, +{$grantLives} vidas, +{$grantStars}⭐, +{$grantCredits}💎, +R$ " . number_format($grantBrl, 2, ',', '.') . ".";
+                break;
+
             case 'update_globals':
                 $maintenance     = isset($_POST['maintenance']) ? 'true' : 'false';
                 $maintMsg        = trim($_POST['maintenance_msg'] ?? '');
@@ -150,9 +315,29 @@ function fmtBoolBadge($b) {
 
 <div style="margin-bottom:16px">
   <h1 style="margin:0 0 4px;font-size:22px"><i class="fas fa-rocket" style="color:#5cd5ff"></i> Modo Campanha</h1>
-  <p style="margin:0;color:#8a93c8;font-size:13px">
-    Aba <strong>Fases</strong> · outras tabs (XP, vidas, recompensas, monetização, anti-cheat) virão em iterações futuras.
-  </p>
+</div>
+
+<?php
+$activeTab = $_GET['tab'] ?? 'stages';
+$tabs = [
+    'stages'    => ['Fases',      'fa-list'],
+    'bosses'    => ['Bosses',     'fa-skull'],
+    'xp'        => ['XP & Níveis','fa-chart-line'],
+    'settings'  => ['Configurações','fa-sliders-h'],
+    'players'   => ['Jogadores',  'fa-user-shield'],
+    'dashboard' => ['Métricas',   'fa-tachometer-alt'],
+];
+?>
+<div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid #2a3375;padding-bottom:0;flex-wrap:wrap">
+  <?php foreach ($tabs as $key => $meta): ?>
+    <a href="?page=campaign&tab=<?= $key ?>"
+       style="padding:8px 14px;text-decoration:none;font-size:13px;
+              color:<?= $activeTab === $key ? '#5cd5ff' : '#8a93c8' ?>;
+              border-bottom:2px solid <?= $activeTab === $key ? '#5cd5ff' : 'transparent' ?>;
+              margin-bottom:-1px">
+      <i class="fas <?= $meta[1] ?>"></i> <?= htmlspecialchars($meta[0]) ?>
+    </a>
+  <?php endforeach; ?>
 </div>
 
 <?php if ($message): ?>
@@ -166,6 +351,7 @@ function fmtBoolBadge($b) {
   </div>
 <?php endif; ?>
 
+<?php if ($activeTab === 'stages'): ?>
 <!-- ============================================
      CONFIGURAÇÕES GLOBAIS
      ============================================ -->
@@ -350,8 +536,594 @@ function fmtBoolBadge($b) {
     </div>
   </form>
 </div>
+<?php endif; /* editingStage */ ?>
+
+<?php endif; /* activeTab=stages */ ?>
+
+<?php if ($activeTab === 'bosses'):
+    $bosses = [];
+    try {
+        $bosses = $pdo->query("SELECT * FROM campaign_bosses ORDER BY sector, id")->fetchAll();
+    } catch (Exception $e) {}
+    $editingBoss = null;
+    if (!empty($_GET['boss_id'])) {
+        foreach ($bosses as $b) {
+            if ((int)$b['id'] === (int)$_GET['boss_id']) { $editingBoss = $b; break; }
+        }
+    }
+?>
+
+<div style="background:#0e1330;border:1px solid #2a3375;border-radius:10px;padding:18px;margin-bottom:20px">
+  <h2 style="margin:0 0 12px;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;color:#5cd5ff">
+    Bosses (<?= count($bosses) ?>)
+  </h2>
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead>
+      <tr style="background:#161c4a;color:#8a93c8;text-align:left">
+        <th style="padding:8px 10px">ID</th>
+        <th style="padding:8px 10px">Nome</th>
+        <th style="padding:8px 10px;text-align:center">Setor</th>
+        <th style="padding:8px 10px;text-align:right">HP</th>
+        <th style="padding:8px 10px;text-align:right">Dano contato</th>
+        <th style="padding:8px 10px;text-align:right">BRL+</th>
+        <th style="padding:8px 10px;text-align:right">XP+</th>
+        <th style="padding:8px 10px">Sprite</th>
+        <th style="padding:8px 10px;text-align:center">Status</th>
+        <th style="padding:8px 10px"></th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($bosses as $b): ?>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:8px 10px;font-family:monospace;color:#5cd5ff"><?= (int)$b['id'] ?></td>
+        <td style="padding:8px 10px"><?= htmlspecialchars($b['name']) ?></td>
+        <td style="padding:8px 10px;text-align:center"><?= (int)$b['sector'] ?></td>
+        <td style="padding:8px 10px;text-align:right;font-family:monospace"><?= (int)$b['hp_total'] ?></td>
+        <td style="padding:8px 10px;text-align:right;font-family:monospace"><?= (int)$b['contact_damage'] ?? 0 ?></td>
+        <td style="padding:8px 10px;text-align:right;font-family:monospace">R$ <?= number_format((float)$b['extra_brl'], 2, ',', '.') ?></td>
+        <td style="padding:8px 10px;text-align:right;font-family:monospace"><?= (int)$b['extra_xp'] ?></td>
+        <td style="padding:8px 10px;font-family:monospace;font-size:11px"><?= htmlspecialchars($b['sprite_key']) ?></td>
+        <td style="padding:8px 10px;text-align:center"><?= fmtBoolBadge((int)$b['is_enabled'] === 1) ?></td>
+        <td style="padding:8px 10px;text-align:right">
+          <a href="?page=campaign&tab=bosses&boss_id=<?= (int)$b['id'] ?>" style="color:#5cd5ff;text-decoration:none">editar</a>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+      <?php if (!count($bosses)): ?>
+      <tr><td colspan="10" style="padding:24px;text-align:center;color:#8a93c8">Nenhum boss cadastrado.</td></tr>
+      <?php endif; ?>
+    </tbody>
+  </table>
+  <p style="margin-top:10px;font-size:11px;color:#8a93c8">
+    Bosses do MVP (<code>asteroid_mother</code> e <code>junk_devourer</code>) têm padrões hardcoded no engine. Esta tabela é para overrides
+    de stats e drops (HP total, recompensas extras, chance de skin etc). Os <code>attack_patterns_json</code> e <code>phase_thresholds_json</code>
+    ficam disponíveis para evolução futura — engine atual ignora.
+  </p>
+</div>
+
+<?php if ($editingBoss): ?>
+<div style="background:#0e1330;border:1px solid #5cd5ff;border-radius:10px;padding:18px;margin-bottom:20px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+    <h2 style="margin:0;font-size:15px;color:#5cd5ff">Editando: <?= htmlspecialchars($editingBoss['name']) ?> <span style="font-family:monospace;color:#8a93c8">(<?= htmlspecialchars($editingBoss['sprite_key']) ?>)</span></h2>
+    <a href="?page=campaign&tab=bosses" style="color:#8a93c8;text-decoration:none;font-size:13px">✕ fechar</a>
+  </div>
+
+  <form method="POST">
+    <input type="hidden" name="action" value="update_boss">
+    <input type="hidden" name="boss_id" value="<?= (int)$editingBoss['id'] ?>">
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
+      <div><label style="display:block;font-size:11px;color:#8a93c8">Nome</label>
+           <input type="text" name="name" value="<?= htmlspecialchars($editingBoss['name']) ?>" required
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">Setor</label>
+           <input type="number" name="sector" value="<?= (int)$editingBoss['sector'] ?>" min="1" max="10"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">HP total</label>
+           <input type="number" name="hp_total" value="<?= (int)$editingBoss['hp_total'] ?>" min="1"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">Escala</label>
+           <input type="number" step="0.01" name="scale" value="<?= number_format((float)$editingBoss['scale'], 2, '.', '') ?>" min="0.1"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">Velocidade</label>
+           <input type="number" step="0.01" name="speed" value="<?= number_format((float)$editingBoss['speed'], 2, '.', '') ?>" min="0"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">Dano contato</label>
+           <input type="number" name="contact_damage" value="<?= (int)($editingBoss['contact_damage'] ?? 0) ?>" min="0"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">BRL extra</label>
+           <input type="number" step="0.01" name="extra_brl" value="<?= number_format((float)$editingBoss['extra_brl'], 2, '.', '') ?>" min="0"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">XP extra</label>
+           <input type="number" name="extra_xp" value="<?= (int)$editingBoss['extra_xp'] ?>" min="0"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">Skin drop chance (%)</label>
+           <input type="number" step="0.1" name="skin_drop_chance" value="<?= number_format((float)$editingBoss['skin_drop_chance'], 1, '.', '') ?>" min="0" max="100"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">Skin drop id</label>
+           <input type="number" name="skin_drop_id" value="<?= $editingBoss['skin_drop_id'] !== null ? (int)$editingBoss['skin_drop_id'] : '' ?>"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff"></div>
+    </div>
+
+    <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:12px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" name="berserk_enabled" <?= (int)$editingBoss['berserk_enabled'] ? 'checked' : '' ?>>
+        <span>Modo berserk fase 3</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" name="hp_persists_on_continue" <?= (int)$editingBoss['hp_persists_on_continue'] ? 'checked' : '' ?>>
+        <span>HP persiste no continue</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" name="is_enabled" <?= (int)$editingBoss['is_enabled'] ? 'checked' : '' ?>>
+        <span>Boss ativo</span>
+      </label>
+    </div>
+
+    <div style="margin-top:14px">
+      <label style="display:block;font-size:11px;color:#8a93c8;margin-bottom:3px">guaranteed_drops_json (lista de power-up keys, ex: <code>["repair","bomb"]</code>)</label>
+      <textarea name="guaranteed_drops_json" rows="2"
+                style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#7eef9f;font-family:ui-monospace,monospace;font-size:12px;resize:vertical"><?= htmlspecialchars($editingBoss['guaranteed_drops_json'] ?? '') ?></textarea>
+    </div>
+    <div style="margin-top:10px">
+      <label style="display:block;font-size:11px;color:#8a93c8;margin-bottom:3px">phase_thresholds_json (limiares de fase, ex: <code>[50,25]</code>)</label>
+      <textarea name="phase_thresholds_json" rows="1"
+                style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#7eef9f;font-family:ui-monospace,monospace;font-size:12px;resize:vertical"><?= htmlspecialchars($editingBoss['phase_thresholds_json'] ?? '') ?></textarea>
+    </div>
+    <div style="margin-top:10px">
+      <label style="display:block;font-size:11px;color:#8a93c8;margin-bottom:3px">attack_patterns_json (futuro — engine atual usa hardcoded)</label>
+      <textarea name="attack_patterns_json" rows="6"
+                style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#7eef9f;font-family:ui-monospace,monospace;font-size:11px;resize:vertical"><?= htmlspecialchars($editingBoss['attack_patterns_json'] ?? '') ?></textarea>
+    </div>
+
+    <div style="margin-top:16px">
+      <button type="submit" style="background:linear-gradient(135deg,#1c4cff,#5b1a8a);color:#fff;border:none;border-radius:6px;padding:9px 18px;cursor:pointer;font-size:14px">
+        Salvar boss
+      </button>
+      <a href="?page=campaign&tab=bosses" style="color:#8a93c8;text-decoration:none;margin-left:12px">Cancelar</a>
+    </div>
+  </form>
+</div>
 <?php endif; ?>
 
-<div style="font-size:11px;color:#8a93c8;text-align:center;margin-top:16px">
-  Próximas tabs no roadmap: XP &amp; Níveis · Vidas · Recompensas · Bosses · Tutorial · Engajamento · Monetização · Anti-cheat · Jogadores · Ranking · Dashboard.
+<?php endif; /* activeTab=bosses */ ?>
+
+<?php if ($activeTab === 'players'):
+    $searchQ = trim($_GET['q'] ?? '');
+    $foundPlayer = null;
+    $playerStages = [];
+    $playerSkins = [];
+    if ($searchQ !== '') {
+        $stmt = $pdo->prepare("
+            SELECT u.google_uid, u.email, u.display_name, u.credits, u.balance_brl, u.total_xp, u.is_banned,
+                   p.current_level, p.current_lives, p.total_stars, p.streak_count, p.daily_brl_earned,
+                   p.next_life_at, p.equipped_skin_id, p.pending_booster, p.updated_at AS prog_updated
+            FROM users u
+            LEFT JOIN campaign_progress p ON p.google_uid = u.google_uid
+            WHERE u.google_uid = ? OR u.email = ? OR u.display_name LIKE ?
+            LIMIT 1
+        ");
+        $stmt->execute([$searchQ, $searchQ, '%' . $searchQ . '%']);
+        $foundPlayer = $stmt->fetch();
+        if ($foundPlayer) {
+            $sg = $pdo->prepare("SELECT * FROM campaign_stage_progress WHERE google_uid = ? ORDER BY stage_id");
+            $sg->execute([$foundPlayer['google_uid']]);
+            $playerStages = $sg->fetchAll();
+            $sk = $pdo->prepare("
+                SELECT s.skin_key, s.name, ps.obtained_at, ps.obtained_via
+                FROM campaign_player_skins ps
+                INNER JOIN campaign_skins s ON s.id = ps.skin_id
+                WHERE ps.google_uid = ?
+            ");
+            $sk->execute([$foundPlayer['google_uid']]);
+            $playerSkins = $sk->fetchAll();
+        }
+    }
+?>
+
+<div style="background:#0e1330;border:1px solid #2a3375;border-radius:10px;padding:18px;margin-bottom:20px">
+  <h2 style="margin:0 0 12px;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;color:#5cd5ff">Buscar jogador</h2>
+  <form method="GET" style="display:flex;gap:10px">
+    <input type="hidden" name="page" value="campaign">
+    <input type="hidden" name="tab"  value="players">
+    <input type="text" name="q" value="<?= htmlspecialchars($searchQ) ?>"
+           placeholder="google_uid, email ou nome"
+           style="flex:1;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:8px 10px;color:#e7eaff">
+    <button type="submit" style="background:linear-gradient(135deg,#1c4cff,#5b1a8a);color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer">Buscar</button>
+  </form>
 </div>
+
+<?php if ($searchQ !== '' && !$foundPlayer): ?>
+<div style="background:#3a1010;color:#ff6b6b;padding:14px;border-radius:8px;border:1px solid #6e2424;margin-bottom:18px">
+  Nenhum jogador encontrado para "<?= htmlspecialchars($searchQ) ?>".
+</div>
+<?php endif; ?>
+
+<?php if ($foundPlayer): ?>
+<div style="background:#0e1330;border:1px solid #5cd5ff;border-radius:10px;padding:18px;margin-bottom:18px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px">
+    <div>
+      <h3 style="margin:0;font-size:16px"><?= htmlspecialchars($foundPlayer['display_name'] ?? '—') ?></h3>
+      <div style="font-size:11px;color:#8a93c8;font-family:monospace;margin-top:4px"><?= htmlspecialchars($foundPlayer['google_uid']) ?></div>
+      <div style="font-size:12px;color:#8a93c8"><?= htmlspecialchars($foundPlayer['email'] ?? '—') ?></div>
+      <?php if ((int)$foundPlayer['is_banned']): ?>
+        <span style="background:#3a1010;color:#ff6b6b;padding:2px 8px;border-radius:999px;font-size:11px;margin-top:6px;display:inline-block">BANIDO</span>
+      <?php endif; ?>
+    </div>
+    <div style="text-align:right;font-size:13px;line-height:1.6">
+      <div>Créditos: <strong style="color:#ffd166"><?= (int)$foundPlayer['credits'] ?>💎</strong></div>
+      <div>Saldo BRL: <strong style="color:#5fdb91">R$ <?= number_format((float)$foundPlayer['balance_brl'], 2, ',', '.') ?></strong></div>
+      <div>XP total: <strong><?= (int)$foundPlayer['total_xp'] ?></strong></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:14px;font-size:12px">
+    <div style="background:#050720;border:1px solid #2a3375;border-radius:6px;padding:8px"><strong>Nível:</strong> <?= (int)($foundPlayer['current_level'] ?? 0) ?></div>
+    <div style="background:#050720;border:1px solid #2a3375;border-radius:6px;padding:8px"><strong>Vidas:</strong> <?= (int)($foundPlayer['current_lives'] ?? 0) ?></div>
+    <div style="background:#050720;border:1px solid #2a3375;border-radius:6px;padding:8px"><strong>Estrelas:</strong> <?= (int)($foundPlayer['total_stars'] ?? 0) ?></div>
+    <div style="background:#050720;border:1px solid #2a3375;border-radius:6px;padding:8px"><strong>Streak:</strong> <?= (int)($foundPlayer['streak_count'] ?? 0) ?></div>
+    <div style="background:#050720;border:1px solid #2a3375;border-radius:6px;padding:8px"><strong>BRL hoje:</strong> R$ <?= number_format((float)($foundPlayer['daily_brl_earned'] ?? 0), 2, ',', '.') ?></div>
+    <div style="background:#050720;border:1px solid #2a3375;border-radius:6px;padding:8px"><strong>Próx. vida:</strong> <?= htmlspecialchars($foundPlayer['next_life_at'] ?? '—') ?></div>
+  </div>
+
+  <div style="margin-top:12px">
+    <strong>Skins:</strong>
+    <?php foreach ($playerSkins as $sk): ?>
+      <span style="background:#1f2766;color:#5cd5ff;padding:2px 8px;border-radius:999px;font-size:11px;margin-right:4px"><?= htmlspecialchars($sk['skin_key']) ?></span>
+    <?php endforeach; ?>
+    <?php if (!count($playerSkins)): ?>
+      <span style="color:#8a93c8;font-size:12px">apenas default</span>
+    <?php endif; ?>
+  </div>
+</div>
+
+<!-- Conceder recursos -->
+<div style="background:#0e1330;border:1px solid #2a3375;border-radius:10px;padding:18px;margin-bottom:18px">
+  <h3 style="margin:0 0 12px;font-size:14px;color:#5fdb91">Conceder (suporte)</h3>
+  <form method="POST">
+    <input type="hidden" name="action" value="player_grant">
+    <input type="hidden" name="google_uid" value="<?= htmlspecialchars($foundPlayer['google_uid']) ?>">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+      <div><label style="display:block;font-size:11px;color:#8a93c8">XP</label>
+           <input type="number" name="grant_xp" value="0" min="0"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:6px 8px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">Vidas</label>
+           <input type="number" name="grant_lives" value="0" min="0"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:6px 8px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">⭐</label>
+           <input type="number" name="grant_stars" value="0" min="0"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:6px 8px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">Créditos</label>
+           <input type="number" name="grant_credits" value="0" min="0"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:6px 8px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">BRL</label>
+           <input type="number" step="0.01" name="grant_brl" value="0" min="0"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:6px 8px;color:#e7eaff"></div>
+    </div>
+    <div style="margin-top:12px">
+      <button type="submit" style="background:#143a25;color:#5fdb91;border:1px solid #1f5e3a;border-radius:6px;padding:7px 14px;cursor:pointer">
+        Conceder ao jogador
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Reset -->
+<div style="background:#0e1330;border:1px solid #6e2424;border-radius:10px;padding:18px;margin-bottom:18px">
+  <h3 style="margin:0 0 8px;font-size:14px;color:#ff6b6b">Resetar progresso</h3>
+  <p style="margin:0 0 10px;color:#8a93c8;font-size:12px">
+    Apaga progresso de fases, conquistas, missões, skins compradas, tutoriais vistos e zera o nível para 1.
+    NÃO mexe em créditos nem BRL.
+  </p>
+  <form method="POST" onsubmit="return confirm('Resetar progresso de <?= htmlspecialchars($foundPlayer['google_uid']) ?>? Isso é irreversível.')">
+    <input type="hidden" name="action" value="player_reset">
+    <input type="hidden" name="google_uid" value="<?= htmlspecialchars($foundPlayer['google_uid']) ?>">
+    <button type="submit" style="background:#3a1010;color:#ff6b6b;border:1px solid #6e2424;border-radius:6px;padding:7px 14px;cursor:pointer">
+      ⚠ Resetar progresso
+    </button>
+  </form>
+</div>
+
+<!-- Stage progress -->
+<div style="background:#0e1330;border:1px solid #2a3375;border-radius:10px;padding:18px;margin-bottom:18px">
+  <h3 style="margin:0 0 10px;font-size:14px;color:#5cd5ff">Progresso por fase (<?= count($playerStages) ?>)</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead>
+      <tr style="background:#161c4a;color:#8a93c8;text-align:left">
+        <th style="padding:6px 10px">Fase</th>
+        <th style="padding:6px 10px;text-align:center">⭐</th>
+        <th style="padding:6px 10px;text-align:right">Tentativas</th>
+        <th style="padding:6px 10px;text-align:right">Vitórias</th>
+        <th style="padding:6px 10px;text-align:right">Melhor tempo</th>
+        <th style="padding:6px 10px;text-align:right">BRL acumulado</th>
+        <th style="padding:6px 10px;text-align:right">Combo máx</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($playerStages as $sp): ?>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:6px 10px;font-family:monospace;color:#5cd5ff"><?= htmlspecialchars($sp['stage_id']) ?></td>
+        <td style="padding:6px 10px;text-align:center;color:#ffd166"><?= str_repeat('★', (int)$sp['stars']) ?></td>
+        <td style="padding:6px 10px;text-align:right"><?= (int)$sp['attempts'] ?></td>
+        <td style="padding:6px 10px;text-align:right"><?= (int)$sp['wins'] ?></td>
+        <td style="padding:6px 10px;text-align:right"><?= $sp['best_time'] !== null ? (int)$sp['best_time'].'s' : '—' ?></td>
+        <td style="padding:6px 10px;text-align:right">R$ <?= number_format((float)$sp['total_brl_earned'], 2, ',', '.') ?></td>
+        <td style="padding:6px 10px;text-align:right"><?= (int)$sp['max_combo'] ?></td>
+      </tr>
+      <?php endforeach; ?>
+      <?php if (!count($playerStages)): ?>
+      <tr><td colspan="7" style="padding:18px;text-align:center;color:#8a93c8">Jogador ainda não jogou nenhuma fase.</td></tr>
+      <?php endif; ?>
+    </tbody>
+  </table>
+</div>
+<?php endif; ?>
+
+<?php endif; /* activeTab=players */ ?>
+
+<?php if ($activeTab === 'settings'):
+    // Carrega todos os settings em um mapa key=>value
+    $allSettings = [];
+    try {
+        $rs = $pdo->query("SELECT setting_key, setting_value, value_type FROM campaign_settings");
+        while ($r = $rs->fetch()) $allSettings[$r['setting_key']] = $r;
+    } catch (Exception $e) {}
+
+    function S($all, $key, $default = '') {
+        return isset($all[$key]) ? $all[$key]['setting_value'] : $default;
+    }
+    function isBool($all, $key) {
+        return S($all, $key, 'false') === 'true';
+    }
+
+    // Definição das seções e campos
+    $sections = [
+        'Vidas' => [
+            ['campaign.lives.max',                   'number', 'Máximo de vidas'],
+            ['campaign.lives.recharge_minutes',      'number', 'Recarga (minutos)'],
+            ['campaign.lives.consume_on',            'select', 'Consome vida em', ['fail' => 'Ao falhar', 'enter' => 'Ao entrar']],
+            ['campaign.lives.cost_single',           'number', 'Custo 1 vida (💎)'],
+            ['campaign.lives.cost_pack5',            'number', 'Custo pacote 5 (💎)'],
+            ['campaign.lives.cost_refill',           'number', 'Custo refill (💎)'],
+            ['campaign.lives.unlimited_event',       'bool',   'Vidas ilimitadas (evento)'],
+        ],
+        'Recompensas' => [
+            ['campaign.rewards.star1_multiplier',    'decimal', 'Multiplicador 1⭐'],
+            ['campaign.rewards.star2_multiplier',    'decimal', 'Multiplicador 2⭐'],
+            ['campaign.rewards.star3_multiplier',    'decimal', 'Multiplicador 3⭐'],
+            ['campaign.rewards.star2_max_dmg_pct',   'number',  'Dano máx p/ 2⭐ (% HP)'],
+            ['campaign.rewards.replay_policy',       'select',  'Política de re-jogada', ['diff' => 'Apenas diferença', 'full' => '100%', 'reduced' => 'Reduzida 30%']],
+            ['campaign.rewards.streak_pct',          'number',  'Bônus de streak (%)'],
+            ['campaign.rewards.streak_threshold',    'number',  'Fases para ativar streak'],
+            ['campaign.rewards.daily_brl_cap',       'decimal', 'Limite diário BRL'],
+            ['campaign.rewards.daily_cap_enabled',   'bool',    'Limite diário ativo'],
+        ],
+        'Custo extra' => [
+            ['campaign.cost.continue_after_death',   'number', 'Continuar após game over (💎)'],
+        ],
+        'Mecânicas' => [
+            ['campaign.mechanics.ship_max_hp',       'number', 'HP máx da nave'],
+            ['campaign.mechanics.combo_max',         'number', 'Combo máximo'],
+            ['campaign.mechanics.combo_kills_per_step','number','Kills p/ subir 1x no combo'],
+            ['campaign.mechanics.shoot_cooldown_ms', 'number', 'Cooldown do tiro (ms)'],
+            ['campaign.mechanics.pause_enabled',     'bool',   'Pausa habilitada'],
+        ],
+        'Monetização' => [
+            ['campaign.monetization.skip_attempts',  'number', 'Skip — tentativas mínimas'],
+            ['campaign.monetization.skip_cost',      'number', 'Skip — custo (💎)'],
+            ['campaign.monetization.skip_pays_brl',  'bool',   'Skip paga BRL'],
+            ['campaign.monetization.accelerate_s1',  'number', 'Acelerar Setor 1 (💎)'],
+            ['campaign.monetization.accelerate_s2',  'number', 'Acelerar Setor 2 (💎)'],
+            ['campaign.monetization.booster_cost',   'number', 'Triple Star Booster (💎)'],
+            ['campaign.monetization.kill_switch',    'bool',   'Kill-switch global'],
+        ],
+        'Anti-cheat' => [
+            ['campaign.anticheat.time_min_pct',      'number',  'Tempo mín da fase (%)'],
+            ['campaign.anticheat.time_max_pct',      'number',  'Tempo máx da fase (%)'],
+            ['campaign.anticheat.brl_tolerance_pct', 'number',  'Tolerância BRL (% acima)'],
+            ['campaign.anticheat.xp_tolerance_pct',  'number',  'Tolerância XP (% acima)'],
+            ['campaign.anticheat.jwt_expire_mult',   'decimal', 'Multiplicador expiração token'],
+        ],
+        'Tutorial' => [
+            ['campaign.tutorial.welcome_enabled',    'bool', 'Habilitar boas-vindas'],
+            ['campaign.tutorial.required',           'bool', 'Tutorial obrigatório (treino)'],
+        ],
+    ];
+    // Coleta chaves bool para mandar no form (server-side trata "ausente" como false)
+    $boolKeys = [];
+    foreach ($sections as $sec) foreach ($sec as $f) if ($f[1] === 'bool') $boolKeys[] = $f[0];
+?>
+
+<form method="POST">
+  <input type="hidden" name="action" value="update_settings">
+  <?php foreach ($boolKeys as $bk): ?>
+    <input type="hidden" name="bool_keys[]" value="<?= htmlspecialchars($bk) ?>">
+  <?php endforeach; ?>
+
+  <?php foreach ($sections as $secName => $fields): ?>
+  <div style="background:#0e1330;border:1px solid #2a3375;border-radius:10px;padding:18px;margin-bottom:16px">
+    <h2 style="margin:0 0 12px;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;color:#5cd5ff"><?= htmlspecialchars($secName) ?></h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+      <?php foreach ($fields as $f):
+          $key = $f[0]; $type = $f[1]; $label = $f[2];
+          $val = S($allSettings, $key, '');
+      ?>
+        <div>
+          <label style="display:block;font-size:11px;color:#8a93c8;margin-bottom:3px"><?= htmlspecialchars($label) ?>
+            <span style="color:#444;float:right;font-size:10px;font-family:monospace"><?= htmlspecialchars($key) ?></span>
+          </label>
+          <?php if ($type === 'bool'): ?>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 10px">
+              <input type="checkbox" name="settings[<?= htmlspecialchars($key) ?>]" value="true" <?= isBool($allSettings, $key) ? 'checked' : '' ?>>
+              <span style="font-size:12px;color:<?= isBool($allSettings, $key) ? '#5fdb91' : '#8a93c8' ?>"><?= isBool($allSettings, $key) ? 'Ativado' : 'Desativado' ?></span>
+            </label>
+          <?php elseif ($type === 'select'): ?>
+            <select name="settings[<?= htmlspecialchars($key) ?>]"
+                    style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff">
+              <?php foreach ($f[3] as $optV => $optL): ?>
+                <option value="<?= htmlspecialchars($optV) ?>" <?= $val === $optV ? 'selected' : '' ?>><?= htmlspecialchars($optL) ?></option>
+              <?php endforeach; ?>
+            </select>
+          <?php elseif ($type === 'decimal'): ?>
+            <input type="number" step="0.01" name="settings[<?= htmlspecialchars($key) ?>]" value="<?= htmlspecialchars($val) ?>"
+                   style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff">
+          <?php else: ?>
+            <input type="number" name="settings[<?= htmlspecialchars($key) ?>]" value="<?= htmlspecialchars($val) ?>"
+                   style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:7px 9px;color:#e7eaff">
+          <?php endif; ?>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endforeach; ?>
+
+  <div style="text-align:center;margin-bottom:24px">
+    <button type="submit" style="background:linear-gradient(135deg,#1c4cff,#5b1a8a);color:#fff;border:none;border-radius:8px;padding:11px 28px;cursor:pointer;font-size:14px">
+      Salvar todas as configurações
+    </button>
+  </div>
+</form>
+
+<?php endif; /* activeTab=settings */ ?>
+
+<?php if ($activeTab === 'xp'):
+    $xpRows = [];
+    try {
+        $rs = $pdo->query("SELECT level, xp_required FROM campaign_xp_table ORDER BY level");
+        $xpRows = $rs->fetchAll();
+    } catch (Exception $e) {}
+?>
+<div style="background:#0e1330;border:1px solid #2a3375;border-radius:10px;padding:18px;margin-bottom:20px">
+  <h2 style="margin:0 0 12px;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;color:#5cd5ff">Curva de XP por nível</h2>
+  <p style="margin:0 0 14px;color:#8a93c8;font-size:12px">
+    XP cumulativo para alcançar cada nível. O servidor calcula o nível atual buscando o maior <code>level</code> com <code>xp_required ≤ total_xp</code>.
+  </p>
+  <form method="POST">
+    <input type="hidden" name="action" value="update_xp_table">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;font-size:12px">
+      <?php foreach ($xpRows as $r): ?>
+      <div style="background:#050720;border:1px solid #2a3375;border-radius:5px;padding:8px">
+        <label style="display:block;font-size:10px;color:#8a93c8;margin-bottom:3px">Nível <?= (int)$r['level'] ?></label>
+        <input type="number" name="xp[<?= (int)$r['level'] ?>]" value="<?= (int)$r['xp_required'] ?>" min="0"
+               style="width:100%;background:#0e1330;border:1px solid #2a3375;border-radius:4px;padding:5px 7px;color:#e7eaff;font-family:monospace">
+      </div>
+      <?php endforeach; ?>
+    </div>
+    <div style="margin-top:14px;text-align:center">
+      <button type="submit" style="background:linear-gradient(135deg,#1c4cff,#5b1a8a);color:#fff;border:none;border-radius:8px;padding:9px 22px;cursor:pointer">
+        Salvar curva de XP
+      </button>
+    </div>
+  </form>
+</div>
+<?php endif; /* activeTab=xp */ ?>
+
+<?php if ($activeTab === 'dashboard'):
+    $kpis = [
+        'players_total'      => 0,
+        'players_active_24h' => 0,
+        'players_active_7d'  => 0,
+        'sessions_24h'       => 0,
+        'sessions_7d'        => 0,
+        'sessions_completed_24h' => 0,
+        'sessions_review_7d' => 0,
+        'brl_paid_24h'       => 0.0,
+        'brl_paid_7d'        => 0.0,
+        'brl_paid_30d'       => 0.0,
+        'credits_spent_24h'  => 0,
+        'stars_earned_7d'    => 0,
+    ];
+    try {
+        $kpis['players_total']      = (int)$pdo->query("SELECT COUNT(*) FROM campaign_progress")->fetchColumn();
+        $kpis['players_active_24h'] = (int)$pdo->query("SELECT COUNT(*) FROM campaign_progress WHERE updated_at > DATE_SUB(NOW(), INTERVAL 1 DAY)")->fetchColumn();
+        $kpis['players_active_7d']  = (int)$pdo->query("SELECT COUNT(*) FROM campaign_progress WHERE updated_at > DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn();
+        $kpis['sessions_24h']       = (int)$pdo->query("SELECT COUNT(*) FROM campaign_session WHERE created_at > DATE_SUB(NOW(), INTERVAL 1 DAY)")->fetchColumn();
+        $kpis['sessions_7d']        = (int)$pdo->query("SELECT COUNT(*) FROM campaign_session WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn();
+        $kpis['sessions_completed_24h'] = (int)$pdo->query("SELECT COUNT(*) FROM campaign_session WHERE status='completed' AND ended_at > DATE_SUB(NOW(), INTERVAL 1 DAY)")->fetchColumn();
+        $kpis['sessions_review_7d'] = (int)$pdo->query("SELECT COUNT(*) FROM campaign_session WHERE status='review' AND ended_at > DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn();
+        $kpis['brl_paid_24h']       = (float)$pdo->query("SELECT COALESCE(SUM(brl_awarded),0) FROM campaign_session WHERE status='completed' AND ended_at > DATE_SUB(NOW(), INTERVAL 1 DAY)")->fetchColumn();
+        $kpis['brl_paid_7d']        = (float)$pdo->query("SELECT COALESCE(SUM(brl_awarded),0) FROM campaign_session WHERE status='completed' AND ended_at > DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn();
+        $kpis['brl_paid_30d']       = (float)$pdo->query("SELECT COALESCE(SUM(brl_awarded),0) FROM campaign_session WHERE status='completed' AND ended_at > DATE_SUB(NOW(), INTERVAL 30 DAY)")->fetchColumn();
+        $kpis['credits_spent_24h']  = (int)$pdo->query("SELECT COALESCE(SUM(credits_spent),0) FROM campaign_session WHERE created_at > DATE_SUB(NOW(), INTERVAL 1 DAY)")->fetchColumn();
+        $kpis['stars_earned_7d']    = (int)$pdo->query("SELECT COALESCE(SUM(stars_awarded),0) FROM campaign_session WHERE status='completed' AND ended_at > DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn();
+    } catch (Exception $e) { $error = $e->getMessage(); }
+
+    // Estatísticas por fase (taxa de vitória + sessões)
+    $stagesStats = [];
+    try {
+        $rs = $pdo->query("
+            SELECT stage_id,
+                   COUNT(*)                          AS total,
+                   SUM(status='completed')           AS completed,
+                   SUM(status='review')              AS review,
+                   AVG(CASE WHEN status='completed' THEN time_elapsed END) AS avg_time
+            FROM campaign_session
+            WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
+            GROUP BY stage_id
+            ORDER BY stage_id
+        ");
+        $stagesStats = $rs->fetchAll();
+    } catch (Exception $e) {}
+?>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px">
+  <?php
+  $cards = [
+      ['Jogadores totais',       (int)$kpis['players_total'],       '#5cd5ff'],
+      ['Ativos (24h)',           (int)$kpis['players_active_24h'],  '#5fdb91'],
+      ['Ativos (7d)',            (int)$kpis['players_active_7d'],   '#5fdb91'],
+      ['Sessões 24h',            (int)$kpis['sessions_24h'],        '#5cd5ff'],
+      ['Sessões 7d',             (int)$kpis['sessions_7d'],         '#5cd5ff'],
+      ['Concluídas 24h',         (int)$kpis['sessions_completed_24h'], '#5fdb91'],
+      ['Em review 7d',           (int)$kpis['sessions_review_7d'],  '#ffd166'],
+      ['BRL pago 24h',           'R$ ' . number_format($kpis['brl_paid_24h'], 2, ',', '.'), '#ff7eea'],
+      ['BRL pago 7d',            'R$ ' . number_format($kpis['brl_paid_7d'],  2, ',', '.'), '#ff7eea'],
+      ['BRL pago 30d',           'R$ ' . number_format($kpis['brl_paid_30d'], 2, ',', '.'), '#ff7eea'],
+      ['Créditos gastos 24h',    (int)$kpis['credits_spent_24h'] . '💎', '#ffd166'],
+      ['Estrelas 7d',            (int)$kpis['stars_earned_7d'] . '⭐', '#ffd166'],
+  ];
+  foreach ($cards as $c): ?>
+    <div style="background:#0e1330;border:1px solid #2a3375;border-radius:8px;padding:14px">
+      <div style="font-size:11px;color:#8a93c8;text-transform:uppercase;letter-spacing:0.08em"><?= htmlspecialchars($c[0]) ?></div>
+      <div style="font-size:22px;color:<?= $c[2] ?>;font-weight:600;margin-top:4px"><?= htmlspecialchars($c[1]) ?></div>
+    </div>
+  <?php endforeach; ?>
+</div>
+
+<div style="background:#0e1330;border:1px solid #2a3375;border-radius:10px;padding:18px;margin-bottom:20px">
+  <h2 style="margin:0 0 12px;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;color:#5cd5ff">Estatísticas por fase (últimos 7 dias)</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead>
+      <tr style="background:#161c4a;color:#8a93c8;text-align:left">
+        <th style="padding:8px 10px">Fase</th>
+        <th style="padding:8px 10px;text-align:right">Sessões</th>
+        <th style="padding:8px 10px;text-align:right">Concluídas</th>
+        <th style="padding:8px 10px;text-align:right">Taxa vitória</th>
+        <th style="padding:8px 10px;text-align:right">Em review</th>
+        <th style="padding:8px 10px;text-align:right">Tempo médio (s)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($stagesStats as $s):
+        $total = (int)$s['total'];
+        $compl = (int)$s['completed'];
+        $rate = $total > 0 ? ($compl / $total) * 100 : 0;
+        $rateColor = $rate >= 50 ? '#5fdb91' : ($rate >= 25 ? '#ffd166' : '#ff6b6b');
+      ?>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:8px 10px;font-family:monospace;color:#5cd5ff"><?= htmlspecialchars($s['stage_id']) ?></td>
+        <td style="padding:8px 10px;text-align:right"><?= $total ?></td>
+        <td style="padding:8px 10px;text-align:right"><?= $compl ?></td>
+        <td style="padding:8px 10px;text-align:right;color:<?= $rateColor ?>"><?= number_format($rate, 1) ?>%</td>
+        <td style="padding:8px 10px;text-align:right;color:#ffd166"><?= (int)$s['review'] ?></td>
+        <td style="padding:8px 10px;text-align:right"><?= $s['avg_time'] !== null ? number_format((float)$s['avg_time'], 1) : '—' ?></td>
+      </tr>
+      <?php endforeach; ?>
+      <?php if (!count($stagesStats)): ?>
+      <tr><td colspan="6" style="padding:18px;text-align:center;color:#8a93c8">Sem sessões nos últimos 7 dias.</td></tr>
+      <?php endif; ?>
+    </tbody>
+  </table>
+</div>
+
+<?php endif; /* activeTab=dashboard */ ?>

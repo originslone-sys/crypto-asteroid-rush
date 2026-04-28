@@ -802,6 +802,26 @@ try {
         }
     } catch (Exception $e) { /* já existe */ }
 
+    // campaign_bosses.contact_damage (dano corpo-a-corpo do boss)
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM campaign_bosses LIKE 'contact_damage'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE campaign_bosses ADD COLUMN contact_damage INT NOT NULL DEFAULT 30 AFTER speed");
+            $results['migrations'][] = 'campaign_bosses.contact_damage';
+            output("  [OK] campaign_bosses: coluna contact_damage adicionada");
+        }
+    } catch (Exception $e) { /* ainda não criada */ }
+
+    // campaign_progress.pending_booster (Triple Star Booster armado p/ próxima sessão)
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM campaign_progress LIKE 'pending_booster'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE campaign_progress ADD COLUMN pending_booster VARCHAR(40) DEFAULT NULL AFTER equipped_skin_id");
+            $results['migrations'][] = 'campaign_progress.pending_booster';
+            output("  [OK] campaign_progress: coluna pending_booster adicionada");
+        }
+    } catch (Exception $e) { /* tabela ainda não criada nesta primeira passagem */ }
+
     // campaign_progress (1 linha por jogador, estado global na campanha)
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS campaign_progress (
@@ -1223,6 +1243,26 @@ try {
         output("  [OK] Configurações padrão da campanha inseridas/ignoradas");
     } catch (Exception $e) { /* tabela pode não existir */ }
 
+    // Promove a public alguns settings que o cliente precisa ler
+    // (custos visíveis no modal de compra de vida no mapa).
+    try {
+        $publicKeys = [
+            'campaign.lives.cost_single',
+            'campaign.lives.cost_pack5',
+            'campaign.lives.cost_refill',
+            'campaign.cost.continue_after_death',
+            'campaign.monetization.booster_cost',
+            'campaign.monetization.skip_cost',
+            'campaign.monetization.skip_attempts',
+            'campaign.monetization.accelerate_s1',
+            'campaign.monetization.accelerate_s2',
+        ];
+        $stmt = $pdo->prepare("UPDATE campaign_settings SET is_public = 1 WHERE setting_key = ?");
+        foreach ($publicKeys as $k) $stmt->execute([$k]);
+        $results['migrations'][] = 'campaign_settings:public_costs';
+        output("  [OK] Custos de vida/continue marcados como públicos");
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
     // Curva de XP por nível (1-30) — defaults
     try {
         $xpCurve = [
@@ -1463,6 +1503,46 @@ try {
             output("  [OK] waves_json default aplicado a $touched fase(s)");
         }
     } catch (Exception $e) { /* tabela pode não existir */ }
+
+    // Skins padrão (4 SVGs já existem em img/campaign/ships/)
+    try {
+        $skins = [
+            // [key, name, sprite_path, cost, purchasable, default, sort, desc]
+            ['default',        'Nave Padrão',     '/img/campaign/ships/ship-default.svg',        0,   1, 1, 1, 'Nave inicial. Confiável e equilibrada.'],
+            ['falcon_red',     'Falcon Vermelho', '/img/campaign/ships/ship-falcon-red.svg',     50,  1, 0, 2, 'Design agressivo em vermelho.'],
+            ['phantom_purple', 'Phantom Roxo',    '/img/campaign/ships/ship-phantom-purple.svg', 50,  1, 0, 3, 'Estilizada com asas em V.'],
+            ['golden_wing',    'Golden Wing',     '/img/campaign/ships/ship-golden-wing.svg',    100, 1, 0, 4, 'Premium dourada.'],
+        ];
+        $ins = $pdo->prepare("
+            INSERT IGNORE INTO campaign_skins
+                (skin_key, name, sprite_path, credit_cost, is_purchasable, is_default,
+                 sort_order, description, is_enabled, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+        ");
+        foreach ($skins as $s) $ins->execute($s);
+        $results['migrations'][] = 'campaign_skins:defaults';
+        output("  [OK] 4 skins padrão inseridas/ignoradas");
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
+    // Bosses padrão (espelhamento DB do catálogo hardcoded no engine,
+    // pra permitir overrides futuros via admin sem deploy de JS).
+    try {
+        $bosses = [
+            // [name, sector, sprite_key, hp, scale, speed, contact, drops, thresholds, berserk, hp_persists]
+            ['Asteroide-Mãe',     1, 'boss_asteroid_mother', 500,  1.00, 1.00, 30, json_encode(['repair','bomb']),         json_encode([50,25]), 1, 1],
+            ['Devorador de Sucata', 2, 'boss_junk_devourer',  1000, 1.00, 1.20, 35, json_encode(['repair','bomb','shield']), json_encode([50,25]), 1, 1],
+        ];
+        $ins = $pdo->prepare("
+            INSERT IGNORE INTO campaign_bosses
+                (name, sector, sprite_key, hp_total, scale, speed, contact_damage,
+                 guaranteed_drops_json, phase_thresholds_json,
+                 berserk_enabled, hp_persists_on_continue, is_enabled, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+        ");
+        foreach ($bosses as $b) $ins->execute($b);
+        $results['migrations'][] = 'campaign_bosses:defaults';
+        output("  [OK] 2 bosses padrão inseridos/ignorados");
+    } catch (Exception $e) { /* tabela ainda não criada */ }
 
     // ============================================
     // LIMPEZA

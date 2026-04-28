@@ -315,6 +315,12 @@
       <div class="hud-row2">
         <span class="lives" id="hud-lives">—</span>
         <span class="lives-meta" id="hud-lives-timer"></span>
+        <button id="hud-buy-life" type="button" title="Comprar vidas"
+                style="background:rgba(0,0,0,0.45);border:1px solid var(--border);color:var(--err);
+                       border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer">+</button>
+        <button id="hud-skins" type="button" title="Skins de nave"
+                style="background:rgba(0,0,0,0.45);border:1px solid var(--border);color:var(--accent);
+                       border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer">🚀</button>
         <span class="credits" id="hud-credits">💎 0</span>
       </div>
     </header>
@@ -328,6 +334,8 @@
 
     <div class="footer-mini">
       <a href="campaign-debug.html" style="color:var(--muted);text-decoration:none">debug</a>
+      <span>·</span>
+      <a href="#" id="btn-help" style="color:var(--muted);text-decoration:none">? Ajuda</a>
       <span>·</span>
       <span id="boot-stamp">—</span>
     </div>
@@ -347,6 +355,8 @@
         <div class="err-msg" id="ov-err"></div>
         <div class="btn-row">
           <button class="btn primary" id="ov-start">Iniciar</button>
+          <button class="btn" id="ov-booster" style="display:none;background:#0a2a3a;border-color:#1a4a6a;color:#5cd5ff">Triple Star</button>
+          <button class="btn" id="ov-skip" style="display:none;background:#3a2c0c;border-color:#7a5e10;color:#ffd166">Pular</button>
           <button class="btn" id="ov-close">Cancelar</button>
         </div>
       </div>
@@ -359,6 +369,60 @@
         <p class="modal-sub">Faça login para acessar o mapa de fases.</p>
         <div class="btn-row">
           <button class="btn primary" id="btn-login">Login com Google</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tutorial / Cinemática (slides) -->
+    <div class="overlay" id="ov-tutorial" style="z-index:55">
+      <div class="card" style="max-width:340px;text-align:center">
+        <div id="tut-icon" style="font-size:42px;margin-bottom:6px">🚀</div>
+        <h3 id="tut-title">—</h3>
+        <p id="tut-text" style="margin:8px 0 14px;line-height:1.5;color:#cad4ff;font-size:13px"></p>
+        <div id="tut-progress" style="display:flex;gap:4px;justify-content:center;margin-bottom:12px"></div>
+        <div class="btn-row">
+          <button class="btn" id="tut-skip" style="font-size:11px;color:#8a93c8">Pular</button>
+          <button class="btn primary" id="tut-next">Próximo →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Skins overlay -->
+    <div class="overlay" id="ov-skins">
+      <div class="card" style="max-width:380px">
+        <h3>🚀 Skins de Nave</h3>
+        <p class="modal-sub" id="sk-status">—</p>
+        <div id="sk-err" style="color:#ff6b6b;font-size:11px;margin-bottom:6px"></div>
+        <div id="sk-list" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:380px;overflow-y:auto"></div>
+        <div class="btn-row" style="margin-top:14px">
+          <button class="btn" id="sk-close">Fechar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buy lives overlay -->
+    <div class="overlay" id="ov-buy-life">
+      <div class="card">
+        <h3>❤ Comprar vidas</h3>
+        <p class="modal-sub" id="bl-status">—</p>
+        <div id="bl-err" style="color:#ff6b6b;font-size:11px;margin-bottom:6px"></div>
+        <div style="display:grid;grid-template-columns:1fr;gap:8px;text-align:left">
+          <button class="btn" data-pkg="single">
+            <strong>+1 vida</strong> <span style="float:right;color:#ffd166" id="bl-cost-single">— 💎</span>
+          </button>
+          <button class="btn" data-pkg="pack5">
+            <strong>+5 vidas</strong>
+            <span style="display:block;font-size:10px;color:#8a93c8">desconto</span>
+            <span style="float:right;color:#ffd166;margin-top:-30px" id="bl-cost-pack5">— 💎</span>
+          </button>
+          <button class="btn" data-pkg="refill">
+            <strong>Refill total</strong>
+            <span style="display:block;font-size:10px;color:#8a93c8">enche até o máximo</span>
+            <span style="float:right;color:#ffd166;margin-top:-30px" id="bl-cost-refill">— 💎</span>
+          </button>
+        </div>
+        <div class="btn-row" style="margin-top:14px">
+          <button class="btn" id="bl-close">Fechar</button>
         </div>
       </div>
     </div>
@@ -562,6 +626,26 @@
       sec.appendChild(banner);
     }
 
+    // Botão "Acelerar setor" (só para setores 1 e 2 desbloqueados,
+    // se ainda houver fases sem 1⭐)
+    const sectorNum = stages[0] && stages[0].sector;
+    if (!locked && (sectorNum === 1 || sectorNum === 2) && cfg && prog) {
+      const allHaveStar = stages.every(s => {
+        const sp = findStageProgress(s.stage_id);
+        return sp && sp.stars >= 1;
+      });
+      if (!allHaveStar) {
+        const cost = (cfg.settings || {})['campaign.monetization.accelerate_s' + sectorNum]
+                     ?? (sectorNum === 1 ? 20 : 30);
+        const promo = document.createElement('button');
+        promo.type = 'button';
+        promo.style.cssText = 'display:block;margin:0 28px 12px;padding:8px 12px;background:linear-gradient(135deg,#1c4cff,#5b1a8a);color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer;width:calc(100% - 56px)';
+        promo.textContent = '⚡ Acelerar setor (' + cost + '💎) — desbloqueia tudo com 1⭐';
+        promo.addEventListener('click', () => attemptAccelerateSector(sectorNum, cost));
+        sec.appendChild(promo);
+      }
+    }
+
     const path = document.createElement('div');
     path.className = 'path';
     stages.forEach((stage, idx) => {
@@ -570,6 +654,23 @@
     sec.appendChild(path);
 
     return sec;
+  }
+
+  async function attemptAccelerateSector(sector, cost) {
+    if (!confirm('Acelerar Setor ' + sector + ' por ' + cost + '💎?\n\nVocê ganhará 1⭐ em todas as fases ainda não vencidas.\nNão paga BRL — apenas desbloqueia. Você pode re-jogar para 2⭐/3⭐.')) return;
+    try {
+      const fd = new FormData();
+      fd.set('google_uid', uid());
+      fd.set('sector', String(sector));
+      const r = await fetch('/api/campaign-accelerate-sector.php', { method: 'POST', body: fd });
+      const data = await r.json();
+      if (!data.success) { alert(data.error || 'Falha'); return; }
+      if (user) user.credits = data.data.remaining_credits;
+      await loadProgress();
+      renderHeader();
+      renderMap();
+      alert('Setor desbloqueado! +' + data.data.stars_added + '⭐');
+    } catch (e) { alert('Erro: ' + e.message); }
   }
 
   function renderNode(stage, idx, sectorLocked) {
@@ -669,7 +770,74 @@
       window.location.href = 'campaign-game.html?stage=' + encodeURIComponent(stage.stage_id);
     };
 
+    // Skip stage: aparece após N tentativas falhas, se nunca venceu
+    const skipMin = (cfg.settings || {})['campaign.monetization.skip_attempts'] ?? 3;
+    const skipCost = (cfg.settings || {})['campaign.monetization.skip_cost'] ?? 5;
+    const skipBtn = $('ov-skip');
+    if (sp.attempts >= skipMin && (sp.wins == null || sp.wins === 0)) {
+      skipBtn.style.display = 'inline-block';
+      skipBtn.textContent = 'Pular (' + skipCost + '💎)';
+      skipBtn.onclick = () => attemptSkipStage(stage, skipCost);
+    } else {
+      skipBtn.style.display = 'none';
+    }
+
+    // Booster: mostra info se já tem armado, ou botão para comprar
+    const boosterBtn = $('ov-booster');
+    const pendingBooster = (prog && prog.progress && prog.progress.pending_booster) || null;
+    if (pendingBooster === 'triple_star') {
+      boosterBtn.textContent = '🛡 Triple Star armado';
+      boosterBtn.disabled = true;
+      boosterBtn.style.display = 'inline-block';
+    } else {
+      const boosterCost = (cfg.settings || {})['campaign.monetization.booster_cost'] ?? 3;
+      boosterBtn.textContent = 'Triple Star (' + boosterCost + '💎)';
+      boosterBtn.disabled = false;
+      boosterBtn.style.display = 'inline-block';
+      boosterBtn.onclick = attemptBuyBooster;
+    }
+
     $('ov-stage').classList.add('show');
+  }
+
+  async function attemptBuyBooster() {
+    const u = uid();
+    if (!u) return;
+    const cost = (cfg.settings || {})['campaign.monetization.booster_cost'] ?? 3;
+    if (!confirm('Comprar Triple Star Booster por ' + cost + '💎?\n\nA próxima fase começará com escudo ativo (bloqueia 1 dano).')) return;
+    try {
+      const fd = new FormData();
+      fd.set('google_uid', u);
+      fd.set('type', 'triple_star');
+      const r = await fetch('/api/campaign-buy-booster.php', { method: 'POST', body: fd });
+      const data = await r.json();
+      if (!data.success) { alert(data.error || 'Falha'); return; }
+      if (user) user.credits = data.data.remaining_credits;
+      renderHeader();
+      alert('Booster armado! Inicie a próxima fase para usar.');
+      // Recarrega progress para o modal saber que tem booster pendente
+      await loadProgress();
+      renderMap();
+    } catch (e) { alert('Erro: ' + e.message); }
+  }
+
+  async function attemptSkipStage(stage, cost) {
+    if (!confirm('Pular fase ' + stage.name + ' por ' + cost + '💎? Você ganha 1⭐ automaticamente. Pode re-jogar depois para 2⭐/3⭐.')) return;
+    try {
+      const fd = new FormData();
+      fd.set('google_uid', uid());
+      fd.set('stage_id', stage.stage_id);
+      const r = await fetch('/api/campaign-skip-stage.php', { method: 'POST', body: fd });
+      const data = await r.json();
+      if (!data.success) { alert(data.error || 'Falha'); return; }
+      closeStageModal();
+      // Atualiza progress
+      await loadProgress();
+      if (user) user.credits = data.data.remaining_credits;
+      renderHeader();
+      renderMap();
+      alert('Fase pulada! +' + data.data.stars + '⭐ e R$ ' + Number(data.data.brl_awarded).toFixed(2).replace('.', ','));
+    } catch (e) { alert('Erro: ' + e.message); }
   }
   function closeStageModal() {
     $('ov-stage').classList.remove('show');
@@ -677,6 +845,299 @@
   $('ov-close').addEventListener('click', closeStageModal);
   $('ov-stage').addEventListener('click', (e) => {
     if (e.target.id === 'ov-stage') closeStageModal();
+  });
+
+  // ----------------------------------------------------------------------
+  // Tutorial (welcome slides, cinematics, tooltips)
+  // ----------------------------------------------------------------------
+  let tutorialSeen = new Set();
+  let tutorialPlaying = null;
+
+  const WELCOME_SLIDES = [
+    { icon: '🚀', title: 'Bem-vindo à Campanha!',
+      text: 'Embarque em uma jornada espacial com 11 fases divididas em 2 setores. Encare ondas de inimigos e enfrente bosses com 3 fases de HP.' },
+    { icon: '❤', title: 'Sistema de Vidas',
+      text: 'Você começa com 5 vidas. Vidas só são consumidas em derrotas. Se ficar sem, espere a recarga (30 min cada) ou compre mais com créditos.' },
+    { icon: '⭐', title: 'XP e Estrelas',
+      text: 'Cada fase dá XP fixa que sobe seu nível. Para 3⭐, complete sem tomar dano. Para 2⭐, perca no máximo metade do HP.' },
+    { icon: '🎁', title: 'Power-ups',
+      text: 'Inimigos podem dropar escudo, reparo, tiro triplo, slow-time ou bombas. Pegue passando a nave por cima!' },
+  ];
+
+  const CINEMATIC_SECTOR2 = [
+    { icon: '🌌', title: 'Setor 1 conquistado',
+      text: 'Você atravessou o cinturão de asteroides. Mas o que vem agora são destroços de uma guerra antiga...' },
+    { icon: '☠', title: 'Zona de Detritos',
+      text: 'Sucata blindada, naves piratas e alienígenas mais agressivos. O Devorador de Sucata espreita as profundezas.' },
+  ];
+
+  async function loadTutorialSeen() {
+    const u = uid();
+    if (!u) return;
+    try {
+      const r = await fetch('/api/campaign-tutorial.php?google_uid=' + encodeURIComponent(u));
+      const data = await r.json();
+      if (data.success) tutorialSeen = new Set(data.data.seen || []);
+    } catch (_) {}
+  }
+
+  async function markTutorialSeen(key) {
+    tutorialSeen.add(key);
+    try {
+      const fd = new FormData();
+      fd.set('google_uid', uid());
+      fd.set('key', key);
+      await fetch('/api/campaign-tutorial.php', { method: 'POST', body: fd });
+    } catch (_) {}
+  }
+
+  function showTutorial(key, slides, persistent) {
+    tutorialPlaying = { key, slides, idx: 0, persistent: persistent !== false };
+    renderTutorialSlide();
+    document.getElementById('ov-tutorial').classList.add('show');
+  }
+
+  function renderTutorialSlide() {
+    if (!tutorialPlaying) return;
+    const s = tutorialPlaying.slides[tutorialPlaying.idx];
+    document.getElementById('tut-icon').textContent  = s.icon;
+    document.getElementById('tut-title').textContent = s.title;
+    document.getElementById('tut-text').textContent  = s.text;
+    document.getElementById('tut-next').textContent =
+      (tutorialPlaying.idx === tutorialPlaying.slides.length - 1) ? 'Vamos lá ✓' : 'Próximo →';
+    const dots = document.getElementById('tut-progress');
+    dots.innerHTML = '';
+    for (let i = 0; i < tutorialPlaying.slides.length; i++) {
+      const d = document.createElement('span');
+      d.style.cssText = 'width:8px;height:8px;border-radius:50%;background:' +
+        (i === tutorialPlaying.idx ? 'var(--accent)' : '#2a3375');
+      dots.appendChild(d);
+    }
+  }
+
+  function advanceTutorial() {
+    if (!tutorialPlaying) return;
+    if (tutorialPlaying.idx < tutorialPlaying.slides.length - 1) {
+      tutorialPlaying.idx += 1;
+      renderTutorialSlide();
+    } else {
+      finishTutorial();
+    }
+  }
+
+  function finishTutorial() {
+    if (!tutorialPlaying) return;
+    if (tutorialPlaying.persistent) markTutorialSeen(tutorialPlaying.key);
+    document.getElementById('ov-tutorial').classList.remove('show');
+    tutorialPlaying = null;
+  }
+
+  document.getElementById('tut-next').addEventListener('click', advanceTutorial);
+  document.getElementById('tut-skip').addEventListener('click', finishTutorial);
+
+  async function checkPendingTutorials() {
+    if (!prog) return;
+    if (!tutorialSeen.has('welcome')) {
+      showTutorial('welcome', WELCOME_SLIDES);
+      return;
+    }
+    const sector2On = (cfg.settings || {})['campaign.launch.sector2_enabled'] === true;
+    if (sector2On && !tutorialSeen.has('cinematic_sector1to2')) {
+      const completedSector1 = (prog.stages || []).some(s =>
+        /^s1/.test(s.stage_id) && s.stars >= 1);
+      if (completedSector1) {
+        showTutorial('cinematic_sector1to2', CINEMATIC_SECTOR2);
+        return;
+      }
+    }
+    // Tooltip contextual: 1ª vez sem vidas
+    if (!tutorialSeen.has('tooltip_no_lives')
+        && prog.lives && (prog.lives.current === 0)) {
+      showTutorial('tooltip_no_lives', [{
+        icon: '🤍', title: 'Sem vidas',
+        text: 'Suas vidas acabaram! Você pode esperar a recarga (30 min cada) ou comprar mais clicando no botão + ao lado das vidas.',
+      }]);
+      return;
+    }
+    // Tooltip contextual: 1ª 3⭐
+    if (!tutorialSeen.has('tooltip_first_3stars')) {
+      const has3 = (prog.stages || []).some(s => s.stars >= 3);
+      if (has3) {
+        showTutorial('tooltip_first_3stars', [{
+          icon: '⭐⭐⭐', title: 'Perfeição!',
+          text: 'Você fez 3⭐ pela primeira vez. Cada estrela aumenta o BRL ganho. Tente fazer 3⭐ em todas as fases!',
+        }]);
+        return;
+      }
+    }
+  }
+
+  // Botão de ajuda no rodapé reabre o welcome (não persiste)
+  document.getElementById('btn-help').addEventListener('click', (e) => {
+    e.preventDefault();
+    showTutorial('welcome_review', WELCOME_SLIDES, false);
+  });
+
+  // ----------------------------------------------------------------------
+  // Buy lives modal
+  // ----------------------------------------------------------------------
+  function openBuyLifeModal() {
+    if (!cfg) return;
+    const settings = cfg.settings || {};
+    // Custos vêm de campaign_settings (defaults se ausentes)
+    const costSingle = settings['campaign.lives.cost_single']  ?? 1;
+    const costPack5  = settings['campaign.lives.cost_pack5']   ?? 4;
+    const costRefill = settings['campaign.lives.cost_refill']  ?? 3;
+    document.getElementById('bl-cost-single').textContent = costSingle + ' 💎';
+    document.getElementById('bl-cost-pack5').textContent  = costPack5  + ' 💎';
+    document.getElementById('bl-cost-refill').textContent = costRefill + ' 💎';
+    const lives = (prog && prog.lives) || {};
+    document.getElementById('bl-status').textContent =
+      'Vidas atuais: ' + (lives.current ?? '?') + ' / ' + (lives.max ?? '?');
+    document.getElementById('bl-err').textContent = '';
+    document.getElementById('ov-buy-life').classList.add('show');
+  }
+  function closeBuyLifeModal() {
+    document.getElementById('ov-buy-life').classList.remove('show');
+  }
+  async function buyLife(pkg) {
+    const u = uid();
+    if (!u) return;
+    const errEl = document.getElementById('bl-err');
+    errEl.textContent = '';
+    try {
+      const fd = new FormData();
+      fd.set('google_uid', u);
+      fd.set('package', pkg);
+      const r = await fetch('/api/campaign-buy-life.php', { method: 'POST', body: fd });
+      const data = await r.json();
+      if (!data.success) {
+        errEl.textContent = data.error || 'Falha';
+        return;
+      }
+      // Atualiza local cache de progresso e créditos
+      if (prog && prog.lives) {
+        prog.lives.current      = data.data.lives.current;
+        prog.lives.max          = data.data.lives.max;
+        prog.lives.next_life_at = data.data.lives.next_life_at;
+        if (prog.progress) prog.progress.current_lives = data.data.lives.current;
+      }
+      if (user) user.credits = data.data.remaining_credits;
+      else user = { credits: data.data.remaining_credits };
+      renderHeader();
+      // Recarrega progress full para sincronizar 100% com o servidor
+      loadProgress().then(() => { renderHeader(); renderMap(); }).catch(() => {});
+      closeBuyLifeModal();
+    } catch (e) {
+      errEl.textContent = 'Erro de rede: ' + e.message;
+    }
+  }
+  // ----------------------------------------------------------------------
+  // Skins modal
+  // ----------------------------------------------------------------------
+  let skinsCache = null;
+
+  async function openSkinsModal() {
+    const u = uid();
+    if (!u) return;
+    document.getElementById('sk-err').textContent = '';
+    document.getElementById('sk-status').textContent = 'Carregando...';
+    document.getElementById('sk-list').innerHTML = '';
+    document.getElementById('ov-skins').classList.add('show');
+    try {
+      const r = await fetch('/api/campaign-skins.php?google_uid=' + encodeURIComponent(u));
+      const data = await r.json();
+      if (!data.success) {
+        document.getElementById('sk-err').textContent = data.error || 'Falha';
+        document.getElementById('sk-status').textContent = '';
+        return;
+      }
+      skinsCache = data.data.skins;
+      renderSkinsList();
+    } catch (e) {
+      document.getElementById('sk-err').textContent = 'Erro: ' + e.message;
+    }
+  }
+
+  function renderSkinsList() {
+    const credits = (user && typeof user.credits === 'number') ? user.credits : null;
+    document.getElementById('sk-status').textContent =
+      'Saldo: ' + (credits != null ? credits + ' 💎' : '?');
+    const list = document.getElementById('sk-list');
+    list.innerHTML = '';
+    for (const s of skinsCache) {
+      const card = document.createElement('div');
+      card.style.cssText =
+        'background:#0a0f30;border:1px solid ' + (s.equipped ? '#5cd5ff' : '#2a3375') +
+        ';border-radius:8px;padding:10px;text-align:center';
+      card.innerHTML =
+        '<img src="' + s.sprite_path + '" style="width:64px;height:64px;display:block;margin:0 auto 6px">' +
+        '<div style="font-size:12px;font-weight:600">' + s.name + '</div>' +
+        '<div style="font-size:10px;color:#8a93c8;margin:4px 0;min-height:24px">' + (s.description || '') + '</div>' +
+        '<div id="sk-action-' + s.skin_key + '"></div>';
+      list.appendChild(card);
+
+      const slot = card.querySelector('#sk-action-' + s.skin_key);
+      if (s.equipped) {
+        slot.innerHTML = '<span style="color:#5fdb91;font-size:11px">✓ Equipada</span>';
+      } else if (s.owned) {
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        btn.style.cssText = 'padding:5px 10px;font-size:11px;width:100%';
+        btn.textContent = 'Equipar';
+        btn.addEventListener('click', () => doSkinAction('equip', s.skin_key));
+        slot.appendChild(btn);
+      } else {
+        const btn = document.createElement('button');
+        btn.className = 'btn primary';
+        btn.style.cssText = 'padding:5px 10px;font-size:11px;width:100%';
+        btn.textContent = 'Comprar (' + s.credit_cost + '💎)';
+        btn.addEventListener('click', () => doSkinAction('buy', s.skin_key));
+        slot.appendChild(btn);
+      }
+    }
+  }
+
+  async function doSkinAction(action, skinKey) {
+    const u = uid();
+    if (!u) return;
+    const errEl = document.getElementById('sk-err');
+    errEl.textContent = '';
+    try {
+      const fd = new FormData();
+      fd.set('google_uid', u);
+      fd.set('action', action);
+      fd.set('skin_key', skinKey);
+      const r = await fetch('/api/campaign-skins.php', { method: 'POST', body: fd });
+      const data = await r.json();
+      if (!data.success) { errEl.textContent = data.error || 'Falha'; return; }
+      if (action === 'buy' && user && typeof data.data.remaining_credits === 'number') {
+        user.credits = data.data.remaining_credits;
+      }
+      // Recarrega lista de skins e progresso
+      await openSkinsModal();
+      await loadProgress();
+      renderHeader();
+    } catch (e) {
+      errEl.textContent = 'Erro: ' + e.message;
+    }
+  }
+
+  document.getElementById('hud-skins').addEventListener('click', openSkinsModal);
+  document.getElementById('sk-close').addEventListener('click', () => {
+    document.getElementById('ov-skins').classList.remove('show');
+  });
+  document.getElementById('ov-skins').addEventListener('click', (e) => {
+    if (e.target.id === 'ov-skins') document.getElementById('ov-skins').classList.remove('show');
+  });
+
+  document.getElementById('hud-buy-life').addEventListener('click', openBuyLifeModal);
+  document.getElementById('bl-close').addEventListener('click', closeBuyLifeModal);
+  document.getElementById('ov-buy-life').addEventListener('click', (e) => {
+    if (e.target.id === 'ov-buy-life') closeBuyLifeModal();
+  });
+  document.querySelectorAll('#ov-buy-life [data-pkg]').forEach(btn => {
+    btn.addEventListener('click', () => buyLife(btn.getAttribute('data-pkg')));
   });
 
   // ----------------------------------------------------------------------
@@ -721,10 +1182,10 @@
   async function refreshAll() {
     try {
       if (!cfg) await loadConfig();
-      await loadProgress();
-      await loadUserCredits();
+      await Promise.all([loadProgress(), loadUserCredits(), loadTutorialSeen()]);
       renderHeader();
       renderMap();
+      checkPendingTutorials();
     } catch (e) {
       $('map-root').innerHTML =
         '<div style="padding:40px 20px;color:var(--err);text-align:center">Erro: ' +

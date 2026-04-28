@@ -133,6 +133,9 @@
   let cfg = { ...DEFAULTS };
   let stage = null;            // { duration_seconds, sector, ... }
   let running = false;
+  let paused  = false;
+  let pausedAtMs = 0;
+  let pauseOffsetMs = 0;       // ms acumulados em pausa, descontados do timer
   let rafId = null;
 
   // Relógio
@@ -202,13 +205,16 @@
   // ----------------------------------------------------------------------
   function spawnPlayer() {
     const w = 56, h = 56;
+    const shipKey = cfg.shipSpriteKey || 'ship_default';
     player = {
       x: canvas.width / 2 - w / 2,
       y: canvas.height - 120,
       w, h,
       hp: cfg.shipMaxHp,
       lastShotMs: 0,
-      sprite: (global.CampaignAssets && global.CampaignAssets.tryGet('ship_default')) || null,
+      sprite: (global.CampaignAssets && global.CampaignAssets.tryGet(shipKey))
+              || (global.CampaignAssets && global.CampaignAssets.tryGet('ship_default'))
+              || null,
       bulletSprite: (global.CampaignAssets && global.CampaignAssets.tryGet('player_bullet')) || null,
     };
   }
@@ -1294,11 +1300,17 @@
   // ----------------------------------------------------------------------
   function loop(ts) {
     if (!running) return;
+    if (paused) {
+      // Mantém o frame congelado e re-agenda; sem update, sem dt.
+      lastFrameMs = ts;
+      rafId = requestAnimationFrame(loop);
+      return;
+    }
     const dtMs = Math.min(50, ts - (lastFrameMs || ts));
     lastFrameMs = ts;
     const dt = dtMs / 16.67;   // normaliza para "1 = um frame de 60fps"
 
-    const elapsedMs = ts - startTimeMs;
+    const elapsedMs = ts - startTimeMs - pauseOffsetMs;
     const elapsedSec = Math.floor(elapsedMs / 1000);
     const duration = stage && stage.duration_seconds ? stage.duration_seconds : 60;
     const timeLeft = Math.max(0, duration - elapsedSec);
@@ -1395,11 +1407,86 @@
     loadWaves(stage, opts.totalEnemies);
     bindInput();
 
+    // Sprite da nave: opts.shipSpriteKey sobrescreve cfg
+    if (opts.shipSpriteKey) {
+      const img = global.CampaignAssets && global.CampaignAssets.tryGet(opts.shipSpriteKey);
+      if (img) player.sprite = img;
+    }
+
+    // Aplicação de boosters (vindo do servidor via campaign-start.php)
+    if (opts.booster === 'triple_star') {
+      effects.shield = true;
+    }
+
     running = true;
+    paused = false;
+    pauseOffsetMs = 0;
+    pausedAtMs = 0;
     startTimeMs = performance.now();
     lastFrameMs = 0;
     waveStartMs = startTimeMs + 1500;  // 1.5s de "introdução" antes do primeiro spawn
     rafId = requestAnimationFrame(loop);
+  }
+
+  function pause() {
+    if (!running || paused) return;
+    paused = true;
+    pausedAtMs = performance.now();
+  }
+
+  function resume() {
+    if (!running || !paused) return;
+    paused = false;
+    const now = performance.now();
+    pauseOffsetMs += now - pausedAtMs;
+    // Desloca todos os timers de spawn baseados em wall-clock pra que a
+    // pausa não conte como tempo decorrido.
+    waveStartMs += now - pausedAtMs;
+    if (boss) {
+      const d = now - pausedAtMs;
+      if (boss.lastFireMs)         boss.lastFireMs += d;
+      if (boss.lastChargeMs)       boss.lastChargeMs += d;
+      if (boss.lastShooterSpawnMs) boss.lastShooterSpawnMs += d;
+      if (boss.laserStartMs)       boss.laserStartMs += d;
+      if (boss.birthMs)            boss.birthMs += d;
+    }
+    if (bossWarningUntil > 0)      bossWarningUntil += now - pausedAtMs;
+    pausedAtMs = 0;
+    lastFrameMs = 0;
+  }
+
+  function isPaused() { return paused; }
+
+  /**
+   * Continua a sessão atual após game over: restaura HP, limpa
+   * inimigos próximos, ativa shield brevemente. NÃO restaura HP do
+   * boss (decisão da spec — boss continua de onde parou).
+   */
+  function revive() {
+    if (!player) return;
+    player.hp = cfg.shipMaxHp;
+    damageTaken = 0;
+    combo = 0;
+    // Limpa inimigos perto do player para não morrer instantaneamente
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const en = enemies[i];
+      if (Math.abs(en.y - player.y) < 200) {
+        spawnExplosion(en.x + en.w / 2, en.y + en.h / 2, '#5cd5ff');
+        enemies.splice(i, 1);
+      }
+    }
+    enemyBullets.length = 0;
+    // Escudo de cortesia
+    effects.shield = true;
+    endedFired = false;
+    // Reativa o loop se foi cancelado
+    if (!running) {
+      running = true;
+      paused = false;
+      pausedAtMs = 0;
+      lastFrameMs = 0;
+      rafId = requestAnimationFrame(loop);
+    }
   }
 
   function stop() {
@@ -1423,5 +1510,5 @@
     if (onEndCb) onEndCb(payload);
   }
 
-  global.CampaignEngine = { start, stop };
+  global.CampaignEngine = { start, stop, pause, resume, isPaused, revive };
 })(window);
