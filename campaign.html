@@ -4,43 +4,93 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="robots" content="noindex,nofollow" />
-  <title>Campanha — Modo Galáctico</title>
+  <title>Modo Campanha · Unobix</title>
   <link rel="icon" href="favicon.ico" />
+
+  <!-- Fonts (alinha com o resto do site) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=Exo+2:wght@300;400;500;600;700&display=swap">
+
+  <!-- Font Awesome (ícones do design system) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
   <style>
     :root {
       color-scheme: dark;
-      --bg: #04060f;
-      --canvas-w: 414px;
-      --canvas-h: 896px;
-      --text: #e7eaff;
-      --muted: #8a93c8;
-      --accent: #5cd5ff;
-      --accent-2: #ff7eea;
-      --gold: #ffd166;
-      --ok: #5fdb91;
-      --warn: #ffd166;
-      --err: #ff6b6b;
-      --panel: rgba(20,28,72,0.78);
-      --border: #2a3375;
+
+      /* Paleta alinhada com main.css */
+      --primary:        #00E5CC;
+      --primary-dark:   #00b8a3;
+      --secondary:      #7BF542;
+      --accent:         #B8FF00;
+      --success:        #00FF88;
+      --warning:        #ffd166;
+      --danger:         #ff4757;
+      --info:           #00d4ff;
+
+      --bg:             #0a0a0f;
+      --bg-2:           #0f1018;
+      --card-bg:        rgba(15, 16, 24, 0.95);
+      --card-bg-hover:  rgba(20, 22, 35, 0.98);
+
+      --text:           #ffffff;
+      --text-soft:      #e0e0e0;
+      --text-dim:       #8892a4;
+
+      --border:         rgba(0, 229, 204, 0.15);
+      --border-hover:   rgba(0, 229, 204, 0.4);
+      --glow:           0 0 20px rgba(0, 229, 204, 0.3);
+      --glow-soft:      0 8px 25px rgba(0, 229, 204, 0.12);
+
+      --gradient-primary: linear-gradient(135deg, #00E5CC, #00FF88);
+      --gradient-warm:    linear-gradient(135deg, #ffd166, #ff7e4a);
+      --gradient-danger:  linear-gradient(135deg, #ff4757, #ff6b7a);
+      --gradient-accent:  linear-gradient(135deg, #B8FF00, #00FF88);
+
     }
     * { box-sizing: border-box; }
     html, body {
       margin: 0; padding: 0;
       background: var(--bg);
+      font-family: 'Exo 2', system-ui, -apple-system, sans-serif;
       color: var(--text);
-      font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
       min-height: 100vh; min-height: 100dvh;
       overflow: hidden;
       touch-action: pan-y;
+      -webkit-font-smoothing: antialiased;
     }
+    h1, h2, h3, h4 { font-family: 'Orbitron', monospace; font-weight: 700; }
+    .mono { font-family: 'Orbitron', monospace; }
 
+    /* Cosmic background — combina com main.css */
     .stage {
       position: fixed; inset: 0;
       display: flex; align-items: center; justify-content: center;
       background:
-        radial-gradient(ellipse at 30% 20%, rgba(80,40,180,0.28) 0%, transparent 55%),
-        radial-gradient(ellipse at 70% 80%, rgba(180,40,120,0.22) 0%, transparent 55%),
-        #04060f;
+        radial-gradient(ellipse at 20% 25%, rgba(0, 229, 204, 0.10) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 75%, rgba(123, 245, 66, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(184, 255, 0, 0.05) 0%, transparent 60%),
+        #0a0a0f;
+    }
+    .stage::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(1px 1px at 20% 30%, #fff, transparent),
+        radial-gradient(1px 1px at 60% 70%, #00E5CC, transparent),
+        radial-gradient(2px 2px at 80% 20%, #fff, transparent),
+        radial-gradient(1px 1px at 40% 80%, #B8FF00, transparent);
+      background-size: 200px 200px;
+      opacity: 0.45;
+      pointer-events: none;
+      animation: starsTwinkle 8s ease-in-out infinite alternate;
+    }
+    @keyframes starsTwinkle {
+      from { opacity: 0.4; }
+      to   { opacity: 0.7; }
     }
     .frame {
       position: relative;
@@ -48,78 +98,139 @@
       height: var(--canvas-h);
       max-width: 100vw;
       max-height: 100dvh;
-      border-radius: 18px;
+      border-radius: 20px;
       overflow: hidden;
-      box-shadow: 0 30px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(92,213,255,0.18);
+      background: var(--bg);
+      box-shadow:
+        0 30px 80px rgba(0, 0, 0, 0.6),
+        0 0 0 1px var(--border),
+        0 0 60px rgba(0, 229, 204, 0.12);
       display: flex; flex-direction: column;
+      z-index: 1;
     }
     @media (max-width: 480px) {
-      .frame { border-radius: 0; box-shadow: none; }
+      .frame { border-radius: 0; box-shadow: none; max-width: 100vw; max-height: 100vh; }
     }
 
-    /* Header sticky */
+    /* Header (HUD) sticky com glassmorphism */
     header.hud {
       flex-shrink: 0;
-      padding: 12px 14px 10px;
-      background: linear-gradient(180deg, #050930 0%, #0a0f3a 100%);
+      padding: 14px 16px 12px;
+      background: rgba(10, 10, 15, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
       z-index: 10;
     }
-    .hud-row1 { display: flex; align-items: center; gap: 10px; }
-    .hud-row1 img { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); }
+    .hud-row1 { display: flex; align-items: center; gap: 12px; }
+    .hud-row1 .avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: 2px solid var(--primary);
+      box-shadow: 0 0 12px rgba(0, 229, 204, 0.35);
+      object-fit: cover;
+    }
     .hud-row1 .who { flex: 1; min-width: 0; }
-    .hud-row1 .who .name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .hud-row1 .who .lvl { font-size: 11px; color: var(--muted); }
+    .hud-row1 .who .name {
+      font-family: 'Orbitron', monospace;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .hud-row1 .who .lvl {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 1px;
+    }
+    .hud-row1 .who .lvl i { color: var(--warning); margin-right: 3px; }
     .hud-row1 .lvl-big {
-      font: 700 22px ui-monospace,Menlo,monospace;
-      color: var(--accent);
-      background: rgba(0,0,0,0.45);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 2px 10px;
-      min-width: 56px; text-align: center;
+      font-family: 'Orbitron', monospace;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--primary);
+      background: rgba(0, 229, 204, 0.08);
+      border: 1px solid var(--border-hover);
+      border-radius: 10px;
+      padding: 4px 14px;
+      min-width: 56px;
+      text-align: center;
+      text-shadow: 0 0 12px rgba(0, 229, 204, 0.5);
     }
 
     .xp-bar {
-      margin-top: 8px;
-      height: 6px;
-      background: rgba(0,0,0,0.45);
-      border-radius: 3px;
+      margin-top: 10px;
+      height: 8px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 4px;
       overflow: hidden;
       border: 1px solid var(--border);
     }
     .xp-bar > div {
       height: 100%;
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
-      transition: width 0.5s;
+      background: var(--gradient-primary);
+      transition: width 0.6s ease;
       width: 0%;
+      box-shadow: 0 0 8px rgba(0, 229, 204, 0.5);
     }
     .xp-meta {
       display: flex; justify-content: space-between;
-      font: 10px ui-monospace,Menlo,monospace;
-      color: var(--muted);
-      margin-top: 2px;
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      letter-spacing: 0.04em;
     }
+    .xp-meta .next { color: var(--success); }
 
     .hud-row2 {
-      margin-top: 10px;
-      display: flex; gap: 10px; align-items: center;
+      margin-top: 12px;
+      display: flex; gap: 8px; align-items: center;
       font-size: 12px;
     }
-    .lives { letter-spacing: 1px; }
-    .lives .heart { font-size: 16px; }
-    .lives .heart.full  { color: var(--err); }
-    .lives .heart.empty { color: #2a3375; }
-    .lives-meta { font: 10px ui-monospace,Menlo,monospace; color: var(--muted); margin-left: 4px; }
+    .lives {
+      display: flex; align-items: center; gap: 3px;
+      letter-spacing: 1px;
+    }
+    .lives i { font-size: 14px; transition: color 0.2s; }
+    .lives i.full  { color: var(--danger); filter: drop-shadow(0 0 4px rgba(255, 71, 87, 0.4)); }
+    .lives i.empty { color: rgba(255, 71, 87, 0.18); }
+    .lives-meta {
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-left: 4px;
+    }
+    .hud-action-btn {
+      background: rgba(0, 229, 204, 0.08);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 9px;
+      font-size: 12px;
+      color: var(--primary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .hud-action-btn:hover {
+      background: rgba(0, 229, 204, 0.15);
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
     .credits {
       margin-left: auto;
-      background: rgba(0,0,0,0.45);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 4px 8px;
-      font: 600 12px ui-monospace,Menlo,monospace;
-      color: var(--gold);
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(184, 255, 0, 0.08);
+      border: 1px solid rgba(184, 255, 0, 0.3);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-family: 'Orbitron', monospace;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--accent);
+      box-shadow: 0 0 8px rgba(184, 255, 0, 0.15);
     }
+    .credits i { font-size: 13px; }
 
     /* Map area */
     main.map {
@@ -128,168 +239,342 @@
       overflow-x: hidden;
       scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch;
+      padding-bottom: 16px;
+    }
+    main.map::-webkit-scrollbar { width: 6px; }
+    main.map::-webkit-scrollbar-thumb {
+      background: var(--border-hover);
+      border-radius: 3px;
     }
 
     .sector {
       position: relative;
-      padding: 18px 0 30px;
-      border-bottom: 1px dashed rgba(255,255,255,0.06);
+      padding: 22px 0 28px;
     }
+    .sector + .sector { border-top: 1px solid var(--border); }
     .sector h2 {
-      font-size: 13px;
-      letter-spacing: 0.12em;
+      font-family: 'Orbitron', monospace;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: var(--accent);
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
       text-align: center;
-      margin: 0 0 4px;
+      margin: 0 0 6px;
     }
     .sector .subtitle {
       text-align: center;
-      font-size: 11px;
-      color: var(--muted);
-      margin-bottom: 18px;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 20px;
+      letter-spacing: 0.04em;
     }
-    .sector.locked { opacity: 0.55; }
+    .sector.locked { opacity: 0.5; }
     .sector .locked-banner {
       position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(20,28,72,0.92);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 16px;
+      background: rgba(15, 16, 24, 0.95);
+      border: 1px solid rgba(255, 209, 102, 0.4);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-family: 'Orbitron', monospace;
       font-size: 12px;
-      color: var(--warn);
+      letter-spacing: 0.08em;
+      color: var(--warning);
       pointer-events: none;
       z-index: 2;
+      box-shadow: 0 0 20px rgba(255, 209, 102, 0.2);
     }
 
     /* Path com nodes em zigzag */
-    .path { position: relative; padding: 0 28px; }
+    .path {
+      position: relative;
+      padding: 0 18px;
+    }
     .node {
       position: relative;
-      display: flex; align-items: center; gap: 12px;
-      margin: 14px 0;
+      display: flex; align-items: center; gap: 14px;
+      margin: 12px 0;
       cursor: pointer;
+      padding: 8px;
+      border-radius: 14px;
+      transition: all 0.25s ease;
+    }
+    .node:not(.locked):hover {
+      background: rgba(0, 229, 204, 0.06);
+      transform: translateX(4px);
     }
     .node.right { flex-direction: row-reverse; text-align: right; }
+    .node.right:not(.locked):hover { transform: translateX(-4px); }
     .node .circle {
       flex-shrink: 0;
       width: 64px; height: 64px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #1c4cff 0%, #5b1a8a 100%);
-      border: 2px solid var(--border);
+      border-radius: 16px;
+      background: var(--gradient-primary);
+      border: 2px solid rgba(0, 229, 204, 0.6);
       display: flex; align-items: center; justify-content: center;
-      font: 700 22px ui-monospace,Menlo,monospace;
-      color: #fff;
-      box-shadow: 0 8px 20px rgba(28,76,255,0.35);
-      transition: transform 0.15s;
+      font-family: 'Orbitron', monospace;
+      font-weight: 800;
+      font-size: 22px;
+      color: var(--bg);
+      box-shadow:
+        0 6px 20px rgba(0, 229, 204, 0.35),
+        inset 0 -8px 20px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s ease;
     }
-    .node:hover .circle { transform: scale(1.06); }
+    .node:not(.locked):hover .circle {
+      transform: scale(1.06) rotate(-3deg);
+      box-shadow:
+        0 8px 28px rgba(0, 229, 204, 0.55),
+        inset 0 -8px 20px rgba(0, 0, 0, 0.2);
+    }
     .node.boss .circle {
-      background: linear-gradient(135deg, #aa1a3a 0%, #ff7e4a 100%);
-      box-shadow: 0 8px 20px rgba(255,126,74,0.4);
-      width: 76px; height: 76px;
-      font-size: 24px;
+      background: var(--gradient-warm);
+      border-color: rgba(255, 126, 74, 0.7);
+      box-shadow:
+        0 6px 20px rgba(255, 126, 74, 0.45),
+        inset 0 -8px 20px rgba(0, 0, 0, 0.25);
+      width: 72px; height: 72px;
+      font-size: 26px;
+    }
+    .node.completed .circle {
+      background: var(--gradient-accent);
+      border-color: var(--success);
+    }
+    .node.locked {
+      cursor: not-allowed;
+      opacity: 0.55;
     }
     .node.locked .circle {
-      background: linear-gradient(135deg, #2a2a3c 0%, #1a1a26 100%);
+      background: rgba(15, 16, 24, 0.6);
+      border: 2px dashed rgba(136, 146, 164, 0.4);
       box-shadow: none;
-      cursor: not-allowed;
+      color: var(--text-dim);
     }
-    .node.locked .circle::before { content: "🔒"; font-size: 22px; }
-    .node.locked .circle .label { display: none; }
+    .node.locked .circle .label,
+    .node.locked .circle i:not(.fa-lock) { display: none; }
+    .node.locked .circle::after {
+      content: "\f023"; /* fa-lock */
+      font-family: "Font Awesome 6 Free";
+      font-weight: 900;
+      font-size: 22px;
+      color: var(--text-dim);
+    }
 
-    .node .meta {
-      flex: 1;
-      min-width: 0;
+    .node .meta { flex: 1; min-width: 0; }
+    .node .meta .name {
+      font-family: 'Orbitron', monospace;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text);
+      letter-spacing: 0.02em;
     }
-    .node .meta .name { font-weight: 600; font-size: 13px; }
-    .node .meta .stars { letter-spacing: 4px; font-size: 14px; margin-top: 2px; }
-    .node .meta .stars .lit { color: var(--gold); }
-    .node .meta .stars .off { color: #2a3375; }
-    .node .meta .reward { color: var(--ok); font-size: 11px; margin-top: 2px; font-family: ui-monospace,Menlo,monospace; }
-    .node .meta .req { color: var(--warn); font-size: 10px; margin-top: 2px; }
+    .node .meta .stars {
+      letter-spacing: 3px;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    .node .meta .stars i.lit { color: var(--warning); filter: drop-shadow(0 0 4px rgba(255, 209, 102, 0.5)); }
+    .node .meta .stars i.off { color: rgba(136, 146, 164, 0.25); }
+    .node .meta .reward {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--success);
+      font-family: 'Orbitron', monospace;
+      font-size: 11px;
+      margin-top: 4px;
+      letter-spacing: 0.02em;
+    }
+    .node .meta .reward .sep { color: rgba(136, 146, 164, 0.3); }
+    .node .meta .reward .cost { color: var(--accent); }
+    .node .meta .req {
+      display: flex; align-items: center; gap: 4px;
+      color: var(--warning);
+      font-size: 10px;
+      margin-top: 4px;
+      letter-spacing: 0.04em;
+    }
+    .node.right .meta .reward,
+    .node.right .meta .req { justify-content: flex-end; }
     .node .badge-new {
-      position: absolute; top: -6px; left: -6px;
-      background: var(--accent-2);
-      color: #fff; font: 700 9px ui-monospace,Menlo,monospace;
-      padding: 2px 6px; border-radius: 999px;
+      position: absolute; top: 0; left: 0;
+      background: var(--gradient-accent);
+      color: var(--bg);
+      font-family: 'Orbitron', monospace;
+      font-weight: 800;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      padding: 3px 8px;
+      border-radius: 999px;
+      box-shadow: 0 0 12px rgba(184, 255, 0, 0.4);
+    }
+    .node.right .badge-new { left: auto; right: 0; }
+
+    /* Botão "Acelerar setor" */
+    .accelerate-btn {
+      display: flex !important;
+      align-items: center; justify-content: center; gap: 8px;
+      margin: 0 18px 16px;
+      padding: 10px 16px !important;
+      width: calc(100% - 36px) !important;
+      background: linear-gradient(135deg, rgba(0, 229, 204, 0.15), rgba(184, 255, 0, 0.1)) !important;
+      border: 1px solid var(--border-hover) !important;
+      border-radius: 12px;
+      color: var(--primary) !important;
+      font-family: 'Orbitron', monospace;
+      font-size: 12px !important;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    .accelerate-btn:hover {
+      background: linear-gradient(135deg, rgba(0, 229, 204, 0.22), rgba(184, 255, 0, 0.15)) !important;
+      border-color: var(--primary) !important;
+      transform: translateY(-1px);
+      box-shadow: var(--glow-soft);
     }
 
-    /* Modal */
+    /* Modais / Overlays */
     .overlay {
       position: absolute; inset: 0;
-      background: rgba(4,6,15,0.85);
-      backdrop-filter: blur(6px);
+      background: rgba(10, 10, 15, 0.88);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       display: none;
       align-items: center; justify-content: center;
-      padding: 20px;
+      padding: 24px;
       z-index: 50;
     }
-    .overlay.show { display: flex; }
+    .overlay.show { display: flex; animation: overlayIn 0.25s ease-out; }
+    @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+
     .overlay .card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 22px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-hover);
+      border-radius: 18px;
+      padding: 26px;
       max-width: 360px; width: 100%;
       text-align: center;
+      box-shadow:
+        0 30px 80px rgba(0, 0, 0, 0.6),
+        0 0 40px rgba(0, 229, 204, 0.15);
+      animation: cardIn 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
     }
-    .overlay h3 { margin: 0 0 4px; font-size: 18px; }
-    .overlay .modal-sub { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(8px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .overlay h3 {
+      margin: 0 0 6px;
+      font-family: 'Orbitron', monospace;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+    .overlay .modal-sub {
+      margin: 0 0 14px;
+      color: var(--text-dim);
+      font-size: 12px;
+      line-height: 1.5;
+    }
     .overlay .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-      margin: 12px 0 16px;
+      margin: 14px 0 18px;
       font-size: 11px;
     }
     .overlay .grid > div {
-      background: #050720;
+      background: rgba(0, 0, 0, 0.3);
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 8px;
+      border-radius: 10px;
+      padding: 10px;
+      color: var(--text-dim);
     }
     .overlay .grid strong {
       display: block;
-      color: var(--accent);
-      font: 600 13px ui-monospace,Menlo,monospace;
+      font-family: 'Orbitron', monospace;
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 700;
       margin-bottom: 2px;
     }
-    .overlay .stars-big { font-size: 30px; letter-spacing: 8px; margin: 8px 0; }
-    .overlay .stars-big .lit { color: var(--gold); }
-    .overlay .stars-big .off { color: #2a3375; }
+    .overlay .stars-big {
+      font-size: 32px;
+      letter-spacing: 10px;
+      margin: 10px 0;
+    }
+    .overlay .stars-big i.lit { color: var(--warning); filter: drop-shadow(0 0 8px rgba(255, 209, 102, 0.6)); }
+    .overlay .stars-big i.off { color: rgba(136, 146, 164, 0.2); }
+
+    /* Botões */
     .btn {
-      background: var(--panel);
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      background: rgba(0, 229, 204, 0.06);
       color: var(--text);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 18px;
-      font-size: 14px;
+      border-radius: 25px;
+      padding: 10px 22px;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: all 0.25s ease;
+      text-decoration: none;
     }
-    .btn:hover { background: #1f2766; }
+    .btn:hover {
+      background: rgba(0, 229, 204, 0.12);
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
     .btn.primary {
-      background: linear-gradient(135deg, #1c4cff 0%, #5b1a8a 100%);
+      background: var(--gradient-primary);
+      color: var(--bg);
       border: none;
+      font-weight: 700;
     }
-    .btn.primary:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .btn.primary:hover {
+      box-shadow: var(--glow);
+      transform: translateY(-2px);
+    }
+    .btn.primary:disabled,
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
 
     /* Login overlay (1ª vez) */
     .login-overlay { z-index: 60; }
-    .err-msg { color: var(--err); font-size: 12px; margin-top: 6px; }
+    .err-msg { color: var(--danger); font-size: 12px; margin-top: 6px; }
 
     .footer-mini {
       flex-shrink: 0;
-      padding: 6px 14px;
-      font: 10px ui-monospace,Menlo,monospace;
-      color: var(--muted);
+      padding: 8px 14px;
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      color: var(--text-dim);
       text-align: center;
       border-top: 1px solid var(--border);
-      background: #050930;
+      background: rgba(10, 10, 15, 0.85);
+      letter-spacing: 0.1em;
     }
+    .footer-mini a { color: var(--text-dim); text-decoration: none; transition: color 0.2s; }
+    .footer-mini a:hover { color: var(--primary); }
   </style>
 </head>
 <body>
@@ -300,7 +585,7 @@
     <!-- HEADER (hud) -->
     <header class="hud">
       <div class="hud-row1">
-        <img id="hud-avatar" src="" alt="" style="display:none">
+        <img class="avatar" id="hud-avatar" src="" alt="" style="display:none">
         <div class="who">
           <div class="name" id="hud-name">Carregando...</div>
           <div class="lvl" id="hud-lvl-text">—</div>
@@ -310,18 +595,19 @@
       <div class="xp-bar"><div id="hud-xp-fill"></div></div>
       <div class="xp-meta">
         <span id="hud-xp-cur">0 XP</span>
-        <span id="hud-xp-next">/ 100 XP</span>
+        <span class="next" id="hud-xp-next">/ 100 XP</span>
       </div>
       <div class="hud-row2">
-        <span class="lives" id="hud-lives">—</span>
+        <span class="lives" id="hud-lives" aria-label="Vidas"></span>
         <span class="lives-meta" id="hud-lives-timer"></span>
-        <button id="hud-buy-life" type="button" title="Comprar vidas"
-                style="background:rgba(0,0,0,0.45);border:1px solid var(--border);color:var(--err);
-                       border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer">+</button>
-        <button id="hud-skins" type="button" title="Skins de nave"
-                style="background:rgba(0,0,0,0.45);border:1px solid var(--border);color:var(--accent);
-                       border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer">🚀</button>
-        <span class="credits" id="hud-credits">💎 0</span>
+        <button class="hud-action-btn" id="hud-buy-life" type="button" title="Comprar vidas"
+                style="color:var(--danger);border-color:rgba(255,71,87,0.3);background:rgba(255,71,87,0.08)">
+          <i class="fas fa-plus"></i>
+        </button>
+        <button class="hud-action-btn" id="hud-skins" type="button" title="Skins de nave">
+          <i class="fas fa-rocket"></i>
+        </button>
+        <span class="credits" id="hud-credits"><i class="fas fa-coins"></i> 0</span>
       </div>
     </header>
 
@@ -365,7 +651,7 @@
     <!-- Login overlay -->
     <div class="overlay login-overlay" id="ov-login">
       <div class="card">
-        <h3>🚀 Modo Campanha</h3>
+        <h3><i class="fas fa-rocket" style="color:var(--primary)"></i> Modo Campanha</h3>
         <p class="modal-sub">Faça login para acessar o mapa de fases.</p>
         <div class="btn-row">
           <button class="btn primary" id="btn-login">Login com Google</button>
@@ -390,7 +676,7 @@
     <!-- Skins overlay -->
     <div class="overlay" id="ov-skins">
       <div class="card" style="max-width:380px">
-        <h3>🚀 Skins de Nave</h3>
+        <h3><i class="fas fa-rocket" style="color:var(--primary)"></i> Skins de Nave</h3>
         <p class="modal-sub" id="sk-status">—</p>
         <div id="sk-err" style="color:#ff6b6b;font-size:11px;margin-bottom:6px"></div>
         <div id="sk-list" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:380px;overflow-y:auto"></div>
@@ -403,22 +689,22 @@
     <!-- Buy lives overlay -->
     <div class="overlay" id="ov-buy-life">
       <div class="card">
-        <h3>❤ Comprar vidas</h3>
+        <h3><i class="fas fa-heart" style="color:var(--danger)"></i> Comprar vidas</h3>
         <p class="modal-sub" id="bl-status">—</p>
         <div id="bl-err" style="color:#ff6b6b;font-size:11px;margin-bottom:6px"></div>
         <div style="display:grid;grid-template-columns:1fr;gap:8px;text-align:left">
           <button class="btn" data-pkg="single">
-            <strong>+1 vida</strong> <span style="float:right;color:#ffd166" id="bl-cost-single">— 💎</span>
+            <strong>+1 vida</strong> <span style="float:right;color:#ffd166" id="bl-cost-single">—</span>
           </button>
           <button class="btn" data-pkg="pack5">
             <strong>+5 vidas</strong>
             <span style="display:block;font-size:10px;color:#8a93c8">desconto</span>
-            <span style="float:right;color:#ffd166;margin-top:-30px" id="bl-cost-pack5">— 💎</span>
+            <span style="float:right;color:#ffd166;margin-top:-30px" id="bl-cost-pack5">—</span>
           </button>
           <button class="btn" data-pkg="refill">
             <strong>Refill total</strong>
             <span style="display:block;font-size:10px;color:#8a93c8">enche até o máximo</span>
-            <span style="float:right;color:#ffd166;margin-top:-30px" id="bl-cost-refill">— 💎</span>
+            <span style="float:right;color:#ffd166;margin-top:-30px" id="bl-cost-refill">—</span>
           </button>
         </div>
         <div class="btn-row" style="margin-top:14px">
@@ -515,21 +801,22 @@
     $('hud-xp-next').textContent = nextXpReq > curXpReq
       ? '→ Lv ' + nextLvl + ' em ' + (nextXpReq - (p.total_xp || 0)) + ' XP'
       : 'nível máx';
-    $('hud-lvl-text').textContent = p.total_stars + '⭐ totais';
+    $('hud-lvl-text').innerHTML = '<i class="fas fa-star"></i> ' + (p.total_stars || 0) + ' totais';
 
-    // Vidas
+    // Vidas (FontAwesome hearts)
     const max = lives.max || 5;
     const cur = lives.current || 0;
     let hearts = '';
     for (let i = 0; i < max; i++) {
-      hearts += '<span class="heart ' + (i < cur ? 'full' : 'empty') + '">' +
-                (i < cur ? '❤' : '🤍') + '</span>';
+      hearts += '<i class="fas fa-heart ' + (i < cur ? 'full' : 'empty') + '"></i>';
     }
     $('hud-lives').innerHTML = hearts;
     updateLivesTimer();
 
-    // Créditos vêm de fora (precisa de uma API auxiliar; por ora usa user.credits se carregado)
-    $('hud-credits').textContent = '💎 ' + (user && typeof user.credits === 'number' ? user.credits : '?');
+    // Créditos (ícone fa-coins = ficha; servidor é fonte da verdade)
+    const creditsEl = $('hud-credits');
+    const c = (user && typeof user.credits === 'number') ? user.credits : '?';
+    creditsEl.innerHTML = '<i class="fas fa-coins"></i> ' + c;
   }
 
   function updateLivesTimer() {
@@ -622,7 +909,7 @@
     if (locked) {
       const banner = document.createElement('div');
       banner.className = 'locked-banner';
-      banner.textContent = '🔒 Em breve';
+      banner.innerHTML = '<i class="fas fa-lock"></i> Em breve';
       sec.appendChild(banner);
     }
 
@@ -639,8 +926,11 @@
                      ?? (sectorNum === 1 ? 20 : 30);
         const promo = document.createElement('button');
         promo.type = 'button';
-        promo.style.cssText = 'display:block;margin:0 28px 12px;padding:8px 12px;background:linear-gradient(135deg,#1c4cff,#5b1a8a);color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer;width:calc(100% - 56px)';
-        promo.textContent = '⚡ Acelerar setor (' + cost + '💎) — desbloqueia tudo com 1⭐';
+        promo.className = 'accelerate-btn';
+        promo.innerHTML =
+          '<i class="fas fa-bolt"></i>' +
+          '<span>Acelerar setor —</span>' +
+          '<span style="color:var(--accent)"><i class="fas fa-coins"></i> ' + cost + '</span>';
         promo.addEventListener('click', () => attemptAccelerateSector(sectorNum, cost));
         sec.appendChild(promo);
       }
@@ -657,7 +947,7 @@
   }
 
   async function attemptAccelerateSector(sector, cost) {
-    if (!confirm('Acelerar Setor ' + sector + ' por ' + cost + '💎?\n\nVocê ganhará 1⭐ em todas as fases ainda não vencidas.\nNão paga BRL — apenas desbloqueia. Você pode re-jogar para 2⭐/3⭐.')) return;
+    if (!confirm('Acelerar Setor ' + sector + ' por ' + cost + ' créditos?\n\nVocê ganhará 1⭐ em todas as fases ainda não vencidas.\nNão paga BRL — apenas desbloqueia. Você pode re-jogar para 2⭐/3⭐.')) return;
     try {
       const fd = new FormData();
       fd.set('google_uid', uid());
@@ -690,7 +980,13 @@
     if (!locked) {
       const label = document.createElement('span');
       label.className = 'label';
-      label.textContent = isBoss ? '☠' : (stage.order || '?');
+      if (isBoss) {
+        label.innerHTML = '<i class="fas fa-skull"></i>';
+      } else if (stage.sector === 0) {
+        label.innerHTML = '<i class="fas fa-graduation-cap"></i>';
+      } else {
+        label.textContent = stage.order || '?';
+      }
       circle.appendChild(label);
     }
     node.appendChild(circle);
@@ -704,22 +1000,26 @@
 
     const starsDiv = document.createElement('div');
     starsDiv.className = 'stars';
-    starsDiv.innerHTML = ['', '', ''].map((_, i) =>
-      '<span class="' + (i < stars ? 'lit' : 'off') + '">★</span>'
-    ).join('');
+    starsDiv.innerHTML = [0, 1, 2].map(i =>
+      '<i class="fas fa-star ' + (i < stars ? 'lit' : 'off') + '"></i>'
+    ).join(' ');
     meta.appendChild(starsDiv);
 
     if (locked && levelLocked && !sectorLocked) {
       const req = document.createElement('div');
       req.className = 'req';
-      req.textContent = '🔒 Requer nível ' + stage.min_level;
+      req.innerHTML = '<i class="fas fa-lock"></i> Requer nível ' + stage.min_level;
       meta.appendChild(req);
     } else if (!locked) {
       const reward = document.createElement('div');
       reward.className = 'reward';
-      reward.textContent = stage.brl_base > 0
-        ? fmtBrl(stage.brl_base) + ' • ' + stage.credit_cost + '💎'
-        : 'Sem BRL • ' + stage.credit_cost + '💎';
+      reward.innerHTML = stage.brl_base > 0
+        ? '<span><i class="fas fa-money-bill-wave"></i> ' + fmtBrl(stage.brl_base) + '</span>' +
+          '<span class="sep">·</span>' +
+          '<span class="cost"><i class="fas fa-coins"></i> ' + stage.credit_cost + '</span>'
+        : '<span style="color:var(--text-dim)">Treino</span>' +
+          '<span class="sep">·</span>' +
+          '<span class="cost"><i class="fas fa-coins"></i> ' + stage.credit_cost + '</span>';
       meta.appendChild(reward);
     }
     node.appendChild(meta);
@@ -745,13 +1045,13 @@
     $('ov-title').textContent = stage.name;
     $('ov-sub').textContent = stage.is_boss ? 'BOSS — ' + stage.description : (stage.description || 'Setor ' + stage.sector);
 
-    // Stars
-    $('ov-stars').innerHTML = ['', '', ''].map((_, i) =>
-      '<span class="' + (i < sp.stars ? 'lit' : 'off') + '">★</span>'
-    ).join('');
+    // Stars (FontAwesome)
+    $('ov-stars').innerHTML = [0, 1, 2].map(i =>
+      '<i class="fas fa-star ' + (i < sp.stars ? 'lit' : 'off') + '"></i>'
+    ).join(' ');
 
     // Grid
-    $('ov-cost').textContent     = stage.credit_cost + '💎';
+    $('ov-cost').innerHTML       = '<i class="fas fa-coins"></i> ' + stage.credit_cost;
     $('ov-reward').textContent   = stage.brl_base > 0 ? fmtBrl(stage.brl_base) : '—';
     $('ov-best').textContent     = sp.best_time != null ? sp.best_time + 's' : '—';
     $('ov-attempts').textContent = sp.attempts || 0;
@@ -775,8 +1075,8 @@
     const skipCost = (cfg.settings || {})['campaign.monetization.skip_cost'] ?? 5;
     const skipBtn = $('ov-skip');
     if (sp.attempts >= skipMin && (sp.wins == null || sp.wins === 0)) {
-      skipBtn.style.display = 'inline-block';
-      skipBtn.textContent = 'Pular (' + skipCost + '💎)';
+      skipBtn.style.display = 'inline-flex';
+      skipBtn.innerHTML = '<i class="fas fa-forward"></i> Pular (<i class="fas fa-coins"></i> ' + skipCost + ')';
       skipBtn.onclick = () => attemptSkipStage(stage, skipCost);
     } else {
       skipBtn.style.display = 'none';
@@ -786,14 +1086,14 @@
     const boosterBtn = $('ov-booster');
     const pendingBooster = (prog && prog.progress && prog.progress.pending_booster) || null;
     if (pendingBooster === 'triple_star') {
-      boosterBtn.textContent = '🛡 Triple Star armado';
+      boosterBtn.innerHTML = '<i class="fas fa-shield-halved"></i> Triple Star armado';
       boosterBtn.disabled = true;
-      boosterBtn.style.display = 'inline-block';
+      boosterBtn.style.display = 'inline-flex';
     } else {
       const boosterCost = (cfg.settings || {})['campaign.monetization.booster_cost'] ?? 3;
-      boosterBtn.textContent = 'Triple Star (' + boosterCost + '💎)';
+      boosterBtn.innerHTML = '<i class="fas fa-shield-halved"></i> Triple Star (<i class="fas fa-coins"></i> ' + boosterCost + ')';
       boosterBtn.disabled = false;
-      boosterBtn.style.display = 'inline-block';
+      boosterBtn.style.display = 'inline-flex';
       boosterBtn.onclick = attemptBuyBooster;
     }
 
@@ -804,7 +1104,7 @@
     const u = uid();
     if (!u) return;
     const cost = (cfg.settings || {})['campaign.monetization.booster_cost'] ?? 3;
-    if (!confirm('Comprar Triple Star Booster por ' + cost + '💎?\n\nA próxima fase começará com escudo ativo (bloqueia 1 dano).')) return;
+    if (!confirm('Comprar Triple Star Booster por ' + cost + ' créditos?\n\nA próxima fase começará com escudo ativo (bloqueia 1 dano).')) return;
     try {
       const fd = new FormData();
       fd.set('google_uid', u);
@@ -822,7 +1122,7 @@
   }
 
   async function attemptSkipStage(stage, cost) {
-    if (!confirm('Pular fase ' + stage.name + ' por ' + cost + '💎? Você ganha 1⭐ automaticamente. Pode re-jogar depois para 2⭐/3⭐.')) return;
+    if (!confirm('Pular fase ' + stage.name + ' por ' + cost + ' créditos? Você ganha 1⭐ automaticamente. Pode re-jogar depois para 2⭐/3⭐.')) return;
     try {
       const fd = new FormData();
       fd.set('google_uid', uid());
@@ -988,9 +1288,9 @@
     const costSingle = settings['campaign.lives.cost_single']  ?? 1;
     const costPack5  = settings['campaign.lives.cost_pack5']   ?? 4;
     const costRefill = settings['campaign.lives.cost_refill']  ?? 3;
-    document.getElementById('bl-cost-single').textContent = costSingle + ' 💎';
-    document.getElementById('bl-cost-pack5').textContent  = costPack5  + ' 💎';
-    document.getElementById('bl-cost-refill').textContent = costRefill + ' 💎';
+    document.getElementById('bl-cost-single').innerHTML = '<i class="fas fa-coins"></i> ' + costSingle;
+    document.getElementById('bl-cost-pack5').innerHTML  = '<i class="fas fa-coins"></i> ' + costPack5;
+    document.getElementById('bl-cost-refill').innerHTML = '<i class="fas fa-coins"></i> ' + costRefill;
     const lives = (prog && prog.lives) || {};
     document.getElementById('bl-status').textContent =
       'Vidas atuais: ' + (lives.current ?? '?') + ' / ' + (lives.max ?? '?');
@@ -1061,8 +1361,8 @@
 
   function renderSkinsList() {
     const credits = (user && typeof user.credits === 'number') ? user.credits : null;
-    document.getElementById('sk-status').textContent =
-      'Saldo: ' + (credits != null ? credits + ' 💎' : '?');
+    document.getElementById('sk-status').innerHTML =
+      'Saldo: ' + (credits != null ? '<i class="fas fa-coins" style="color:var(--accent)"></i> ' + credits : '?');
     const list = document.getElementById('sk-list');
     list.innerHTML = '';
     for (const s of skinsCache) {
@@ -1091,7 +1391,7 @@
         const btn = document.createElement('button');
         btn.className = 'btn primary';
         btn.style.cssText = 'padding:5px 10px;font-size:11px;width:100%';
-        btn.textContent = 'Comprar (' + s.credit_cost + '💎)';
+        btn.innerHTML = 'Comprar (<i class="fas fa-coins"></i> ' + s.credit_cost + ')';
         btn.addEventListener('click', () => doSkinAction('buy', s.skin_key));
         slot.appendChild(btn);
       }
