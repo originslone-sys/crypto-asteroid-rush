@@ -111,8 +111,20 @@
       display: flex; flex-direction: column;
       z-index: 1;
     }
-    @media (max-width: 480px) {
-      .frame { border-radius: 0; box-shadow: none; max-width: 100vw; max-height: 100vh; }
+    /* Em telas mobile / tablet menores, o frame ocupa 100% da viewport
+       em vez de ficar centralizado em 414x896 com bordas escuras. */
+    @media (max-width: 768px) {
+      .frame {
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        max-width: 100vw;
+        max-height: 100vh;
+        max-height: 100dvh;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .stage { background: var(--bg); }
     }
 
     /* Header (HUD) sticky com glassmorphism */
