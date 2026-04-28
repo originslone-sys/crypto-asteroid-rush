@@ -1313,91 +1313,100 @@ try {
     // Idempotente: só preenche quando waves_json IS NULL (não sobrescreve admin).
     try {
         $wavesByStage = [
-            // Treino — tutorial guiado, leve
+            // Treino — bom nível, apresenta kamikaze já
             'training' => json_encode([
                 'waves' => [
-                    ['duration_max' => 18, 'clear_at' => 12, 'spawns' => [
-                        ['behavior' => 'tank',   'count' => 3, 'interval' => 1500],
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'tank',   'count' => 3, 'interval' => 900],
+                        ['behavior' => 'bullet', 'count' => 2, 'interval' => 700],
                     ]],
-                    ['duration_max' => 20, 'clear_at' => 14, 'spawns' => [
-                        ['behavior' => 'bullet', 'count' => 3, 'interval' => 1000],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'kamikaze', 'count' => 2, 'interval' => 1500],
+                        ['behavior' => 'bullet',   'count' => 1, 'interval' => 800],
                     ]],
                 ],
             ]),
-            // F1 — só tank + bullet
+            // F1 — Iniciação: 18 inimigos, intervalos diminuem onda a onda
             's1f1' => json_encode([
                 'waves' => [
-                    ['duration_max' => 20, 'clear_at' => 15, 'spawns' => [
-                        ['behavior' => 'tank',   'count' => 4, 'interval' => 1000],
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'tank',   'count' => 5, 'interval' => 800],
+                        ['behavior' => 'bullet', 'count' => 4, 'interval' => 600],
                     ]],
-                    ['duration_max' => 20, 'clear_at' => 15, 'spawns' => [
-                        ['behavior' => 'bullet', 'count' => 5, 'interval' => 700],
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'tank',   'count' => 4, 'interval' => 700],
+                        ['behavior' => 'bullet', 'count' => 3, 'interval' => 500],
                     ]],
-                    ['duration_max' => 20, 'clear_at' => 15, 'spawns' => [
-                        ['behavior' => 'tank',   'count' => 2, 'interval' => 900],
-                        ['behavior' => 'bullet', 'count' => 2, 'interval' => 900],
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'bullet', 'count' => 4, 'interval' => 400],
+                        ['behavior' => 'tank',   'count' => 2, 'interval' => 700],
                     ]],
                 ],
             ]),
-            // F2 — apresenta kamikaze
+            // F2 — Pressão: 24 inimigos, kamikazes entram em força
             's1f2' => json_encode([
                 'waves' => [
-                    ['duration_max' => 20, 'clear_at' => 15, 'spawns' => [
-                        ['behavior' => 'tank',     'count' => 5, 'interval' => 900],
-                    ]],
                     ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
-                        ['behavior' => 'bullet',   'count' => 4, 'interval' => 600],
-                        ['behavior' => 'kamikaze', 'count' => 2, 'interval' => 1800],
+                        ['behavior' => 'tank',     'count' => 6, 'interval' => 700],
+                        ['behavior' => 'bullet',   'count' => 4, 'interval' => 500],
                     ]],
-                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
-                        ['behavior' => 'kamikaze', 'count' => 3, 'interval' => 1400],
-                        ['behavior' => 'tank',     'count' => 2, 'interval' => 1100],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'bullet',   'count' => 4, 'interval' => 450],
+                        ['behavior' => 'kamikaze', 'count' => 3, 'interval' => 1200],
+                    ]],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'kamikaze', 'count' => 4, 'interval' => 1000],
+                        ['behavior' => 'tank',     'count' => 3, 'interval' => 800],
                     ]],
                 ],
             ]),
-            // F3 — apresenta shooter
+            // F3 — Caos: 28 inimigos, introduz shooter (param e atiram!)
             's1f3' => json_encode([
                 'waves' => [
-                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
-                        ['behavior' => 'kamikaze', 'count' => 4, 'interval' => 1400],
-                    ]],
                     ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
-                        ['behavior' => 'shooter',  'count' => 3, 'interval' => 1800],
-                        ['behavior' => 'bullet',   'count' => 4, 'interval' => 700],
+                        ['behavior' => 'kamikaze', 'count' => 6, 'interval' => 1000],
+                        ['behavior' => 'bullet',   'count' => 4, 'interval' => 500],
                     ]],
-                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
-                        ['behavior' => 'tank',     'count' => 4, 'interval' => 900],
-                        ['behavior' => 'shooter',  'count' => 2, 'interval' => 2200],
+                    ['duration_max' => 26, 'clear_at' => 20, 'spawns' => [
+                        ['behavior' => 'shooter',  'count' => 4, 'interval' => 1400],
+                        ['behavior' => 'bullet',   'count' => 5, 'interval' => 450],
+                    ]],
+                    ['duration_max' => 26, 'clear_at' => 20, 'spawns' => [
+                        ['behavior' => 'tank',     'count' => 4, 'interval' => 700],
+                        ['behavior' => 'shooter',  'count' => 3, 'interval' => 1500],
+                        ['behavior' => 'kamikaze', 'count' => 2, 'interval' => 1200],
                     ]],
                 ],
             ]),
-            // F4 — apresenta dodger; mistura mais densa
+            // F4 — Berserker: 30 inimigos + 1 MINI-BOSS, dodger entra em peso
             's1f4' => json_encode([
                 'waves' => [
-                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
-                        ['behavior' => 'dodger',   'count' => 5, 'interval' => 1100],
-                    ]],
                     ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
-                        ['behavior' => 'shooter',  'count' => 3, 'interval' => 1700],
-                        ['behavior' => 'kamikaze', 'count' => 3, 'interval' => 1500],
+                        ['behavior' => 'dodger',   'count' => 6, 'interval' => 900],
+                        ['behavior' => 'bullet',   'count' => 4, 'interval' => 450],
                     ]],
-                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
-                        ['behavior' => 'tank',     'count' => 3, 'interval' => 950],
-                        ['behavior' => 'bullet',   'count' => 4, 'interval' => 600],
-                        ['behavior' => 'dodger',   'count' => 2, 'interval' => 1700],
+                    ['duration_max' => 26, 'clear_at' => 20, 'spawns' => [
+                        ['behavior' => 'shooter',  'count' => 4, 'interval' => 1300],
+                        ['behavior' => 'kamikaze', 'count' => 4, 'interval' => 1100],
+                        ['behavior' => 'dodger',   'count' => 3, 'interval' => 1000],
+                    ]],
+                    ['duration_max' => 30, 'clear_at' => 22, 'spawns' => [
+                        ['behavior' => 'miniboss', 'count' => 1, 'interval' => 0],
+                        ['behavior' => 'tank',     'count' => 3, 'interval' => 800],
+                        ['behavior' => 'bullet',   'count' => 5, 'interval' => 400],
                     ]],
                 ],
             ]),
-            // F5 — Boss Asteroide-Mãe (warm-up + boss fight)
+            // F5 — Asteroide-Mãe: warm-up sólido (12 inimigos) + boss fight
             's1f5' => json_encode([
                 'waves' => [
-                    ['duration_max' => 18, 'clear_at' => 13, 'spawns' => [
-                        ['behavior' => 'tank',     'count' => 3, 'interval' => 1000],
-                        ['behavior' => 'bullet',   'count' => 3, 'interval' => 700],
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'tank',     'count' => 4, 'interval' => 700],
+                        ['behavior' => 'kamikaze', 'count' => 2, 'interval' => 1200],
                     ]],
-                    ['duration_max' => 18, 'clear_at' => 13, 'spawns' => [
-                        ['behavior' => 'kamikaze', 'count' => 2, 'interval' => 1400],
-                        ['behavior' => 'shooter',  'count' => 2, 'interval' => 1700],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'shooter',  'count' => 3, 'interval' => 1300],
+                        ['behavior' => 'dodger',   'count' => 3, 'interval' => 1000],
                     ]],
                 ],
                 'boss' => [
@@ -1405,85 +1414,90 @@ try {
                     'warning_ms' => 4000,
                 ],
             ]),
-            // ---------- SETOR 2 ----------
-            // F6 — densidade subindo, tanks + bullets do setor 2 (sucata)
+            // ---------- SETOR 2 (mais hostil) ----------
+            // F6 — Sucata: 28 inimigos, mistura mais densa de cara
             's2f1' => json_encode([
                 'waves' => [
-                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
-                        ['behavior' => 'tank',   'count' => 4, 'interval' => 850],
-                        ['behavior' => 'bullet', 'count' => 4, 'interval' => 600],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'tank',   'count' => 6, 'interval' => 700],
+                        ['behavior' => 'bullet', 'count' => 6, 'interval' => 450],
                     ]],
-                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
-                        ['behavior' => 'kamikaze', 'count' => 3, 'interval' => 1300],
-                        ['behavior' => 'tank',     'count' => 3, 'interval' => 950],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'kamikaze', 'count' => 4, 'interval' => 1000],
+                        ['behavior' => 'tank',     'count' => 4, 'interval' => 800],
                     ]],
-                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
-                        ['behavior' => 'bullet',   'count' => 5, 'interval' => 600],
-                        ['behavior' => 'shooter',  'count' => 2, 'interval' => 1900],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'shooter',  'count' => 3, 'interval' => 1400],
+                        ['behavior' => 'bullet',   'count' => 5, 'interval' => 400],
                     ]],
                 ],
             ]),
-            // F7 — sentinelas: muitos shooters
+            // F7 — Sentinelas: 32 inimigos, shooters dominam
             's2f2' => json_encode([
                 'waves' => [
-                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
-                        ['behavior' => 'shooter',  'count' => 4, 'interval' => 1500],
-                    ]],
                     ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
-                        ['behavior' => 'kamikaze', 'count' => 3, 'interval' => 1200],
-                        ['behavior' => 'dodger',   'count' => 3, 'interval' => 1100],
+                        ['behavior' => 'shooter',  'count' => 6, 'interval' => 1200],
                     ]],
-                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
-                        ['behavior' => 'shooter',  'count' => 3, 'interval' => 1500],
-                        ['behavior' => 'tank',     'count' => 3, 'interval' => 900],
+                    ['duration_max' => 26, 'clear_at' => 20, 'spawns' => [
+                        ['behavior' => 'kamikaze', 'count' => 4, 'interval' => 1000],
+                        ['behavior' => 'dodger',   'count' => 5, 'interval' => 900],
+                    ]],
+                    ['duration_max' => 26, 'clear_at' => 20, 'spawns' => [
+                        ['behavior' => 'shooter',  'count' => 4, 'interval' => 1300],
+                        ['behavior' => 'tank',     'count' => 4, 'interval' => 700],
+                        ['behavior' => 'bullet',   'count' => 3, 'interval' => 400],
                     ]],
                 ],
             ]),
-            // F8 — emboscada com mistura agressiva
+            // F8 — Emboscada: 36 inimigos + 1 MINI-BOSS
             's2f3' => json_encode([
                 'waves' => [
-                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
-                        ['behavior' => 'kamikaze', 'count' => 5, 'interval' => 1200],
-                    ]],
                     ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
-                        ['behavior' => 'shooter',  'count' => 3, 'interval' => 1400],
-                        ['behavior' => 'dodger',   'count' => 4, 'interval' => 1000],
+                        ['behavior' => 'kamikaze', 'count' => 7, 'interval' => 900],
+                        ['behavior' => 'bullet',   'count' => 4, 'interval' => 400],
                     ]],
-                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
-                        ['behavior' => 'tank',     'count' => 4, 'interval' => 800],
-                        ['behavior' => 'bullet',   'count' => 5, 'interval' => 500],
-                        ['behavior' => 'shooter',  'count' => 2, 'interval' => 1700],
+                    ['duration_max' => 26, 'clear_at' => 20, 'spawns' => [
+                        ['behavior' => 'shooter',  'count' => 4, 'interval' => 1200],
+                        ['behavior' => 'dodger',   'count' => 5, 'interval' => 850],
+                    ]],
+                    ['duration_max' => 32, 'clear_at' => 24, 'spawns' => [
+                        ['behavior' => 'miniboss', 'count' => 1, 'interval' => 0],
+                        ['behavior' => 'tank',     'count' => 6, 'interval' => 650],
+                        ['behavior' => 'bullet',   'count' => 5, 'interval' => 350],
+                        ['behavior' => 'shooter',  'count' => 3, 'interval' => 1300],
                     ]],
                 ],
             ]),
-            // F9 — ruína: pré-boss, densidade alta
+            // F9 — Ruína: 40 inimigos + 2 MINI-BOSSES (pré-boss intenso)
             's2f4' => json_encode([
                 'waves' => [
-                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
-                        ['behavior' => 'dodger',   'count' => 5, 'interval' => 1000],
-                        ['behavior' => 'bullet',   'count' => 4, 'interval' => 600],
+                    ['duration_max' => 28, 'clear_at' => 22, 'spawns' => [
+                        ['behavior' => 'miniboss', 'count' => 1, 'interval' => 0],
+                        ['behavior' => 'dodger',   'count' => 7, 'interval' => 800],
+                        ['behavior' => 'bullet',   'count' => 5, 'interval' => 400],
                     ]],
-                    ['duration_max' => 26, 'clear_at' => 20, 'spawns' => [
-                        ['behavior' => 'shooter',  'count' => 4, 'interval' => 1400],
-                        ['behavior' => 'kamikaze', 'count' => 4, 'interval' => 1100],
+                    ['duration_max' => 28, 'clear_at' => 22, 'spawns' => [
+                        ['behavior' => 'shooter',  'count' => 5, 'interval' => 1100],
+                        ['behavior' => 'kamikaze', 'count' => 5, 'interval' => 900],
                     ]],
-                    ['duration_max' => 26, 'clear_at' => 20, 'spawns' => [
-                        ['behavior' => 'tank',     'count' => 4, 'interval' => 800],
-                        ['behavior' => 'shooter',  'count' => 3, 'interval' => 1400],
-                        ['behavior' => 'dodger',   'count' => 3, 'interval' => 1100],
+                    ['duration_max' => 32, 'clear_at' => 24, 'spawns' => [
+                        ['behavior' => 'miniboss', 'count' => 1, 'interval' => 0],
+                        ['behavior' => 'tank',     'count' => 5, 'interval' => 700],
+                        ['behavior' => 'shooter',  'count' => 5, 'interval' => 1100],
+                        ['behavior' => 'dodger',   'count' => 4, 'interval' => 850],
                     ]],
                 ],
             ]),
-            // F10 — Boss Devorador de Sucata
+            // F10 — Devorador de Sucata: warm-up forte (16 inimigos) + boss
             's2f5' => json_encode([
                 'waves' => [
-                    ['duration_max' => 18, 'clear_at' => 13, 'spawns' => [
-                        ['behavior' => 'tank',     'count' => 3, 'interval' => 900],
-                        ['behavior' => 'shooter',  'count' => 2, 'interval' => 1500],
+                    ['duration_max' => 22, 'clear_at' => 16, 'spawns' => [
+                        ['behavior' => 'tank',     'count' => 5, 'interval' => 650],
+                        ['behavior' => 'shooter',  'count' => 4, 'interval' => 1100],
                     ]],
-                    ['duration_max' => 20, 'clear_at' => 15, 'spawns' => [
-                        ['behavior' => 'dodger',   'count' => 3, 'interval' => 1100],
-                        ['behavior' => 'kamikaze', 'count' => 3, 'interval' => 1200],
+                    ['duration_max' => 24, 'clear_at' => 18, 'spawns' => [
+                        ['behavior' => 'dodger',   'count' => 4, 'interval' => 800],
+                        ['behavior' => 'kamikaze', 'count' => 4, 'interval' => 900],
                     ]],
                 ],
                 'boss' => [
@@ -1492,15 +1506,35 @@ try {
                 ],
             ]),
         ];
-        $upd = $pdo->prepare("UPDATE campaign_stages SET waves_json = ? WHERE stage_id = ? AND waves_json IS NULL");
-        $touched = 0;
-        foreach ($wavesByStage as $stageId => $json) {
-            $upd->execute([$json, $stageId]);
-            if ($upd->rowCount() > 0) $touched++;
-        }
-        if ($touched > 0) {
-            $results['migrations'][] = "campaign_stages:waves_json($touched)";
-            output("  [OK] waves_json default aplicado a $touched fase(s)");
+        // Versão atual do seed de waves. Bumpar quando a curva de
+        // dificuldade mudar — o migrate sobrescreve até alcançar a versão
+        // alvo, depois deixa em paz (preserva edições futuras do admin).
+        $TARGET_WAVES_VERSION = 2;
+        $vStmt = $pdo->prepare("SELECT setting_value FROM campaign_settings WHERE setting_key = 'campaign.seed.waves_version' LIMIT 1");
+        $vStmt->execute();
+        $row = $vStmt->fetch();
+        $currentVersion = $row ? (int)$row['setting_value'] : 0;
+
+        if ($currentVersion < $TARGET_WAVES_VERSION) {
+            // Sobrescreve waves_json em TODAS as fases listadas (mesmo já existindo).
+            $upd = $pdo->prepare("UPDATE campaign_stages SET waves_json = ? WHERE stage_id = ?");
+            $touched = 0;
+            foreach ($wavesByStage as $stageId => $json) {
+                $upd->execute([$json, $stageId]);
+                if ($upd->rowCount() > 0) $touched++;
+            }
+            // Marca versão aplicada
+            $pdo->prepare("
+                INSERT INTO campaign_settings (setting_key, setting_value, value_type, is_public, updated_at)
+                VALUES ('campaign.seed.waves_version', ?, 'int', 0, NOW())
+                ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW()
+            ")->execute([(string)$TARGET_WAVES_VERSION]);
+            $results['migrations'][] = "campaign_stages:waves_json_v{$TARGET_WAVES_VERSION}({$touched})";
+            output("  [OK] waves_json migradas para versão {$TARGET_WAVES_VERSION} ({$touched} fases)");
+        } else {
+            // Fallback: aplica seed só nas fases ainda sem waves_json
+            $ins = $pdo->prepare("UPDATE campaign_stages SET waves_json = ? WHERE stage_id = ? AND waves_json IS NULL");
+            foreach ($wavesByStage as $stageId => $json) $ins->execute([$json, $stageId]);
         }
     } catch (Exception $e) { /* tabela pode não existir */ }
 
