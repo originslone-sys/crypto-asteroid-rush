@@ -154,6 +154,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = "Boss salvo.";
                 break;
 
+            case 'approve_review_sessions':
+                // Marca todas as sessões em status 'review' dos últimos 30 dias
+                // como 'completed'. Útil após relaxar o anti-cheat retroativamente.
+                $up = $pdo->prepare("
+                    UPDATE campaign_session
+                    SET status = 'completed'
+                    WHERE status = 'review' AND ended_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
+                ");
+                $up->execute();
+                $message = "Aprovadas " . $up->rowCount() . " sessão(ões) que estavam em review.";
+                break;
+
             case 'update_xp_table':
                 $rows = $_POST['xp'] ?? [];
                 if (!is_array($rows)) throw new Exception('payload inválido');
@@ -1089,6 +1101,21 @@ $tabs = [
     </div>
   <?php endforeach; ?>
 </div>
+
+<?php if ((int)$kpis['sessions_review_7d'] > 0): ?>
+<div style="background:#3a2c0c;border:1px solid #7a5e10;border-radius:10px;padding:14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+  <div>
+    <strong style="color:#ffd166">⚠ <?= (int)$kpis['sessions_review_7d'] ?> sessão(ões) em review</strong>
+    <div style="font-size:11px;color:#8a93c8;margin-top:2px">Após relaxar o anti-cheat ou ajustar settings, aprove em massa as que ficaram retidas.</div>
+  </div>
+  <form method="POST" onsubmit="return confirm('Aprovar todas as sessões em review dos últimos 30 dias?')">
+    <input type="hidden" name="action" value="approve_review_sessions">
+    <button type="submit" style="background:linear-gradient(135deg,#1c4cff,#5b1a8a);color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer">
+      Aprovar review (30d)
+    </button>
+  </form>
+</div>
+<?php endif; ?>
 
 <div style="background:#0e1330;border:1px solid #2a3375;border-radius:10px;padding:18px;margin-bottom:20px">
   <h2 style="margin:0 0 12px;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;color:#5cd5ff">Estatísticas por fase (últimos 7 dias)</h2>

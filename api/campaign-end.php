@@ -90,7 +90,7 @@ try {
     // ---------- 2. Carrega fase ----------
     $stStmt = $pdo->prepare("
         SELECT stage_id, sector, name, duration_seconds, credit_cost, min_level,
-               xp_reward, brl_base, is_boss
+               xp_reward, brl_base, is_boss, waves_json
         FROM campaign_stages WHERE stage_id = ? LIMIT 1
     ");
     $stStmt->execute([$session['stage_id']]);
@@ -123,14 +123,33 @@ try {
     $enemiesDestr = max(0, $enemiesDestr);
     $maxCombo     = max(0, min($maxCombo, $comboMax));
 
-    // Janela de tempo (não se aplica a bosses, que não têm timer fixo)
+    // Janela de tempo: bosses (duration=0) e fases com warm-up + boss
+    // não têm timer fixo. Para fases regulares, calcula o mínimo
+    // realista a partir das waves (sum dos clear_at) com uma margem de
+    // 10s para clears rápidos. Cai no antigo cálculo por % se waves_json
+    // estiver vazio.
     $duration = (int)$stage['duration_seconds'];
+    $hasBoss  = !empty($stage['waves_json']) && (function() use ($stage) {
+        $j = json_decode($stage['waves_json'], true);
+        return is_array($j) && !empty($j['boss']);
+    })();
     $suspicious = false;
-    if ($duration > 0) {
+    if ($duration > 0 && !$hasBoss) {
         $minOk = (int)floor($duration * ($timeMinPct / 100));
+        // Override pelo waves_json se presente
+        if (!empty($stage['waves_json'])) {
+            $j = json_decode($stage['waves_json'], true);
+            if (is_array($j) && !empty($j['waves']) && is_array($j['waves'])) {
+                $sumClear = 0;
+                foreach ($j['waves'] as $w) {
+                    $sumClear += (int)($w['clear_at'] ?? 15);
+                }
+                $minOk = max(0, $sumClear - 10); // 10s de margem para fast clears
+            }
+        }
         $maxOk = (int)ceil($duration * ($timeMaxPct / 100));
         if ($result === 'win' && $timeElapsed < $minOk) $suspicious = true;
-        if ($timeElapsed > $maxOk + 30) $suspicious = true; // tolerância extra para latência
+        if ($timeElapsed > $maxOk + 60) $suspicious = true; // tolerância extra (lat + waves longas)
     }
 
     // ---------- 5. Servidor decide as estrelas ----------
