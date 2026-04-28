@@ -57,6 +57,16 @@ try {
         VALUES (?, 1, 0, ?, 0, NOW(), NOW())
     ")->execute([$googleUid, $maxLives]);
 
+    // Detecta coluna pending_booster (migrate pode não ter rodado ainda)
+    $hasBooster = false;
+    try {
+        $hasBooster = (bool)$pdo->query("SHOW COLUMNS FROM campaign_progress LIKE 'pending_booster'")->fetch();
+    } catch (Exception $e) {}
+    if (!$hasBooster) {
+        echo json_encode(['success' => false, 'error' => 'Boosters indisponíveis no servidor (rodar migration mais recente).']);
+        exit;
+    }
+
     // Verifica se já tem booster armado
     $checkStmt = $pdo->prepare("SELECT pending_booster FROM campaign_progress WHERE google_uid = ? LIMIT 1");
     $checkStmt->execute([$googleUid]);
