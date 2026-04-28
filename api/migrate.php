@@ -1348,6 +1348,23 @@ try {
                     ]],
                 ],
             ]),
+            // F5 — Boss Asteroide-Mãe (warm-up + boss fight)
+            's1f5' => json_encode([
+                'waves' => [
+                    ['duration_max' => 18, 'clear_at' => 13, 'spawns' => [
+                        ['behavior' => 'tank',     'count' => 3, 'interval' => 1000],
+                        ['behavior' => 'bullet',   'count' => 3, 'interval' => 700],
+                    ]],
+                    ['duration_max' => 18, 'clear_at' => 13, 'spawns' => [
+                        ['behavior' => 'kamikaze', 'count' => 2, 'interval' => 1400],
+                        ['behavior' => 'shooter',  'count' => 2, 'interval' => 1700],
+                    ]],
+                ],
+                'boss' => [
+                    'boss_key'   => 'asteroid_mother',
+                    'warning_ms' => 4000,
+                ],
+            ]),
         ];
         $upd = $pdo->prepare("UPDATE campaign_stages SET waves_json = ? WHERE stage_id = ? AND waves_json IS NULL");
         $touched = 0;
