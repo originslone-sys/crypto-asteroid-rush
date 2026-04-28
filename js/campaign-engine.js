@@ -40,7 +40,7 @@
     parallaxNear: 1.4,
     comboKillsPerStep: 10,
     comboMax: 5,
-    powerupDropChance: 0.12,
+    powerupDropChance: 0.06,
     powerupFallSpeed: 1.6,
   };
 
@@ -56,6 +56,10 @@
                 stopY: 180, fireIntervalMs: 1500 },
     dodger:   { hp: 2, damage: 20, w: 48, h: 48, baseSpeed: 1.8,
                 amplitude: 60, frequency: 0.05 },
+    miniboss: { hp: 15, damage: 40, w: 88, h: 88, baseSpeed: 0.6,
+                stopY: 160, fireIntervalMs: 2000, projectiles: 2, projDamage: 18,
+                amplitude: 100, frequency: 0.0015,
+                guaranteedDrop: true, xpBonus: 50 },
   };
 
   // ----------------------------------------------------------------------
@@ -332,6 +336,7 @@
       vx: 0,
       vy: def.baseSpeed * (0.85 + Math.random() * 0.3),
       hp: def.hp,
+      hpMax: def.hp,
       damage: def.damage,
       sprite,
       // Campos por behavior
@@ -339,16 +344,28 @@
       stopped: false,
       lastFireMs: 0,
       fireIntervalMs: def.fireIntervalMs || 1500,
-      // Dodger
+      projectiles: def.projectiles || 1,
+      projDamage:  def.projDamage  || 15,
+      // Dodger / miniboss
       birthMs: performance.now(),
       amplitude: def.amplitude || 0,
       frequency: def.frequency || 0,
       anchorX: 0,  // setado no primeiro update
+      // Mini-boss
+      guaranteedDrop: def.guaranteedDrop || false,
+      xpBonus: def.xpBonus || 0,
     });
   }
 
   function pickSpriteForBehavior(sector, behaviorKey) {
     if (!global.CampaignAssets) return null;
+    // Miniboss: usa sprite "shooter" (maior, mais imponente) com tom mais escuro
+    if (behaviorKey === 'miniboss') {
+      const shooters = global.CampaignAssets.byBehavior(sector, 'shooter') || [];
+      if (shooters.length) {
+        return global.CampaignAssets.tryGet(shooters[0]);
+      }
+    }
     const list = global.CampaignAssets.byBehavior(sector, behaviorKey);
     if (list && list.length) {
       const key = list[Math.floor(Math.random() * list.length)];
@@ -487,9 +504,26 @@
 
   function updateEnemyByBehavior(en, dt, nowMs) {
     switch (en.behavior) {
+      case 'miniboss': {
+        // Entra do topo até stopY oscilando, depois oscila + dispara
+        if (en.y < en.stopY) {
+          en.y += en.vy * dt;
+        } else {
+          if (!en.anchorX) en.anchorX = canvas.width / 2 - en.w / 2;
+          const t = (nowMs - en.birthMs) * en.frequency;
+          en.x = en.anchorX + Math.sin(t) * en.amplitude;
+          if (en.x < 8) en.x = 8;
+          if (en.x + en.w > canvas.width - 8) en.x = canvas.width - 8 - en.w;
+          // Dispara em leque ao player
+          if (nowMs - en.lastFireMs > en.fireIntervalMs) {
+            en.lastFireMs = nowMs;
+            fireMinibossSpread(en);
+          }
+        }
+        break;
+      }
       case 'kamikaze': {
         en.y += en.vy * dt;
-        // Persegue lateralmente quando entra na tela
         if (en.y > 0 && player) {
           const targetX = player.x + player.w / 2 - en.w / 2;
           const dx = targetX - en.x;
@@ -530,6 +564,30 @@
         en.y += en.vy * dt;
         break;
     }
+  }
+
+  function fireMinibossSpread(en) {
+    if (!player) return;
+    const fromX = en.x + en.w / 2;
+    const fromY = en.y + en.h - 4;
+    const tx = player.x + player.w / 2;
+    const ty = player.y + player.h / 2;
+    const baseAng = Math.atan2(ty - fromY, tx - fromX);
+    const speed = cfg.enemyBulletSpeed * 1.2;
+    const n = en.projectiles || 2;
+    for (let i = 0; i < n; i++) {
+      const offset = n === 1 ? 0 : (i - (n - 1) / 2) * 0.18;
+      const ang = baseAng + offset;
+      enemyBullets.push({
+        x: fromX - 6, y: fromY,
+        w: 12, h: 22,
+        vx: Math.cos(ang) * speed,
+        vy: Math.sin(ang) * speed,
+        damage: en.projDamage || 18,
+        sprite: (global.CampaignAssets && global.CampaignAssets.tryGet('enemy_bullet')) || null,
+      });
+    }
+    spawnExplosion(fromX, fromY, '#ff7e4a');
   }
 
   function spawnEnemyBullet(en) {
@@ -1042,8 +1100,20 @@
         spawnExplosion(en.x + en.w / 2, en.y + en.h / 2, '#ffd166');
         if (en.hp <= 0) {
           const cx = en.x + en.w / 2, cy = en.y + en.h / 2;
-          spawnExplosion(cx, cy, '#ff7e4a');
-          maybeDropPowerup(cx, cy);
+          // Mini-boss: explosão maior + drop garantido (sorteia entre repair/bomb/shield)
+          if (en.guaranteedDrop) {
+            for (let k = 0; k < 12; k++) {
+              spawnExplosion(cx + (Math.random() - 0.5) * en.w * 0.8,
+                             cy + (Math.random() - 0.5) * en.h * 0.8,
+                             ['#ffd166','#ff7e4a','#ff3322'][Math.floor(Math.random() * 3)]);
+            }
+            const guaranteedTypes = ['repair', 'bomb', 'shield'];
+            const t = guaranteedTypes[Math.floor(Math.random() * guaranteedTypes.length)];
+            spawnPowerup(cx, cy, t);
+          } else {
+            spawnExplosion(cx, cy, '#ff7e4a');
+            maybeDropPowerup(cx, cy);
+          }
           enemies.splice(i, 1);
           enemiesDestroyed += 1;
           combo += 1;
@@ -1118,6 +1188,14 @@
       } else {
         ctx.fillStyle = '#ff6b6b';
         ctx.fillRect(en.x, en.y, en.w, en.h);
+      }
+      // Barra de HP do miniboss (só quando danificado)
+      if (en.behavior === 'miniboss' && en.hp < en.hpMax) {
+        const barW = en.w, barH = 4, barY = en.y - 8;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(en.x, barY, barW, barH);
+        ctx.fillStyle = '#ff7e4a';
+        ctx.fillRect(en.x, barY, barW * (en.hp / en.hpMax), barH);
       }
     }
   }

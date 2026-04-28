@@ -107,6 +107,7 @@
       kamikaze: ['s1_kamikaze_drone', 's1_kamikaze_volatile_fragment'],
       shooter:  ['s1_shooter_drone_laser', 's1_shooter_floating_turret'],
       dodger:   ['s1_dodger_drone_digger', 's1_dodger_alien_small'],
+      miniboss: ['s1_shooter_drone_laser'],
     },
     2: {
       tank:     ['s2_tank_junk_giant'],
@@ -114,6 +115,7 @@
       kamikaze: ['s2_kamikaze_alien', 's2_kamikaze_suicide_drone'],
       shooter:  ['s2_shooter_pirate_ship', 's2_shooter_alien_gunner'],
       dodger:   ['s2_dodger_fast_ship', 's2_dodger_cyborg_alien'],
+      miniboss: ['s2_shooter_pirate_ship'],
     },
   };
 
