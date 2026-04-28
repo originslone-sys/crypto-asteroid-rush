@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Campaign — Test Harness</title>
+  <link rel="icon" href="favicon.ico" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07091a;
+      --panel: #0e1330;
+      --panel-2: #161c4a;
+      --border: #2a3375;
+      --accent: #5cd5ff;
+      --accent-2: #ff7eea;
+      --text: #e7eaff;
+      --muted: #8a93c8;
+      --ok: #5fdb91;
+      --warn: #ffd166;
+      --err: #ff6b6b;
+      --mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    a { color: var(--accent); }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 22px; background: linear-gradient(180deg, #0a0f30 0%, #05071a 100%);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 10;
+    }
+    header h1 { font-size: 16px; margin: 0; letter-spacing: 0.04em; }
+    header .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #5b1a8a; color: #fff; margin-left: 10px; vertical-align: middle; }
+    .auth { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+    .auth img { width: 28px; height: 28px; border-radius: 50%; }
+    .btn {
+      background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: #1f2766; }
+    .btn.primary { background: linear-gradient(135deg, #1c4cff 0%, #5b1a8a 100%); border: none; }
+    .btn.danger { background: #4a1a1a; border-color: #6e2424; color: #ffb1b1; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    main { max-width: 1280px; margin: 0 auto; padding: 22px; display: grid; gap: 22px; }
+    section.card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px;
+    }
+    section.card h2 { font-size: 14px; margin: 0 0 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+    section.card .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    pre.json {
+      background: #050720; border: 1px solid var(--border); border-radius: 6px; padding: 12px;
+      max-height: 360px; overflow: auto; font: 12px/1.45 var(--mono); color: #cad4ff; margin: 0;
+    }
+    .meta { font-size: 12px; color: var(--muted); }
+    .meta strong { color: var(--text); }
+    .grid {
+      display: grid; gap: 12px;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+    .sprite-card {
+      background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+      display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 130px;
+    }
+    .sprite-card .frame {
+      width: 96px; height: 96px; display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 50% 40%, #11164a 0%, #050720 100%);
+      border-radius: 6px; overflow: hidden;
+    }
+    .sprite-card.bg .frame { width: 96px; height: 200px; }
+    .sprite-card .frame img { max-width: 90%; max-height: 90%; image-rendering: pixelated; }
+    .sprite-card.bg .frame img { width: 96px; height: 200px; max-width: none; max-height: none; image-rendering: auto; }
+    .sprite-card .key { font: 11px var(--mono); color: var(--muted); word-break: break-all; text-align: center; }
+    .sprite-card.fail { border-color: #6e2424; background: #2a0a0a; }
+    .sprite-card.fail .key { color: var(--err); }
+    .group { margin-bottom: 18px; }
+    .group h3 { font-size: 13px; margin: 0 0 8px; color: var(--accent-2); letter-spacing: 0.04em; }
+    .progress-bar { height: 6px; background: #050720; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+    .progress-bar > div { height: 100%; background: linear-gradient(90deg, #5cd5ff, #ff7eea); transition: width 0.2s; }
+    .pill { display: inline-block; font: 11px var(--mono); padding: 2px 8px; border-radius: 999px; background: #1f2766; color: var(--accent); margin-right: 6px; }
+    .pill.ok { background: #143a25; color: var(--ok); }
+    .pill.warn { background: #3d2f0a; color: var(--warn); }
+    .pill.err { background: #3a1010; color: var(--err); }
+    .signed-out-msg { color: var(--warn); font-size: 13px; }
+    .footer { text-align: center; color: var(--muted); font-size: 11px; padding: 24px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🚀 CAMPAIGN — Test Harness <span class="badge">isolado</span></h1>
+  </div>
+  <div class="auth" id="auth-box">
+    <span class="meta">Não logado</span>
+    <button class="btn primary" id="btn-login">Login com Google</button>
+  </div>
+</header>
+
+<main>
+  <!-- ============================================
+       1. Carregamento de assets (galeria)
+       ============================================ -->
+  <section class="card">
+    <h2>1. Asset Loader — Galeria de Sprites</h2>
+    <div class="meta" id="assets-meta">Carregando manifesto...</div>
+    <div class="progress-bar"><div id="assets-progress" style="width:0%"></div></div>
+    <div id="assets-gallery"></div>
+  </section>
+
+  <!-- ============================================
+       2. /api/campaign-config.php
+       ============================================ -->
+  <section class="card">
+    <h2>2. /api/campaign-config.php (público)</h2>
+    <div class="toolbar">
+      <button class="btn" id="btn-config-reload">Recarregar config</button>
+      <span class="meta" id="config-meta">—</span>
+    </div>
+    <pre class="json" id="config-json">(aguardando)</pre>
+  </section>
+
+  <!-- ============================================
+       3. /api/campaign-progress.php (autenticado)
+       ============================================ -->
+  <section class="card">
+    <h2>3. /api/campaign-progress.php (autenticado)</h2>
+    <div class="toolbar">
+      <button class="btn" id="btn-progress-reload" disabled>Recarregar progress</button>
+      <button class="btn danger" id="btn-progress-reset" disabled>⚠ Resetar meu progresso</button>
+      <span class="meta" id="progress-meta">Faça login para visualizar.</span>
+    </div>
+    <pre class="json" id="progress-json">(aguardando login)</pre>
+  </section>
+</main>
+
+<div class="footer">
+  Build: <span id="build-stamp"></span> · branch <code>claude/new-game-mode-planning-crtrQ</code> · página de teste, sem links públicos.
+</div>
+
+<!-- Firebase compat -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth-manager.js"></script>
+
+<!-- Asset loader da campanha -->
+<script src="js/campaign-asset-loader.js"></script>
+
+<script>
+  document.getElementById('build-stamp').textContent = new Date().toISOString();
+
+  // ----------------------------------------------------------------------
+  // ASSETS — galeria
+  // ----------------------------------------------------------------------
+  const GALLERY_GROUPS = [
+    { title: 'Naves do jogador',                prefix: ['ship_'] },
+    { title: 'Setor 1 — Inimigos',              prefix: ['s1_'] },
+    { title: 'Setor 2 — Inimigos',              prefix: ['s2_'] },
+    { title: 'Bosses',                          prefix: ['boss_'] },
+    { title: 'Power-ups',                       prefix: ['powerup_'] },
+    { title: 'Projéteis',                       prefix: ['player_bullet','enemy_bullet','bullets_sheet','muzzle_flash'] },
+    { title: 'Backgrounds (parallax)',          prefix: ['bg_'], isBackground: true },
+  ];
+
+  function classifyKey(key, group) {
+    for (const p of group.prefix) {
+      if (key === p || key.startsWith(p)) return true;
+    }
+    return false;
+  }
+
+  async function preloadAssetsAndRender() {
+    const total = Object.keys(CampaignAssets.MANIFEST).length;
+    const meta = document.getElementById('assets-meta');
+    const bar = document.getElementById('assets-progress');
+    meta.innerHTML = `<span class="pill">${total}</span> assets no manifesto. Carregando...`;
+
+    let okCount = 0, errCount = 0;
+    const errors = [];
+    await CampaignAssets.preloadAll({
+      onProgress: (done, t, key) => {
+        bar.style.width = Math.round(100 * done / t) + '%';
+      },
+    });
+
+    // Conta sucessos com base no que está no cache
+    const results = {};
+    for (const key of Object.keys(CampaignAssets.MANIFEST)) {
+      const img = CampaignAssets.tryGet(key);
+      results[key] = img;
+      if (img) okCount++; else { errCount++; errors.push(key); }
+    }
+
+    bar.style.width = '100%';
+    meta.innerHTML =
+      `<span class="pill ok">${okCount} OK</span>` +
+      (errCount ? `<span class="pill err">${errCount} falha(s)</span>` : '') +
+      ` de ${total}.` +
+      (errCount ? ` <span class="meta">Falhas: ${errors.slice(0, 4).join(', ')}${errors.length > 4 ? '...' : ''}</span>` : '');
+
+    renderGallery(results);
+  }
+
+  function renderGallery(results) {
+    const root = document.getElementById('assets-gallery');
+    root.innerHTML = '';
+    for (const group of GALLERY_GROUPS) {
+      const keys = Object.keys(CampaignAssets.MANIFEST).filter(k => classifyKey(k, group));
+      if (!keys.length) continue;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'group';
+      const h = document.createElement('h3');
+      h.textContent = `${group.title} (${keys.length})`;
+      wrap.appendChild(h);
+
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      for (const key of keys) {
+        const card = document.createElement('div');
+        card.className = 'sprite-card' + (group.isBackground ? ' bg' : '');
+        if (!results[key]) card.classList.add('fail');
+
+        const frame = document.createElement('div');
+        frame.className = 'frame';
+        const img = document.createElement('img');
+        img.alt = key;
+        img.src = CampaignAssets.MANIFEST[key];
+        frame.appendChild(img);
+
+        const lbl = document.createElement('div');
+        lbl.className = 'key';
+        lbl.textContent = key;
+
+        card.appendChild(frame);
+        card.appendChild(lbl);
+        grid.appendChild(card);
+      }
+      wrap.appendChild(grid);
+      root.appendChild(wrap);
+    }
+  }
+
+  // ----------------------------------------------------------------------
+  // CONFIG endpoint
+  // ----------------------------------------------------------------------
+  async function loadConfig() {
+    const meta = document.getElementById('config-meta');
+    const out = document.getElementById('config-json');
+    meta.textContent = 'Carregando...';
+    try {
+      const t0 = performance.now();
+      const r = await fetch('/api/campaign-config.php', { headers: { 'Accept': 'application/json' } });
+      const dt = (performance.now() - t0).toFixed(0);
+      const data = await r.json();
+      out.textContent = JSON.stringify(data, null, 2);
+      if (data.success) {
+        const stages = (data.data?.stages || []).length;
+        const settings = Object.keys(data.data?.settings || {}).length;
+        const xp = (data.data?.xp_table || []).length;
+        meta.innerHTML = `<span class="pill ok">${r.status}</span> ${dt}ms · ${settings} settings · ${stages} fases · ${xp} níveis · v${data.data?.version}`;
+      } else {
+        meta.innerHTML = `<span class="pill err">${r.status}</span> ${data.error || 'erro'}`;
+      }
+    } catch (e) {
+      meta.innerHTML = `<span class="pill err">net</span> ${e.message}`;
+      out.textContent = String(e);
+    }
+  }
+
+  // ----------------------------------------------------------------------
+  // PROGRESS endpoint
+  // ----------------------------------------------------------------------
+  function getUid() {
+    return window.authManager?.currentUser?.uid || null;
+  }
+
+  async function loadProgress() {
+    const meta = document.getElementById('progress-meta');
+    const out = document.getElementById('progress-json');
+    const uid = getUid();
+    if (!uid) {
+      meta.innerHTML = `<span class="pill warn">offline</span> Faça login para visualizar.`;
+      out.textContent = '(aguardando login)';
+      return;
+    }
+    meta.textContent = 'Carregando...';
+    try {
+      const t0 = performance.now();
+      const r = await fetch('/api/campaign-progress.php?google_uid=' + encodeURIComponent(uid), {
+        headers: { 'Accept': 'application/json' },
+      });
+      const dt = (performance.now() - t0).toFixed(0);
+      const data = await r.json();
+      out.textContent = JSON.stringify(data, null, 2);
+      if (data.success) {
+        const p = data.data?.progress || {};
+        const lives = data.data?.lives || {};
+        meta.innerHTML =
+          `<span class="pill ok">${r.status}</span> ${dt}ms · ` +
+          `nível <strong>${p.current_level}</strong> · ` +
+          `XP <strong>${p.total_xp}</strong> · ` +
+          `vidas <strong>${lives.current}/${lives.max}</strong> · ` +
+          `estrelas <strong>${p.total_stars}</strong>`;
+      } else {
+        meta.innerHTML = `<span class="pill err">${r.status}</span> ${data.error || 'erro'}`;
+      }
+    } catch (e) {
+      meta.innerHTML = `<span class="pill err">net</span> ${e.message}`;
+      out.textContent = String(e);
+    }
+  }
+
+  async function resetProgress() {
+    const uid = getUid();
+    if (!uid) return;
+    if (!confirm('Resetar TODO o progresso da campanha do usuário atual? Isso é só para testes.')) return;
+    const fd = new FormData();
+    fd.set('action', 'reset');
+    fd.set('google_uid', uid);
+    const r = await fetch('/api/campaign-progress.php', { method: 'POST', body: fd });
+    await r.json();
+    await loadProgress();
+  }
+
+  // ----------------------------------------------------------------------
+  // Auth UI
+  // ----------------------------------------------------------------------
+  function renderAuthBox(user) {
+    const box = document.getElementById('auth-box');
+    if (user) {
+      box.innerHTML = `
+        ${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ''}
+        <span class="meta"><strong>${user.displayName || 'Anônimo'}</strong> <code>${user.uid.slice(0, 8)}...</code></span>
+        <button class="btn" id="btn-logout">Sair</button>
+      `;
+      document.getElementById('btn-logout').addEventListener('click', () => window.authManager.signOut());
+      document.getElementById('btn-progress-reload').disabled = false;
+      document.getElementById('btn-progress-reset').disabled = false;
+      loadProgress();
+    } else {
+      box.innerHTML = `
+        <span class="meta">Não logado</span>
+        <button class="btn primary" id="btn-login">Login com Google</button>
+      `;
+      document.getElementById('btn-login').addEventListener('click', () => window.authManager.signIn());
+      document.getElementById('btn-progress-reload').disabled = true;
+      document.getElementById('btn-progress-reset').disabled = true;
+      const out = document.getElementById('progress-json');
+      out.textContent = '(aguardando login)';
+      const meta = document.getElementById('progress-meta');
+      meta.innerHTML = `<span class="pill warn">offline</span> Faça login para visualizar.`;
+    }
+  }
+
+  // Hook inicial de auth quando o authManager terminar de subir
+  function bindAuth() {
+    if (!window.authManager) {
+      setTimeout(bindAuth, 100);
+      return;
+    }
+    window.authManager.onAuthStateChanged((user) => renderAuthBox(user));
+    document.getElementById('btn-login').addEventListener('click', () => window.authManager.signIn());
+    renderAuthBox(window.authManager.currentUser);
+  }
+
+  // Botões de recarregar
+  document.getElementById('btn-config-reload').addEventListener('click', loadConfig);
+  document.getElementById('btn-progress-reload').addEventListener('click', loadProgress);
+  document.getElementById('btn-progress-reset').addEventListener('click', resetProgress);
+
+  // Boot
+  preloadAssetsAndRender();
+  loadConfig();
+  bindAuth();
+</script>
+
+</body>
+</html>
