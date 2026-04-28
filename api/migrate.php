@@ -802,6 +802,16 @@ try {
         }
     } catch (Exception $e) { /* já existe */ }
 
+    // campaign_bosses.contact_damage (dano corpo-a-corpo do boss)
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM campaign_bosses LIKE 'contact_damage'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE campaign_bosses ADD COLUMN contact_damage INT NOT NULL DEFAULT 30 AFTER speed");
+            $results['migrations'][] = 'campaign_bosses.contact_damage';
+            output("  [OK] campaign_bosses: coluna contact_damage adicionada");
+        }
+    } catch (Exception $e) { /* ainda não criada */ }
+
     // campaign_progress.pending_booster (Triple Star Booster armado p/ próxima sessão)
     try {
         $col = $pdo->query("SHOW COLUMNS FROM campaign_progress LIKE 'pending_booster'")->fetch();
@@ -1513,6 +1523,26 @@ try {
         $results['migrations'][] = 'campaign_skins:defaults';
         output("  [OK] 4 skins padrão inseridas/ignoradas");
     } catch (Exception $e) { /* tabela pode não existir */ }
+
+    // Bosses padrão (espelhamento DB do catálogo hardcoded no engine,
+    // pra permitir overrides futuros via admin sem deploy de JS).
+    try {
+        $bosses = [
+            // [name, sector, sprite_key, hp, scale, speed, contact, drops, thresholds, berserk, hp_persists]
+            ['Asteroide-Mãe',     1, 'boss_asteroid_mother', 500,  1.00, 1.00, 30, json_encode(['repair','bomb']),         json_encode([50,25]), 1, 1],
+            ['Devorador de Sucata', 2, 'boss_junk_devourer',  1000, 1.00, 1.20, 35, json_encode(['repair','bomb','shield']), json_encode([50,25]), 1, 1],
+        ];
+        $ins = $pdo->prepare("
+            INSERT IGNORE INTO campaign_bosses
+                (name, sector, sprite_key, hp_total, scale, speed, contact_damage,
+                 guaranteed_drops_json, phase_thresholds_json,
+                 berserk_enabled, hp_persists_on_continue, is_enabled, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+        ");
+        foreach ($bosses as $b) $ins->execute($b);
+        $results['migrations'][] = 'campaign_bosses:defaults';
+        output("  [OK] 2 bosses padrão inseridos/ignorados");
+    } catch (Exception $e) { /* tabela ainda não criada */ }
 
     // ============================================
     // LIMPEZA
