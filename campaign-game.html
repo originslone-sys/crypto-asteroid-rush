@@ -188,6 +188,22 @@
         </div>
       </div>
     </div>
+
+    <!-- Overlay: continue (após game over) -->
+    <div class="overlay" id="ov-continue" style="display:none">
+      <div class="card">
+        <h2 style="color:#ff6b6b">💀 Game Over</h2>
+        <p style="color:var(--muted);font-size:12px;margin-bottom:10px">
+          Continuar do ponto em que parou. Custa
+          <strong id="cont-cost">2</strong> 💎 e não dá vida nem reseta as estrelas.
+        </p>
+        <div id="cont-err" style="color:#ff6b6b;font-size:11px;margin-bottom:6px"></div>
+        <div class="row">
+          <button class="btn primary" id="btn-continue">Continuar (<span id="cont-cost-btn">2</span>💎)</button>
+          <button class="btn danger" id="btn-accept-loss">Aceitar derrota</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -207,10 +223,11 @@
   const STAGE_ID = params.get('stage') || 's1f1';
 
   const els = {
-    ovIdle:   document.getElementById('ov-idle'),
-    ovResult: document.getElementById('ov-result'),
-    ovError:  document.getElementById('ov-error'),
-    ovPause:  document.getElementById('ov-pause'),
+    ovIdle:    document.getElementById('ov-idle'),
+    ovResult:  document.getElementById('ov-result'),
+    ovError:   document.getElementById('ov-error'),
+    ovPause:   document.getElementById('ov-pause'),
+    ovContinue:document.getElementById('ov-continue'),
     errMsg:   document.getElementById('err-msg'),
     btnLogin: document.getElementById('btn-login'),
     btnStart: document.getElementById('btn-start'),
@@ -230,13 +247,16 @@
   };
 
   let currentSession = null;  // { session_token, stage, ... }
+  let continueOffered = false; // só oferece "continue" 1 vez por sessão
+  let pendingLossPayload = null; // payload guardado durante a oferta de continue
 
   // ----- helpers -----
   function showOverlay(name) {
-    els.ovIdle.style.display   = name === 'idle'   ? 'flex' : 'none';
-    els.ovResult.style.display = name === 'result' ? 'flex' : 'none';
-    els.ovError.style.display  = name === 'error'  ? 'flex' : 'none';
-    els.ovPause.style.display  = name === 'pause'  ? 'flex' : 'none';
+    els.ovIdle.style.display     = name === 'idle'     ? 'flex' : 'none';
+    els.ovResult.style.display   = name === 'result'   ? 'flex' : 'none';
+    els.ovError.style.display    = name === 'error'    ? 'flex' : 'none';
+    els.ovPause.style.display    = name === 'pause'    ? 'flex' : 'none';
+    els.ovContinue.style.display = name === 'continue' ? 'flex' : 'none';
   }
   function showError(msg) {
     els.errMsg.textContent = msg || 'Erro desconhecido';
@@ -288,6 +308,8 @@
         return;
       }
       currentSession = data.data;
+      continueOffered = false;
+      pendingLossPayload = null;
       showOverlay('none');
       els.ovIdle.style.display = 'none';
       els.pauseBtn.style.display = 'block';
@@ -309,6 +331,16 @@
   // ----- end flow -----
   async function handleEnd(payload) {
     if (!currentSession) return;
+    // Em derrota natural, oferece "Continue" antes de mandar para o servidor
+    if (payload.result === 'loss' && !continueOffered && payload.damage_taken < 100) {
+      // Loss legítimo (engine setou damage_taken==100 só em "abandon"); restantes = morreu jogando
+    }
+    if (payload.result === 'loss' && !continueOffered) {
+      pendingLossPayload = payload;
+      continueOffered = true;  // só oferece uma vez
+      showOverlay('continue');
+      return;
+    }
     els.pauseBtn.style.display = 'none';
     const fd = new FormData();
     fd.set('google_uid', uid());
@@ -329,6 +361,41 @@
     } catch (e) {
       showError('Erro de rede ao finalizar: ' + e.message);
     }
+  }
+
+  async function attemptContinue() {
+    const errEl = document.getElementById('cont-err');
+    errEl.textContent = '';
+    if (!currentSession) return;
+    try {
+      const fd = new FormData();
+      fd.set('google_uid', uid());
+      fd.set('session_token', currentSession.session_token);
+      const r = await fetch('/api/campaign-continue.php', { method: 'POST', body: fd });
+      const data = await r.json();
+      if (!data.success) {
+        errEl.textContent = data.error || 'Falha';
+        return;
+      }
+      pendingLossPayload = null;
+      showOverlay('none');
+      // Esconde todos os overlays
+      els.ovContinue.style.display = 'none';
+      // Engine revive: HP cheio + escudo de cortesia + reativa loop
+      if (window.CampaignEngine) CampaignEngine.revive();
+    } catch (e) {
+      errEl.textContent = 'Erro de rede: ' + e.message;
+    }
+  }
+
+  function acceptDefeat() {
+    if (!pendingLossPayload) return;
+    const p = pendingLossPayload;
+    pendingLossPayload = null;
+    showOverlay('none');
+    els.ovContinue.style.display = 'none';
+    // Marca como já oferecido + envia para o servidor
+    handleEnd(p);
   }
 
   function renderResult(serverData, clientPayload) {
@@ -381,6 +448,8 @@
       showOverlay('none');
       els.ovPause.style.display = 'none';
     });
+    document.getElementById('btn-continue').addEventListener('click', attemptContinue);
+    document.getElementById('btn-accept-loss').addEventListener('click', acceptDefeat);
     document.getElementById('btn-quit').addEventListener('click', () => {
       if (!currentSession || !window.CampaignEngine) return;
       // Força derrota: para o engine e envia loss para o servidor

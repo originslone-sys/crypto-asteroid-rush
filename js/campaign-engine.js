@@ -1443,6 +1443,38 @@
 
   function isPaused() { return paused; }
 
+  /**
+   * Continua a sessão atual após game over: restaura HP, limpa
+   * inimigos próximos, ativa shield brevemente. NÃO restaura HP do
+   * boss (decisão da spec — boss continua de onde parou).
+   */
+  function revive() {
+    if (!player) return;
+    player.hp = cfg.shipMaxHp;
+    damageTaken = 0;
+    combo = 0;
+    // Limpa inimigos perto do player para não morrer instantaneamente
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const en = enemies[i];
+      if (Math.abs(en.y - player.y) < 200) {
+        spawnExplosion(en.x + en.w / 2, en.y + en.h / 2, '#5cd5ff');
+        enemies.splice(i, 1);
+      }
+    }
+    enemyBullets.length = 0;
+    // Escudo de cortesia
+    effects.shield = true;
+    endedFired = false;
+    // Reativa o loop se foi cancelado
+    if (!running) {
+      running = true;
+      paused = false;
+      pausedAtMs = 0;
+      lastFrameMs = 0;
+      rafId = requestAnimationFrame(loop);
+    }
+  }
+
   function stop() {
     if (!running) return;
     running = false;
@@ -1464,5 +1496,5 @@
     if (onEndCb) onEndCb(payload);
   }
 
-  global.CampaignEngine = { start, stop, pause, resume, isPaused };
+  global.CampaignEngine = { start, stop, pause, resume, isPaused, revive };
 })(window);
