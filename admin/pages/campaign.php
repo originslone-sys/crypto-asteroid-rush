@@ -154,6 +154,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = "Boss salvo.";
                 break;
 
+            case 'player_reset':
+                $uid = trim($_POST['google_uid'] ?? '');
+                if ($uid === '') throw new Exception('google_uid ausente');
+                $pdo->prepare("DELETE FROM campaign_stage_progress WHERE google_uid = ?")->execute([$uid]);
+                $pdo->prepare("DELETE FROM campaign_tutorial_seen WHERE google_uid = ?")->execute([$uid]);
+                $pdo->prepare("DELETE FROM campaign_player_skins WHERE google_uid = ?")->execute([$uid]);
+                $pdo->prepare("DELETE FROM campaign_player_missions WHERE google_uid = ?")->execute([$uid]);
+                $pdo->prepare("DELETE FROM campaign_player_achievements WHERE google_uid = ?")->execute([$uid]);
+                $pdo->prepare("DELETE FROM campaign_streak WHERE google_uid = ?")->execute([$uid]);
+                $maxL = (int)campaignGetSetting($pdo, 'campaign.lives.max', 5);
+                $pdo->prepare("
+                    UPDATE campaign_progress
+                    SET current_level = 1, total_xp = 0, current_lives = ?, total_stars = 0,
+                        streak_count = 0, daily_brl_earned = 0, next_life_at = NULL,
+                        equipped_skin_id = NULL, pending_booster = NULL, updated_at = NOW()
+                    WHERE google_uid = ?
+                ")->execute([$maxL, $uid]);
+                $message = "Progresso de {$uid} resetado.";
+                break;
+
+            case 'player_grant':
+                $uid = trim($_POST['google_uid'] ?? '');
+                if ($uid === '') throw new Exception('google_uid ausente');
+                $grantXp     = max(0, (int)($_POST['grant_xp'] ?? 0));
+                $grantLives  = max(0, (int)($_POST['grant_lives'] ?? 0));
+                $grantStars  = max(0, (int)($_POST['grant_stars'] ?? 0));
+                $grantCredits= max(0, (int)($_POST['grant_credits'] ?? 0));
+                $grantBrl    = max(0.0, (float)($_POST['grant_brl'] ?? 0));
+
+                // Auto-init progress
+                $maxL = (int)campaignGetSetting($pdo, 'campaign.lives.max', 5);
+                $pdo->prepare("
+                    INSERT IGNORE INTO campaign_progress
+                        (google_uid, current_level, current_lives, total_stars, created_at, updated_at)
+                    VALUES (?, 1, ?, 0, NOW(), NOW())
+                ")->execute([$uid, $maxL]);
+
+                if ($grantXp > 0 || $grantStars > 0 || $grantLives > 0) {
+                    $pdo->prepare("
+                        UPDATE campaign_progress
+                        SET total_xp = total_xp + ?,
+                            current_lives = LEAST(?, current_lives + ?),
+                            total_stars = total_stars + ?,
+                            updated_at = NOW()
+                        WHERE google_uid = ?
+                    ")->execute([$grantXp, $maxL, $grantLives, $grantStars, $uid]);
+                }
+                if ($grantXp > 0) {
+                    $pdo->prepare("UPDATE users SET total_xp = total_xp + ? WHERE google_uid = ?")
+                        ->execute([$grantXp, $uid]);
+                }
+                if ($grantCredits > 0 || $grantBrl > 0) {
+                    $pdo->prepare("UPDATE users SET credits = credits + ?, balance_brl = balance_brl + ? WHERE google_uid = ?")
+                        ->execute([$grantCredits, $grantBrl, $uid]);
+                }
+                $message = "Concedido a {$uid}: +{$grantXp} XP, +{$grantLives} vidas, +{$grantStars}⭐, +{$grantCredits}💎, +R$ " . number_format($grantBrl, 2, ',', '.') . ".";
+                break;
+
             case 'update_globals':
                 $maintenance     = isset($_POST['maintenance']) ? 'true' : 'false';
                 $maintMsg        = trim($_POST['maintenance_msg'] ?? '');
@@ -587,3 +645,176 @@ $tabs = [
 <?php endif; ?>
 
 <?php endif; /* activeTab=bosses */ ?>
+
+<?php if ($activeTab === 'players'):
+    $searchQ = trim($_GET['q'] ?? '');
+    $foundPlayer = null;
+    $playerStages = [];
+    $playerSkins = [];
+    if ($searchQ !== '') {
+        $stmt = $pdo->prepare("
+            SELECT u.google_uid, u.email, u.display_name, u.credits, u.balance_brl, u.total_xp, u.is_banned,
+                   p.current_level, p.current_lives, p.total_stars, p.streak_count, p.daily_brl_earned,
+                   p.next_life_at, p.equipped_skin_id, p.pending_booster, p.updated_at AS prog_updated
+            FROM users u
+            LEFT JOIN campaign_progress p ON p.google_uid = u.google_uid
+            WHERE u.google_uid = ? OR u.email = ? OR u.display_name LIKE ?
+            LIMIT 1
+        ");
+        $stmt->execute([$searchQ, $searchQ, '%' . $searchQ . '%']);
+        $foundPlayer = $stmt->fetch();
+        if ($foundPlayer) {
+            $sg = $pdo->prepare("SELECT * FROM campaign_stage_progress WHERE google_uid = ? ORDER BY stage_id");
+            $sg->execute([$foundPlayer['google_uid']]);
+            $playerStages = $sg->fetchAll();
+            $sk = $pdo->prepare("
+                SELECT s.skin_key, s.name, ps.obtained_at, ps.obtained_via
+                FROM campaign_player_skins ps
+                INNER JOIN campaign_skins s ON s.id = ps.skin_id
+                WHERE ps.google_uid = ?
+            ");
+            $sk->execute([$foundPlayer['google_uid']]);
+            $playerSkins = $sk->fetchAll();
+        }
+    }
+?>
+
+<div style="background:#0e1330;border:1px solid #2a3375;border-radius:10px;padding:18px;margin-bottom:20px">
+  <h2 style="margin:0 0 12px;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;color:#5cd5ff">Buscar jogador</h2>
+  <form method="GET" style="display:flex;gap:10px">
+    <input type="hidden" name="page" value="campaign">
+    <input type="hidden" name="tab"  value="players">
+    <input type="text" name="q" value="<?= htmlspecialchars($searchQ) ?>"
+           placeholder="google_uid, email ou nome"
+           style="flex:1;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:8px 10px;color:#e7eaff">
+    <button type="submit" style="background:linear-gradient(135deg,#1c4cff,#5b1a8a);color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer">Buscar</button>
+  </form>
+</div>
+
+<?php if ($searchQ !== '' && !$foundPlayer): ?>
+<div style="background:#3a1010;color:#ff6b6b;padding:14px;border-radius:8px;border:1px solid #6e2424;margin-bottom:18px">
+  Nenhum jogador encontrado para "<?= htmlspecialchars($searchQ) ?>".
+</div>
+<?php endif; ?>
+
+<?php if ($foundPlayer): ?>
+<div style="background:#0e1330;border:1px solid #5cd5ff;border-radius:10px;padding:18px;margin-bottom:18px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px">
+    <div>
+      <h3 style="margin:0;font-size:16px"><?= htmlspecialchars($foundPlayer['display_name'] ?? '—') ?></h3>
+      <div style="font-size:11px;color:#8a93c8;font-family:monospace;margin-top:4px"><?= htmlspecialchars($foundPlayer['google_uid']) ?></div>
+      <div style="font-size:12px;color:#8a93c8"><?= htmlspecialchars($foundPlayer['email'] ?? '—') ?></div>
+      <?php if ((int)$foundPlayer['is_banned']): ?>
+        <span style="background:#3a1010;color:#ff6b6b;padding:2px 8px;border-radius:999px;font-size:11px;margin-top:6px;display:inline-block">BANIDO</span>
+      <?php endif; ?>
+    </div>
+    <div style="text-align:right;font-size:13px;line-height:1.6">
+      <div>Créditos: <strong style="color:#ffd166"><?= (int)$foundPlayer['credits'] ?>💎</strong></div>
+      <div>Saldo BRL: <strong style="color:#5fdb91">R$ <?= number_format((float)$foundPlayer['balance_brl'], 2, ',', '.') ?></strong></div>
+      <div>XP total: <strong><?= (int)$foundPlayer['total_xp'] ?></strong></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:14px;font-size:12px">
+    <div style="background:#050720;border:1px solid #2a3375;border-radius:6px;padding:8px"><strong>Nível:</strong> <?= (int)($foundPlayer['current_level'] ?? 0) ?></div>
+    <div style="background:#050720;border:1px solid #2a3375;border-radius:6px;padding:8px"><strong>Vidas:</strong> <?= (int)($foundPlayer['current_lives'] ?? 0) ?></div>
+    <div style="background:#050720;border:1px solid #2a3375;border-radius:6px;padding:8px"><strong>Estrelas:</strong> <?= (int)($foundPlayer['total_stars'] ?? 0) ?></div>
+    <div style="background:#050720;border:1px solid #2a3375;border-radius:6px;padding:8px"><strong>Streak:</strong> <?= (int)($foundPlayer['streak_count'] ?? 0) ?></div>
+    <div style="background:#050720;border:1px solid #2a3375;border-radius:6px;padding:8px"><strong>BRL hoje:</strong> R$ <?= number_format((float)($foundPlayer['daily_brl_earned'] ?? 0), 2, ',', '.') ?></div>
+    <div style="background:#050720;border:1px solid #2a3375;border-radius:6px;padding:8px"><strong>Próx. vida:</strong> <?= htmlspecialchars($foundPlayer['next_life_at'] ?? '—') ?></div>
+  </div>
+
+  <div style="margin-top:12px">
+    <strong>Skins:</strong>
+    <?php foreach ($playerSkins as $sk): ?>
+      <span style="background:#1f2766;color:#5cd5ff;padding:2px 8px;border-radius:999px;font-size:11px;margin-right:4px"><?= htmlspecialchars($sk['skin_key']) ?></span>
+    <?php endforeach; ?>
+    <?php if (!count($playerSkins)): ?>
+      <span style="color:#8a93c8;font-size:12px">apenas default</span>
+    <?php endif; ?>
+  </div>
+</div>
+
+<!-- Conceder recursos -->
+<div style="background:#0e1330;border:1px solid #2a3375;border-radius:10px;padding:18px;margin-bottom:18px">
+  <h3 style="margin:0 0 12px;font-size:14px;color:#5fdb91">Conceder (suporte)</h3>
+  <form method="POST">
+    <input type="hidden" name="action" value="player_grant">
+    <input type="hidden" name="google_uid" value="<?= htmlspecialchars($foundPlayer['google_uid']) ?>">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+      <div><label style="display:block;font-size:11px;color:#8a93c8">XP</label>
+           <input type="number" name="grant_xp" value="0" min="0"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:6px 8px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">Vidas</label>
+           <input type="number" name="grant_lives" value="0" min="0"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:6px 8px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">⭐</label>
+           <input type="number" name="grant_stars" value="0" min="0"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:6px 8px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">Créditos</label>
+           <input type="number" name="grant_credits" value="0" min="0"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:6px 8px;color:#e7eaff"></div>
+      <div><label style="display:block;font-size:11px;color:#8a93c8">BRL</label>
+           <input type="number" step="0.01" name="grant_brl" value="0" min="0"
+                  style="width:100%;background:#050720;border:1px solid #2a3375;border-radius:5px;padding:6px 8px;color:#e7eaff"></div>
+    </div>
+    <div style="margin-top:12px">
+      <button type="submit" style="background:#143a25;color:#5fdb91;border:1px solid #1f5e3a;border-radius:6px;padding:7px 14px;cursor:pointer">
+        Conceder ao jogador
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Reset -->
+<div style="background:#0e1330;border:1px solid #6e2424;border-radius:10px;padding:18px;margin-bottom:18px">
+  <h3 style="margin:0 0 8px;font-size:14px;color:#ff6b6b">Resetar progresso</h3>
+  <p style="margin:0 0 10px;color:#8a93c8;font-size:12px">
+    Apaga progresso de fases, conquistas, missões, skins compradas, tutoriais vistos e zera o nível para 1.
+    NÃO mexe em créditos nem BRL.
+  </p>
+  <form method="POST" onsubmit="return confirm('Resetar progresso de <?= htmlspecialchars($foundPlayer['google_uid']) ?>? Isso é irreversível.')">
+    <input type="hidden" name="action" value="player_reset">
+    <input type="hidden" name="google_uid" value="<?= htmlspecialchars($foundPlayer['google_uid']) ?>">
+    <button type="submit" style="background:#3a1010;color:#ff6b6b;border:1px solid #6e2424;border-radius:6px;padding:7px 14px;cursor:pointer">
+      ⚠ Resetar progresso
+    </button>
+  </form>
+</div>
+
+<!-- Stage progress -->
+<div style="background:#0e1330;border:1px solid #2a3375;border-radius:10px;padding:18px;margin-bottom:18px">
+  <h3 style="margin:0 0 10px;font-size:14px;color:#5cd5ff">Progresso por fase (<?= count($playerStages) ?>)</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead>
+      <tr style="background:#161c4a;color:#8a93c8;text-align:left">
+        <th style="padding:6px 10px">Fase</th>
+        <th style="padding:6px 10px;text-align:center">⭐</th>
+        <th style="padding:6px 10px;text-align:right">Tentativas</th>
+        <th style="padding:6px 10px;text-align:right">Vitórias</th>
+        <th style="padding:6px 10px;text-align:right">Melhor tempo</th>
+        <th style="padding:6px 10px;text-align:right">BRL acumulado</th>
+        <th style="padding:6px 10px;text-align:right">Combo máx</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($playerStages as $sp): ?>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:6px 10px;font-family:monospace;color:#5cd5ff"><?= htmlspecialchars($sp['stage_id']) ?></td>
+        <td style="padding:6px 10px;text-align:center;color:#ffd166"><?= str_repeat('★', (int)$sp['stars']) ?></td>
+        <td style="padding:6px 10px;text-align:right"><?= (int)$sp['attempts'] ?></td>
+        <td style="padding:6px 10px;text-align:right"><?= (int)$sp['wins'] ?></td>
+        <td style="padding:6px 10px;text-align:right"><?= $sp['best_time'] !== null ? (int)$sp['best_time'].'s' : '—' ?></td>
+        <td style="padding:6px 10px;text-align:right">R$ <?= number_format((float)$sp['total_brl_earned'], 2, ',', '.') ?></td>
+        <td style="padding:6px 10px;text-align:right"><?= (int)$sp['max_combo'] ?></td>
+      </tr>
+      <?php endforeach; ?>
+      <?php if (!count($playerStages)): ?>
+      <tr><td colspan="7" style="padding:18px;text-align:center;color:#8a93c8">Jogador ainda não jogou nenhuma fase.</td></tr>
+      <?php endif; ?>
+    </tbody>
+  </table>
+</div>
+<?php endif; ?>
+
+<?php endif; /* activeTab=players */ ?>
