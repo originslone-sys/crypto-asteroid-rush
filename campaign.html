@@ -335,6 +335,8 @@
     <div class="footer-mini">
       <a href="campaign-debug.html" style="color:var(--muted);text-decoration:none">debug</a>
       <span>·</span>
+      <a href="#" id="btn-help" style="color:var(--muted);text-decoration:none">? Ajuda</a>
+      <span>·</span>
       <span id="boot-stamp">—</span>
     </div>
 
@@ -367,6 +369,20 @@
         <p class="modal-sub">Faça login para acessar o mapa de fases.</p>
         <div class="btn-row">
           <button class="btn primary" id="btn-login">Login com Google</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tutorial / Cinemática (slides) -->
+    <div class="overlay" id="ov-tutorial" style="z-index:55">
+      <div class="card" style="max-width:340px;text-align:center">
+        <div id="tut-icon" style="font-size:42px;margin-bottom:6px">🚀</div>
+        <h3 id="tut-title">—</h3>
+        <p id="tut-text" style="margin:8px 0 14px;line-height:1.5;color:#cad4ff;font-size:13px"></p>
+        <div id="tut-progress" style="display:flex;gap:4px;justify-content:center;margin-bottom:12px"></div>
+        <div class="btn-row">
+          <button class="btn" id="tut-skip" style="font-size:11px;color:#8a93c8">Pular</button>
+          <button class="btn primary" id="tut-next">Próximo →</button>
         </div>
       </div>
     </div>
@@ -832,6 +848,137 @@
   });
 
   // ----------------------------------------------------------------------
+  // Tutorial (welcome slides, cinematics, tooltips)
+  // ----------------------------------------------------------------------
+  let tutorialSeen = new Set();
+  let tutorialPlaying = null;
+
+  const WELCOME_SLIDES = [
+    { icon: '🚀', title: 'Bem-vindo à Campanha!',
+      text: 'Embarque em uma jornada espacial com 11 fases divididas em 2 setores. Encare ondas de inimigos e enfrente bosses com 3 fases de HP.' },
+    { icon: '❤', title: 'Sistema de Vidas',
+      text: 'Você começa com 5 vidas. Vidas só são consumidas em derrotas. Se ficar sem, espere a recarga (30 min cada) ou compre mais com créditos.' },
+    { icon: '⭐', title: 'XP e Estrelas',
+      text: 'Cada fase dá XP fixa que sobe seu nível. Para 3⭐, complete sem tomar dano. Para 2⭐, perca no máximo metade do HP.' },
+    { icon: '🎁', title: 'Power-ups',
+      text: 'Inimigos podem dropar escudo, reparo, tiro triplo, slow-time ou bombas. Pegue passando a nave por cima!' },
+  ];
+
+  const CINEMATIC_SECTOR2 = [
+    { icon: '🌌', title: 'Setor 1 conquistado',
+      text: 'Você atravessou o cinturão de asteroides. Mas o que vem agora são destroços de uma guerra antiga...' },
+    { icon: '☠', title: 'Zona de Detritos',
+      text: 'Sucata blindada, naves piratas e alienígenas mais agressivos. O Devorador de Sucata espreita as profundezas.' },
+  ];
+
+  async function loadTutorialSeen() {
+    const u = uid();
+    if (!u) return;
+    try {
+      const r = await fetch('/api/campaign-tutorial.php?google_uid=' + encodeURIComponent(u));
+      const data = await r.json();
+      if (data.success) tutorialSeen = new Set(data.data.seen || []);
+    } catch (_) {}
+  }
+
+  async function markTutorialSeen(key) {
+    tutorialSeen.add(key);
+    try {
+      const fd = new FormData();
+      fd.set('google_uid', uid());
+      fd.set('key', key);
+      await fetch('/api/campaign-tutorial.php', { method: 'POST', body: fd });
+    } catch (_) {}
+  }
+
+  function showTutorial(key, slides, persistent) {
+    tutorialPlaying = { key, slides, idx: 0, persistent: persistent !== false };
+    renderTutorialSlide();
+    document.getElementById('ov-tutorial').classList.add('show');
+  }
+
+  function renderTutorialSlide() {
+    if (!tutorialPlaying) return;
+    const s = tutorialPlaying.slides[tutorialPlaying.idx];
+    document.getElementById('tut-icon').textContent  = s.icon;
+    document.getElementById('tut-title').textContent = s.title;
+    document.getElementById('tut-text').textContent  = s.text;
+    document.getElementById('tut-next').textContent =
+      (tutorialPlaying.idx === tutorialPlaying.slides.length - 1) ? 'Vamos lá ✓' : 'Próximo →';
+    const dots = document.getElementById('tut-progress');
+    dots.innerHTML = '';
+    for (let i = 0; i < tutorialPlaying.slides.length; i++) {
+      const d = document.createElement('span');
+      d.style.cssText = 'width:8px;height:8px;border-radius:50%;background:' +
+        (i === tutorialPlaying.idx ? 'var(--accent)' : '#2a3375');
+      dots.appendChild(d);
+    }
+  }
+
+  function advanceTutorial() {
+    if (!tutorialPlaying) return;
+    if (tutorialPlaying.idx < tutorialPlaying.slides.length - 1) {
+      tutorialPlaying.idx += 1;
+      renderTutorialSlide();
+    } else {
+      finishTutorial();
+    }
+  }
+
+  function finishTutorial() {
+    if (!tutorialPlaying) return;
+    if (tutorialPlaying.persistent) markTutorialSeen(tutorialPlaying.key);
+    document.getElementById('ov-tutorial').classList.remove('show');
+    tutorialPlaying = null;
+  }
+
+  document.getElementById('tut-next').addEventListener('click', advanceTutorial);
+  document.getElementById('tut-skip').addEventListener('click', finishTutorial);
+
+  async function checkPendingTutorials() {
+    if (!prog) return;
+    if (!tutorialSeen.has('welcome')) {
+      showTutorial('welcome', WELCOME_SLIDES);
+      return;
+    }
+    const sector2On = (cfg.settings || {})['campaign.launch.sector2_enabled'] === true;
+    if (sector2On && !tutorialSeen.has('cinematic_sector1to2')) {
+      const completedSector1 = (prog.stages || []).some(s =>
+        /^s1/.test(s.stage_id) && s.stars >= 1);
+      if (completedSector1) {
+        showTutorial('cinematic_sector1to2', CINEMATIC_SECTOR2);
+        return;
+      }
+    }
+    // Tooltip contextual: 1ª vez sem vidas
+    if (!tutorialSeen.has('tooltip_no_lives')
+        && prog.lives && (prog.lives.current === 0)) {
+      showTutorial('tooltip_no_lives', [{
+        icon: '🤍', title: 'Sem vidas',
+        text: 'Suas vidas acabaram! Você pode esperar a recarga (30 min cada) ou comprar mais clicando no botão + ao lado das vidas.',
+      }]);
+      return;
+    }
+    // Tooltip contextual: 1ª 3⭐
+    if (!tutorialSeen.has('tooltip_first_3stars')) {
+      const has3 = (prog.stages || []).some(s => s.stars >= 3);
+      if (has3) {
+        showTutorial('tooltip_first_3stars', [{
+          icon: '⭐⭐⭐', title: 'Perfeição!',
+          text: 'Você fez 3⭐ pela primeira vez. Cada estrela aumenta o BRL ganho. Tente fazer 3⭐ em todas as fases!',
+        }]);
+        return;
+      }
+    }
+  }
+
+  // Botão de ajuda no rodapé reabre o welcome (não persiste)
+  document.getElementById('btn-help').addEventListener('click', (e) => {
+    e.preventDefault();
+    showTutorial('welcome_review', WELCOME_SLIDES, false);
+  });
+
+  // ----------------------------------------------------------------------
   // Buy lives modal
   // ----------------------------------------------------------------------
   function openBuyLifeModal() {
@@ -1035,10 +1182,10 @@
   async function refreshAll() {
     try {
       if (!cfg) await loadConfig();
-      await loadProgress();
-      await loadUserCredits();
+      await Promise.all([loadProgress(), loadUserCredits(), loadTutorialSeen()]);
       renderHeader();
       renderMap();
+      checkPendingTutorials();
     } catch (e) {
       $('map-root').innerHTML =
         '<div style="padding:40px 20px;color:var(--err);text-align:center">Erro: ' +
