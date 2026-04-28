@@ -802,6 +802,16 @@ try {
         }
     } catch (Exception $e) { /* já existe */ }
 
+    // campaign_progress.pending_booster (Triple Star Booster armado p/ próxima sessão)
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM campaign_progress LIKE 'pending_booster'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE campaign_progress ADD COLUMN pending_booster VARCHAR(40) DEFAULT NULL AFTER equipped_skin_id");
+            $results['migrations'][] = 'campaign_progress.pending_booster';
+            output("  [OK] campaign_progress: coluna pending_booster adicionada");
+        }
+    } catch (Exception $e) { /* tabela ainda não criada nesta primeira passagem */ }
+
     // campaign_progress (1 linha por jogador, estado global na campanha)
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS campaign_progress (
@@ -1231,6 +1241,11 @@ try {
             'campaign.lives.cost_pack5',
             'campaign.lives.cost_refill',
             'campaign.cost.continue_after_death',
+            'campaign.monetization.booster_cost',
+            'campaign.monetization.skip_cost',
+            'campaign.monetization.skip_attempts',
+            'campaign.monetization.accelerate_s1',
+            'campaign.monetization.accelerate_s2',
         ];
         $stmt = $pdo->prepare("UPDATE campaign_settings SET is_public = 1 WHERE setting_key = ?");
         foreach ($publicKeys as $k) $stmt->execute([$k]);

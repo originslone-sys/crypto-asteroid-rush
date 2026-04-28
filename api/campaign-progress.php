@@ -91,7 +91,7 @@ try {
     $stmt = $pdo->prepare("
         SELECT current_level, total_xp, current_lives, next_life_at, streak_count,
                daily_brl_earned, daily_brl_reset_at, total_stars, equipped_skin_id,
-               created_at, updated_at
+               pending_booster, created_at, updated_at
         FROM campaign_progress WHERE google_uid = ? LIMIT 1
     ");
     $stmt->execute([$googleUid]);
@@ -152,6 +152,7 @@ try {
                 'daily_brl_earned' => (float)$progress['daily_brl_earned'],
                 'total_stars'      => (int)$progress['total_stars'],
                 'equipped_skin_id' => $progress['equipped_skin_id'] !== null ? (int)$progress['equipped_skin_id'] : null,
+                'pending_booster'  => $progress['pending_booster'] ?? null,
             ],
             'stages' => $stages,
             'skins_owned' => $skins,

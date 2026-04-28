@@ -106,9 +106,10 @@ try {
     ")->execute([$googleUid, $maxLives]);
     rechargeLives($pdo, $googleUid, $maxLives, $rechargeMin);
 
-    $pStmt = $pdo->prepare("SELECT current_level, current_lives FROM campaign_progress WHERE google_uid = ? LIMIT 1");
+    $pStmt = $pdo->prepare("SELECT current_level, current_lives, pending_booster FROM campaign_progress WHERE google_uid = ? LIMIT 1");
     $pStmt->execute([$googleUid]);
     $progress = $pStmt->fetch();
+    $booster = $progress && !empty($progress['pending_booster']) ? $progress['pending_booster'] : null;
 
     // ---------- 5. Validações ----------
     if ((int)$progress['current_level'] < (int)$stage['min_level']) {
@@ -171,12 +172,18 @@ try {
             throw new Exception('Falha ao debitar créditos');
         }
 
-        // Cria a sessão
+        // Cria a sessão (anota booster aplicado)
         $pdo->prepare("
             INSERT INTO campaign_session
-                (session_token, google_uid, stage_id, status, seed, credits_spent, expires_at, created_at)
-            VALUES (?, ?, ?, 'active', ?, ?, ?, NOW())
-        ")->execute([$sessionToken, $googleUid, $stageId, $seed, $cost, $expiresAt]);
+                (session_token, google_uid, stage_id, status, seed, credits_spent, booster_applied, expires_at, created_at)
+            VALUES (?, ?, ?, 'active', ?, ?, ?, ?, NOW())
+        ")->execute([$sessionToken, $googleUid, $stageId, $seed, $cost, $booster, $expiresAt]);
+
+        // Consome o booster (se havia)
+        if ($booster) {
+            $pdo->prepare("UPDATE campaign_progress SET pending_booster = NULL, updated_at = NOW() WHERE google_uid = ?")
+                ->execute([$googleUid]);
+        }
 
         // Incrementa attempts em campaign_stage_progress
         $pdo->prepare("
@@ -219,6 +226,7 @@ try {
                 'credits' => $remainingCredits,
                 'lives'   => (int)$progress['current_lives'],
             ],
+            'booster' => $booster,  // 'triple_star' ou null
         ],
     ]);
 

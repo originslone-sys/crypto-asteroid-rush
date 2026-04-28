@@ -350,6 +350,8 @@
         <div class="err-msg" id="ov-err"></div>
         <div class="btn-row">
           <button class="btn primary" id="ov-start">Iniciar</button>
+          <button class="btn" id="ov-booster" style="display:none;background:#0a2a3a;border-color:#1a4a6a;color:#5cd5ff">Triple Star</button>
+          <button class="btn" id="ov-skip" style="display:none;background:#3a2c0c;border-color:#7a5e10;color:#ffd166">Pular</button>
           <button class="btn" id="ov-close">Cancelar</button>
         </div>
       </div>
@@ -699,7 +701,74 @@
       window.location.href = 'campaign-game.html?stage=' + encodeURIComponent(stage.stage_id);
     };
 
+    // Skip stage: aparece após N tentativas falhas, se nunca venceu
+    const skipMin = (cfg.settings || {})['campaign.monetization.skip_attempts'] ?? 3;
+    const skipCost = (cfg.settings || {})['campaign.monetization.skip_cost'] ?? 5;
+    const skipBtn = $('ov-skip');
+    if (sp.attempts >= skipMin && (sp.wins == null || sp.wins === 0)) {
+      skipBtn.style.display = 'inline-block';
+      skipBtn.textContent = 'Pular (' + skipCost + '💎)';
+      skipBtn.onclick = () => attemptSkipStage(stage, skipCost);
+    } else {
+      skipBtn.style.display = 'none';
+    }
+
+    // Booster: mostra info se já tem armado, ou botão para comprar
+    const boosterBtn = $('ov-booster');
+    const pendingBooster = (prog && prog.progress && prog.progress.pending_booster) || null;
+    if (pendingBooster === 'triple_star') {
+      boosterBtn.textContent = '🛡 Triple Star armado';
+      boosterBtn.disabled = true;
+      boosterBtn.style.display = 'inline-block';
+    } else {
+      const boosterCost = (cfg.settings || {})['campaign.monetization.booster_cost'] ?? 3;
+      boosterBtn.textContent = 'Triple Star (' + boosterCost + '💎)';
+      boosterBtn.disabled = false;
+      boosterBtn.style.display = 'inline-block';
+      boosterBtn.onclick = attemptBuyBooster;
+    }
+
     $('ov-stage').classList.add('show');
+  }
+
+  async function attemptBuyBooster() {
+    const u = uid();
+    if (!u) return;
+    const cost = (cfg.settings || {})['campaign.monetization.booster_cost'] ?? 3;
+    if (!confirm('Comprar Triple Star Booster por ' + cost + '💎?\n\nA próxima fase começará com escudo ativo (bloqueia 1 dano).')) return;
+    try {
+      const fd = new FormData();
+      fd.set('google_uid', u);
+      fd.set('type', 'triple_star');
+      const r = await fetch('/api/campaign-buy-booster.php', { method: 'POST', body: fd });
+      const data = await r.json();
+      if (!data.success) { alert(data.error || 'Falha'); return; }
+      if (user) user.credits = data.data.remaining_credits;
+      renderHeader();
+      alert('Booster armado! Inicie a próxima fase para usar.');
+      // Recarrega progress para o modal saber que tem booster pendente
+      await loadProgress();
+      renderMap();
+    } catch (e) { alert('Erro: ' + e.message); }
+  }
+
+  async function attemptSkipStage(stage, cost) {
+    if (!confirm('Pular fase ' + stage.name + ' por ' + cost + '💎? Você ganha 1⭐ automaticamente. Pode re-jogar depois para 2⭐/3⭐.')) return;
+    try {
+      const fd = new FormData();
+      fd.set('google_uid', uid());
+      fd.set('stage_id', stage.stage_id);
+      const r = await fetch('/api/campaign-skip-stage.php', { method: 'POST', body: fd });
+      const data = await r.json();
+      if (!data.success) { alert(data.error || 'Falha'); return; }
+      closeStageModal();
+      // Atualiza progress
+      await loadProgress();
+      if (user) user.credits = data.data.remaining_credits;
+      renderHeader();
+      renderMap();
+      alert('Fase pulada! +' + data.data.stars + '⭐ e R$ ' + Number(data.data.brl_awarded).toFixed(2).replace('.', ','));
+    } catch (e) { alert('Erro: ' + e.message); }
   }
   function closeStageModal() {
     $('ov-stage').classList.remove('show');

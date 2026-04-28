@@ -1404,6 +1404,11 @@
     loadWaves(stage, opts.totalEnemies);
     bindInput();
 
+    // Aplicação de boosters (vindo do servidor via campaign-start.php)
+    if (opts.booster === 'triple_star') {
+      effects.shield = true;
+    }
+
     running = true;
     paused = false;
     pauseOffsetMs = 0;
