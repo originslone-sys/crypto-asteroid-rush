@@ -174,6 +174,20 @@
         </div>
       </div>
     </div>
+
+    <!-- Overlay: pause -->
+    <div class="overlay" id="ov-pause" style="display:none">
+      <div class="card">
+        <h2>⏸ Pausado</h2>
+        <p style="color:var(--muted);font-size:12px;margin-bottom:6px">
+          Sair desta fase agora vai contar como derrota e custar 1 vida.
+        </p>
+        <div class="row">
+          <button class="btn" id="btn-resume">Continuar</button>
+          <button class="btn danger" id="btn-quit">Sair (perde vida)</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -196,6 +210,7 @@
     ovIdle:   document.getElementById('ov-idle'),
     ovResult: document.getElementById('ov-result'),
     ovError:  document.getElementById('ov-error'),
+    ovPause:  document.getElementById('ov-pause'),
     errMsg:   document.getElementById('err-msg'),
     btnLogin: document.getElementById('btn-login'),
     btnStart: document.getElementById('btn-start'),
@@ -221,6 +236,7 @@
     els.ovIdle.style.display   = name === 'idle'   ? 'flex' : 'none';
     els.ovResult.style.display = name === 'result' ? 'flex' : 'none';
     els.ovError.style.display  = name === 'error'  ? 'flex' : 'none';
+    els.ovPause.style.display  = name === 'pause'  ? 'flex' : 'none';
   }
   function showError(msg) {
     els.errMsg.textContent = msg || 'Erro desconhecido';
@@ -351,6 +367,32 @@
     els.btnRetry.addEventListener('click', () => {
       showOverlay('idle');
       refreshIdleUi();
+    });
+
+    // Pausa
+    els.pauseBtn.addEventListener('click', () => {
+      if (!currentSession || !window.CampaignEngine) return;
+      CampaignEngine.pause();
+      showOverlay('pause');
+    });
+    document.getElementById('btn-resume').addEventListener('click', () => {
+      if (!window.CampaignEngine) return;
+      CampaignEngine.resume();
+      showOverlay('none');
+      els.ovPause.style.display = 'none';
+    });
+    document.getElementById('btn-quit').addEventListener('click', () => {
+      if (!currentSession || !window.CampaignEngine) return;
+      // Força derrota: para o engine e envia loss para o servidor
+      CampaignEngine.stop();
+      const fakePayload = {
+        result: 'loss',
+        damage_taken: 100,         // marca dano máximo (perde 1 vida via -1 em loss)
+        time_elapsed: 0,
+        enemies_destroyed: 0,
+        max_combo: 0,
+      };
+      handleEnd(fakePayload);
     });
   }
 

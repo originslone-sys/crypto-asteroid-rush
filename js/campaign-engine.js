@@ -133,6 +133,9 @@
   let cfg = { ...DEFAULTS };
   let stage = null;            // { duration_seconds, sector, ... }
   let running = false;
+  let paused  = false;
+  let pausedAtMs = 0;
+  let pauseOffsetMs = 0;       // ms acumulados em pausa, descontados do timer
   let rafId = null;
 
   // Relógio
@@ -1294,11 +1297,17 @@
   // ----------------------------------------------------------------------
   function loop(ts) {
     if (!running) return;
+    if (paused) {
+      // Mantém o frame congelado e re-agenda; sem update, sem dt.
+      lastFrameMs = ts;
+      rafId = requestAnimationFrame(loop);
+      return;
+    }
     const dtMs = Math.min(50, ts - (lastFrameMs || ts));
     lastFrameMs = ts;
     const dt = dtMs / 16.67;   // normaliza para "1 = um frame de 60fps"
 
-    const elapsedMs = ts - startTimeMs;
+    const elapsedMs = ts - startTimeMs - pauseOffsetMs;
     const elapsedSec = Math.floor(elapsedMs / 1000);
     const duration = stage && stage.duration_seconds ? stage.duration_seconds : 60;
     const timeLeft = Math.max(0, duration - elapsedSec);
@@ -1396,11 +1405,43 @@
     bindInput();
 
     running = true;
+    paused = false;
+    pauseOffsetMs = 0;
+    pausedAtMs = 0;
     startTimeMs = performance.now();
     lastFrameMs = 0;
     waveStartMs = startTimeMs + 1500;  // 1.5s de "introdução" antes do primeiro spawn
     rafId = requestAnimationFrame(loop);
   }
+
+  function pause() {
+    if (!running || paused) return;
+    paused = true;
+    pausedAtMs = performance.now();
+  }
+
+  function resume() {
+    if (!running || !paused) return;
+    paused = false;
+    const now = performance.now();
+    pauseOffsetMs += now - pausedAtMs;
+    // Desloca todos os timers de spawn baseados em wall-clock pra que a
+    // pausa não conte como tempo decorrido.
+    waveStartMs += now - pausedAtMs;
+    if (boss) {
+      const d = now - pausedAtMs;
+      if (boss.lastFireMs)         boss.lastFireMs += d;
+      if (boss.lastChargeMs)       boss.lastChargeMs += d;
+      if (boss.lastShooterSpawnMs) boss.lastShooterSpawnMs += d;
+      if (boss.laserStartMs)       boss.laserStartMs += d;
+      if (boss.birthMs)            boss.birthMs += d;
+    }
+    if (bossWarningUntil > 0)      bossWarningUntil += now - pausedAtMs;
+    pausedAtMs = 0;
+    lastFrameMs = 0;
+  }
+
+  function isPaused() { return paused; }
 
   function stop() {
     if (!running) return;
@@ -1423,5 +1464,5 @@
     if (onEndCb) onEndCb(payload);
   }
 
-  global.CampaignEngine = { start, stop };
+  global.CampaignEngine = { start, stop, pause, resume, isPaused };
 })(window);
