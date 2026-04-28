@@ -88,10 +88,19 @@ try {
     rechargeLives($pdo, $googleUid, $maxLives, $rechargeMin);
 
     // Carrega progress atualizado
+    // Detecta se a coluna pending_booster já existe (pode não existir se
+    // a migration mais recente ainda não rodou). Mantém o endpoint
+    // funcional em ambos os casos.
+    $hasBooster = false;
+    try {
+        $hasBooster = (bool)$pdo->query("SHOW COLUMNS FROM campaign_progress LIKE 'pending_booster'")->fetch();
+    } catch (Exception $e) { $hasBooster = false; }
+    $boosterCol = $hasBooster ? 'pending_booster' : 'NULL AS pending_booster';
+
     $stmt = $pdo->prepare("
         SELECT current_level, total_xp, current_lives, next_life_at, streak_count,
                daily_brl_earned, daily_brl_reset_at, total_stars, equipped_skin_id,
-               pending_booster, created_at, updated_at
+               $boosterCol, created_at, updated_at
         FROM campaign_progress WHERE google_uid = ? LIMIT 1
     ");
     $stmt->execute([$googleUid]);

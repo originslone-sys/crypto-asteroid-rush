@@ -106,18 +106,33 @@ try {
     ")->execute([$googleUid, $maxLives]);
     rechargeLives($pdo, $googleUid, $maxLives, $rechargeMin);
 
-    $pStmt = $pdo->prepare("SELECT current_level, current_lives, pending_booster, equipped_skin_id FROM campaign_progress WHERE google_uid = ? LIMIT 1");
+    // Detecta colunas opcionais (compat para deploys onde a última
+    // migration ainda não rodou)
+    $hasBooster = false; $hasEquipped = false;
+    try {
+        $hasBooster  = (bool)$pdo->query("SHOW COLUMNS FROM campaign_progress LIKE 'pending_booster'")->fetch();
+        $hasEquipped = (bool)$pdo->query("SHOW COLUMNS FROM campaign_progress LIKE 'equipped_skin_id'")->fetch();
+    } catch (Exception $e) {}
+    $extraCols = ['current_level', 'current_lives'];
+    if ($hasBooster)  $extraCols[] = 'pending_booster';
+    if ($hasEquipped) $extraCols[] = 'equipped_skin_id';
+    $colList = implode(', ', $extraCols);
+
+    $pStmt = $pdo->prepare("SELECT $colList FROM campaign_progress WHERE google_uid = ? LIMIT 1");
     $pStmt->execute([$googleUid]);
     $progress = $pStmt->fetch();
-    $booster = $progress && !empty($progress['pending_booster']) ? $progress['pending_booster'] : null;
+    $booster = ($hasBooster && $progress && !empty($progress['pending_booster']))
+        ? $progress['pending_booster'] : null;
 
     // Skin equipada (vira sprite_key para o cliente passar ao engine)
     $shipSpriteKey = 'ship_default';
-    if ($progress && !empty($progress['equipped_skin_id'])) {
-        $skStmt = $pdo->prepare("SELECT skin_key FROM campaign_skins WHERE id = ? LIMIT 1");
-        $skStmt->execute([(int)$progress['equipped_skin_id']]);
-        $sk = $skStmt->fetch();
-        if ($sk) $shipSpriteKey = 'ship_' . $sk['skin_key'];
+    if ($hasEquipped && $progress && !empty($progress['equipped_skin_id'])) {
+        try {
+            $skStmt = $pdo->prepare("SELECT skin_key FROM campaign_skins WHERE id = ? LIMIT 1");
+            $skStmt->execute([(int)$progress['equipped_skin_id']]);
+            $sk = $skStmt->fetch();
+            if ($sk) $shipSpriteKey = 'ship_' . $sk['skin_key'];
+        } catch (Exception $e) { /* tabela campaign_skins ainda não criada */ }
     }
 
     // ---------- 5. Validações ----------
@@ -188,8 +203,8 @@ try {
             VALUES (?, ?, ?, 'active', ?, ?, ?, ?, NOW())
         ")->execute([$sessionToken, $googleUid, $stageId, $seed, $cost, $booster, $expiresAt]);
 
-        // Consome o booster (se havia)
-        if ($booster) {
+        // Consome o booster (se havia E coluna existe)
+        if ($booster && $hasBooster) {
             $pdo->prepare("UPDATE campaign_progress SET pending_booster = NULL, updated_at = NOW() WHERE google_uid = ?")
                 ->execute([$googleUid]);
         }
