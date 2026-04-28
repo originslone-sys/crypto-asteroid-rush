@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="robots" content="noindex,nofollow" />
-  <title>Campaign Game — Test</title>
+  <title>Modo Campanha</title>
   <link rel="icon" href="favicon.ico" />
   <style>
     :root {
@@ -122,21 +122,23 @@
 
     <button class="pause-btn" id="btn-pause" title="Pausar">⏸</button>
 
-    <!-- Overlay: idle/login -->
+    <!-- Overlay: idle/login (pré-jogo) -->
     <div class="overlay" id="ov-idle">
       <div class="card">
-        <h2>🚀 Campaign — Test</h2>
-        <span class="badge">isolado</span>
-        <p style="margin-top:10px">
-          Página de teste do gameplay. Acesse com
-          <code style="color:var(--accent)">?stage=s1f1</code> (ou outra fase ativa).
-        </p>
+        <h2 id="pre-stage-name">🚀 Carregando...</h2>
+        <p id="pre-stage-sector" style="margin:4px 0 0;color:var(--muted);font-size:12px">—</p>
+        <div class="stats" id="pre-stage-stats" style="display:none">
+          <div><strong id="pre-cost">—</strong>custo</div>
+          <div><strong id="pre-reward">—</strong>recompensa</div>
+          <div><strong id="pre-lives">—</strong>vidas</div>
+          <div><strong id="pre-stars">—</strong>estrelas</div>
+        </div>
         <div id="prelaunch-meta" class="small">Verificando...</div>
         <div class="row">
           <button class="btn" id="btn-login">Login com Google</button>
         </div>
         <div class="row">
-          <button class="btn" id="btn-start" style="display:none">Iniciar fase</button>
+          <button class="btn primary" id="btn-start" style="display:none">▶ Iniciar fase</button>
           <a class="btn secondary" href="campaign.html">Voltar ao mapa</a>
         </div>
       </div>
@@ -416,17 +418,83 @@
     currentSession = null;
   }
 
+  // ----- pré-jogo: carrega config + progress para mostrar info da fase -----
+  let stageInfo = null;
+  let progressInfo = null;
+
+  async function loadPreGameInfo() {
+    try {
+      const r = await fetch('/api/campaign-config.php');
+      const data = await r.json();
+      if (data.success) {
+        stageInfo = (data.data.stages || []).find(s => s.stage_id === STAGE_ID) || null;
+      }
+    } catch (_) {}
+
+    const u = uid();
+    if (u) {
+      try {
+        const r = await fetch('/api/campaign-progress.php?google_uid=' + encodeURIComponent(u));
+        const data = await r.json();
+        if (data.success) progressInfo = data.data;
+      } catch (_) {}
+    }
+
+    renderPreGameCard();
+  }
+
+  function renderPreGameCard() {
+    const nameEl   = document.getElementById('pre-stage-name');
+    const sectorEl = document.getElementById('pre-stage-sector');
+    const statsEl  = document.getElementById('pre-stage-stats');
+    const costEl   = document.getElementById('pre-cost');
+    const rewardEl = document.getElementById('pre-reward');
+    const livesEl  = document.getElementById('pre-lives');
+    const starsEl  = document.getElementById('pre-stars');
+
+    if (!stageInfo) {
+      nameEl.textContent = '🚀 Fase não encontrada';
+      sectorEl.textContent = STAGE_ID;
+      statsEl.style.display = 'none';
+      return;
+    }
+    const icon = stageInfo.is_boss ? '☠' : '🚀';
+    nameEl.textContent = icon + ' ' + stageInfo.name;
+    if (stageInfo.sector === 0) sectorEl.textContent = 'Tutorial';
+    else sectorEl.textContent = 'Setor ' + stageInfo.sector + ' · Fase ' + stageInfo.order;
+    statsEl.style.display = 'grid';
+
+    costEl.textContent   = stageInfo.credit_cost + '💎';
+    rewardEl.textContent = stageInfo.brl_base > 0
+      ? 'R$ ' + stageInfo.brl_base.toFixed(2).replace('.', ',')
+      : '—';
+    if (progressInfo) {
+      const lv = progressInfo.lives || {};
+      const stages = progressInfo.stages || [];
+      const sp = stages.find(s => s.stage_id === STAGE_ID);
+      livesEl.textContent = (lv.current ?? '?') + '/' + (lv.max ?? '?');
+      starsEl.textContent = sp ? (sp.stars + '⭐') : '—';
+    } else {
+      livesEl.textContent = '?';
+      starsEl.textContent = '—';
+    }
+  }
+
   // ----- auth UI -----
   function refreshIdleUi() {
     const u = uid();
     if (u) {
       els.btnLogin.style.display = 'none';
       els.btnStart.style.display = 'inline-block';
-      els.preMeta.textContent = 'Logado · stage_id=' + STAGE_ID + ' · pronto para iniciar.';
+      els.preMeta.textContent = 'Pronto para iniciar.';
+      loadPreGameInfo();
     } else {
       els.btnLogin.style.display = 'inline-block';
       els.btnStart.style.display = 'none';
-      els.preMeta.textContent = 'Faça login para iniciar.';
+      els.preMeta.textContent = 'Faça login para começar.';
+      stageInfo = null;
+      progressInfo = null;
+      renderPreGameCard();
     }
   }
 
