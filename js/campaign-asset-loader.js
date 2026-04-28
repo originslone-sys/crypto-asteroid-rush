@@ -26,56 +26,56 @@
   // Manifesto único: mantém alinhado com img/campaign/SPRITES.md
   // Cada chave é a sprite_key persistida no banco / usada no engine.
   const MANIFEST = {
-    // ----- Naves do jogador -----
-    ship_default:        `${BASE}/ships/ship-default.svg`,
-    ship_falcon_red:     `${BASE}/ships/ship-falcon-red.svg`,
-    ship_phantom_purple: `${BASE}/ships/ship-phantom-purple.svg`,
-    ship_golden_wing:    `${BASE}/ships/ship-golden-wing.svg`,
+    // ----- Naves do jogador (Kenney) -----
+    ship_default:        `${BASE}/ships/ship-default.png`,
+    ship_falcon_red:     `${BASE}/ships/ship-falcon-red.png`,
+    ship_phantom_purple: `${BASE}/ships/ship-phantom-purple.png`,
+    ship_golden_wing:    `${BASE}/ships/ship-golden-wing.png`,
 
-    // ----- Setor 1 - Tank (asteroides PNG) -----
-    s1_tank_asteroid_rocky:   `${BASE}/asteroids/asteroid1.png`,
-    s1_tank_asteroid_ice:     `${BASE}/asteroids/asteroid2.png`,
-    s1_tank_asteroid_crystal: `${BASE}/asteroids/asteroid3.png`,
+    // ----- Setor 1 - Tank (asteroides Kenney pro) -----
+    s1_tank_asteroid_rocky:   `${BASE}/asteroids/asteroid-brown-1.png`,
+    s1_tank_asteroid_ice:     `${BASE}/asteroids/asteroid-grey-1.png`,
+    s1_tank_asteroid_crystal: `${BASE}/asteroids/asteroid-grey-2.png`,
 
     // ----- Setor 1 - Bullet -----
-    s1_bullet_drone_explorer: `${BASE}/enemies/sector1/bullet-drone-explorer.svg`,
-    s1_bullet_micro_rock:     `${BASE}/enemies/sector1/bullet-micro-rock.svg`,
-    s1_bullet_crystal_shard:  `${BASE}/enemies/sector1/bullet-crystal-shard.svg`,
+    s1_bullet_drone_explorer: `${BASE}/enemies/sector1/bullet-drone-explorer.png`,
+    s1_bullet_micro_rock:     `${BASE}/enemies/sector1/bullet-micro-rock.png`,
+    s1_bullet_crystal_shard:  `${BASE}/enemies/sector1/bullet-crystal-shard.png`,
 
     // ----- Setor 1 - Kamikaze -----
-    s1_kamikaze_drone:              `${BASE}/enemies/sector1/kamikaze-drone.svg`,
-    s1_kamikaze_volatile_fragment:  `${BASE}/enemies/sector1/kamikaze-volatile-fragment.svg`,
+    s1_kamikaze_drone:              `${BASE}/enemies/sector1/kamikaze-drone.png`,
+    s1_kamikaze_volatile_fragment:  `${BASE}/enemies/sector1/kamikaze-volatile-fragment.png`,
 
     // ----- Setor 1 - Atirador -----
-    s1_shooter_drone_laser:      `${BASE}/enemies/sector1/shooter-drone-laser.svg`,
-    s1_shooter_floating_turret:  `${BASE}/enemies/sector1/shooter-floating-turret.svg`,
+    s1_shooter_drone_laser:      `${BASE}/enemies/sector1/shooter-drone-laser.png`,
+    s1_shooter_floating_turret:  `${BASE}/enemies/sector1/shooter-floating-turret.png`,
 
     // ----- Setor 1 - Esquivo -----
-    s1_dodger_drone_digger: `${BASE}/enemies/sector1/dodger-drone-digger.svg`,
-    s1_dodger_alien_small:  `${BASE}/enemies/sector1/dodger-alien-small.svg`,
+    s1_dodger_drone_digger: `${BASE}/enemies/sector1/dodger-drone-digger.png`,
+    s1_dodger_alien_small:  `${BASE}/enemies/sector1/dodger-alien-small.png`,
 
     // ----- Setor 2 - Tank -----
-    s2_tank_junk_giant: `${BASE}/enemies/sector2/tank-junk-giant.svg`,
+    s2_tank_junk_giant: `${BASE}/enemies/sector2/tank-junk-giant.png`,
 
     // ----- Setor 2 - Bullet -----
-    s2_bullet_pirate_drone: `${BASE}/enemies/sector2/bullet-pirate-drone.svg`,
-    s2_bullet_mini_ship:    `${BASE}/enemies/sector2/bullet-mini-ship.svg`,
+    s2_bullet_pirate_drone: `${BASE}/enemies/sector2/bullet-pirate-drone.png`,
+    s2_bullet_mini_ship:    `${BASE}/enemies/sector2/bullet-mini-ship.png`,
 
     // ----- Setor 2 - Kamikaze -----
-    s2_kamikaze_alien:         `${BASE}/enemies/sector2/kamikaze-alien.svg`,
-    s2_kamikaze_suicide_drone: `${BASE}/enemies/sector2/kamikaze-suicide-drone.svg`,
+    s2_kamikaze_alien:         `${BASE}/enemies/sector2/kamikaze-alien.png`,
+    s2_kamikaze_suicide_drone: `${BASE}/enemies/sector2/kamikaze-suicide-drone.png`,
 
     // ----- Setor 2 - Atirador -----
-    s2_shooter_pirate_ship:  `${BASE}/enemies/sector2/shooter-pirate-ship.svg`,
-    s2_shooter_alien_gunner: `${BASE}/enemies/sector2/shooter-alien-gunner.svg`,
+    s2_shooter_pirate_ship:  `${BASE}/enemies/sector2/shooter-pirate-ship.png`,
+    s2_shooter_alien_gunner: `${BASE}/enemies/sector2/shooter-alien-gunner.png`,
 
     // ----- Setor 2 - Esquivo -----
-    s2_dodger_fast_ship:    `${BASE}/enemies/sector2/dodger-fast-ship.svg`,
-    s2_dodger_cyborg_alien: `${BASE}/enemies/sector2/dodger-cyborg-alien.svg`,
+    s2_dodger_fast_ship:    `${BASE}/enemies/sector2/dodger-fast-ship.png`,
+    s2_dodger_cyborg_alien: `${BASE}/enemies/sector2/dodger-cyborg-alien.png`,
 
     // ----- Bosses -----
-    boss_asteroid_mother: `${BASE}/bosses/boss-asteroid-mother.svg`,
-    boss_junk_devourer:   `${BASE}/bosses/boss-junk-devourer.svg`,
+    boss_asteroid_mother: `${BASE}/bosses/boss-asteroid-mother.png`,
+    boss_junk_devourer:   `${BASE}/bosses/boss-junk-devourer.png`,
 
     // ----- Power-ups -----
     powerup_shield:      `${BASE}/powerups/powerup-shield.svg`,
@@ -84,9 +84,9 @@
     powerup_bomb:        `${BASE}/powerups/powerup-bomb.svg`,
     powerup_slow_time:   `${BASE}/powerups/powerup-slow-time.svg`,
 
-    // ----- Projéteis -----
-    player_bullet:  `${BASE}/projectiles/player-bullet.svg`,
-    enemy_bullet:   `${BASE}/projectiles/enemy-bullet.svg`,
+    // ----- Projéteis (Kenney) -----
+    player_bullet:  `${BASE}/projectiles/player-bullet.png`,
+    enemy_bullet:   `${BASE}/projectiles/enemy-bullet.png`,
     bullets_sheet:  `${BASE}/projectiles/bullets.png`,
     muzzle_flash:   `${BASE}/projectiles/muzzle-flash.png`,
 

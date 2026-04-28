@@ -1507,11 +1507,10 @@ try {
     // Skins padrão (4 SVGs já existem em img/campaign/ships/)
     try {
         $skins = [
-            // [key, name, sprite_path, cost, purchasable, default, sort, desc]
-            ['default',        'Nave Padrão',     '/img/campaign/ships/ship-default.svg',        0,   1, 1, 1, 'Nave inicial. Confiável e equilibrada.'],
-            ['falcon_red',     'Falcon Vermelho', '/img/campaign/ships/ship-falcon-red.svg',     50,  1, 0, 2, 'Design agressivo em vermelho.'],
-            ['phantom_purple', 'Phantom Roxo',    '/img/campaign/ships/ship-phantom-purple.svg', 50,  1, 0, 3, 'Estilizada com asas em V.'],
-            ['golden_wing',    'Golden Wing',     '/img/campaign/ships/ship-golden-wing.svg',    100, 1, 0, 4, 'Premium dourada.'],
+            ['default',        'Nave Padrão',     '/img/campaign/ships/ship-default.png',        0,   1, 1, 1, 'Nave inicial. Confiável e equilibrada.'],
+            ['falcon_red',     'Falcon Vermelho', '/img/campaign/ships/ship-falcon-red.png',     50,  1, 0, 2, 'Design agressivo em vermelho.'],
+            ['phantom_purple', 'Phantom Verde',   '/img/campaign/ships/ship-phantom-purple.png', 50,  1, 0, 3, 'Estilizada em verde toxic.'],
+            ['golden_wing',    'Golden Wing',     '/img/campaign/ships/ship-golden-wing.png',    100, 1, 0, 4, 'Caça avançado de elite.'],
         ];
         $ins = $pdo->prepare("
             INSERT IGNORE INTO campaign_skins
@@ -1522,6 +1521,11 @@ try {
         foreach ($skins as $s) $ins->execute($s);
         $results['migrations'][] = 'campaign_skins:defaults';
         output("  [OK] 4 skins padrão inseridas/ignoradas");
+
+        // Atualiza sprite_path antigos (.svg → .png após upgrade pra Kenney pack)
+        $pdo->exec("UPDATE campaign_skins SET sprite_path = REPLACE(sprite_path, '.svg', '.png') WHERE sprite_path LIKE '%.svg'");
+        $results['migrations'][] = 'campaign_skins:upgrade_to_png';
+        output("  [OK] sprite_path migradas de .svg para .png");
     } catch (Exception $e) { /* tabela pode não existir */ }
 
     // Bosses padrão (espelhamento DB do catálogo hardcoded no engine,
