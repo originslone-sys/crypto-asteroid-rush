@@ -1460,23 +1460,10 @@
     const data = await r.json();
     if (!data.success) throw new Error(data.error || 'progress falhou');
     prog = data.data;
-  }
-
-  async function loadUserCredits() {
-    // O endpoint /api/credits.php espera google_uid e devolve dados.
-    // Falha silenciosa: se não tiver, header mostra "?" e o modal fica permissivo.
-    const u = uid();
-    if (!u) return;
-    try {
-      const fd = new FormData();
-      fd.set('google_uid', u);
-      fd.set('action', 'balance');
-      const r = await fetch('/api/credits.php', { method: 'POST', body: fd });
-      const data = await r.json();
-      if (data && (data.success || data.credits !== undefined)) {
-        user = { credits: data.credits ?? (data.data && data.data.credits) ?? null };
-      }
-    } catch (e) { /* ignore */ }
+    // Saldo do user vem junto no progress (mesma chamada, menos round-trips)
+    if (prog.user) {
+      user = { credits: prog.user.credits, balance_brl: prog.user.balance_brl };
+    }
   }
 
   // ----------------------------------------------------------------------
@@ -1485,7 +1472,7 @@
   async function refreshAll() {
     try {
       if (!cfg) await loadConfig();
-      await Promise.all([loadProgress(), loadUserCredits(), loadTutorialSeen()]);
+      await Promise.all([loadProgress(), loadTutorialSeen()]);
       renderHeader();
       renderMap();
       checkPendingTutorials();
