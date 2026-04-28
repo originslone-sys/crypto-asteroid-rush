@@ -205,13 +205,16 @@
   // ----------------------------------------------------------------------
   function spawnPlayer() {
     const w = 56, h = 56;
+    const shipKey = cfg.shipSpriteKey || 'ship_default';
     player = {
       x: canvas.width / 2 - w / 2,
       y: canvas.height - 120,
       w, h,
       hp: cfg.shipMaxHp,
       lastShotMs: 0,
-      sprite: (global.CampaignAssets && global.CampaignAssets.tryGet('ship_default')) || null,
+      sprite: (global.CampaignAssets && global.CampaignAssets.tryGet(shipKey))
+              || (global.CampaignAssets && global.CampaignAssets.tryGet('ship_default'))
+              || null,
       bulletSprite: (global.CampaignAssets && global.CampaignAssets.tryGet('player_bullet')) || null,
     };
   }
@@ -1403,6 +1406,12 @@
     loadBackgrounds(stage.sector);
     loadWaves(stage, opts.totalEnemies);
     bindInput();
+
+    // Sprite da nave: opts.shipSpriteKey sobrescreve cfg
+    if (opts.shipSpriteKey) {
+      const img = global.CampaignAssets && global.CampaignAssets.tryGet(opts.shipSpriteKey);
+      if (img) player.sprite = img;
+    }
 
     // Aplicação de boosters (vindo do servidor via campaign-start.php)
     if (opts.booster === 'triple_star') {

@@ -106,10 +106,19 @@ try {
     ")->execute([$googleUid, $maxLives]);
     rechargeLives($pdo, $googleUid, $maxLives, $rechargeMin);
 
-    $pStmt = $pdo->prepare("SELECT current_level, current_lives, pending_booster FROM campaign_progress WHERE google_uid = ? LIMIT 1");
+    $pStmt = $pdo->prepare("SELECT current_level, current_lives, pending_booster, equipped_skin_id FROM campaign_progress WHERE google_uid = ? LIMIT 1");
     $pStmt->execute([$googleUid]);
     $progress = $pStmt->fetch();
     $booster = $progress && !empty($progress['pending_booster']) ? $progress['pending_booster'] : null;
+
+    // Skin equipada (vira sprite_key para o cliente passar ao engine)
+    $shipSpriteKey = 'ship_default';
+    if ($progress && !empty($progress['equipped_skin_id'])) {
+        $skStmt = $pdo->prepare("SELECT skin_key FROM campaign_skins WHERE id = ? LIMIT 1");
+        $skStmt->execute([(int)$progress['equipped_skin_id']]);
+        $sk = $skStmt->fetch();
+        if ($sk) $shipSpriteKey = 'ship_' . $sk['skin_key'];
+    }
 
     // ---------- 5. Validações ----------
     if ((int)$progress['current_level'] < (int)$stage['min_level']) {
@@ -226,7 +235,8 @@ try {
                 'credits' => $remainingCredits,
                 'lives'   => (int)$progress['current_lives'],
             ],
-            'booster' => $booster,  // 'triple_star' ou null
+            'booster'         => $booster,  // 'triple_star' ou null
+            'ship_sprite_key' => $shipSpriteKey,
         ],
     ]);
 

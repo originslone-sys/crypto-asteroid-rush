@@ -318,6 +318,9 @@
         <button id="hud-buy-life" type="button" title="Comprar vidas"
                 style="background:rgba(0,0,0,0.45);border:1px solid var(--border);color:var(--err);
                        border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer">+</button>
+        <button id="hud-skins" type="button" title="Skins de nave"
+                style="background:rgba(0,0,0,0.45);border:1px solid var(--border);color:var(--accent);
+                       border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer">🚀</button>
         <span class="credits" id="hud-credits">💎 0</span>
       </div>
     </header>
@@ -364,6 +367,19 @@
         <p class="modal-sub">Faça login para acessar o mapa de fases.</p>
         <div class="btn-row">
           <button class="btn primary" id="btn-login">Login com Google</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Skins overlay -->
+    <div class="overlay" id="ov-skins">
+      <div class="card" style="max-width:380px">
+        <h3>🚀 Skins de Nave</h3>
+        <p class="modal-sub" id="sk-status">—</p>
+        <div id="sk-err" style="color:#ff6b6b;font-size:11px;margin-bottom:6px"></div>
+        <div id="sk-list" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:380px;overflow-y:auto"></div>
+        <div class="btn-row" style="margin-top:14px">
+          <button class="btn" id="sk-close">Fechar</button>
         </div>
       </div>
     </div>
@@ -869,6 +885,105 @@
       errEl.textContent = 'Erro de rede: ' + e.message;
     }
   }
+  // ----------------------------------------------------------------------
+  // Skins modal
+  // ----------------------------------------------------------------------
+  let skinsCache = null;
+
+  async function openSkinsModal() {
+    const u = uid();
+    if (!u) return;
+    document.getElementById('sk-err').textContent = '';
+    document.getElementById('sk-status').textContent = 'Carregando...';
+    document.getElementById('sk-list').innerHTML = '';
+    document.getElementById('ov-skins').classList.add('show');
+    try {
+      const r = await fetch('/api/campaign-skins.php?google_uid=' + encodeURIComponent(u));
+      const data = await r.json();
+      if (!data.success) {
+        document.getElementById('sk-err').textContent = data.error || 'Falha';
+        document.getElementById('sk-status').textContent = '';
+        return;
+      }
+      skinsCache = data.data.skins;
+      renderSkinsList();
+    } catch (e) {
+      document.getElementById('sk-err').textContent = 'Erro: ' + e.message;
+    }
+  }
+
+  function renderSkinsList() {
+    const credits = (user && typeof user.credits === 'number') ? user.credits : null;
+    document.getElementById('sk-status').textContent =
+      'Saldo: ' + (credits != null ? credits + ' 💎' : '?');
+    const list = document.getElementById('sk-list');
+    list.innerHTML = '';
+    for (const s of skinsCache) {
+      const card = document.createElement('div');
+      card.style.cssText =
+        'background:#0a0f30;border:1px solid ' + (s.equipped ? '#5cd5ff' : '#2a3375') +
+        ';border-radius:8px;padding:10px;text-align:center';
+      card.innerHTML =
+        '<img src="' + s.sprite_path + '" style="width:64px;height:64px;display:block;margin:0 auto 6px">' +
+        '<div style="font-size:12px;font-weight:600">' + s.name + '</div>' +
+        '<div style="font-size:10px;color:#8a93c8;margin:4px 0;min-height:24px">' + (s.description || '') + '</div>' +
+        '<div id="sk-action-' + s.skin_key + '"></div>';
+      list.appendChild(card);
+
+      const slot = card.querySelector('#sk-action-' + s.skin_key);
+      if (s.equipped) {
+        slot.innerHTML = '<span style="color:#5fdb91;font-size:11px">✓ Equipada</span>';
+      } else if (s.owned) {
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        btn.style.cssText = 'padding:5px 10px;font-size:11px;width:100%';
+        btn.textContent = 'Equipar';
+        btn.addEventListener('click', () => doSkinAction('equip', s.skin_key));
+        slot.appendChild(btn);
+      } else {
+        const btn = document.createElement('button');
+        btn.className = 'btn primary';
+        btn.style.cssText = 'padding:5px 10px;font-size:11px;width:100%';
+        btn.textContent = 'Comprar (' + s.credit_cost + '💎)';
+        btn.addEventListener('click', () => doSkinAction('buy', s.skin_key));
+        slot.appendChild(btn);
+      }
+    }
+  }
+
+  async function doSkinAction(action, skinKey) {
+    const u = uid();
+    if (!u) return;
+    const errEl = document.getElementById('sk-err');
+    errEl.textContent = '';
+    try {
+      const fd = new FormData();
+      fd.set('google_uid', u);
+      fd.set('action', action);
+      fd.set('skin_key', skinKey);
+      const r = await fetch('/api/campaign-skins.php', { method: 'POST', body: fd });
+      const data = await r.json();
+      if (!data.success) { errEl.textContent = data.error || 'Falha'; return; }
+      if (action === 'buy' && user && typeof data.data.remaining_credits === 'number') {
+        user.credits = data.data.remaining_credits;
+      }
+      // Recarrega lista de skins e progresso
+      await openSkinsModal();
+      await loadProgress();
+      renderHeader();
+    } catch (e) {
+      errEl.textContent = 'Erro: ' + e.message;
+    }
+  }
+
+  document.getElementById('hud-skins').addEventListener('click', openSkinsModal);
+  document.getElementById('sk-close').addEventListener('click', () => {
+    document.getElementById('ov-skins').classList.remove('show');
+  });
+  document.getElementById('ov-skins').addEventListener('click', (e) => {
+    if (e.target.id === 'ov-skins') document.getElementById('ov-skins').classList.remove('show');
+  });
+
   document.getElementById('hud-buy-life').addEventListener('click', openBuyLifeModal);
   document.getElementById('bl-close').addEventListener('click', closeBuyLifeModal);
   document.getElementById('ov-buy-life').addEventListener('click', (e) => {

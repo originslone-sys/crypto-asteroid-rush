@@ -1494,6 +1494,26 @@ try {
         }
     } catch (Exception $e) { /* tabela pode não existir */ }
 
+    // Skins padrão (4 SVGs já existem em img/campaign/ships/)
+    try {
+        $skins = [
+            // [key, name, sprite_path, cost, purchasable, default, sort, desc]
+            ['default',        'Nave Padrão',     '/img/campaign/ships/ship-default.svg',        0,   1, 1, 1, 'Nave inicial. Confiável e equilibrada.'],
+            ['falcon_red',     'Falcon Vermelho', '/img/campaign/ships/ship-falcon-red.svg',     50,  1, 0, 2, 'Design agressivo em vermelho.'],
+            ['phantom_purple', 'Phantom Roxo',    '/img/campaign/ships/ship-phantom-purple.svg', 50,  1, 0, 3, 'Estilizada com asas em V.'],
+            ['golden_wing',    'Golden Wing',     '/img/campaign/ships/ship-golden-wing.svg',    100, 1, 0, 4, 'Premium dourada.'],
+        ];
+        $ins = $pdo->prepare("
+            INSERT IGNORE INTO campaign_skins
+                (skin_key, name, sprite_path, credit_cost, is_purchasable, is_default,
+                 sort_order, description, is_enabled, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+        ");
+        foreach ($skins as $s) $ins->execute($s);
+        $results['migrations'][] = 'campaign_skins:defaults';
+        output("  [OK] 4 skins padrão inseridas/ignoradas");
+    } catch (Exception $e) { /* tabela pode não existir */ }
+
     // ============================================
     // LIMPEZA
     // ============================================
