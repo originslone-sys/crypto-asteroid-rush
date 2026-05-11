@@ -28,7 +28,7 @@
    * o browser a baixar de novo (cache busting via query string).
    * Ex: depois de substituir bosses ou power-ups.
    */
-  const ASSET_VERSION = 3;
+  const ASSET_VERSION = 4;
 
   // Manifesto único: mantém alinhado com img/campaign/SPRITES.md
   // Cada chave é a sprite_key persistida no banco / usada no engine.
