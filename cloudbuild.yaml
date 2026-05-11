@@ -1,8 +1,11 @@
 steps:
   # 1) Build da imagem (Dockerfile)
+  # --no-cache temporário: alguns deploys recentes pegavam layers
+  # antigas com img/campaign/ defasado. Remover quando estabilizar.
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
+      - '--no-cache'
       - '-t'
       - 'us-west1-docker.pkg.dev/project-7be1cae5-5f08-45fb-aca/cloud-run-source-deploy/crypto-asteroid:$SHORT_SHA'
       - '.'
