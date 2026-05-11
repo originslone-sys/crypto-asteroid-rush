@@ -110,6 +110,42 @@
       touch-action: none;
     }
 
+    /* Canvas de confete/level-up sobre o postgame */
+    #fx-canvas {
+      position: absolute; inset: 0;
+      pointer-events: none;
+      z-index: 6;
+    }
+    .level-up-banner {
+      position: absolute;
+      top: 32%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 7;
+      font-family: 'Orbitron', monospace;
+      font-weight: 900;
+      font-size: 28px;
+      letter-spacing: 0.08em;
+      color: #fff;
+      text-shadow:
+        0 0 12px rgba(0, 229, 204, 0.9),
+        0 0 30px rgba(0, 255, 136, 0.6);
+      pointer-events: none;
+      opacity: 0;
+      animation: levelUpPop 1.8s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+    }
+    .level-up-banner.lvl-sub {
+      font-size: 16px; margin-top: 6px; opacity: 0.9;
+      color: var(--success); text-shadow: 0 0 10px rgba(0, 255, 136, 0.6);
+    }
+    @keyframes levelUpPop {
+      0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+      18%  { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+      28%  { transform: translate(-50%, -50%) scale(1); }
+      80%  { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+    }
+
     /* Overlays */
     .overlay {
       position: absolute; inset: 0;
@@ -273,6 +309,7 @@
 <div class="stage">
   <div class="frame">
     <canvas id="game" width="414" height="896"></canvas>
+    <canvas id="fx-canvas" width="414" height="896"></canvas>
 
     <button class="pause-btn" id="btn-pause" title="Pausar"><i class="fas fa-pause"></i></button>
 
@@ -578,7 +615,76 @@
       ? '<span class="err"><i class="fas fa-triangle-exclamation"></i> Sessão marcada como REVIEW (suspeita).</span>'
       : '';
     showOverlay('result');
+
+    // Animações de celebração (após o overlay aparecer)
+    setTimeout(() => {
+      if (serverData.level_up) showLevelUpBanner(serverData.new_level);
+      if (serverData.stars >= 3) startConfetti();
+    }, 250);
+
     currentSession = null;
+  }
+
+  // ----- Banner de level-up -----
+  function showLevelUpBanner(newLevel) {
+    const frame = document.querySelector('.frame');
+    const banner = document.createElement('div');
+    banner.className = 'level-up-banner';
+    banner.innerHTML = '<div>⬆ LEVEL UP!</div><div class="level-up-banner lvl-sub">Nível ' + newLevel + '</div>';
+    banner.style.cssText += 'pointer-events:none';
+    frame.appendChild(banner);
+    setTimeout(() => banner.remove(), 2000);
+  }
+
+  // ----- Confete (3 estrelas) -----
+  let confettiAnimId = null;
+  function startConfetti() {
+    const c = document.getElementById('fx-canvas');
+    const cx = c.getContext('2d');
+    const W = c.width, H = c.height;
+    const colors = ['#00E5CC', '#00FF88', '#FFD166', '#FF7EEA', '#B8FF00', '#5CD5FF', '#FF7E4A'];
+    const pieces = [];
+    for (let i = 0; i < 120; i++) {
+      pieces.push({
+        x: Math.random() * W,
+        y: -20 - Math.random() * H * 0.5,
+        w: 8 + Math.random() * 6,
+        h: 4 + Math.random() * 4,
+        vy: 2 + Math.random() * 3,
+        vx: (Math.random() - 0.5) * 1.5,
+        rot: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 0.2,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        life: 1,
+      });
+    }
+    const start = performance.now();
+    function tick() {
+      const elapsed = performance.now() - start;
+      cx.clearRect(0, 0, W, H);
+      let alive = false;
+      for (const p of pieces) {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.spin;
+        if (p.y > H + 30) continue;
+        alive = true;
+        cx.save();
+        cx.translate(p.x, p.y);
+        cx.rotate(p.rot);
+        cx.fillStyle = p.color;
+        cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        cx.restore();
+      }
+      if (alive && elapsed < 5000) {
+        confettiAnimId = requestAnimationFrame(tick);
+      } else {
+        cx.clearRect(0, 0, W, H);
+        confettiAnimId = null;
+      }
+    }
+    if (confettiAnimId) cancelAnimationFrame(confettiAnimId);
+    confettiAnimId = requestAnimationFrame(tick);
   }
 
   // ----- pré-jogo: carrega config + progress para mostrar info da fase -----
