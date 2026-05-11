@@ -83,12 +83,12 @@
     boss_asteroid_mother: `${BASE}/bosses/boss-asteroid-mother.png`,
     boss_junk_devourer:   `${BASE}/bosses/boss-junk-devourer.png`,
 
-    // ----- Power-ups -----
-    powerup_shield:      `${BASE}/powerups/powerup-shield.svg`,
-    powerup_triple_shot: `${BASE}/powerups/powerup-triple-shot.svg`,
-    powerup_repair:      `${BASE}/powerups/powerup-repair.svg`,
-    powerup_bomb:        `${BASE}/powerups/powerup-bomb.svg`,
-    powerup_slow_time:   `${BASE}/powerups/powerup-slow-time.svg`,
+    // ----- Power-ups (Kenney) -----
+    powerup_shield:      `${BASE}/powerups/powerup-shield.png`,
+    powerup_triple_shot: `${BASE}/powerups/powerup-triple-shot.png`,
+    powerup_repair:      `${BASE}/powerups/powerup-repair.png`,
+    powerup_bomb:        `${BASE}/powerups/powerup-bomb.png`,
+    powerup_slow_time:   `${BASE}/powerups/powerup-slow-time.png`,
 
     // ----- Projéteis (Kenney) -----
     player_bullet:  `${BASE}/projectiles/player-bullet.png`,
