@@ -175,6 +175,19 @@
     slowTimeUntil: 0,             // timestamp ms
   };
 
+  // Screen-shake + damage flash (feedback de dano)
+  let shakeUntilMs = 0;
+  let shakeIntensity = 0;
+  let damageFlashUntilMs = 0;
+  let bossDeathFlashUntilMs = 0;
+  let bossDeathSlowmoUntilMs = 0;
+
+  function triggerShake(intensity, durationMs) {
+    const now = performance.now();
+    shakeUntilMs = Math.max(shakeUntilMs, now + durationMs);
+    shakeIntensity = Math.max(shakeIntensity, intensity);
+  }
+
   // Sistema de ondas
   let waveQueue = [];          // [{ duration_max, clear_at, queue: [{behavior, dueAt}] }]
   let activeWave = null;
@@ -1081,16 +1094,27 @@
   function bossDefeated() {
     if (!boss || bossEndedFired) return;
     bossEndedFired = true;
-    // Explosão grande
-    for (let i = 0; i < 30; i++) {
-      spawnExplosion(boss.x + boss.w / 2 + (Math.random() - 0.5) * boss.w,
-                     boss.y + boss.h / 2 + (Math.random() - 0.5) * boss.h,
-                     ['#ffd166','#ff7e4a','#ff3322'][Math.floor(Math.random() * 3)]);
+    const cx = boss.x + boss.w / 2;
+    const cy = boss.y + boss.h / 2;
+    // Slow-motion + flash branco
+    const now = performance.now();
+    bossDeathSlowmoUntilMs = now + 1200;
+    bossDeathFlashUntilMs = now + 400;
+    triggerShake(18, 700);
+    // Explosões em cadeia (5 ondas com delays via partículas próprias)
+    for (let i = 0; i < 60; i++) {
+      const ang = (i / 60) * Math.PI * 2 + Math.random() * 0.3;
+      const dist = Math.random() * boss.w * 0.6;
+      spawnExplosion(
+        cx + Math.cos(ang) * dist,
+        cy + Math.sin(ang) * dist,
+        ['#ffd166','#ff7e4a','#ff3322','#fff','#5cd5ff'][Math.floor(Math.random() * 5)]
+      );
     }
     // Drops garantidos
     if (bossSpec && bossSpec.drops) {
       bossSpec.drops.forEach((type, i) => {
-        spawnPowerup(boss.x + boss.w / 2 + (i - bossSpec.drops.length / 2) * 60, boss.y + boss.h / 2, type);
+        spawnPowerup(cx + (i - bossSpec.drops.length / 2) * 60, cy, type);
       });
     }
     boss = null;
@@ -1174,10 +1198,12 @@
           const cx = en.x + en.w / 2, cy = en.y + en.h / 2;
           // Mini-boss: explosão maior + drop garantido (sorteia entre repair/bomb/shield)
           if (en.guaranteedDrop) {
-            for (let k = 0; k < 12; k++) {
-              spawnExplosion(cx + (Math.random() - 0.5) * en.w * 0.8,
-                             cy + (Math.random() - 0.5) * en.h * 0.8,
-                             ['#ffd166','#ff7e4a','#ff3322'][Math.floor(Math.random() * 3)]);
+            // Mini-boss morrendo: shake médio + explosão grande
+            triggerShake(8, 250);
+            for (let k = 0; k < 16; k++) {
+              spawnExplosion(cx + (Math.random() - 0.5) * en.w * 0.9,
+                             cy + (Math.random() - 0.5) * en.h * 0.9,
+                             ['#ffd166','#ff7e4a','#ff3322','#fff'][Math.floor(Math.random() * 4)]);
             }
             const guaranteedTypes = ['repair', 'bomb', 'shield'];
             const t = guaranteedTypes[Math.floor(Math.random() * guaranteedTypes.length)];
@@ -1218,11 +1244,16 @@
       // Escudo absorve o dano integralmente, mas se consome
       effects.shield = false;
       spawnExplosion(player.x + player.w / 2, player.y + player.h / 2, '#5cd5ff');
+      triggerShake(3, 120);   // shake leve pelo escudo
       return;
     }
     player.hp = Math.max(0, player.hp - amount);
     damageTaken += amount;
     combo = 0;
+    // Feedback: shake proporcional ao dano + flash vermelho
+    const intensity = Math.min(12, 3 + amount * 0.18);
+    triggerShake(intensity, 180);
+    damageFlashUntilMs = performance.now() + 220;
   }
 
   function updateParallax(dt) {
@@ -1245,11 +1276,34 @@
   }
 
   function drawPlayer() {
+    const flashing = performance.now() < damageFlashUntilMs;
     if (player.sprite && player.sprite.complete) {
       ctx.drawImage(player.sprite, player.x, player.y, player.w, player.h);
+      if (flashing) {
+        // overlay vermelho na hitbox da nave + tint via globalCompositeOperation
+        const a = ((damageFlashUntilMs - performance.now()) / 220);
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.fillStyle = 'rgba(255, 80, 80, ' + (a * 0.6) + ')';
+        ctx.fillRect(player.x, player.y, player.w, player.h);
+        ctx.restore();
+      }
     } else {
-      ctx.fillStyle = '#5cd5ff';
+      ctx.fillStyle = flashing ? '#ff5566' : '#5cd5ff';
       ctx.fillRect(player.x, player.y, player.w, player.h);
+    }
+    // Halo de escudo ativo
+    if (effects.shield) {
+      ctx.save();
+      const t = performance.now() * 0.006;
+      const pulse = 1 + Math.sin(t) * 0.08;
+      ctx.strokeStyle = 'rgba(92, 213, 255, 0.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(player.x + player.w / 2, player.y + player.h / 2,
+              (player.w / 2 + 6) * pulse, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
     }
   }
 
@@ -1456,8 +1510,11 @@
       rafId = requestAnimationFrame(loop);
       return;
     }
-    const dtMs = Math.min(50, ts - (lastFrameMs || ts));
+    const dtMsRaw = Math.min(50, ts - (lastFrameMs || ts));
     lastFrameMs = ts;
+    // Slow-motion durante morte do boss (1.2s a 30% da velocidade)
+    const slowmoActive = ts < bossDeathSlowmoUntilMs;
+    const dtMs = slowmoActive ? dtMsRaw * 0.3 : dtMsRaw;
     const dt = dtMs / 16.67;   // normaliza para "1 = um frame de 60fps"
 
     const elapsedMs = ts - startTimeMs - pauseOffsetMs;
@@ -1484,6 +1541,21 @@
     handleBossCollisions();
     handleBossMinionCollisions();
 
+    // Screen-shake: translate o canvas todo enquanto o shake estiver ativo
+    let shakeX = 0, shakeY = 0;
+    if (ts < shakeUntilMs && shakeIntensity > 0) {
+      // Decai com o tempo
+      const remaining = (shakeUntilMs - ts) / 200;  // 200ms = pico
+      const k = Math.min(1, remaining) * shakeIntensity;
+      shakeX = (Math.random() - 0.5) * 2 * k;
+      shakeY = (Math.random() - 0.5) * 2 * k;
+    } else {
+      shakeIntensity = 0;
+    }
+
+    ctx.save();
+    if (shakeX || shakeY) ctx.translate(shakeX, shakeY);
+
     clear();
     drawTiledBackground(bgFar,  bgFarY);
     drawTiledBackground(bgMid,  bgMidY);
@@ -1496,10 +1568,28 @@
     drawPowerups(ts);
     drawParticles();
     drawPlayer();
+
+    ctx.restore();
+
+    // HUD fora do shake (UI nunca treme)
     drawHud(timeLeft);
     drawActiveEffectsHud(ts);
     drawBossHud(ts);
     drawBossWarning(ts);
+
+    // Damage flash (vermelho semi-transparente sobre toda a tela)
+    if (ts < damageFlashUntilMs) {
+      const alpha = (damageFlashUntilMs - ts) / 220;
+      ctx.fillStyle = 'rgba(255, 40, 40, ' + (alpha * 0.35) + ')';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Boss death flash (branco intenso)
+    if (ts < bossDeathFlashUntilMs) {
+      const alpha = (bossDeathFlashUntilMs - ts) / 400;
+      ctx.fillStyle = 'rgba(255, 255, 255, ' + (alpha * 0.7) + ')';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
     // Condições de fim
     if (player.hp <= 0) { endRun('loss'); return; }
@@ -1551,6 +1641,11 @@
     effects.shield = false;
     effects.tripleShotUntil = 0;
     effects.slowTimeUntil = 0;
+    shakeUntilMs = 0;
+    shakeIntensity = 0;
+    damageFlashUntilMs = 0;
+    bossDeathFlashUntilMs = 0;
+    bossDeathSlowmoUntilMs = 0;
 
     spawnPlayer();
     loadBackgrounds(stage.sector);
