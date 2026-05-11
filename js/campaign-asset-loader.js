@@ -23,6 +23,13 @@
 
   const BASE = '/img/campaign';
 
+  /**
+   * Asset version. Bumpar quando trocar PNGs no servidor para forçar
+   * o browser a baixar de novo (cache busting via query string).
+   * Ex: depois de substituir bosses ou power-ups.
+   */
+  const ASSET_VERSION = 3;
+
   // Manifesto único: mantém alinhado com img/campaign/SPRITES.md
   // Cada chave é a sprite_key persistida no banco / usada no engine.
   const MANIFEST = {
@@ -160,7 +167,8 @@
         delete inflight[key];
         reject(new Error(`CampaignAssets: falha ao carregar "${key}" (${url})`));
       };
-      img.src = url;
+      // Cache-busting: append ?v= força browser/CDN a re-baixar quando trocamos arte
+      img.src = url + (url.includes('?') ? '&' : '?') + 'v=' + ASSET_VERSION;
     });
 
     return inflight[key];
