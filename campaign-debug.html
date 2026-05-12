@@ -149,9 +149,8 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/auth-manager.js"></script>
 
-<!-- Asset loader da campanha + engine (apenas pra expor CampaignDrawPowerupIcon) -->
+<!-- Asset loader da campanha (power-ups são desenhados inline abaixo) -->
 <script src="js/campaign-asset-loader.js"></script>
-<script src="js/campaign-engine.js"></script>
 
 <script>
   document.getElementById('build-stamp').textContent = new Date().toISOString();
@@ -177,8 +176,114 @@
     { type: 'slow_time',   icon: 'clock',  color: '#a0aaff', label: 'powerup_slow_time (Slow)' },
   ];
 
+  // Versão INLINE de drawPowerupIcon — espelhada do engine pra que o
+  // debug HTML não dependa de campaign-engine.js carregar. Se mudar
+  // o desenho no engine, atualize aqui também.
+  function debugDrawPowerupIcon(ctx, icon, cx, cy, size, color, nowMs) {
+    const r = size / 2;
+    const bg = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 2, cx, cy, r);
+    bg.addColorStop(0, '#ffffff');
+    bg.addColorStop(0.35, color);
+    bg.addColorStop(1, '#0a0f1a');
+    ctx.fillStyle = bg;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = Math.max(1.5, size * 0.06);
+    ctx.strokeStyle = '#ffffff';
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath(); ctx.arc(cx, cy, r - ctx.lineWidth / 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(2, size * 0.1);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    switch (icon) {
+      case 'shield': {
+        const w = size * 0.5, h = size * 0.6;
+        const x = cx - w / 2, y = cy - h / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, y);
+        ctx.lineTo(x, y + h * 0.25);
+        ctx.lineTo(x, y + h * 0.6);
+        ctx.quadraticCurveTo(cx, y + h * 1.1, x + w, y + h * 0.6);
+        ctx.lineTo(x + w, y + h * 0.25);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = size * 0.09;
+        ctx.beginPath();
+        ctx.moveTo(cx - w * 0.22, cy);
+        ctx.lineTo(cx - w * 0.04, cy + h * 0.18);
+        ctx.lineTo(cx + w * 0.28, cy - h * 0.15);
+        ctx.stroke();
+        break;
+      }
+      case 'repair': {
+        const t = size * 0.18, l = size * 0.6;
+        ctx.fillRect(cx - t / 2, cy - l / 2, t, l);
+        ctx.fillRect(cx - l / 2, cy - t / 2, l, t);
+        break;
+      }
+      case 'bomb': {
+        ctx.fillStyle = '#1a1a22';
+        ctx.beginPath(); ctx.arc(cx, cy + size * 0.06, size * 0.28, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath(); ctx.arc(cx - size * 0.1, cy - size * 0.04, size * 0.06, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = size * 0.06;
+        ctx.beginPath();
+        ctx.moveTo(cx + size * 0.16, cy - size * 0.18);
+        ctx.quadraticCurveTo(cx + size * 0.28, cy - size * 0.32, cx + size * 0.18, cy - size * 0.38);
+        ctx.stroke();
+        const blink = (Math.sin(nowMs * 0.02) + 1) / 2;
+        ctx.fillStyle = `rgba(255, 200, 80, ${0.5 + blink * 0.5})`;
+        ctx.beginPath(); ctx.arc(cx + size * 0.18, cy - size * 0.40, size * 0.05 + blink * 0.02 * size, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'triple': {
+        const drawArrow = (offsetX, angle) => {
+          ctx.save();
+          ctx.translate(cx + offsetX, cy);
+          ctx.rotate(angle);
+          ctx.beginPath();
+          ctx.moveTo(0, -size * 0.26);
+          ctx.lineTo(-size * 0.08, size * 0.16);
+          ctx.lineTo(0, size * 0.06);
+          ctx.lineTo(size * 0.08, size * 0.16);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        };
+        drawArrow(-size * 0.18, -0.35);
+        drawArrow(0, 0);
+        drawArrow(size * 0.18, 0.35);
+        break;
+      }
+      case 'clock': {
+        ctx.lineWidth = size * 0.08;
+        ctx.strokeStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(cx, cy, size * 0.28, 0, Math.PI * 2); ctx.stroke();
+        const a = nowMs * 0.001;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(a) * size * 0.16, cy + Math.sin(a) * size * 0.16);
+        ctx.stroke();
+        ctx.lineWidth = size * 0.06;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(a * 0.2 - Math.PI / 2) * size * 0.22, cy + Math.sin(a * 0.2 - Math.PI / 2) * size * 0.22);
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(cx, cy, size * 0.04, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+    }
+  }
+
   function renderProceduralPowerups(root) {
-    if (typeof CampaignDrawPowerupIcon !== 'function') return;
     const wrap = document.createElement('div');
     wrap.className = 'group';
     const h = document.createElement('h3');
@@ -198,7 +303,7 @@
       canvas.style.width = '64px';
       canvas.style.height = '64px';
       const c = canvas.getContext('2d');
-      CampaignDrawPowerupIcon(c, pu.icon, 48, 48, 72, pu.color, performance.now());
+      debugDrawPowerupIcon(c, pu.icon, 48, 48, 72, pu.color, performance.now());
       frame.appendChild(canvas);
       const lbl = document.createElement('div');
       lbl.className = 'key';
