@@ -72,12 +72,14 @@
   // - 'shield' / 'repair' / 'bomb': aplicação instantânea
   // - 'triple_shot' / 'slow_time': efeito com duração (ms)
   // ----------------------------------------------------------------------
+  // Power-ups são desenhados proceduralmente via canvas (drawPowerupIcon).
+  // Não dependem de PNG no servidor, então nunca quebram por cache/404.
   const POWERUPS = {
-    shield:      { spriteKey: 'powerup_shield',      timed: false, color: '#5cd5ff' },
-    repair:      { spriteKey: 'powerup_repair',      timed: false, color: '#ff5566', amount: 25 },
-    bomb:        { spriteKey: 'powerup_bomb',        timed: false, color: '#ff7e4a' },
-    triple_shot: { spriteKey: 'powerup_triple_shot', timed: true,  color: '#ffd166', durationMs: 10000 },
-    slow_time:   { spriteKey: 'powerup_slow_time',   timed: true,  color: '#a0aaff', durationMs: 5000, slowFactor: 0.5 },
+    shield:      { icon: 'shield', timed: false, color: '#5cd5ff' },
+    repair:      { icon: 'repair', timed: false, color: '#ff5566', amount: 25 },
+    bomb:        { icon: 'bomb',   timed: false, color: '#ff7e4a' },
+    triple_shot: { icon: 'triple', timed: true,  color: '#ffd166', durationMs: 10000 },
+    slow_time:   { icon: 'clock',  timed: true,  color: '#a0aaff', durationMs: 5000, slowFactor: 0.5 },
   };
   const POWERUP_KEYS = Object.keys(POWERUPS);
 
@@ -724,7 +726,6 @@
       w, h,
       vy: cfg.powerupFallSpeed,
       type,
-      sprite: (global.CampaignAssets && global.CampaignAssets.tryGet(def.spriteKey)) || null,
     });
   }
 
@@ -1351,29 +1352,165 @@
     }
   }
 
-  function drawPowerups(nowMs) {
-    for (const p of powerups) {
-      // Pulsa levemente
-      const pulse = 1 + Math.sin(nowMs * 0.006) * 0.05;
-      const w = p.w * pulse, h = p.h * pulse;
-      const x = p.x + p.w / 2 - w / 2;
-      const y = p.y + p.h / 2 - h / 2;
+  // Desenha um ícone procedural de power-up no canvas atual.
+  // cx,cy = centro; size = lado do bounding box; color = cor principal; nowMs pra pequenas animações.
+  function drawPowerupIcon(ctx, icon, cx, cy, size, color, nowMs) {
+    const r = size / 2;
 
-      // Halo
-      const grad = ctx.createRadialGradient(p.x + p.w / 2, p.y + p.h / 2, 4, p.x + p.w / 2, p.y + p.h / 2, p.w * 0.9);
-      grad.addColorStop(0, POWERUPS[p.type].color + 'cc');
-      grad.addColorStop(1, POWERUPS[p.type].color + '00');
-      ctx.fillStyle = grad;
-      ctx.fillRect(p.x - 8, p.y - 8, p.w + 16, p.h + 16);
+    // Disco de fundo (cápsula brilhante) + borda
+    const bg = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 2, cx, cy, r);
+    bg.addColorStop(0, '#ffffff');
+    bg.addColorStop(0.35, color);
+    bg.addColorStop(1, '#0a0f1a');
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
 
-      if (p.sprite && p.sprite.complete) {
-        ctx.drawImage(p.sprite, x, y, w, h);
-      } else {
-        ctx.fillStyle = POWERUPS[p.type].color;
-        ctx.fillRect(x, y, w, h);
+    ctx.lineWidth = Math.max(1.5, size * 0.06);
+    ctx.strokeStyle = '#ffffff';
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r - ctx.lineWidth / 2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Ícone branco em cima
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(2, size * 0.1);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    switch (icon) {
+      case 'shield': {
+        // Escudo (forma de gota arredondada)
+        const w = size * 0.5, h = size * 0.6;
+        const x = cx - w / 2, y = cy - h / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, y);
+        ctx.lineTo(x, y + h * 0.25);
+        ctx.lineTo(x, y + h * 0.6);
+        ctx.quadraticCurveTo(cx, y + h * 1.1, x + w, y + h * 0.6);
+        ctx.lineTo(x + w, y + h * 0.25);
+        ctx.closePath();
+        ctx.fill();
+        // Marca de checkmark
+        ctx.strokeStyle = color;
+        ctx.lineWidth = size * 0.09;
+        ctx.beginPath();
+        ctx.moveTo(cx - w * 0.22, cy);
+        ctx.lineTo(cx - w * 0.04, cy + h * 0.18);
+        ctx.lineTo(cx + w * 0.28, cy - h * 0.15);
+        ctx.stroke();
+        break;
+      }
+      case 'repair': {
+        // Cruz vermelha
+        const t = size * 0.18, l = size * 0.6;
+        ctx.fillRect(cx - t / 2, cy - l / 2, t, l);
+        ctx.fillRect(cx - l / 2, cy - t / 2, l, t);
+        break;
+      }
+      case 'bomb': {
+        // Esfera escura com pavio e brilho
+        ctx.fillStyle = '#1a1a22';
+        ctx.beginPath();
+        ctx.arc(cx, cy + size * 0.06, size * 0.28, 0, Math.PI * 2);
+        ctx.fill();
+        // Reflexo
+        ctx.fillStyle = '#ffffff';
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        ctx.arc(cx - size * 0.1, cy - size * 0.04, size * 0.06, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        // Pavio
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = size * 0.06;
+        ctx.beginPath();
+        ctx.moveTo(cx + size * 0.16, cy - size * 0.18);
+        ctx.quadraticCurveTo(cx + size * 0.28, cy - size * 0.32, cx + size * 0.18, cy - size * 0.38);
+        ctx.stroke();
+        // Faísca (pisca)
+        const blink = (Math.sin(nowMs * 0.02) + 1) / 2;
+        ctx.fillStyle = `rgba(255, 200, 80, ${0.5 + blink * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(cx + size * 0.18, cy - size * 0.40, size * 0.05 + blink * 0.02 * size, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'triple': {
+        // Três setas/tiros pra cima em leque
+        const drawArrow = (offsetX, angle) => {
+          ctx.save();
+          ctx.translate(cx + offsetX, cy);
+          ctx.rotate(angle);
+          ctx.beginPath();
+          ctx.moveTo(0, -size * 0.26);
+          ctx.lineTo(-size * 0.08, size * 0.16);
+          ctx.lineTo(0, size * 0.06);
+          ctx.lineTo(size * 0.08, size * 0.16);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        };
+        drawArrow(-size * 0.18, -0.35);
+        drawArrow(0, 0);
+        drawArrow(size * 0.18, 0.35);
+        break;
+      }
+      case 'clock': {
+        // Relógio (ampulheta simples + ponteiros)
+        ctx.lineWidth = size * 0.08;
+        ctx.strokeStyle = '#ffffff';
+        // Aro interno (já tem o externo na cápsula)
+        ctx.beginPath();
+        ctx.arc(cx, cy, size * 0.28, 0, Math.PI * 2);
+        ctx.stroke();
+        // Ponteiros (animados, mas devagar)
+        const a = nowMs * 0.001;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(a) * size * 0.16, cy + Math.sin(a) * size * 0.16);
+        ctx.stroke();
+        ctx.lineWidth = size * 0.06;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(a * 0.2 - Math.PI / 2) * size * 0.22, cy + Math.sin(a * 0.2 - Math.PI / 2) * size * 0.22);
+        ctx.stroke();
+        // Ponto central
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(cx, cy, size * 0.04, 0, Math.PI * 2);
+        ctx.fill();
+        break;
       }
     }
   }
+
+  function drawPowerups(nowMs) {
+    for (const p of powerups) {
+      const def = POWERUPS[p.type];
+      const cx = p.x + p.w / 2;
+      const cy = p.y + p.h / 2;
+      const pulse = 1 + Math.sin(nowMs * 0.006) * 0.05;
+      const size = p.w * pulse;
+
+      // Halo
+      const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, p.w * 0.9);
+      grad.addColorStop(0, def.color + 'cc');
+      grad.addColorStop(1, def.color + '00');
+      ctx.fillStyle = grad;
+      ctx.fillRect(p.x - 8, p.y - 8, p.w + 16, p.h + 16);
+
+      drawPowerupIcon(ctx, def.icon, cx, cy, size, def.color, nowMs);
+    }
+  }
+
+  // Expor pro debug HTML pré-renderizar cada ícone em mini-canvas.
+  global.CampaignDrawPowerupIcon = drawPowerupIcon;
 
   function drawBossHud(nowMs) {
     if (!boss) return;
