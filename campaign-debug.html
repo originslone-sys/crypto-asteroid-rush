@@ -254,6 +254,10 @@
     const root = document.getElementById('assets-gallery');
     root.innerHTML = '';
     for (const group of GALLERY_GROUPS) {
+      // Insere os power-ups procedurais logo APÓS os Bosses (posição original)
+      if (group.title.startsWith('Projéteis')) {
+        renderProceduralPowerups(root);
+      }
       const keys = Object.keys(CampaignAssets.MANIFEST).filter(k => classifyKey(k, group));
       if (!keys.length) continue;
 
@@ -289,9 +293,6 @@
       wrap.appendChild(grid);
       root.appendChild(wrap);
     }
-
-    // Seção dedicada pros power-ups procedurais (canvas, sem PNG)
-    renderProceduralPowerups(root);
   }
 
   // ----------------------------------------------------------------------
