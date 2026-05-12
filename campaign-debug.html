@@ -149,8 +149,9 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/auth-manager.js"></script>
 
-<!-- Asset loader da campanha -->
+<!-- Asset loader da campanha + engine (apenas pra expor CampaignDrawPowerupIcon) -->
 <script src="js/campaign-asset-loader.js"></script>
+<script src="js/campaign-engine.js"></script>
 
 <script>
   document.getElementById('build-stamp').textContent = new Date().toISOString();
@@ -163,10 +164,52 @@
     { title: 'Setor 1 — Inimigos',              prefix: ['s1_'] },
     { title: 'Setor 2 — Inimigos',              prefix: ['s2_'] },
     { title: 'Bosses',                          prefix: ['boss_'] },
-    { title: 'Power-ups',                       prefix: ['powerup_'] },
     { title: 'Projéteis',                       prefix: ['player_bullet','enemy_bullet','bullets_sheet','muzzle_flash'] },
     { title: 'Backgrounds (parallax)',          prefix: ['bg_'], isBackground: true },
   ];
+
+  // Power-ups são procedurais (canvas) — não estão no MANIFEST.
+  const PROCEDURAL_POWERUPS = [
+    { type: 'shield',      icon: 'shield', color: '#5cd5ff', label: 'powerup_shield (Escudo)' },
+    { type: 'repair',      icon: 'repair', color: '#ff5566', label: 'powerup_repair (Reparo)' },
+    { type: 'bomb',        icon: 'bomb',   color: '#ff7e4a', label: 'powerup_bomb (Bomba)' },
+    { type: 'triple_shot', icon: 'triple', color: '#ffd166', label: 'powerup_triple_shot (Triplo)' },
+    { type: 'slow_time',   icon: 'clock',  color: '#a0aaff', label: 'powerup_slow_time (Slow)' },
+  ];
+
+  function renderProceduralPowerups(root) {
+    if (typeof CampaignDrawPowerupIcon !== 'function') return;
+    const wrap = document.createElement('div');
+    wrap.className = 'group';
+    const h = document.createElement('h3');
+    h.textContent = `Power-ups (${PROCEDURAL_POWERUPS.length}) — procedurais`;
+    wrap.appendChild(h);
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+
+    for (const pu of PROCEDURAL_POWERUPS) {
+      const card = document.createElement('div');
+      card.className = 'sprite-card';
+      const frame = document.createElement('div');
+      frame.className = 'frame';
+      const canvas = document.createElement('canvas');
+      canvas.width = 96;
+      canvas.height = 96;
+      canvas.style.width = '64px';
+      canvas.style.height = '64px';
+      const c = canvas.getContext('2d');
+      CampaignDrawPowerupIcon(c, pu.icon, 48, 48, 72, pu.color, performance.now());
+      frame.appendChild(canvas);
+      const lbl = document.createElement('div');
+      lbl.className = 'key';
+      lbl.textContent = pu.label;
+      card.appendChild(frame);
+      card.appendChild(lbl);
+      grid.appendChild(card);
+    }
+    wrap.appendChild(grid);
+    root.appendChild(wrap);
+  }
 
   function classifyKey(key, group) {
     for (const p of group.prefix) {
@@ -246,6 +289,9 @@
       wrap.appendChild(grid);
       root.appendChild(wrap);
     }
+
+    // Seção dedicada pros power-ups procedurais (canvas, sem PNG)
+    renderProceduralPowerups(root);
   }
 
   // ----------------------------------------------------------------------
