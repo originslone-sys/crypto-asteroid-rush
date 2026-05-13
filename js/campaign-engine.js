@@ -1641,6 +1641,16 @@
   // ----------------------------------------------------------------------
   function loop(ts) {
     if (!running) return;
+    try {
+      runFrame(ts);
+    } catch (err) {
+      console.error('[CampaignEngine] erro no frame:', err);
+      // Re-agenda mesmo após erro pra não congelar tudo (próximos frames podem recuperar)
+      rafId = requestAnimationFrame(loop);
+    }
+  }
+
+  function runFrame(ts) {
     if (paused) {
       // Mantém o frame congelado e re-agenda; sem update, sem dt.
       lastFrameMs = ts;
