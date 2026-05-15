@@ -414,7 +414,9 @@
 <script src="js/campaign-engine.js"></script>
 
 <script>
+console.log('[CampaignGame] inline script INICIANDO, CampaignEngine=', typeof window.CampaignEngine, ', CampaignAssets=', typeof window.CampaignAssets);
 (function () {
+  console.log('[CampaignGame] IIFE rodando');
   const params = new URLSearchParams(location.search);
   const STAGE_ID = params.get('stage') || 's1f1';
 
@@ -828,12 +830,18 @@
     refreshIdleUi();
   }
 
-  showOverlay('idle');
-  els.preMeta.textContent = 'Pré-carregando sprites...';
-  bindUI();
-  preloadAssets()
-    .then(() => bindAuth())
-    .catch((e) => showError('Falha no preload: ' + e.message));
+  console.log('[CampaignGame] chegou no boot, els=', els);
+  try {
+    showOverlay('idle');
+    els.preMeta.textContent = 'Pré-carregando sprites...';
+    bindUI();
+    console.log('[CampaignGame] bindUI OK, iniciando preload');
+    preloadAssets()
+      .then(() => { console.log('[CampaignGame] preload concluido'); bindAuth(); })
+      .catch((e) => { console.error('[CampaignGame] preload FALHOU:', e); showError('Falha no preload: ' + e.message); });
+  } catch (e) {
+    console.error('[CampaignGame] erro no boot inline:', e);
+  }
 })();
 </script>
 
