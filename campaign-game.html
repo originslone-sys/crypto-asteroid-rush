@@ -490,6 +490,7 @@
 
   // ----- start flow -----
   async function startStage() {
+    console.log('[CampaignGame] startStage clicado, stage_id=', STAGE_ID);
     const u = uid();
     if (!u) { showError('Faça login antes de iniciar.'); return; }
     els.preMeta.textContent = 'Iniciando sessão...';
@@ -497,8 +498,10 @@
       const fd = new FormData();
       fd.set('google_uid', u);
       fd.set('stage_id', STAGE_ID);
+      console.log('[CampaignGame] POST /api/campaign-start.php...');
       const r = await fetch('/api/campaign-start.php', { method: 'POST', body: fd });
       const data = await r.json();
+      console.log('[CampaignGame] resposta campaign-start:', data);
       if (!data.success) {
         showError(data.error || 'Falha ao iniciar');
         return;
@@ -511,7 +514,9 @@
       els.pauseBtn.style.display = 'block';
 
       // Sprites do setor da fase (recarrega no caso de fase de outro setor)
+      console.log('[CampaignGame] preloadForStage sector=', data.data.stage.sector);
       await CampaignAssets.preloadForStage(data.data.stage.sector || 1, ALL_BEHAVIORS, EXTRA_KEYS);
+      console.log('[CampaignGame] preload OK, chamando CampaignEngine.start');
 
       CampaignEngine.start({
         canvas: els.canvas,
@@ -521,7 +526,9 @@
         shipSpriteKey: data.data.ship_sprite_key || 'ship_default',
         onEnd: handleEnd,
       });
+      console.log('[CampaignGame] CampaignEngine.start retornou');
     } catch (e) {
+      console.error('[CampaignGame] erro em startStage:', e);
       showError('Erro de rede: ' + e.message);
     }
   }
