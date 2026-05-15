@@ -1765,9 +1765,11 @@
   // Lifecycle
   // ----------------------------------------------------------------------
   function start(opts) {
-    if (running) return;
+    console.log('[CampaignEngine] start() chamado com opts:', opts);
+    if (running) { console.warn('[CampaignEngine] já está rodando, ignorando'); return; }
     canvas = opts.canvas;
     ctx = canvas.getContext('2d');
+    console.log('[CampaignEngine] canvas obtido:', canvas?.width, 'x', canvas?.height);
     stage = opts.stage || { duration_seconds: 60, sector: 1 };
     onEndCb = typeof opts.onEnd === 'function' ? opts.onEnd : null;
     cfg = { ...DEFAULTS, ...(opts.config || {}) };
@@ -1903,4 +1905,5 @@
   }
 
   global.CampaignEngine = { start, stop, pause, resume, isPaused, revive };
+  console.log('[CampaignEngine] carregado e exposto em window.CampaignEngine');
 })(window);
