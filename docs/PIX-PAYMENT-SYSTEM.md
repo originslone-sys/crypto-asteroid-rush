@@ -109,8 +109,8 @@ define('RECONCILE_CRON_TOKEN', getenv('RECONCILE_CRON_TOKEN') ?: 'seu_token_segu
 # ZettPay Gateway
 ZETTPAY_BASE_URL=https://api.zettpay.io/api
 ZETTPAY_AUTH_URL=https://api.zettpay.io/api/oauth/token
-ZETTPAY_CLIENT_ID=clt_xxxxxxxxxxxxx
-ZETTPAY_CLIENT_SECRET=sec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ZETTPAY_CLIENT_ID=clt_1mthizu2zvwhuvnk7av3eiqv
+ZETTPAY_CLIENT_SECRET=sec_YaHsLS1ciJWHulXdLPXrW7Ia8SQUYwo6fYvwh3WygdNuQCvn
 
 # Segurança
 RECONCILE_CRON_TOKEN=rcn_seu_token_seguro
