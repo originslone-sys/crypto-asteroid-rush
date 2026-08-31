@@ -384,13 +384,10 @@ Diferentes fluxos reutilizam o mesmo mecanismo de depósito PIX, diferenciados p
 
 | Regra | Valor |
 |---|---|
-| Depósito mínimo | R$ 1,00 |
-| Depósito máximo | R$ 500,00 |
-| Saque mínimo | R$ 50,00 |
-| Depósitos pendentes simultâneos | máx. 3 (janela de 30 min) |
-| Saques pendentes simultâneos | máx. 2 (configurável) |
-| Chave PIX aceita | apenas CPF |
-| Chaves PIX salvas por usuário | máx. 1 |
+| Depósito mínimo | R$ 5,00 |
+| Depósito máximo | R$ 1000,00 |
+| Saque mínimo | R$ 5,00 |
+
 
 ---
 
